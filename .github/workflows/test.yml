@@ -1,0 +1,37 @@
+name: test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Run tests with pytest
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 2
+      matrix:
+        python-version: ["3.9", "3.10"]
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2.1.4
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install Poetry
+      run: |
+        python3 -m pip install --user pipx
+        python3 -m pipx ensurepath
+        python3 -m pipx install poetry
+    - name: Add path for Python packages
+      run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+    - name: Install dependencies
+      run: |
+        poetry config virtualenvs.create false
+        poetry install --no-interaction
+    - name: Run tests
+      run: |
+        poetry run pytest
