@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "ula"
+version = "0.1.0"
+description = "A unified language analyzer for Japanese"
+authors = [
+    "Hirokazu Kiyomaru <kiyomaru@i.kyoto-u.ac.jp>",
+    "Nobuhiro Ueda <ueda@nlp.i.kyoto-u.ac.jp>",
+    "Kazumasa Omura <omura@nlp.i.kyoto-u.ac.jp>",
+    "Takashi Kodama <kodama@nlp.i.kyoto-u.ac.jp>",
+    "Yugo Murawaki <murawaki@i.kyoto-u.ac.jp>",
+    "Daisuke Kawahara <dkw@waseda.jp>",
+    "Sadao Kurohashi <kuro@i.kyoto-u.ac.jp>"
+]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
