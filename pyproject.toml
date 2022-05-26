@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "ula"
+name = "jula"
 version = "0.1.0"
 description = "A unified language analyzer for Japanese"
 authors = [
@@ -20,7 +20,7 @@ typer = "^0.4.1"
 pytest = "^6.2"
 
 [tool.poetry.scripts]
-ula = "ula.cli:app"
+ula = "jula.cli:app"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

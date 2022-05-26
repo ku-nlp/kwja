@@ -1,4 +1,4 @@
-from ula import __version__
+from jula import __version__
 
 
 def test_version():

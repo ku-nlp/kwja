@@ -1,6 +1,6 @@
 from typer.testing import CliRunner
 
-from ula.cli import app
+from jula.cli import app
 
 runner = CliRunner()
 
