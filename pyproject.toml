@@ -22,6 +22,8 @@ tokenizers = "^0.12.1"
 transformers = "~4.19.2"
 rhoknp = "^0.1.0"
 typer = "^0.4.1"
+sentencepiece = "^0.1.96"
+protobuf = "~3.20"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2"
