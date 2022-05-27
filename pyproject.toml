@@ -29,7 +29,7 @@ protobuf = "~3.20"
 pytest = "^6.2"
 
 [tool.poetry.scripts]
-ula = "jula.cli:app"
+jula = "jula.cli.cli:app"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
