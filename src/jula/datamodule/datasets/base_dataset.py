@@ -2,7 +2,7 @@ from pathlib import Path
 
 from rhoknp import Document
 from torch.utils.data import Dataset
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, PreTrainedTokenizer
 
 
 class BaseDataset(Dataset):
@@ -10,6 +10,7 @@ class BaseDataset(Dataset):
         self,
         path: str,
         model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
+        max_seq_length: int = 512,
         ext: str = "knp",
     ) -> None:
         self.path = Path(path)
@@ -18,7 +19,10 @@ class BaseDataset(Dataset):
         self.documents = self.load_documents(self.path, ext)
         assert len(self) != 0
 
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
+        self.tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(
+            model_name_or_path
+        )
+        self.max_seq_length = max_seq_length
 
     def __len__(self) -> int:
         return len(self.documents)
