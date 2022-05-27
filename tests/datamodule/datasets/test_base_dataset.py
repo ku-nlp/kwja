@@ -28,5 +28,5 @@ def test_load_documents():
 
 
 def test_len():
-    dataset = BaseDataset.load_documents(path)
+    dataset = BaseDataset(str(path))
     assert len(dataset) == 1
