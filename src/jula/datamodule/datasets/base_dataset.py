@@ -2,15 +2,23 @@ from pathlib import Path
 
 from rhoknp import Document
 from torch.utils.data import Dataset
+from transformers import AutoTokenizer
 
 
 class BaseDataset(Dataset):
-    def __init__(self, path: str, ext: str = "knp") -> None:
+    def __init__(
+        self,
+        path: str,
+        model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
+        ext: str = "knp",
+    ) -> None:
         self.path = Path(path)
         assert self.path.is_dir()
 
         self.documents = self.load_documents(self.path, ext)
         assert len(self) != 0
+
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
 
     def __len__(self) -> int:
         return len(self.documents)
