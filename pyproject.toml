@@ -13,7 +13,7 @@ authors = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = ">=3.9,<3.11"
 typer = "^0.4.1"
 torch = "^1.11.0"
 pytorch-lightning = "^1.6"
@@ -21,6 +21,7 @@ omegaconf = "^2.1"
 hydra-core = "^1.2"
 transformers = "~4.19.2"
 tokenizers = "^0.11.6"
+rhoknp = "^0.1.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2"
