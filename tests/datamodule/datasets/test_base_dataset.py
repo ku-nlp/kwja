@@ -29,4 +29,4 @@ def test_load_documents():
 
 def test_len():
     dataset = BaseDataset(str(path))
-    assert len(dataset) == 1
+    assert len(dataset) == 2
