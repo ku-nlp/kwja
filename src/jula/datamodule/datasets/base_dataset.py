@@ -11,6 +11,7 @@ class BaseDataset(Dataset):
         path: str,
         model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
         max_seq_length: int = 512,
+        tokenizer_kwargs: dict = None,
         ext: str = "knp",
     ) -> None:
         self.path = Path(path)
@@ -19,8 +20,10 @@ class BaseDataset(Dataset):
         self.documents = self.load_documents(self.path, ext)
         assert len(self) != 0
 
+        tokenizer_kwargs = tokenizer_kwargs or {}
         self.tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(
-            model_name_or_path
+            model_name_or_path,
+            **tokenizer_kwargs,
         )
         self.max_seq_length = max_seq_length
 
