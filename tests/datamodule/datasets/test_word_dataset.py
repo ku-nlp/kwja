@@ -1,7 +1,6 @@
 import textwrap
 from pathlib import Path
 
-import torch
 from rhoknp import Document
 
 from jula.datamodule.datasets.word_dataset import WordDataset
@@ -25,22 +24,19 @@ def test_getitem():
         assert "input_ids" in item
         assert "attention_mask" in item
         assert "subword_map" in item
-        assert "base_phrase_features" in item
         assert "word_features" in item
+        assert "base_phrase_features" in item
+        assert "dependencies" in item
         assert item["input_ids"].shape == (max_seq_length,)
         assert item["attention_mask"].shape == (max_seq_length,)
         assert item["subword_map"].shape == (max_seq_length, max_seq_length)
-        assert torch.sum(torch.sum(item["subword_map"], dim=1) != 0) == len(
-            document.morphemes
-        )
+        assert (item["subword_map"].sum(dim=1) != 0).sum() == len(document.morphemes)
         assert item["base_phrase_features"].shape == (
             max_seq_length,
             len(BASE_PHRASE_FEATURES),
         )
-        assert item["word_features"].shape == (
-            max_seq_length,
-            len(WORD_FEATURES),
-        )
+        assert item["word_features"].shape == (max_seq_length, len(WORD_FEATURES))
+        assert item["dependencies"].shape == (max_seq_length, max_seq_length)
 
 
 def test_encode():
@@ -121,3 +117,22 @@ def test_encode():
     base_phrase_features[7][BASE_PHRASE_FEATURES.index("節-主辞")] = 1.0
     base_phrase_features[7][BASE_PHRASE_FEATURES.index("時制:非過去")] = 1.0
     assert encoding["base_phrase_features"].tolist() == base_phrase_features
+
+    dependencies = [[0] * max_seq_length for _ in range(max_seq_length)]
+    # 0: 風 -> 2: 吹く
+    dependencies[0][2] = 1
+    # 1: が -> 0: 風
+    dependencies[1][0] = 1
+    # 2: 吹く -> ROOT (TODO)
+    # 3: 。 -> 2: 吹く
+    dependencies[3][2] = 1
+    # 4: すると -> 7: 儲かる
+    dependencies[4][7] = 1
+    # 5: 桶屋 -> 7: 儲かる
+    dependencies[5][7] = 1
+    # 6: が -> 5: 桶屋
+    dependencies[6][5] = 1
+    # 7: 儲かる -> ROOT (TODO)
+    # 8: 。 -> 7: 儲かる
+    dependencies[8][7] = 1
+    assert encoding["dependencies"].tolist() == dependencies

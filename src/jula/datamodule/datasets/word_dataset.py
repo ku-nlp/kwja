@@ -18,6 +18,8 @@ class WordDataset(BaseDataset):
             padding="max_length",
             max_length=self.max_seq_length,
         )
+        input_ids = encoding["input_ids"]
+        attention_mask = encoding["attention_mask"]
 
         subword_map = [
             [False] * self.max_seq_length for _ in range(self.max_seq_length)
@@ -49,25 +51,20 @@ class WordDataset(BaseDataset):
                 if base_phrase.features.get(key, False) in (value, True):
                     head = base_phrase.head
                     base_phrase_features[head.global_index][i] = 1
+
+        # TODO: introduce the ROOT node
+        dependencies = [[0] * self.max_seq_length for _ in range(self.max_seq_length)]
+        for morpheme in document.morphemes:
+            parent = morpheme.parent
+            if parent:
+                dependencies[morpheme.global_index][morpheme.parent.global_index] = 1
         return {
-            "input_ids": torch.tensor(
-                encoding["input_ids"],
-                dtype=torch.long,
-            ),
-            "attention_mask": torch.tensor(
-                encoding["attention_mask"],
-                dtype=torch.long,
-            ),
-            "subword_map": torch.tensor(
-                subword_map,
-                dtype=torch.bool,
-            ),
-            "word_features": torch.tensor(
-                word_features,
-                dtype=torch.float,
-            ),
+            "input_ids": torch.tensor(input_ids, dtype=torch.long),
+            "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
+            "subword_map": torch.tensor(subword_map, dtype=torch.bool),
+            "word_features": torch.tensor(word_features, dtype=torch.float),
             "base_phrase_features": torch.tensor(
-                base_phrase_features,
-                dtype=torch.float,
+                base_phrase_features, dtype=torch.float
             ),
+            "dependencies": torch.tensor(dependencies, dtype=torch.long),
         }
