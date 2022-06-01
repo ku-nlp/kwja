@@ -37,8 +37,7 @@ class WordDataset(BaseDataset):
                 else:
                     key, value = base_phrase_feature, ""
                 if base_phrase.features.get(key, False) in (value, True):
-                    head = base_phrase.head
-                    base_phrase_features[head.global_index][i] = 1
+                    base_phrase_features[base_phrase.head.global_index][i] = 1
         return {
             "input_ids": torch.tensor(
                 encoding["input_ids"],
