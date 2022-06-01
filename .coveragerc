@@ -1,0 +1,15 @@
+[report]
+exclude_lines =
+	# Do not complain about missing debug-only code:
+	def __repr__
+
+	# Do not complain if tests do not hit defensive assertion code:
+	raise AssertionError
+	raise NotImplementedError
+
+	# Do not complain if non-runnable code is not run:
+	if TYPE_CHECKING
+	if __name__ == .__main__.:
+
+	# Do not complain about abstract methods:
+	@(abc\.)?abstractmethod
