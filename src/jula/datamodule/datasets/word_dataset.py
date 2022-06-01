@@ -20,7 +20,6 @@ class WordDataset(BaseDataset):
         )
         input_ids = encoding["input_ids"]
         attention_mask = encoding["attention_mask"]
-
         subword_map = [
             [False] * self.max_seq_length for _ in range(self.max_seq_length)
         ]
@@ -28,7 +27,7 @@ class WordDataset(BaseDataset):
             if word_id is not None:
                 subword_map[word_id][token_id] = True
 
-        # hereafter, indices are given at the word level
+        # NOTE: hereafter, indices are given at the word level
         word_features = [[0] * len(WORD_FEATURES) for _ in range(self.max_seq_length)]
         for base_phrase in document.base_phrases:
             head = base_phrase.head
@@ -58,6 +57,9 @@ class WordDataset(BaseDataset):
             parent = morpheme.parent
             if parent:
                 dependencies[morpheme.global_index][morpheme.parent.global_index] = 1
+
+        # TODO: PAS analysis & coreference resolution
+        # TODO: discourse relation analysis
         return {
             "input_ids": torch.tensor(input_ids, dtype=torch.long),
             "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
