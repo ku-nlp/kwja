@@ -5,7 +5,7 @@ import torch
 from rhoknp import Document
 
 from jula.datamodule.datasets.word_dataset import WordDataset
-from jula.utils.features import BASE_PHRASE_FEATURES
+from jula.utils.features import BASE_PHRASE_FEATURES, WORD_FEATURES
 
 here = Path(__file__).absolute().parent
 path = here.joinpath("knp_files")
@@ -26,6 +26,7 @@ def test_getitem():
         assert "attention_mask" in item
         assert "subword_map" in item
         assert "base_phrase_features" in item
+        assert "word_features" in item
         assert item["input_ids"].shape == (max_seq_length,)
         assert item["attention_mask"].shape == (max_seq_length,)
         assert item["subword_map"].shape == (max_seq_length, max_seq_length)
@@ -35,6 +36,10 @@ def test_getitem():
         assert item["base_phrase_features"].shape == (
             max_seq_length,
             len(BASE_PHRASE_FEATURES),
+        )
+        assert item["word_features"].shape == (
+            max_seq_length,
+            len(WORD_FEATURES),
         )
 
 
@@ -71,6 +76,33 @@ def test_encode():
         )
     )
     encoding = dataset.encode(document)
+
+    word_features = [[0.0] * len(WORD_FEATURES) for _ in range(max_seq_length)]
+    # 0: 風
+    word_features[0][WORD_FEATURES.index("基本句-主辞")] = 1.0
+    # 1: が
+    word_features[1][WORD_FEATURES.index("基本句-区切")] = 1.0
+    word_features[1][WORD_FEATURES.index("文節-区切")] = 1.0
+    # 2: 吹く
+    word_features[2][WORD_FEATURES.index("基本句-主辞")] = 1.0
+    # 3: 。
+    word_features[3][WORD_FEATURES.index("基本句-区切")] = 1.0
+    word_features[3][WORD_FEATURES.index("文節-区切")] = 1.0
+    # 4: すると
+    word_features[4][WORD_FEATURES.index("基本句-主辞")] = 1.0
+    word_features[4][WORD_FEATURES.index("基本句-区切")] = 1.0
+    word_features[4][WORD_FEATURES.index("文節-区切")] = 1.0
+    # 5: 桶屋
+    word_features[5][WORD_FEATURES.index("基本句-主辞")] = 1.0
+    # 6: が
+    word_features[6][WORD_FEATURES.index("基本句-区切")] = 1.0
+    word_features[6][WORD_FEATURES.index("文節-区切")] = 1.0
+    # 7: 儲かる
+    word_features[7][WORD_FEATURES.index("基本句-主辞")] = 1.0
+    # 8: 。
+    word_features[8][WORD_FEATURES.index("基本句-区切")] = 1.0
+    word_features[8][WORD_FEATURES.index("文節-区切")] = 1.0
+
     base_phrase_features = [
         [0.0] * len(BASE_PHRASE_FEATURES) for _ in range(max_seq_length)
     ]

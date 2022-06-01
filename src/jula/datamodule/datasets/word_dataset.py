@@ -3,7 +3,7 @@ from rhoknp import Document
 from transformers import BatchEncoding
 
 from jula.datamodule.datasets.base_dataset import BaseDataset
-from jula.utils.features import BASE_PHRASE_FEATURES
+from jula.utils.features import BASE_PHRASE_FEATURES, WORD_FEATURES
 
 
 class WordDataset(BaseDataset):
@@ -27,6 +27,16 @@ class WordDataset(BaseDataset):
                 subword_map[word_id][token_id] = True
 
         # hereafter, indices are given at the word level
+        word_features = [[0] * len(WORD_FEATURES) for _ in range(self.max_seq_length)]
+        for base_phrase in document.base_phrases:
+            head = base_phrase.head
+            end = base_phrase.morphemes[-1]
+            word_features[head.global_index][WORD_FEATURES.index("基本句-主辞")] = 1
+            word_features[end.global_index][WORD_FEATURES.index("基本句-区切")] = 1
+        for phrase in document.phrases:
+            end = phrase.morphemes[-1]
+            word_features[end.global_index][WORD_FEATURES.index("文節-区切")] = 1
+
         base_phrase_features = [
             [0] * len(BASE_PHRASE_FEATURES) for _ in range(self.max_seq_length)
         ]
@@ -37,7 +47,8 @@ class WordDataset(BaseDataset):
                 else:
                     key, value = base_phrase_feature, ""
                 if base_phrase.features.get(key, False) in (value, True):
-                    base_phrase_features[base_phrase.head.global_index][i] = 1
+                    head = base_phrase.head
+                    base_phrase_features[head.global_index][i] = 1
         return {
             "input_ids": torch.tensor(
                 encoding["input_ids"],
@@ -50,6 +61,10 @@ class WordDataset(BaseDataset):
             "subword_map": torch.tensor(
                 subword_map,
                 dtype=torch.bool,
+            ),
+            "word_features": torch.tensor(
+                word_features,
+                dtype=torch.float,
             ),
             "base_phrase_features": torch.tensor(
                 base_phrase_features,

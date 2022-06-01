@@ -1,3 +1,10 @@
+WORD_FEATURES = (
+    "基本句-主辞",
+    "基本句-区切",
+    "文節-区切",
+)
+
+
 BASE_PHRASE_FEATURES = (
     # type
     "用言:動",
