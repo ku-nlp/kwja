@@ -4,7 +4,7 @@ from pathlib import Path
 from rhoknp import Document
 
 from jula.datamodule.datasets.word_dataset import WordDataset
-from jula.utils.features import BASE_PHRASE_FEATURES, WORD_FEATURES
+from jula.utils.utils import BASE_PHRASE_FEATURES, WORD_FEATURES
 
 here = Path(__file__).absolute().parent
 path = here.joinpath("knp_files")

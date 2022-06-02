@@ -3,7 +3,7 @@ from rhoknp import Document
 from transformers import BatchEncoding
 
 from jula.datamodule.datasets.base_dataset import BaseDataset
-from jula.utils.features import BASE_PHRASE_FEATURES, WORD_FEATURES
+from jula.utils.utils import BASE_PHRASE_FEATURES, WORD_FEATURES
 
 
 class WordDataset(BaseDataset):
