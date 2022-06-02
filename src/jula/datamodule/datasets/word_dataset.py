@@ -3,7 +3,7 @@ from rhoknp import Document
 from transformers import BatchEncoding
 
 from jula.datamodule.datasets.base_dataset import BaseDataset
-from jula.utils.utils import BASE_PHRASE_FEATURES, WORD_FEATURES
+from jula.utils.utils import BASE_PHRASE_FEATURES, DISCOURSE_RELATIONS, WORD_FEATURES
 
 
 class WordDataset(BaseDataset):
@@ -60,6 +60,13 @@ class WordDataset(BaseDataset):
 
         # TODO: PAS analysis & coreference resolution
         # TODO: discourse relation analysis
+        discourse_relations = [
+            [
+                [DISCOURSE_RELATIONS.index("談話関係なし")] * len(DISCOURSE_RELATIONS)
+                for _ in range(self.max_seq_length)
+            ]
+            for _ in range(self.max_seq_length)
+        ]
         return {
             "input_ids": torch.tensor(input_ids, dtype=torch.long),
             "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
@@ -69,4 +76,5 @@ class WordDataset(BaseDataset):
                 base_phrase_features, dtype=torch.float
             ),
             "dependencies": torch.tensor(dependencies, dtype=torch.long),
+            "discourse_relations": torch.tensor(discourse_relations, dtype=torch.long),
         }

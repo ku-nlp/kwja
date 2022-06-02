@@ -4,7 +4,7 @@ from pathlib import Path
 from rhoknp import Document
 
 from jula.datamodule.datasets.word_dataset import WordDataset
-from jula.utils.utils import BASE_PHRASE_FEATURES, WORD_FEATURES
+from jula.utils.utils import BASE_PHRASE_FEATURES, DISCOURSE_RELATIONS, WORD_FEATURES
 
 here = Path(__file__).absolute().parent
 path = here.joinpath("knp_files")
@@ -27,6 +27,7 @@ def test_getitem():
         assert "word_features" in item
         assert "base_phrase_features" in item
         assert "dependencies" in item
+        assert "discourse_relations" in item
         assert item["input_ids"].shape == (max_seq_length,)
         assert item["attention_mask"].shape == (max_seq_length,)
         assert item["subword_map"].shape == (max_seq_length, max_seq_length)
@@ -37,6 +38,11 @@ def test_getitem():
         )
         assert item["word_features"].shape == (max_seq_length, len(WORD_FEATURES))
         assert item["dependencies"].shape == (max_seq_length, max_seq_length)
+        assert item["discourse_relations"].shape == (
+            max_seq_length,
+            max_seq_length,
+            len(DISCOURSE_RELATIONS),
+        )
 
 
 def test_encode():
