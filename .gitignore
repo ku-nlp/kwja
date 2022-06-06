@@ -104,3 +104,6 @@ venv.bak/
 
 # local debugging
 result/
+
+# config
+configs/
