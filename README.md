@@ -16,7 +16,7 @@ poetry install
 ```
 You must prepare config files:
 ```shell
-cp -r configs_template configs
+cp -rn configs_template configs
 ```
 You may edit the files under config directory as you like.
 The parts that need editing are marked with a FIXME comment.
