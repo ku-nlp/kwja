@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from jula.datamodule.datasets.char_dataset import CharDataset
+from jula.utils.utils import SEG_LABEL2INDEX
 
 here = Path(__file__).absolute().parent
 path = here.joinpath("knp_files")
@@ -24,5 +25,16 @@ def test_getitem():
         assert isinstance(item, dict)
         assert "input_ids" in item
         assert "attention_mask" in item
+        assert "seg_labels" in item
         assert item["input_ids"].shape == (max_seq_length,)
         assert item["attention_mask"].shape == (max_seq_length,)
+        assert item["seg_labels"].shape == (max_seq_length,)
+
+        cls_token_position = (
+            item["input_ids"].tolist().index(dataset.tokenizer.cls_token_id)
+        )
+        sep_token_position = (
+            item["input_ids"].tolist().index(dataset.tokenizer.sep_token_id)
+        )
+        assert item["seg_labels"][cls_token_position].tolist() == SEG_LABEL2INDEX["PAD"]
+        assert item["seg_labels"][sep_token_position].tolist() == SEG_LABEL2INDEX["PAD"]
