@@ -11,12 +11,11 @@ from jula.datamodule.datasets.word_dataset import WordDataset
 
 
 class DataModule(pl.LightningDataModule):
-    def __init__(self, cfg: DictConfig, global_rank: int = 0) -> None:
+    def __init__(self, cfg: DictConfig) -> None:
         super().__init__()
         self.cfg: DictConfig = cfg
         self.batch_size: int = cfg.batch_size
         self.num_workers: int = cfg.num_workers
-        self.global_rank: int = global_rank
 
         self.data_dir: str = cfg.dataset.data_dir
 
