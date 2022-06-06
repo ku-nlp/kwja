@@ -1,7 +1,5 @@
 import torch
-
-# from rhoknp import Document
-from kyoto_reader import Document
+from rhoknp import Document
 from transformers import BatchEncoding
 
 from jula.datamodule.datasets.base_dataset import BaseDataset
@@ -14,7 +12,7 @@ class CharDataset(BaseDataset):
 
     def encode(self, document: Document) -> dict[str, torch.Tensor]:
         encoding: BatchEncoding = self.tokenizer(
-            "".join([str(sent) for sent in document.sid2sentence.values()]),
+            document.text,
             truncation=True,
             padding="max_length",
             max_length=self.max_seq_length,
@@ -23,10 +21,10 @@ class CharDataset(BaseDataset):
         attention_mask = encoding["attention_mask"]
 
         seg_labels: list[int] = []
-        for morpheme in document.mrph_list():
+        for morpheme in document.morphemes:
             seg_labels.extend(
                 [SEG_LABEL2INDEX["B"]]
-                + [SEG_LABEL2INDEX["I"]] * (len(morpheme.midasi) - 1)
+                + [SEG_LABEL2INDEX["I"]] * (len(morpheme.text) - 1)
             )
         seg_labels = (
             [SEG_LABEL2INDEX["PAD"]]
