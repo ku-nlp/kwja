@@ -1,3 +1,11 @@
+SEG_LABEL2INDEX = {
+    "PAD": 0,
+    "B": 1,
+    "I": 2,
+}
+INDEX2SEG_LABEL = {v: k for k, v in SEG_LABEL2INDEX.items()}
+
+
 WORD_FEATURES = (
     "基本句-主辞",
     "基本句-区切",

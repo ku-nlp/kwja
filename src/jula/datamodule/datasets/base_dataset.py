@@ -2,7 +2,7 @@ from pathlib import Path
 
 from rhoknp import Document
 from torch.utils.data import Dataset
-from transformers import AutoTokenizer, PreTrainedTokenizer
+from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 
 class BaseDataset(Dataset):
@@ -21,7 +21,7 @@ class BaseDataset(Dataset):
         assert len(self) != 0
 
         tokenizer_kwargs = tokenizer_kwargs or {}
-        self.tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(
+        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             model_name_or_path,
             **tokenizer_kwargs,
         )

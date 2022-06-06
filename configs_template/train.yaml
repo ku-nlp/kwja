@@ -1,0 +1,13 @@
+defaults:
+  - base
+  - callbacks: [model_checkpoint, model_summary, progress_bar]
+  - dataset: kwdlc
+  - datamodule: default
+  - logger: wandb
+  - model: roberta
+  - module: char
+  - optimizer: adamw
+  - trainer: default
+  - _self_
+
+devices: ${oc.env:GPUS,0}
