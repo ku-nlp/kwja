@@ -1,6 +1,6 @@
 defaults:
   - base
-  - callbacks: [model_checkpoint, model_summary, progress_bar]
+  - callbacks: [early_stopping, model_checkpoint, model_summary, progress_bar]
   - datamodule: char
   - dataset: kwdlc
   - logger: wandb
@@ -11,3 +11,4 @@ defaults:
   - _self_
 
 devices: ${oc.env:GPUS,0}
+do_predict_after_train: False

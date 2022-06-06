@@ -37,11 +37,11 @@ You can do debugging on local and server environments:
 
 Local environment (using CPU):
 ```shell
-poetry run python src/train.py -cn debug.local.yaml
+poetry run python scripts/train.py -cn debug.local.yaml
 ```
 Server environment (using GPU):
 ```shell
-poetry run python src/train.py -cn debug.yaml devices=[0]
+poetry run python scripts/train.py -cn debug.yaml devices=[0]
 ```
 
 ## Unit tests
