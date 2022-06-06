@@ -27,7 +27,7 @@ seqeval = "^1.2.2"
 wandb = "^0.12.17"
 rich = "^12.4.4"
 kyoto-reader = "^2.5.1"
-rhoknp = { git = "https://github.com/ku-nlp/rhoknp.git", branch = "main" }
+rhoknp = {git = "https://github.com/ku-nlp/rhoknp.git", rev = "main"}
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.1"
