@@ -9,7 +9,7 @@ project: jula
 # so it's useful to have this path as a special variable
 # https://hydra.cc/docs/next/tutorials/basic/running_your_app/working_directory
 # work_dir: ${hydra:runtime.cwd}
-work_dir: /path/to/work_dir                  # FIXME: This directory is for storing models and logs
+work_dir: /path/to/work_dir         # FIXME: This directory is for storing models and logs
 
 # seed for random number generators in pytorch, numpy and python.random
 # "null" means the seed is randomly selected at runtime.
@@ -24,7 +24,7 @@ run_id: ${seed}
 run_dir: ${exp_dir}/${run_id}
 
 num_workers: 4
-batch_size: 4
+batch_size: 4                       # FIXME: depending on gpu machines
 
 hydra:
   run:
