@@ -11,3 +11,4 @@ defaults:
   - _self_
 
 devices: 1
+do_predict_after_train: False

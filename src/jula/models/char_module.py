@@ -68,7 +68,7 @@ class CharModule(LightningModule):
         outputs: dict[str, torch.Tensor] = self(**batch)
         return dict(
             input_ids=batch["input_ids"],
-            seg_preds=outputs["seg_preds"],
+            logits=outputs["logits"],
             seg_labels=batch["seg_labels"],
         )
 

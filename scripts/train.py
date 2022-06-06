@@ -55,6 +55,12 @@ def main(cfg: DictConfig):
     trainer.test(
         model=model, datamodule=datamodule, ckpt_path="best" if not is_debug else None
     )
+    if cfg.do_predict_after_train:
+        trainer.predict(
+            model=model,
+            datamodule=datamodule,
+            ckpt_path=trainer.checkpoint_callback.best_model_path,
+        )
 
     wandb.finish()
 

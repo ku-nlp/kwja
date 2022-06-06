@@ -1,6 +1,6 @@
 defaults:
   - base
-  - callbacks: []
+  - callbacks: prediction_writer
   - datamodule: char
   - dataset: kwdlc
   - logger: wandb
