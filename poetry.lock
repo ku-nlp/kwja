@@ -704,6 +704,13 @@ description = "Yet another Python binding for Juman++/KNP"
 category = "main"
 optional = false
 python-versions = ">=3.9,<3.11"
+develop = false
+
+[package.source]
+type = "git"
+url = "https://github.com/ku-nlp/rhoknp.git"
+reference = "main"
+resolved_reference = "49921a059d07f27195a72ef3673bbc753a0a32e8"
 
 [[package]]
 name = "rich"
@@ -1133,7 +1140,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.9,<3.11"
-content-hash = "b8d18a72967378abcd1039f00e37a82a67721e6cd37dc83ac84d0e1cfcb68850"
+content-hash = "959466952484810c389db5deb0eae006b7b42139c96ac61b408da2a78b17c8a9"
 
 [metadata.files]
 absl-py = [
@@ -1831,10 +1838,7 @@ requests-oauthlib = [
     {file = "requests-oauthlib-1.3.1.tar.gz", hash = "sha256:75beac4a47881eeb94d5ea5d6ad31ef88856affe2332b9aafb52c6452ccf0d7a"},
     {file = "requests_oauthlib-1.3.1-py2.py3-none-any.whl", hash = "sha256:2577c501a2fb8d05a304c09d090d6e47c306fef15809d102b327cf8364bddab5"},
 ]
-rhoknp = [
-    {file = "rhoknp-0.1.1-py3-none-any.whl", hash = "sha256:9616aa0c6b2094099ee33190b55a19eb689ec14d8d14bc9e0a89141090733f5a"},
-    {file = "rhoknp-0.1.1.tar.gz", hash = "sha256:111c936ab0b4993ef0d969bcdc036e2965bc803ef090c160a21949e2c2337ab3"},
-]
+rhoknp = []
 rich = [
     {file = "rich-12.4.4-py3-none-any.whl", hash = "sha256:d2bbd99c320a2532ac71ff6a3164867884357da3e3301f0240090c5d2fdac7ec"},
     {file = "rich-12.4.4.tar.gz", hash = "sha256:4c586de507202505346f3e32d1363eb9ed6932f0c2f63184dea88983ff4971e2"},

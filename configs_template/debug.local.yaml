@@ -1,8 +1,8 @@
 defaults:
   - base.local
   - callbacks: [model_checkpoint, model_summary, progress_bar]
-  - dataset: kc.local
   - datamodule: char
+  - dataset: kwdlc.local
   - logger: wandb
   - model: char_roberta.local
   - module: char

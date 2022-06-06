@@ -1,10 +1,10 @@
 defaults:
   - base
   - callbacks: [model_checkpoint, model_summary, progress_bar]
+  - datamodule: char
   - dataset: kwdlc
-  - datamodule: default
   - logger: wandb
-  - model: roberta
+  - model: char_roberta
   - module: char
   - optimizer: adamw
   - trainer: default
