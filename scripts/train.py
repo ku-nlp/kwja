@@ -16,7 +16,7 @@ from jula.models.word_module import WordModule
 hf_logging.set_verbosity(hf_logging.ERROR)
 
 
-@hydra.main(version_base=None, config_path="../configs", config_name="train")
+@hydra.main(version_base=None, config_path="../configs", config_name="train_typo")
 def main(cfg: DictConfig):
     if isinstance(cfg.devices, str):
         try:
@@ -44,7 +44,7 @@ def main(cfg: DictConfig):
 
     datamodule: DataModule = DataModule(cfg=cfg)
 
-    if cfg.module.type == "char":
+    if cfg.module.type in ["char", "char_typo"]:
         model: CharModule = CharModule(hparams=cfg)
     elif cfg.module.type == "word":
         model: WordModule = WordModule(hparams=cfg)

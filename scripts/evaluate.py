@@ -31,7 +31,7 @@ def main(cfg: DictConfig):
         devices=cfg.devices,
     )
 
-    if cfg.module.type == "char":
+    if cfg.module.type in ["char", "char_typo"]:
         model: CharModule = CharModule.load_from_checkpoint(
             checkpoint_path=cfg.checkpoint_path, hparams=cfg
         )
