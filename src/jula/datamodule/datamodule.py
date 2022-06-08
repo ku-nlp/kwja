@@ -6,7 +6,7 @@ from omegaconf import DictConfig
 from pytorch_lightning.trainer.states import TrainerFn
 from torch.utils.data import DataLoader
 
-from jula.datamodule.datasets.char_dataset import CharDataset
+from jula.datamodule.datasets.char_dataset import CharDataset, CharTypoDataset
 from jula.datamodule.datasets.word_dataset import WordDataset
 
 
@@ -59,7 +59,7 @@ class DataModule(pl.LightningDataModule):
         return self._get_dataloader(dataset=self.test_dataset, shuffle=False)
 
     def _get_dataloader(
-        self, dataset: Union[CharDataset, WordDataset], shuffle: bool
+        self, dataset: Union[CharDataset, CharTypoDataset, WordDataset], shuffle: bool
     ) -> DataLoader:
         return DataLoader(
             dataset=dataset,
