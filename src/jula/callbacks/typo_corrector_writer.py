@@ -1,0 +1,75 @@
+import json
+import os
+from typing import Any, Optional, Sequence
+
+import pytorch_lightning as pl
+import torch
+from pytorch_lightning.callbacks import BasePredictionWriter
+from transformers import AutoTokenizer, PreTrainedTokenizerBase
+
+from jula.evaluators.typo_corrector_metrics import TypoCorrectorMetrics
+
+
+class TypoCorrectorWriter(BasePredictionWriter):
+    def __init__(
+        self,
+        output_dir: str,
+        pred_filename: str = "predict",
+        model_name_or_path: str = "cl-tohoku/bert-base-japanese-char",
+        tokenizer_kwargs: dict = None,
+    ) -> None:
+        super().__init__(write_interval="epoch")
+        self.output_path = f"{output_dir}/{pred_filename}.json"
+        if os.path.isfile(self.output_path):
+            os.remove(self.output_path)
+
+        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
+            model_name_or_path,
+            **tokenizer_kwargs,
+        )
+        self.pad_token_id = self.tokenizer.pad_token_id
+        self.predicts = dict()
+        self.metrics = TypoCorrectorMetrics()
+
+    def write_on_batch_end(
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        prediction: Any,
+        batch_indices: Optional[Sequence[int]],
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int,
+    ) -> None:
+        pass
+
+    def write_on_epoch_end(
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        predictions: Sequence[Any],
+        batch_indices: Optional[Sequence[Any]],
+    ) -> None:
+        example_id = 0
+        for prediction in predictions:
+            for batch_pred in prediction:
+                kdr_preds = torch.argmax(batch_pred["kdr_logits"], dim=-1)
+                ins_preds = torch.argmax(batch_pred["ins_logits"], dim=-1)
+                for idx in range(len(batch_pred["input_ids"])):
+                    self.predicts[example_id] = dict(
+                        input_ids=self.tokenizer.decode(
+                            [
+                                x
+                                for x in batch_pred["input_ids"][idx]
+                                if x != self.pad_token_id
+                            ]
+                        ),
+                        kdr_preds=kdr_preds[idx],
+                        kdr_labels=batch_pred["kdr_labels"][idx],
+                        ins_preds=ins_preds[idx],
+                        ins_labels=batch_pred["ins_labels"][idx],
+                    )
+                    example_id += 1
+
+        with open(self.output_path, "w") as f:
+            json.dump(self.predicts, f, ensure_ascii=False, indent=2)
