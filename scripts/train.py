@@ -16,7 +16,7 @@ from jula.models.word_module import WordModule
 hf_logging.set_verbosity(hf_logging.ERROR)
 
 
-@hydra.main(version_base=None, config_path="../configs", config_name="train_typo")
+@hydra.main(version_base=None, config_path="../configs", config_name="train")
 def main(cfg: DictConfig):
     if isinstance(cfg.devices, str):
         try:
