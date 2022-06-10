@@ -4,9 +4,10 @@ import hydra
 import torch
 from omegaconf import DictConfig
 from pytorch_lightning.core.lightning import LightningModule
-from transformers import AutoTokenizer, PreTrainedTokenizerBase
+from transformers import AutoTokenizer, PretrainedConfig, PreTrainedTokenizerBase
 
 from jula.evaluators.word_segment_metrics import WordSegmenterMetrics
+from jula.models.models.char_encoder import CharEncoder
 from jula.models.models.word_segmenter import WordSegmenter
 
 
@@ -20,13 +21,19 @@ class CharModule(LightningModule):
             hparams.model.model_name_or_path,
             **hparams.dataset.tokenizer_kwargs,
         )
-        self.model: WordSegmenter = WordSegmenter(
-            hparams=hparams, tokenizer=self.tokenizer
+        self.char_encoder: CharEncoder = CharEncoder(hparams, self.tokenizer)
+        pretrained_model_config: PretrainedConfig = (
+            self.char_encoder.pretrained_model.config
+        )
+        self.word_segmenter: WordSegmenter = WordSegmenter(
+            hparams, pretrained_model_config
         )
         self.metrics: WordSegmenterMetrics = WordSegmenterMetrics()
 
     def forward(self, **kwargs):
-        return self.model(kwargs)
+        encoder_output = self.char_encoder(kwargs)  # (b, seq_len, h)
+        word_segmenter_output = self.word_segmenter(encoder_output, kwargs)
+        return word_segmenter_output
 
     def training_step(self, batch: Any, batch_idx: int) -> dict[str, Any]:
         outputs: dict[str, torch.Tensor] = self(**batch)
