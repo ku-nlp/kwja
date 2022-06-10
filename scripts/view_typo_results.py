@@ -56,8 +56,8 @@ def get_diffs(before: str, after: str) -> list[tuple[str, str]]:
     return diff_list
 
 
-def calc_tp_fp_fn(pre_text: str, ref_post_test: str, pred_post_text: str):
-    ref_diffs: list[tuple[str, str]] = get_diffs(pre_text, ref_post_test)
+def calc_tp_fp_fn(pre_text: str, ref_post_text: str, pred_post_text: str):
+    ref_diffs: list[tuple[str, str]] = get_diffs(pre_text, ref_post_text)
     pred_diffs: list[tuple[str, str]] = get_diffs(pre_text, pred_post_text)
 
     ref_num: int = len(ref_diffs)
@@ -72,7 +72,7 @@ def calc_tp_fp_fn(pre_text: str, ref_post_test: str, pred_post_text: str):
         tp,
         fp,
         fn,
-        get_diffs(pre_text, ref_post_test),
+        get_diffs(pre_text, ref_post_text),
         get_diffs(pre_text, pred_post_text),
     )
 
@@ -90,13 +90,14 @@ def main():
         preds: dict = json.load(f)
 
     tp_total, fp_total, fn_total = 0, 0, 0
-    for pred in preds:
-        pre_text: str = pred["input_ids"].removeprefix("[CLS]").removesuffix("[SEP]")
+    for example_id, pred in preds.items():
+        pre_text: str = pred["input_ids"].removesuffix(" < 0 x 0 0 >").replace(" ", "")
+        pre_text = pre_text.replace("...", "…")
         ref_post_text: str = apply_ops(
-            pre_text=pre_text, kdrs=pred["kdr_labels"], inss=pred["ins_labels"]
+            pre_text=pre_text, kdrs=pred["kdr_labels"] + ["K"], inss=pred["ins_labels"]
         )
         pred_post_text: str = apply_ops(
-            pre_text=pre_text, kdrs=pred["kdr_preds"], inss=pred["ins_preds"]
+            pre_text=pre_text, kdrs=pred["kdr_preds"] + ["K"], inss=pred["ins_preds"]
         )
         tp, fp, fn = calc_tp_fp_fn(
             pre_text=pre_text,
