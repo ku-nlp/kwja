@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from typing import Union
 
+import hydra
 import torch
 from rhoknp import Document
 from torch.utils.data import Dataset
@@ -51,7 +52,7 @@ class CharTypoDataset(Dataset):
     def __init__(
         self,
         path: str,
-        insert_vocab_path: str,
+        extended_vocab_path: str,
         model_name_or_path: str = "cl-tohoku/bert-base-japanese-char",
         max_seq_length: int = 512,
         tokenizer_kwargs: dict = None,
@@ -65,11 +66,13 @@ class CharTypoDataset(Dataset):
         tokenizer_kwargs = tokenizer_kwargs or {}
         self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             model_name_or_path,
-            **tokenizer_kwargs,
+            **hydra.utils.instantiate(tokenizer_kwargs, _convert_="partial"),
         )
+        self.pad_token_id: int = self.tokenizer.pad_token_id
+        self.unk_token_id: int = self.tokenizer.unk_token_id
         self.max_seq_length = max_seq_length
 
-        self.insert_vocab = self.make_insert_vocab(path=Path(insert_vocab_path))
+        self.ops2id: dict[str, int] = self.get_ops2id(path=Path(extended_vocab_path))
 
     def __len__(self) -> int:
         return len(self.documents)
@@ -86,18 +89,18 @@ class CharTypoDataset(Dataset):
                     documents.append(json.loads(line))
         return documents
 
-    def make_insert_vocab(self, path: Path) -> dict[str, int]:
-        vocab = self.tokenizer.get_vocab()
+    def get_ops2id(self, path: Path) -> dict[str, int]:
+        ops2id = self.tokenizer.get_vocab()
         with path.open(mode="r") as f:
             for line in f:
-                vocab[str(line.strip())] = len(vocab)
-        return vocab
+                ops2id[str(line.strip())] = len(ops2id)
+        return ops2id
 
     def encode(
         self, document: list[dict[str, Union[str, list[str]]]]
     ) -> dict[str, torch.Tensor]:
         encoding: BatchEncoding = self.tokenizer(
-            document["pre_text"] + "<0x00>",
+            document["pre_text"] + "<dummy>",
             truncation=True,
             padding="max_length",
             max_length=self.max_seq_length,
@@ -107,17 +110,10 @@ class CharTypoDataset(Dataset):
 
         kdr_labels: list[int] = []
         for ops in document["kdrs"][:-1]:
-            if ops == "K":
-                kdr_label = self.insert_vocab["<0x01>"]
-            elif ops == "D":
-                kdr_label = self.insert_vocab["<0x02>"]
-            else:
-                kdr_label = self.insert_vocab.get(
-                    ops.removeprefix("R:"), self.tokenizer.unk_token_id
-                )
-            kdr_labels.append(kdr_label)
+            kdr_labels.append(
+                self.ops2id.get(ops.removeprefix("R:"), self.unk_token_id)
+            )
         kdr_labels.append(self.tokenizer.pad_token_id)
-
         kdr_labels = (
             [self.tokenizer.pad_token_id]
             + kdr_labels[: self.max_seq_length - 2]
@@ -129,13 +125,9 @@ class CharTypoDataset(Dataset):
 
         ins_labels: list[int] = []
         for ops in document["inss"]:
-            if ops == "_":
-                ins_label = self.insert_vocab["<0x03>"]
-            else:
-                ins_label = self.insert_vocab.get(
-                    ops.removeprefix("I:"), self.tokenizer.unk_token_id
-                )
-            ins_labels.append(ins_label)
+            ins_labels.append(
+                self.ops2id.get(ops.removeprefix("I:"), self.unk_token_id)
+            )
         ins_labels = (
             [self.tokenizer.pad_token_id]
             + ins_labels[: self.max_seq_length - 2]

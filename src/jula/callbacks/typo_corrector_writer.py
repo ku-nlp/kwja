@@ -3,19 +3,21 @@ import os
 from pathlib import Path
 from typing import Any, Optional, Sequence
 
+import hydra
 import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks import BasePredictionWriter
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from jula.evaluators.typo_corrector_metrics import TypoCorrectorMetrics
+from jula.utils.utils import TYPO_OPS2TOKEN
 
 
 class TypoCorrectorWriter(BasePredictionWriter):
     def __init__(
         self,
         output_dir: str,
-        insert_vocab_path: str,
+        extended_vocab_path: str,
         pred_filename: str = "predict",
         model_name_or_path: str = "cl-tohoku/bert-base-japanese-char",
         tokenizer_kwargs: dict = None,
@@ -27,27 +29,29 @@ class TypoCorrectorWriter(BasePredictionWriter):
 
         self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             model_name_or_path,
-            **tokenizer_kwargs,
+            **hydra.utils.instantiate(tokenizer_kwargs, _convert_="partial"),
         )
         self.pad_token_id = self.tokenizer.pad_token_id
         self.predicts = dict()
         self.metrics = TypoCorrectorMetrics()
 
-        self.char2id, self.id2char = self.get_vocab(path=Path(insert_vocab_path))
+        self.ops2id, self.id2ops = self.get_ops_dict(path=Path(extended_vocab_path))
 
-    def get_vocab(self, path: Path) -> tuple[dict[str, int], dict[int, str]]:
-        char2id = self.tokenizer.get_vocab()
-        id2char: dict[int, str] = {
-            idx: char for char, idx in self.tokenizer.get_vocab().items()
-        }
+    def get_ops_dict(self, path: Path) -> tuple[dict[str, int], dict[int, str]]:
+        ops2id: dict[str, int] = self.tokenizer.get_vocab()
+        id2ops: dict[int, str] = {idx: ops for ops, idx in ops2id.items()}
         with path.open(mode="r") as f:
             for line in f:
-                char = str(line.strip())
-                id2char[len(id2char)] = char
-                char2id[char] = len(char2id)
-        return char2id, id2char
+                ops = str(line.strip())
+                ops2id[ops] = len(ops2id)
+        return ops2id, id2ops
 
-    def get_kdrs(self, pred_ids_list: list[list[int]], label_ids_list: list[list[int]]):
+    def get_ops(
+        self,
+        pred_ids_list: list[list[int]],
+        label_ids_list: list[list[int]],
+        ops_prefix: str,
+    ) -> tuple[list[list[int]], list[list[int]]]:
         preds_list: list[list[str]] = []
         labels_list: list[list[str]] = []
         for pred_ids, label_ids in zip(pred_ids_list, label_ids_list):
@@ -56,43 +60,16 @@ class TypoCorrectorWriter(BasePredictionWriter):
             for pred_id, label_id in zip(pred_ids, label_ids):
                 if label_id == self.tokenizer.pad_token_id:
                     continue
-                pred = self.id2char[pred_id]
-                if pred == "<0x01>":
-                    preds.append("K")
-                elif pred == "<0x02>":
-                    preds.append("D")
-                else:
-                    preds.append(f"R:{pred}")
-                label = self.id2char[label_id]
-                if label == "<0x01>":
-                    labels.append("K")
-                elif label == "<0x02>":
-                    labels.append("D")
-                else:
-                    labels.append(f"R:{label}")
-            preds_list.append(preds)
-            labels_list.append(labels)
-        return preds_list, labels_list
 
-    def get_inss(self, pred_ids_list: list[list[int]], label_ids_list: list[list[int]]):
-        preds_list: list[list[str]] = []
-        labels_list: list[list[str]] = []
-        for pred_ids, label_ids in zip(pred_ids_list, label_ids_list):
-            preds: list[str] = []
-            labels: list[str] = []
-            for pred_id, label_id in zip(pred_ids, label_ids):
-                if label_id == self.tokenizer.pad_token_id:
-                    continue
-                pred = self.id2char[pred_id]
-                if pred == "<0x03>":
-                    preds.append("_")
+                if self.id2ops[pred_id] in TYPO_OPS2TOKEN.values():
+                    preds.append(self.id2ops[pred_id])
                 else:
-                    preds.append(f"I:{pred}")
-                label = self.id2char[label_id]
-                if label == "<0x03>":
-                    labels.append("_")
+                    preds.append(f"{ops_prefix}:{self.id2ops[pred_id]}")
+
+                if self.id2ops[label_id] in TYPO_OPS2TOKEN.values():
+                    labels.append(self.id2ops[label_id])
                 else:
-                    labels.append(f"I:{label}")
+                    labels.append(f"{ops_prefix}:{self.id2ops[label_id]}")
             preds_list.append(preds)
             labels_list.append(labels)
         return preds_list, labels_list
@@ -119,26 +96,24 @@ class TypoCorrectorWriter(BasePredictionWriter):
         example_id = 0
         for prediction in predictions:
             for batch_pred in prediction:
-                kdr_preds, kdr_labels = self.get_kdrs(
+                kdr_preds, kdr_labels = self.get_ops(
                     pred_ids_list=torch.argmax(
                         batch_pred["kdr_logits"], dim=-1
                     ).tolist(),
                     label_ids_list=batch_pred["kdr_labels"].tolist(),
+                    ops_prefix="R",
                 )
-                ins_preds, ins_labels = self.get_inss(
+                ins_preds, ins_labels = self.get_ops(
                     pred_ids_list=torch.argmax(
                         batch_pred["ins_logits"], dim=-1
                     ).tolist(),
                     label_ids_list=batch_pred["ins_labels"].tolist(),
+                    ops_prefix="I",
                 )
                 for idx in range(len(batch_pred["input_ids"])):
                     self.predicts[example_id] = dict(
                         input_ids=self.tokenizer.decode(
-                            [
-                                x
-                                for x in batch_pred["input_ids"][idx]
-                                if x != self.char2id["<0x00>"]
-                            ],
+                            [x for x in batch_pred["input_ids"][idx]][:-1],
                             skip_special_tokens=True,
                         ),
                         kdr_preds=kdr_preds[idx],

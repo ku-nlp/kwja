@@ -91,7 +91,7 @@ def main():
 
     tp_total, fp_total, fn_total = 0, 0, 0
     for example_id, pred in preds.items():
-        pre_text: str = pred["input_ids"].removesuffix(" < 0 x 0 0 >").replace(" ", "")
+        pre_text: str = pred["input_ids"].replace(" ", "")
         pre_text = pre_text.replace("...", "…")
         ref_post_text: str = apply_ops(
             pre_text=pre_text, kdrs=pred["kdr_labels"] + ["K"], inss=pred["ins_labels"]

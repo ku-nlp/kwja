@@ -20,7 +20,9 @@ class CharModule(LightningModule):
 
         self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             hparams.model.model_name_or_path,
-            **hparams.dataset.tokenizer_kwargs,
+            **hydra.utils.instantiate(
+                hparams.dataset.tokenizer_kwargs, _convert_="partial"
+            ),
         )
 
         if hparams.module.type == "char":

@@ -25,7 +25,7 @@ class TypoCorrector(nn.Module):
             nn.Dropout(self.char_encoder.pretrained_model.config.hidden_dropout_prob),
             nn.Linear(self.hidden_size, self.kdr_label_num),
         )
-        self.ins_label_num: int = len(tokenizer) + hparams.dataset.insert_vocab_size
+        self.ins_label_num: int = len(tokenizer) + hparams.dataset.extended_vocab_size
         self.ins_layers = nn.Sequential(
             nn.Linear(self.hidden_size, self.hidden_size),
             nn.ReLU(),
