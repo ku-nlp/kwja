@@ -6,7 +6,9 @@ from omegaconf import DictConfig
 from pytorch_lightning.core.lightning import LightningModule
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
+from jula.evaluators.typo_corrector_metrics import TypoCorrectorMetrics
 from jula.evaluators.word_segment_metrics import WordSegmenterMetrics
+from jula.models.models.typo_corrector import TypoCorrector
 from jula.models.models.word_segmenter import WordSegmenter
 
 
@@ -18,12 +20,23 @@ class CharModule(LightningModule):
 
         self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             hparams.model.model_name_or_path,
-            **hparams.dataset.tokenizer_kwargs,
+            **hydra.utils.instantiate(
+                hparams.dataset.tokenizer_kwargs, _convert_="partial"
+            ),
         )
-        self.model: WordSegmenter = WordSegmenter(
-            hparams=hparams, tokenizer=self.tokenizer
-        )
-        self.metrics: WordSegmenterMetrics = WordSegmenterMetrics()
+
+        if hparams.module.type == "char":
+            self.model: WordSegmenter = WordSegmenter(
+                hparams=hparams, tokenizer=self.tokenizer
+            )
+            self.metrics: WordSegmenterMetrics = WordSegmenterMetrics()
+        elif hparams.module.type == "char_typo":
+            self.model: TypoCorrector = TypoCorrector(
+                hparams=hparams, tokenizer=self.tokenizer
+            )
+            self.metrics: TypoCorrector = TypoCorrectorMetrics()
+        else:
+            raise ValueError("invalid module type")
 
     def forward(self, **kwargs):
         return self.model(kwargs)
@@ -66,11 +79,14 @@ class CharModule(LightningModule):
         self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None
     ) -> Any:
         outputs: dict[str, torch.Tensor] = self(**batch)
-        return dict(
-            input_ids=batch["input_ids"],
-            logits=outputs["logits"],
-            seg_labels=batch["seg_labels"],
-        )
+        predict_output = dict(input_ids=batch["input_ids"])
+        for key in batch:
+            if "labels" in key:
+                predict_output[key] = batch[key]
+        for key in outputs:
+            if "logits" in key:
+                predict_output[key] = outputs[key]
+        return predict_output
 
     def configure_optimizers(self):
         optimizer = hydra.utils.instantiate(

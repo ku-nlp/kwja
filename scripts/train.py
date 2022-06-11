@@ -44,7 +44,7 @@ def main(cfg: DictConfig):
 
     datamodule: DataModule = DataModule(cfg=cfg)
 
-    if cfg.module.type == "char":
+    if cfg.module.type in ["char", "char_typo"]:
         model: CharModule = CharModule(hparams=cfg)
     elif cfg.module.type == "word":
         model: WordModule = WordModule(hparams=cfg)
