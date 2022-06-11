@@ -9,7 +9,7 @@ from torch.utils.data import Dataset
 from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizerBase
 
 from jula.datamodule.datasets.base_dataset import BaseDataset
-from jula.utils.utils import SEG_LABEL2INDEX
+from jula.utils.utils import SEG_LABEL2INDEX, TYPO_DUMMY_TOKEN, TYPO_OPS2TOKEN
 
 
 class CharDataset(BaseDataset):
@@ -100,7 +100,7 @@ class CharTypoDataset(Dataset):
         self, document: list[dict[str, Union[str, list[str]]]]
     ) -> dict[str, torch.Tensor]:
         encoding: BatchEncoding = self.tokenizer(
-            document["pre_text"] + "<dummy>",
+            document["pre_text"] + TYPO_DUMMY_TOKEN,
             truncation=True,
             padding="max_length",
             max_length=self.max_seq_length,
@@ -110,9 +110,11 @@ class CharTypoDataset(Dataset):
 
         kdr_labels: list[int] = []
         for ops in document["kdrs"][:-1]:
-            kdr_labels.append(
-                self.ops2id.get(ops.removeprefix("R:"), self.unk_token_id)
-            )
+            if ops in TYPO_OPS2TOKEN:
+                kdr_label = self.ops2id[TYPO_OPS2TOKEN[ops]]
+            else:
+                kdr_label = self.ops2id.get(ops.removeprefix("R:"), self.unk_token_id)
+            kdr_labels.append(kdr_label)
         kdr_labels.append(self.tokenizer.pad_token_id)
         kdr_labels = (
             [self.tokenizer.pad_token_id]
@@ -125,9 +127,11 @@ class CharTypoDataset(Dataset):
 
         ins_labels: list[int] = []
         for ops in document["inss"]:
-            ins_labels.append(
-                self.ops2id.get(ops.removeprefix("I:"), self.unk_token_id)
-            )
+            if ops in TYPO_OPS2TOKEN:
+                ins_label = self.ops2id[TYPO_OPS2TOKEN[ops]]
+            else:
+                ins_label = self.ops2id.get(ops.removeprefix("I:"), self.unk_token_id)
+            ins_labels.append(ins_label)
         ins_labels = (
             [self.tokenizer.pad_token_id]
             + ins_labels[: self.max_seq_length - 2]

@@ -1,3 +1,10 @@
+TYPO_OPS2TOKEN = {
+    "K": "<k>",
+    "D": "<d>",
+    "_": "<_>",
+}
+TYPO_DUMMY_TOKEN = "<dummy>"
+
 SEG_LABEL2INDEX = {
     "PAD": 0,
     "B": 1,
