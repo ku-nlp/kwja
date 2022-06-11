@@ -1,15 +1,15 @@
 from typing import Union
 
 import torch
-from torchmetrics import Accuracy
+from torchmetrics.functional import accuracy
 
 
 class TypoCorrectorMetrics:
     def __init__(self) -> None:
-        self.char_acc = Accuracy(mdmc_average="global", ignore_index=0)
+        pass
 
+    @staticmethod
     def compute_metrics(
-        self,
         outputs: dict[str, torch.Tensor],
         batch: dict[str, torch.Tensor],
     ) -> dict[str, Union[torch.Tensor, float]]:
@@ -19,11 +19,15 @@ class TypoCorrectorMetrics:
             if "_loss" in key:
                 metrics[key] = outputs[key].detach()
 
-        metrics["kdr_acc"] = self.char_acc(
-            torch.argmax(outputs["kdr_logits"], dim=-1).cpu(), batch["kdr_labels"].cpu()
+        metrics["kdr_acc"] = accuracy(
+            preds=torch.argmax(outputs["kdr_logits"], dim=-1),
+            target=batch["kdr_labels"],
+            ignore_index=0,
         )
-        metrics["ins_acc"] = self.char_acc(
-            torch.argmax(outputs["ins_logits"], dim=-1).cpu(), batch["ins_labels"].cpu()
+        metrics["ins_acc"] = accuracy(
+            preds=torch.argmax(outputs["ins_logits"], dim=-1),
+            target=batch["ins_labels"],
+            ignore_index=0,
         )
 
         return metrics
