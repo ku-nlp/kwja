@@ -9,7 +9,7 @@ from torch.utils.data import Dataset
 from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizerBase
 
 from jula.datamodule.datasets.base_dataset import BaseDataset
-from jula.utils.utils import SEG_LABEL2INDEX, TYPO_DUMMY_TOKEN, TYPO_OPS2TOKEN
+from jula.utils.utils import SEG_LABEL2INDEX, TYPO_DUMMY_TOKEN, TYPO_OPN2TOKEN
 
 
 class CharDataset(BaseDataset):
@@ -72,7 +72,7 @@ class CharTypoDataset(Dataset):
         self.unk_token_id: int = self.tokenizer.unk_token_id
         self.max_seq_length = max_seq_length
 
-        self.ops2id: dict[str, int] = self.get_ops2id(path=Path(extended_vocab_path))
+        self.opn2id: dict[str, int] = self.get_opn2id(path=Path(extended_vocab_path))
 
     def __len__(self) -> int:
         return len(self.documents)
@@ -89,12 +89,12 @@ class CharTypoDataset(Dataset):
                     documents.append(json.loads(line))
         return documents
 
-    def get_ops2id(self, path: Path) -> dict[str, int]:
-        ops2id = self.tokenizer.get_vocab()
+    def get_opn2id(self, path: Path) -> dict[str, int]:
+        opn2id = self.tokenizer.get_vocab()
         with path.open(mode="r") as f:
             for line in f:
-                ops2id[str(line.strip())] = len(ops2id)
-        return ops2id
+                opn2id[str(line.strip())] = len(opn2id)
+        return opn2id
 
     def encode(
         self, document: list[dict[str, Union[str, list[str]]]]
@@ -109,11 +109,11 @@ class CharTypoDataset(Dataset):
         attention_mask = encoding["attention_mask"]
 
         kdr_labels: list[int] = []
-        for ops in document["kdrs"][:-1]:
-            if ops in TYPO_OPS2TOKEN:
-                kdr_label = self.ops2id[TYPO_OPS2TOKEN[ops]]
+        for opn in document["kdrs"][:-1]:
+            if opn in TYPO_OPN2TOKEN:
+                kdr_label = self.opn2id[TYPO_OPN2TOKEN[opn]]
             else:
-                kdr_label = self.ops2id.get(ops.removeprefix("R:"), self.unk_token_id)
+                kdr_label = self.opn2id.get(opn.removeprefix("R:"), self.unk_token_id)
             kdr_labels.append(kdr_label)
         kdr_labels.append(self.tokenizer.pad_token_id)
         kdr_labels = (
@@ -126,11 +126,11 @@ class CharTypoDataset(Dataset):
         )
 
         ins_labels: list[int] = []
-        for ops in document["inss"]:
-            if ops in TYPO_OPS2TOKEN:
-                ins_label = self.ops2id[TYPO_OPS2TOKEN[ops]]
+        for opn in document["inss"]:
+            if opn in TYPO_OPN2TOKEN:
+                ins_label = self.opn2id[TYPO_OPN2TOKEN[opn]]
             else:
-                ins_label = self.ops2id.get(ops.removeprefix("I:"), self.unk_token_id)
+                ins_label = self.opn2id.get(opn.removeprefix("I:"), self.unk_token_id)
             ins_labels.append(ins_label)
         ins_labels = (
             [self.tokenizer.pad_token_id]

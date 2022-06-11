@@ -10,7 +10,7 @@ from pytorch_lightning.callbacks import BasePredictionWriter
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from jula.evaluators.typo_corrector_metrics import TypoCorrectorMetrics
-from jula.utils.utils import TYPO_OPS2TOKEN
+from jula.utils.utils import TYPO_OPN2TOKEN
 
 
 class TypoCorrectorWriter(BasePredictionWriter):
@@ -35,22 +35,22 @@ class TypoCorrectorWriter(BasePredictionWriter):
         self.predicts = dict()
         self.metrics = TypoCorrectorMetrics()
 
-        self.ops2id, self.id2ops = self.get_ops_dict(path=Path(extended_vocab_path))
+        self.opn2id, self.id2opn = self.get_opn_dict(path=Path(extended_vocab_path))
 
-    def get_ops_dict(self, path: Path) -> tuple[dict[str, int], dict[int, str]]:
-        ops2id: dict[str, int] = self.tokenizer.get_vocab()
-        id2ops: dict[int, str] = {idx: ops for ops, idx in ops2id.items()}
+    def get_opn_dict(self, path: Path) -> tuple[dict[str, int], dict[int, str]]:
+        opn2id: dict[str, int] = self.tokenizer.get_vocab()
+        id2opn: dict[int, str] = {idx: opn for opn, idx in opn2id.items()}
         with path.open(mode="r") as f:
             for line in f:
-                ops = str(line.strip())
-                ops2id[ops] = len(ops2id)
-        return ops2id, id2ops
+                opn = str(line.strip())
+                opn2id[opn] = len(opn2id)
+        return opn2id, id2opn
 
-    def get_ops(
+    def get_opn(
         self,
         pred_ids_list: list[list[int]],
         label_ids_list: list[list[int]],
-        ops_prefix: str,
+        opn_prefix: str,
     ) -> tuple[list[list[int]], list[list[int]]]:
         preds_list: list[list[str]] = []
         labels_list: list[list[str]] = []
@@ -61,15 +61,15 @@ class TypoCorrectorWriter(BasePredictionWriter):
                 if label_id == self.tokenizer.pad_token_id:
                     continue
 
-                if self.id2ops[pred_id] in TYPO_OPS2TOKEN.values():
-                    preds.append(self.id2ops[pred_id])
+                if self.id2opn[pred_id] in TYPO_OPN2TOKEN.values():
+                    preds.append(self.id2opn[pred_id])
                 else:
-                    preds.append(f"{ops_prefix}:{self.id2ops[pred_id]}")
+                    preds.append(f"{opn_prefix}:{self.id2opn[pred_id]}")
 
-                if self.id2ops[label_id] in TYPO_OPS2TOKEN.values():
-                    labels.append(self.id2ops[label_id])
+                if self.id2opn[label_id] in TYPO_OPN2TOKEN.values():
+                    labels.append(self.id2opn[label_id])
                 else:
-                    labels.append(f"{ops_prefix}:{self.id2ops[label_id]}")
+                    labels.append(f"{opn_prefix}:{self.id2opn[label_id]}")
             preds_list.append(preds)
             labels_list.append(labels)
         return preds_list, labels_list
@@ -96,19 +96,19 @@ class TypoCorrectorWriter(BasePredictionWriter):
         example_id = 0
         for prediction in predictions:
             for batch_pred in prediction:
-                kdr_preds, kdr_labels = self.get_ops(
+                kdr_preds, kdr_labels = self.get_opn(
                     pred_ids_list=torch.argmax(
                         batch_pred["kdr_logits"], dim=-1
                     ).tolist(),
                     label_ids_list=batch_pred["kdr_labels"].tolist(),
-                    ops_prefix="R",
+                    opn_prefix="R",
                 )
-                ins_preds, ins_labels = self.get_ops(
+                ins_preds, ins_labels = self.get_opn(
                     pred_ids_list=torch.argmax(
                         batch_pred["ins_logits"], dim=-1
                     ).tolist(),
                     label_ids_list=batch_pred["ins_labels"].tolist(),
-                    ops_prefix="I",
+                    opn_prefix="I",
                 )
                 for idx in range(len(batch_pred["input_ids"])):
                     self.predicts[example_id] = dict(

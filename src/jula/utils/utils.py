@@ -1,4 +1,4 @@
-TYPO_OPS2TOKEN = {
+TYPO_OPN2TOKEN = {
     "K": "<k>",
     "D": "<d>",
     "_": "<_>",
