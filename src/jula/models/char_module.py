@@ -4,10 +4,11 @@ import hydra
 import torch
 from omegaconf import DictConfig
 from pytorch_lightning.core.lightning import LightningModule
-from transformers import AutoTokenizer, PreTrainedTokenizerBase
+from transformers import AutoTokenizer, PretrainedConfig, PreTrainedTokenizerBase
 
 from jula.evaluators.typo_corrector_metrics import TypoCorrectorMetrics
 from jula.evaluators.word_segment_metrics import WordSegmenterMetrics
+from jula.models.models.char_encoder import CharEncoder
 from jula.models.models.typo_corrector import TypoCorrector
 from jula.models.models.word_segmenter import WordSegmenter
 
@@ -25,21 +26,29 @@ class CharModule(LightningModule):
             ),
         )
 
+        self.char_encoder: CharEncoder = CharEncoder(hparams, self.tokenizer)
+        pretrained_model_config: PretrainedConfig = (
+            self.char_encoder.pretrained_model.config
+        )
         if hparams.module.type == "char":
             self.model: WordSegmenter = WordSegmenter(
-                hparams=hparams, tokenizer=self.tokenizer
+                hparams=hparams, pretrained_model_config=pretrained_model_config
             )
             self.metrics: WordSegmenterMetrics = WordSegmenterMetrics()
         elif hparams.module.type == "char_typo":
             self.model: TypoCorrector = TypoCorrector(
-                hparams=hparams, tokenizer=self.tokenizer
+                hparams=hparams,
+                pretrained_model_config=pretrained_model_config,
+                tokenizer=self.tokenizer,
             )
             self.metrics: TypoCorrector = TypoCorrectorMetrics()
         else:
             raise ValueError("invalid module type")
 
     def forward(self, **kwargs):
-        return self.model(kwargs)
+        encoder_output = self.char_encoder(kwargs)  # (b, seq_len, h)
+        model_output = self.model(encoder_output, kwargs)
+        return model_output
 
     def training_step(self, batch: Any, batch_idx: int) -> dict[str, Any]:
         outputs: dict[str, torch.Tensor] = self(**batch)
