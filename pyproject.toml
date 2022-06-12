@@ -26,7 +26,6 @@ protobuf = "~3.20"
 seqeval = "^1.2.2"
 wandb = "^0.12.17"
 rich = "^12.4.4"
-kyoto-reader = "^2.5.1"
 rhoknp = {git = "https://github.com/ku-nlp/rhoknp.git", rev = "main"}
 python-Levenshtein = "^0.12.2"
 fugashi = "^1.1.2"

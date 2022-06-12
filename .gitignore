@@ -103,6 +103,7 @@ venv.bak/
 .mypy_cache/
 
 # local debugging
+data/
 result/
 
 # config
