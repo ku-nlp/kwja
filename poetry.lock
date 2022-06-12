@@ -213,6 +213,18 @@ ssh = ["paramiko"]
 tqdm = ["tqdm"]
 
 [[package]]
+name = "fugashi"
+version = "1.1.2"
+description = "A Cython MeCab wrapper for fast, pythonic Japanese tokenization."
+category = "main"
+optional = false
+python-versions = ">=3.5"
+
+[package.extras]
+unidic = ["unidic"]
+unidic-lite = ["unidic-lite"]
+
+[[package]]
 name = "gitdb"
 version = "4.0.9"
 description = "Git Object Database"
@@ -349,6 +361,22 @@ name = "iniconfig"
 version = "1.1.1"
 description = "iniconfig: brain-dead simple config-ini parsing"
 category = "dev"
+optional = false
+python-versions = "*"
+
+[[package]]
+name = "ipadic"
+version = "1.0.0"
+description = "IPAdic packaged for Python"
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
+name = "jaconv"
+version = "0.3"
+description = "Pure-Python Japanese character interconverter for Hiragana, Katakana, Hankaku, Zenkaku and more"
+category = "main"
 optional = false
 python-versions = "*"
 
@@ -579,6 +607,14 @@ python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,>=2.7"
 
 [package.dependencies]
 six = ">=1.5"
+
+[[package]]
+name = "python-levenshtein"
+version = "0.12.2"
+description = "Python extension for computing string edit distances and similarities."
+category = "main"
+optional = false
+python-versions = "*"
 
 [[package]]
 name = "pytorch-lightning"
@@ -1346,6 +1382,31 @@ fsspec = [
     {file = "fsspec-2022.5.0-py3-none-any.whl", hash = "sha256:2c198c50eb541a80bbd03540b07602c4a957366f3fb416a1f270d34bd4ff0926"},
     {file = "fsspec-2022.5.0.tar.gz", hash = "sha256:7a5459c75c44e760fbe6a3ccb1f37e81e023cde7da8ba20401258d877ec483b4"},
 ]
+fugashi = [
+    {file = "fugashi-1.1.2-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:284f2bf161d32886ba2053d69d30d2f85c456df0ff4627100ded23a9411d2bab"},
+    {file = "fugashi-1.1.2-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:72ef05b96444d47c3c9dae6939e8e9b7ac4e01ee64733eafa57386f87ea302e4"},
+    {file = "fugashi-1.1.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f1b104531cc219bf9309e5d737a236e10f3c73b921b5c519ae1123f7a5b14421"},
+    {file = "fugashi-1.1.2-cp310-cp310-win_amd64.whl", hash = "sha256:4f255a7595e5cacfa2bd7a76be47508f8e3ced32303830d5a961a42c249386c0"},
+    {file = "fugashi-1.1.2-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:4a78ee7f28e48734cce71234089dfce16bda6d3bd5864ed80d1bc5701844f8e1"},
+    {file = "fugashi-1.1.2-cp36-cp36m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:8e02d75a3ec4753e2765e5caaf38a115d7746fe75c1d59f12a92eb6c2ecbbc7f"},
+    {file = "fugashi-1.1.2-cp36-cp36m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ac740088b11e396f410d3491d4be0928624c1d0e9ec2e0009ae73f372068030b"},
+    {file = "fugashi-1.1.2-cp36-cp36m-win_amd64.whl", hash = "sha256:875efccf41874e022c8fdbeff66fa936874505cf57f0070f1e276bd3b02572a6"},
+    {file = "fugashi-1.1.2-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:583f67d881cf6d8adaf68e1b69f891155e50fc9f1eb5e3fa71409be024b3be19"},
+    {file = "fugashi-1.1.2-cp37-cp37m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:5d71b8664f7bc7f8319cc65b12fbfd96e30efb8caa5020ede1f6c9b3aa6db721"},
+    {file = "fugashi-1.1.2-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3660f5297f6c0da0ac483a731b4aca73ab625311c7783d375de30e7a9881ce54"},
+    {file = "fugashi-1.1.2-cp37-cp37m-win_amd64.whl", hash = "sha256:e19715c4aceb300e62687c4015340bbfd913142d7e64549bad4c8194d3e4b9e4"},
+    {file = "fugashi-1.1.2-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:a78513212db800d25063f923b62857380c36903848298cbb5cd6d4c029cb0bb1"},
+    {file = "fugashi-1.1.2-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:d1d514ca18b51bc20ebc3161904703fac521b1cb8a0ea0530810d124a080dfb2"},
+    {file = "fugashi-1.1.2-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7d2fd198cb86c8a6bf713d06bd05a8f72e99146453bc279dfeecb4bc986fe4e4"},
+    {file = "fugashi-1.1.2-cp38-cp38-win_amd64.whl", hash = "sha256:eaa85c641f530c072144b60c4943ba2aad89a8c569dcd445895eab980e95f50f"},
+    {file = "fugashi-1.1.2-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:188d395e94e81fcc6b4d81c947e52aa9a3158385795426edf8d366d6a5d86267"},
+    {file = "fugashi-1.1.2-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:b272ae61b40bb15ccaf1c0d2f9703f3c74da8ceaf25e6126c5c7c08796bfa1b0"},
+    {file = "fugashi-1.1.2-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f50241a996bc88df6bf15cbd50bc918ff3822827709b695b692c84a84eaa0b26"},
+    {file = "fugashi-1.1.2-cp39-cp39-win_amd64.whl", hash = "sha256:39f71a4334de0a62bf0f5ae7d2fb1520264f55a47299006da559b172b74068fd"},
+    {file = "fugashi-1.1.2-pp37-pypy37_pp73-macosx_10_9_x86_64.whl", hash = "sha256:ce22b80522a52f803638bdce5323cee02097b60a873cecfcd0b5fee6f3d95cc5"},
+    {file = "fugashi-1.1.2-pp38-pypy38_pp73-macosx_10_9_x86_64.whl", hash = "sha256:a8330b8f8ef4555e4bf7df56bc5a88815b5f3c127c00f38915a970af46616f1b"},
+    {file = "fugashi-1.1.2.tar.gz", hash = "sha256:5e82fbf4fce097f7dc43c615e28aa4cb0417e5a68a665987e5cbf0882498056d"},
+]
 gitdb = [
     {file = "gitdb-4.0.9-py3-none-any.whl", hash = "sha256:8033ad4e853066ba6ca92050b9df2f89301b8fc8bf7e9324d412a63f8bf1a8fd"},
     {file = "gitdb-4.0.9.tar.gz", hash = "sha256:bac2fd45c0a1c9cf619e63a90d62bdc63892ef92387424b855792a6cabe789aa"},
@@ -1437,6 +1498,12 @@ importlib-metadata = [
 iniconfig = [
     {file = "iniconfig-1.1.1-py2.py3-none-any.whl", hash = "sha256:011e24c64b7f47f6ebd835bb12a743f2fbe9a26d4cecaa7f53bc4f35ee9da8b3"},
     {file = "iniconfig-1.1.1.tar.gz", hash = "sha256:bc3af051d7d14b2ee5ef9969666def0cd1a000e121eaea580d4a313df4b37f32"},
+]
+ipadic = [
+    {file = "ipadic-1.0.0.tar.gz", hash = "sha256:f5923d31eca6131acaaf18ed28d8998665b1347b640d3a6476f64650e9a71c07"},
+]
+jaconv = [
+    {file = "jaconv-0.3.tar.gz", hash = "sha256:cc70c796c19a6765598c03eac59d1399a555a9a8839cc70e540ec26f0ec3e66e"},
 ]
 joblib = [
     {file = "joblib-1.1.0-py2.py3-none-any.whl", hash = "sha256:f21f109b3c7ff9d95f8387f752d0d9c34a02aa2f7060c2135f465da0e5160ff6"},
@@ -1670,6 +1737,9 @@ pytest-cov = [
 python-dateutil = [
     {file = "python-dateutil-2.8.2.tar.gz", hash = "sha256:0123cacc1627ae19ddf3c27a5de5bd67ee4586fbdd6440d9748f8abb483d3e86"},
     {file = "python_dateutil-2.8.2-py2.py3-none-any.whl", hash = "sha256:961d03dc3453ebbc59dbdea9e4e11c5651520a876d0f4db161e8674aae935da9"},
+]
+python-levenshtein = [
+    {file = "python-Levenshtein-0.12.2.tar.gz", hash = "sha256:dc2395fbd148a1ab31090dd113c366695934b9e85fe5a4b2a032745efd0346f6"},
 ]
 pytorch-lightning = [
     {file = "pytorch-lightning-1.6.4.tar.gz", hash = "sha256:5459f2c3e67676ec59e94576d1499e9559d214e7df41eadd135db64b4ccf54b9"},

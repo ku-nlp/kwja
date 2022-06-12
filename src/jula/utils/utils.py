@@ -1,3 +1,11 @@
+TYPO_OPN2TOKEN = {
+    "K": "<k>",
+    "D": "<d>",
+    "_": "<_>",
+}
+TOKEN2TYPO_OPN = {v: k for k, v in TYPO_OPN2TOKEN.items()}
+TYPO_DUMMY_TOKEN = "<dummy>"
+
 SEG_LABEL2INDEX = {
     "PAD": 0,
     "B": 1,

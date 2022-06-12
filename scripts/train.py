@@ -44,7 +44,7 @@ def main(cfg: DictConfig):
 
     datamodule: DataModule = DataModule(cfg=cfg)
 
-    if cfg.module.type == "char":
+    if cfg.module.type in ["char", "char_typo"]:
         model: CharModule = CharModule(hparams=cfg)
     elif cfg.module.type == "word":
         model: WordModule = WordModule(hparams=cfg)
@@ -55,6 +55,12 @@ def main(cfg: DictConfig):
     trainer.test(
         model=model, datamodule=datamodule, ckpt_path="best" if not is_debug else None
     )
+    if cfg.do_predict_after_train:
+        trainer.predict(
+            model=model,
+            datamodule=datamodule,
+            ckpt_path=trainer.checkpoint_callback.best_model_path,
+        )
 
     wandb.finish()
 
