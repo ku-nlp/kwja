@@ -10,7 +10,7 @@ from pytorch_lightning.callbacks import BasePredictionWriter
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from jula.evaluators.typo_corrector_metrics import TypoCorrectorMetrics
-from jula.utils.utils import TYPO_OPN2TOKEN
+from jula.utils.utils import TOKEN2TYPO_OPN, TYPO_OPN2TOKEN
 
 
 class TypoCorrectorWriter(BasePredictionWriter):
@@ -44,6 +44,7 @@ class TypoCorrectorWriter(BasePredictionWriter):
             for line in f:
                 opn = str(line.strip())
                 opn2id[opn] = len(opn2id)
+                id2opn[len(id2opn)] = opn
         return opn2id, id2opn
 
     def get_opn(
@@ -62,12 +63,12 @@ class TypoCorrectorWriter(BasePredictionWriter):
                     continue
 
                 if self.id2opn[pred_id] in TYPO_OPN2TOKEN.values():
-                    preds.append(self.id2opn[pred_id])
+                    preds.append(TOKEN2TYPO_OPN[self.id2opn[pred_id]])
                 else:
                     preds.append(f"{opn_prefix}:{self.id2opn[pred_id]}")
 
                 if self.id2opn[label_id] in TYPO_OPN2TOKEN.values():
-                    labels.append(self.id2opn[label_id])
+                    labels.append(TOKEN2TYPO_OPN[self.id2opn[label_id]])
                 else:
                     labels.append(f"{opn_prefix}:{self.id2opn[label_id]}")
             preds_list.append(preds)
