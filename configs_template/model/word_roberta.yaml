@@ -1,0 +1,2 @@
+model_name_or_path: "nlp-waseda/roberta-base-japanese"       # FIXME
+max_seq_length: 128

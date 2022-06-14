@@ -39,7 +39,7 @@ class WordDataset(BaseDataset):
             word_features[end.global_index][WORD_FEATURES.index("文節-区切")] = 1
 
         base_phrase_features = [
-            [0] * len(BASE_PHRASE_FEATURES) for _ in range(self.max_seq_length)
+            [-100] * len(BASE_PHRASE_FEATURES) for _ in range(self.max_seq_length)
         ]
         for base_phrase in document.base_phrases:
             for i, base_phrase_feature in enumerate(BASE_PHRASE_FEATURES):
@@ -47,9 +47,11 @@ class WordDataset(BaseDataset):
                     key, value = base_phrase_feature.split(":")
                 else:
                     key, value = base_phrase_feature, ""
+                head = base_phrase.head
                 if base_phrase.features.get(key, False) in (value, True):
-                    head = base_phrase.head
                     base_phrase_features[head.global_index][i] = 1
+                else:
+                    base_phrase_features[head.global_index][i] = 0
 
         # TODO: introduce the ROOT node
         dependencies = [[0] * self.max_seq_length for _ in range(self.max_seq_length)]
@@ -75,6 +77,7 @@ class WordDataset(BaseDataset):
             "base_phrase_features": torch.tensor(
                 base_phrase_features, dtype=torch.float
             ),
+            "num_base_phrases": torch.tensor(len(document.base_phrases), dtype=torch.long),
             "dependencies": torch.tensor(dependencies, dtype=torch.long),
             "discourse_relations": torch.tensor(discourse_relations, dtype=torch.long),
         }
