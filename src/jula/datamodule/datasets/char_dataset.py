@@ -6,7 +6,7 @@ import hydra
 import torch
 from rhoknp import Document
 from torch.utils.data import Dataset
-from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizerBase
+from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizer
 
 from jula.datamodule.datasets.base_dataset import BaseDataset
 from jula.utils.utils import SEG_LABEL2INDEX, TYPO_DUMMY_TOKEN, TYPO_OPN2TOKEN
@@ -64,13 +64,19 @@ class CharTypoDataset(Dataset):
         assert len(self) != 0
 
         tokenizer_kwargs = tokenizer_kwargs or {}
-        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
+        self.tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(
             model_name_or_path,
             **hydra.utils.instantiate(tokenizer_kwargs, _convert_="partial"),
         )
-        self.pad_token_id: int = self.tokenizer.pad_token_id
-        self.unk_token_id: int = self.tokenizer.unk_token_id
-        self.max_seq_length = max_seq_length
+        if self.tokenizer.pad_token_id:
+            self.pad_token_id: int = self.tokenizer.pad_token_id
+        else:
+            raise ValueError("Padding token in not the vocabulary")
+        if self.tokenizer.unk_token_id:
+            self.unk_token_id: int = self.tokenizer.unk_token_id
+        else:
+            raise ValueError("Unknown token in not the vocabulary")
+        self.max_seq_length: int = max_seq_length
 
         self.opn2id: dict[str, int] = self.get_opn2id(path=Path(extended_vocab_path))
 
@@ -97,8 +103,10 @@ class CharTypoDataset(Dataset):
         return opn2id
 
     def encode(
-        self, document: list[dict[str, Union[str, list[str]]]]
+        self, document: dict[str, Union[str, list[str]]]
     ) -> dict[str, torch.Tensor]:
+        if isinstance(document["pre_text"], list):
+            raise ValueError('document["pre_text"] must be string')
         encoding: BatchEncoding = self.tokenizer(
             document["pre_text"] + TYPO_DUMMY_TOKEN,
             truncation=True,
@@ -115,13 +123,13 @@ class CharTypoDataset(Dataset):
             else:
                 kdr_label = self.opn2id.get(opn.removeprefix("R:"), self.unk_token_id)
             kdr_labels.append(kdr_label)
-        kdr_labels.append(self.tokenizer.pad_token_id)
+        kdr_labels.append(self.pad_token_id)
         kdr_labels = (
-            [self.tokenizer.pad_token_id]
+            [self.pad_token_id]
             + kdr_labels[: self.max_seq_length - 2]
-            + [self.tokenizer.pad_token_id]
+            + [self.pad_token_id]
         )
-        kdr_labels = kdr_labels + [self.tokenizer.pad_token_id] * (
+        kdr_labels = kdr_labels + [self.pad_token_id] * (
             self.max_seq_length - len(kdr_labels)
         )
 
@@ -133,11 +141,11 @@ class CharTypoDataset(Dataset):
                 ins_label = self.opn2id.get(opn.removeprefix("I:"), self.unk_token_id)
             ins_labels.append(ins_label)
         ins_labels = (
-            [self.tokenizer.pad_token_id]
+            [self.pad_token_id]
             + ins_labels[: self.max_seq_length - 2]
-            + [self.tokenizer.pad_token_id]
+            + [self.pad_token_id]
         )
-        ins_labels = ins_labels + [self.tokenizer.pad_token_id] * (
+        ins_labels = ins_labels + [self.pad_token_id] * (
             self.max_seq_length - len(ins_labels)
         )
 

@@ -1,5 +1,5 @@
 import os
-from typing import Optional
+from typing import Optional, Union
 
 import hydra
 import pytorch_lightning as pl
@@ -44,10 +44,11 @@ def main(cfg: DictConfig):
 
     datamodule: DataModule = DataModule(cfg=cfg)
 
+    model: Union[CharModule, WordModule]
     if cfg.module.type in ["char", "char_typo"]:
-        model: CharModule = CharModule(hparams=cfg)
+        model = CharModule(hparams=cfg)
     elif cfg.module.type == "word":
-        model: WordModule = WordModule(hparams=cfg)
+        model = WordModule(hparams=cfg)
     else:
         raise ValueError("invalid module type")
 
@@ -59,7 +60,9 @@ def main(cfg: DictConfig):
         trainer.predict(
             model=model,
             datamodule=datamodule,
-            ckpt_path=trainer.checkpoint_callback.best_model_path,
+            ckpt_path=trainer.checkpoint_callback.best_model_path
+            if trainer.checkpoint_callback
+            else "best",
         )
 
     wandb.finish()

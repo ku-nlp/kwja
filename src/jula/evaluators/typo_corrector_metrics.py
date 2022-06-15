@@ -14,7 +14,7 @@ class TypoCorrectorMetrics:
         batch: dict[str, torch.Tensor],
     ) -> dict[str, Union[torch.Tensor, float]]:
 
-        metrics = dict(loss=outputs["loss"])
+        metrics: dict[str, Union[torch.Tensor, float]] = dict(loss=outputs["loss"])
         for key in outputs.keys():
             if "_loss" in key:
                 metrics[key] = outputs[key].detach()

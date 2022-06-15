@@ -7,7 +7,7 @@ import hydra
 import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks import BasePredictionWriter
-from transformers import AutoTokenizer, PreTrainedTokenizerBase
+from transformers import AutoTokenizer, PreTrainedTokenizer
 
 from jula.evaluators.typo_corrector_metrics import TypoCorrectorMetrics
 from jula.utils.utils import TOKEN2TYPO_OPN, TYPO_OPN2TOKEN
@@ -27,12 +27,12 @@ class TypoCorrectorWriter(BasePredictionWriter):
         if os.path.isfile(self.output_path):
             os.remove(self.output_path)
 
-        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
+        self.tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(
             model_name_or_path,
             **hydra.utils.instantiate(tokenizer_kwargs, _convert_="partial"),
         )
         self.pad_token_id = self.tokenizer.pad_token_id
-        self.predicts = dict()
+        self.predicts: dict[int, Any] = dict()
         self.metrics = TypoCorrectorMetrics()
 
         self.opn2id, self.id2opn = self.get_opn_dict(path=Path(extended_vocab_path))
@@ -52,7 +52,7 @@ class TypoCorrectorWriter(BasePredictionWriter):
         pred_ids_list: list[list[int]],
         label_ids_list: list[list[int]],
         opn_prefix: str,
-    ) -> tuple[list[list[int]], list[list[int]]]:
+    ) -> tuple[list[list[str]], list[list[str]]]:
         preds_list: list[list[str]] = []
         labels_list: list[list[str]] = []
         for pred_ids, label_ids in zip(pred_ids_list, label_ids_list):

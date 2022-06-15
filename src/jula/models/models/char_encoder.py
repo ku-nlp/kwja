@@ -1,11 +1,11 @@
 import torch
 import torch.nn as nn
 from omegaconf import DictConfig
-from transformers import AutoModel, PreTrainedTokenizerBase
+from transformers import AutoModel, PreTrainedTokenizer
 
 
 class CharEncoder(nn.Module):
-    def __init__(self, hparams: DictConfig, tokenizer: PreTrainedTokenizerBase) -> None:
+    def __init__(self, hparams: DictConfig, tokenizer: PreTrainedTokenizer) -> None:
         super().__init__()
         self.hparams = hparams
 
