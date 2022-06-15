@@ -68,14 +68,10 @@ class CharTypoDataset(Dataset):
             model_name_or_path,
             **hydra.utils.instantiate(tokenizer_kwargs, _convert_="partial"),
         )
-        if self.tokenizer.pad_token_id is not None:
-            self.pad_token_id: int = self.tokenizer.pad_token_id
-        else:
-            raise ValueError("Padding token in not the vocabulary")
-        if self.tokenizer.unk_token_id is not None:
-            self.unk_token_id: int = self.tokenizer.unk_token_id
-        else:
-            raise ValueError("Unknown token in not the vocabulary")
+        assert self.tokenizer.pad_token_id is not None
+        self.pad_token_id: int = self.tokenizer.pad_token_id
+        assert self.tokenizer.unk_token_id is not None
+        self.unk_token_id: int = self.tokenizer.unk_token_id
         self.max_seq_length: int = max_seq_length
 
         self.opn2id: dict[str, int] = self.get_opn2id(path=Path(extended_vocab_path))
