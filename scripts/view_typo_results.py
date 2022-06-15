@@ -17,7 +17,7 @@ def apply_ops(pre_text: str, kdrs: list[str], inss: list[str]) -> str:
         elif len(kdrs[i]) > 2 and kdrs[i][0:2] == "R:":
             post_text += kdrs[i][2:]
         else:
-            raise "unsupported op"
+            raise ValueError("unsupported op")
     if inss[-1] != "_":
         post_text += inss[-1][2:]
     return post_text
@@ -27,8 +27,8 @@ def get_diffs(before: str, after: str) -> list[tuple[str, str]]:
     before_split: list[str] = list(before)
     after_split: list[str] = list(after)
 
-    char2id: dict[str, int] = dict()
-    id2char: dict[int, str] = dict()
+    char2id: dict[str, str] = dict()
+    id2char: dict[str, str] = dict()
     id_ = 0
     for char in before_split + after_split:
         if char not in char2id:

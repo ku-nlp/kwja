@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from typing import Union
 
 import hydra
 import pytorch_lightning as pl
@@ -31,12 +32,13 @@ def main(cfg: DictConfig):
         devices=cfg.devices,
     )
 
+    model: Union[CharModule, WordModule]
     if cfg.module.type in ["char", "char_typo"]:
-        model: CharModule = CharModule.load_from_checkpoint(
+        model = CharModule.load_from_checkpoint(
             checkpoint_path=cfg.checkpoint_path, hparams=cfg
         )
     elif cfg.module.type == "word":
-        model: WordModule = WordModule.load_from_checkpoint(
+        model = WordModule.load_from_checkpoint(
             checkpoint_path=cfg.checkpoint_path, hparams=cfg
         )
     else:
