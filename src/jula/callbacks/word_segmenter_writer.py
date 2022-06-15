@@ -27,7 +27,6 @@ class WordSegmenterWriter(BasePredictionWriter):
             model_name_or_path,
             **tokenizer_kwargs,
         )
-        self.pad_token_id = self.tokenizer.pad_token_id
         self.predicts: dict[int, Any] = dict()
         self.metrics = WordSegmenterMetrics()
 
@@ -63,7 +62,7 @@ class WordSegmenterWriter(BasePredictionWriter):
                             [
                                 x
                                 for x in batch_pred["input_ids"][idx]
-                                if x != self.pad_token_id
+                                if x != self.tokenizer.pad_token_id
                             ]
                         ),
                         seg_preds=seg_preds[idx],

@@ -31,7 +31,7 @@ class TypoCorrector(nn.Module):
             nn.Dropout(pretrained_model_config.hidden_dropout_prob),
             nn.Linear(self.hidden_size, self.num_ins_labels),
         )
-        if self.tokenizer.pad_token_id:
+        if self.tokenizer.pad_token_id is not None:
             self.pad_token_id: int = self.tokenizer.pad_token_id
         else:
             raise ValueError("Padding token in not the vocabulary")
