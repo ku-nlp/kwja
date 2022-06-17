@@ -1,6 +1,6 @@
 defaults:
   - base
-  - callbacks: [early_stopping, model_checkpoint, model_summary, prediction_writer, progress_bar]
+  - callbacks: [early_stopping, model_checkpoint, model_summary, typo_corrector_writer, progress_bar]
   - datamodule: typo
   - dataset: jwtd
   - logger: wandb

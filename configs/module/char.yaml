@@ -1,4 +1,4 @@
 config_names: [
-  "word_segmentor",
-  "word_segmentor.debug",
+  "word_segmenter",
+  "word_segmenter.debug",
 ]
