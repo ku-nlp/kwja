@@ -17,7 +17,6 @@ class CharModule(LightningModule):
         self.hparams.update(hparams)
         self.save_hyperparameters()
 
-        print(hparams.model.model_name_or_path)
         self.tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(
             hparams.model.model_name_or_path,
             **hydra.utils.instantiate(
