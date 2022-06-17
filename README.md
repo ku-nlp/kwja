@@ -14,7 +14,7 @@ To prepare the Python environment of our project, we do:
 ```shell
 poetry install
 ```
-You must prepare config files:
+You must prepare config files and a `.env` file:
 1. Copy base config file and edit `work_dir`
 ```shell
 cp configs/base_template.yaml configs/base.yaml
@@ -24,6 +24,11 @@ cp configs/base_template.yaml configs/base.yaml
 touch TASK_NAME.yaml TASK_NAME.debug.yaml
 ```
 Please refer to existing tasks when editing and add your task to `configs/module/default.yaml`
+3. Create a `.env` file and set `DATA_DIR` and `MODEL_DIR`.
+```shell
+echo DATA_DIR="/path/to/data_dir" >> .env
+echo MODEL_DIR="/path/to/model_dir" >> .env
+```
 
 ## Training and evaluation
 You can train and test the models in the following command:
