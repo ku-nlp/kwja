@@ -104,7 +104,12 @@ venv.bak/
 
 # local debugging
 data/
+model/
+!configs/model/
 result/
 
 # config
-configs/
+configs/base.yaml
+
+# dotenv
+.env

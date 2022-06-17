@@ -1,3 +1,0 @@
-data_dir: "/server_path/to/KWDLC"       # FIXME
-tokenizer_kwargs:
-  do_word_tokenize: False

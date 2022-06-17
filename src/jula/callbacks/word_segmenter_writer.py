@@ -7,7 +7,7 @@ import torch
 from pytorch_lightning.callbacks import BasePredictionWriter
 from transformers import AutoTokenizer, PreTrainedTokenizer
 
-from jula.evaluators.word_segment_metrics import WordSegmenterMetrics
+from jula.evaluators.word_segment import WordSegmenterMetric
 
 
 class WordSegmenterWriter(BasePredictionWriter):
@@ -28,7 +28,7 @@ class WordSegmenterWriter(BasePredictionWriter):
             **tokenizer_kwargs,
         )
         self.predicts: dict[int, Any] = dict()
-        self.metrics = WordSegmenterMetrics()
+        self.metrics: WordSegmenterMetric = WordSegmenterMetric()
 
     def write_on_batch_end(
         self,

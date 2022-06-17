@@ -9,7 +9,7 @@ import torch
 from pytorch_lightning.callbacks import BasePredictionWriter
 from transformers import AutoTokenizer, PreTrainedTokenizer
 
-from jula.evaluators.typo_corrector_metrics import TypoCorrectorMetrics
+from jula.evaluators.typo_corrector import TypoCorrectorMetric
 from jula.utils.utils import TOKEN2TYPO_OPN, TYPO_OPN2TOKEN
 
 
@@ -32,7 +32,7 @@ class TypoCorrectorWriter(BasePredictionWriter):
             **hydra.utils.instantiate(tokenizer_kwargs, _convert_="partial"),
         )
         self.predicts: dict[int, Any] = dict()
-        self.metrics = TypoCorrectorMetrics()
+        self.metrics: TypoCorrectorMetric = TypoCorrectorMetric()
 
         self.opn2id, self.id2opn = self.get_opn_dict(path=Path(extended_vocab_path))
 

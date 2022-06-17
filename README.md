@@ -14,22 +14,33 @@ To prepare the Python environment of our project, we do:
 ```shell
 poetry install
 ```
-You must prepare config files:
+You must prepare config files and a `.env` file:
+1. Copy base config file and edit `work_dir`
 ```shell
-cp -rn configs_template configs
+cp configs/base_template.yaml configs/base.yaml
 ```
-You may edit the files under config directory as you like.
-The parts that need editing are marked with a FIXME comment.
+2. Create config file for the task you want to do:
+```shell
+touch TASK_NAME.yaml TASK_NAME.debug.yaml
+```
+Please refer to existing tasks when editing and add your task to `configs/module/default.yaml`
+3. Create a `.env` file and set `DATA_DIR` and `MODEL_DIR`.
+```shell
+echo DATA_DIR="/path/to/data_dir" >> .env
+echo MODEL_DIR="/path/to/model_dir" >> .env
+```
 
 ## Training and evaluation
 You can train and test the models in the following command:
 ```shell
-poetry run python scripts/train.py devices=[0,1]
+# For training and evaluating word segmentor
+poetry run python scripts/train.py -cn word_segmentor devices=[0,1]
 ```
 
 If you only want to do evaluation after training, please use the following command:
 ```shell
-poetry run python scripts/evaluate.py devices=[0] checkpoint_path="/path/to/checkpoint"
+# For evaluating word segmentor
+poetry run python scripts/evaluate.py -cn word_segmentor devices=[0] checkpoint_path="/path/to/checkpoint"
 ```
 
 ## Debugging
@@ -37,11 +48,13 @@ You can do debugging on local and server environments:
 
 Local environment (using CPU):
 ```shell
-poetry run python scripts/train.py -cn debug.local.yaml
+# For debugging word segmentor
+poetry run python scripts/train.py -cn word_segmentor.debug devices=1
 ```
 Server environment (using GPU):
 ```shell
-poetry run python scripts/train.py -cn debug.yaml devices=[0]
+# For debugging word segmentor
+poetry run python scripts/train.py -cn word_segmentor.debug devices=[0]
 ```
 
 ## Unit tests
