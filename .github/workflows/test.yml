@@ -6,17 +6,13 @@ jobs:
   test:
     name: Run tests with pytest
     runs-on: ubuntu-latest
-    strategy:
-      max-parallel: 2
-      matrix:
-        python-version: ["3.9", "3.10"]
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
-    - name: Set up Python ${{ matrix.python-version }}
+    - name: Set up Python 3.9
       uses: actions/setup-python@v2.1.4
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: 3.9
     - name: Install Poetry
       run: |
         python3 -m pip install --user pipx
