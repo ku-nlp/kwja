@@ -1,21 +1,19 @@
 from pathlib import Path
 
-from jula.datamodule.datasets.char_dataset import CharTypoDataset
+from jula.datamodule.datasets.typo_dataset import TypoDataset
 
 here = Path(__file__).absolute().parent
 path = here.joinpath("typo_files")
 
 
 def test_init():
-    _ = CharTypoDataset(
-        path=str(path), extended_vocab_path=f"{path}/extended_vocab.txt"
-    )
+    _ = TypoDataset(path=str(path), extended_vocab_path=f"{path}/extended_vocab.txt")
 
 
 def test_getitem():
     max_seq_length = 512
     # TODO: use roberta
-    dataset = CharTypoDataset(
+    dataset = TypoDataset(
         path=str(path),
         extended_vocab_path=f"{path}/extended_vocab.txt",
         model_name_or_path="cl-tohoku/bert-base-japanese-char",
