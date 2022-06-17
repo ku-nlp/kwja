@@ -4,7 +4,7 @@ save_dir: ${work_dir}
 project: ${project}
 group: ${name}
 tags:
-  - sample
+  - ${config_name}
 settings:
   _target_: wandb.Settings
   start_method: fork
