@@ -6,18 +6,17 @@ from omegaconf import DictConfig
 from pytorch_lightning.core.lightning import LightningModule
 from transformers import AutoTokenizer, PretrainedConfig, PreTrainedTokenizer
 
-from jula.evaluators.word_segment_metrics import WordSegmenterMetrics
+from jula.evaluators.typo_corrector_metrics import TypoCorrectorMetrics
 from jula.models.models.char_encoder import CharEncoder
-from jula.models.models.word_segmenter import WordSegmenter
+from jula.models.models.typo_corrector import TypoCorrector
 
 
-class CharModule(LightningModule):
+class TypoModule(LightningModule):
     def __init__(self, hparams: DictConfig) -> None:
         super().__init__()
         self.hparams.update(hparams)
         self.save_hyperparameters()
 
-        print(hparams.model.model_name_or_path)
         self.tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(
             hparams.model.model_name_or_path,
             **hydra.utils.instantiate(
@@ -29,11 +28,12 @@ class CharModule(LightningModule):
         pretrained_model_config: PretrainedConfig = (
             self.char_encoder.pretrained_model.config
         )
-        self.model: WordSegmenter = WordSegmenter(
+        self.model: TypoCorrector = TypoCorrector(
             hparams=hparams,
             pretrained_model_config=pretrained_model_config,
+            tokenizer=self.tokenizer,
         )
-        self.metrics: WordSegmenterMetrics = WordSegmenterMetrics()
+        self.metrics: TypoCorrectorMetrics = TypoCorrectorMetrics()
 
     def forward(self, **kwargs):
         encoder_output = self.char_encoder(kwargs)  # (b, seq_len, h)
