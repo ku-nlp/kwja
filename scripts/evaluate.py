@@ -40,15 +40,15 @@ def main(cfg: DictConfig):
 
     model: Union[TypoModule, CharModule, WordModule]
     # add config name if you want
-    if cfg.config_name in ["typo_corrector"]:
+    if cfg.config_name in cfg.module.config_names:
         model = TypoModule.load_from_checkpoint(
             checkpoint_path=cfg.checkpoint_path, hparams=cfg
         )
-    elif cfg.config_name in ["word_segmentor"]:
+    elif cfg.config_name in cfg.module.config_names:
         model = CharModule.load_from_checkpoint(
             checkpoint_path=cfg.checkpoint_path, hparams=cfg
         )
-    elif cfg.config_name in ["word_analyzer"]:
+    elif cfg.config_name in cfg.module.config_names:
         model = WordModule.load_from_checkpoint(
             checkpoint_path=cfg.checkpoint_path, hparams=cfg
         )

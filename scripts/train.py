@@ -45,12 +45,11 @@ def main(cfg: DictConfig):
     datamodule: DataModule = DataModule(cfg=cfg)
 
     model: Union[TypoModule, CharModule, WordModule]
-    # add config name if you want
-    if cfg.config_name in ["typo_corrector", "typo_corrector.debug"]:
+    if cfg.config_name in cfg.module.config_names:
         model = TypoModule(hparams=cfg)
-    elif cfg.config_name in ["word_segmentor", "word_segmentor.debug"]:
+    elif cfg.config_name in cfg.module.config_names:
         model = CharModule(hparams=cfg)
-    elif cfg.config_name in ["word_analyzer", "word_analyzer.debug"]:
+    elif cfg.config_name in cfg.module.config_names:
         model = WordModule(hparams=cfg)
     else:
         raise ValueError("invalid config name")
