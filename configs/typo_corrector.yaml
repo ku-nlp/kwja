@@ -5,6 +5,7 @@ defaults:
   - dataset: jwtd
   - logger: wandb
   - model: char_roberta_base
+  - module: typo
   - optimizer: adamw
   - trainer: default
   - _self_
@@ -16,3 +17,6 @@ checkpoint_path: ""
 # set monitor and mode for early_stopping and model_checkpoint
 monitor: valid/loss
 mode: min
+# batch size
+batch_size: 8
+accumulate_grad_batches: 1

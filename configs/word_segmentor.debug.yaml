@@ -5,6 +5,7 @@ defaults:
   - dataset: kwdlc
   - logger: wandb
   - model: char_roberta_base
+  - module: char
   - optimizer: adamw
   - trainer: debug
   - _self_
@@ -15,3 +16,6 @@ do_predict_after_train: False
 # set monitor and mode for early_stopping and model_checkpoint
 monitor: valid/f1
 mode: max
+# batch size
+batch_size: 8
+accumulate_grad_batches: 1
