@@ -6,7 +6,7 @@ from omegaconf import DictConfig
 from pytorch_lightning.core.lightning import LightningModule
 from transformers import AutoTokenizer, PretrainedConfig, PreTrainedTokenizer
 
-from jula.evaluators.typo_corrector_metrics import TypoCorrectorMetrics
+from jula.evaluators.typo_corrector import TypoCorrectorMetric
 from jula.models.models.char_encoder import CharEncoder
 from jula.models.models.typo_corrector import TypoCorrector
 
@@ -33,7 +33,7 @@ class TypoModule(LightningModule):
             pretrained_model_config=pretrained_model_config,
             tokenizer=self.tokenizer,
         )
-        self.metrics: TypoCorrectorMetrics = TypoCorrectorMetrics()
+        self.metrics: TypoCorrectorMetric = TypoCorrectorMetric()
 
     def forward(self, **kwargs):
         encoder_output = self.char_encoder(kwargs)  # (b, seq_len, h)

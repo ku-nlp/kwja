@@ -4,7 +4,7 @@ import torch
 from torchmetrics.functional import accuracy
 
 
-class TypoCorrectorMetrics:
+class TypoCorrectorMetric:
     def __init__(self) -> None:
         pass
 

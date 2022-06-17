@@ -7,7 +7,7 @@ from seqeval.scheme import IOB2
 from jula.utils.utils import INDEX2SEG_LABEL, SEG_LABEL2INDEX
 
 
-class WordSegmenterMetrics:
+class WordSegmenterMetric:
     def __init__(self) -> None:
         pass
 
