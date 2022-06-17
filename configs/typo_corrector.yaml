@@ -1,0 +1,18 @@
+defaults:
+  - base
+  - callbacks: [early_stopping, model_checkpoint, model_summary, prediction_writer, progress_bar]
+  - datamodule: typo
+  - dataset: jwtd
+  - logger: wandb
+  - model: char_roberta_base
+  - optimizer: adamw
+  - trainer: default
+  - _self_
+
+devices: ${oc.env:GPUS,0}
+do_predict_after_train: True
+checkpoint_path: ""
+
+# set monitor and mode for early_stopping and model_checkpoint
+monitor: valid/loss
+mode: min

@@ -1,0 +1,8 @@
+_target_: pytorch_lightning.Trainer
+gradient_clip_val: 0.5
+accumulate_grad_batches: 1
+max_epochs: 50
+min_epochs: 1
+accelerator: "auto"     # set gpu or cpu automatically
+strategy: ddp
+precision: 32

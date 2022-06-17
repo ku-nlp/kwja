@@ -1,31 +1,31 @@
-import os
 from typing import Optional, Union
 
 import hydra
 import pytorch_lightning as pl
 import transformers.utils.logging as hf_logging
 import wandb
+from dotenv import load_dotenv
 from omegaconf import DictConfig
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.loggers import LightningLoggerBase
 
 from jula.datamodule.datamodule import DataModule
 from jula.models.char_module import CharModule
+from jula.models.typo_module import TypoModule
 from jula.models.word_module import WordModule
 
 hf_logging.set_verbosity(hf_logging.ERROR)
 
 
-@hydra.main(version_base=None, config_path="../configs", config_name="train")
+@hydra.main(version_base=None, config_path="../configs", config_name="word_segmentor")
 def main(cfg: DictConfig):
+    load_dotenv()
     if isinstance(cfg.devices, str):
         try:
             cfg.devices = [int(x) for x in cfg.devices.split(",")]
         except ValueError:
             cfg.devices = None
     cfg.seed = pl.seed_everything(seed=cfg.seed, workers=True)
-
-    os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
     is_debug: bool = True if "fast_dev_run" in cfg.trainer else False
     logger: Optional[LightningLoggerBase] = (
@@ -44,13 +44,16 @@ def main(cfg: DictConfig):
 
     datamodule: DataModule = DataModule(cfg=cfg)
 
-    model: Union[CharModule, WordModule]
-    if cfg.module.type in ["char", "char_typo"]:
+    model: Union[TypoModule, CharModule, WordModule]
+    # add config name if you want
+    if cfg.config_name in ["typo_corrector", "typo_corrector.debug"]:
+        model = TypoModule(hparams=cfg)
+    elif cfg.config_name in ["word_segmentor", "word_segmentor.debug"]:
         model = CharModule(hparams=cfg)
-    elif cfg.module.type == "word":
+    elif cfg.config_name in ["word_analyzer", "word_analyzer.debug"]:
         model = WordModule(hparams=cfg)
     else:
-        raise ValueError("invalid module type")
+        raise ValueError("invalid config name")
 
     trainer.fit(model=model, datamodule=datamodule)
     trainer.test(
