@@ -45,11 +45,11 @@ def main(cfg: DictConfig):
     datamodule: DataModule = DataModule(cfg=cfg)
 
     model: Union[TypoModule, CharModule, WordModule]
-    if cfg.config_name in cfg.module.config_names:
+    if cfg.config_name in cfg.module.typo:
         model = TypoModule(hparams=cfg)
-    elif cfg.config_name in cfg.module.config_names:
+    elif cfg.config_name in cfg.module.char:
         model = CharModule(hparams=cfg)
-    elif cfg.config_name in cfg.module.config_names:
+    elif cfg.config_name in cfg.module.word:
         model = WordModule(hparams=cfg)
     else:
         raise ValueError("invalid config name")

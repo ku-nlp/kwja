@@ -5,7 +5,7 @@ defaults:
   - dataset: jwtd
   - logger: wandb
   - model: char_roberta_base
-  - module: typo
+  - module: default
   - optimizer: adamw
   - trainer: debug
   - _self_
@@ -17,5 +17,5 @@ do_predict_after_train: False
 monitor: valid/loss
 mode: min
 # batch size
-batch_size: 8
+batch_size: 4
 accumulate_grad_batches: 1

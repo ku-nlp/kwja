@@ -1,4 +1,0 @@
-config_names: [
-  "word_analyzer",
-  "word_analyzer.debug",
-]

@@ -23,19 +23,19 @@ cp configs/base_template.yaml configs/base.yaml
 ```shell
 touch TASK_NAME.yaml TASK_NAME.debug.yaml
 ```
-Please refer to existing tasks when editing.
+Please refer to existing tasks when editing and add your task to `configs/module/default.yaml`
 
 ## Training and evaluation
 You can train and test the models in the following command:
 ```shell
 # For training and evaluating word segmentor
-poetry run python scripts/train.py -cn word_segmentor.yaml devices=[0,1]
+poetry run python scripts/train.py -cn word_segmentor devices=[0,1]
 ```
 
 If you only want to do evaluation after training, please use the following command:
 ```shell
 # For evaluating word segmentor
-poetry run python scripts/evaluate.py -cn word_segmentor.yaml devices=[0] checkpoint_path="/path/to/checkpoint"
+poetry run python scripts/evaluate.py -cn word_segmentor devices=[0] checkpoint_path="/path/to/checkpoint"
 ```
 
 ## Debugging

@@ -1,4 +1,0 @@
-config_names: [
-  "typo_corrector",
-  "typo_corrector.debug",
-]

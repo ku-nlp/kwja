@@ -5,7 +5,7 @@ defaults:
   - dataset: kwdlc
   - logger: wandb
   - model: char_roberta_base
-  - module: char
+  - module: default
   - optimizer: adamw
   - trainer: debug
   - _self_
