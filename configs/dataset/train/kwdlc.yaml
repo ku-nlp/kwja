@@ -1,0 +1,5 @@
+defaults:
+  - /datamodule/word@kwdlc
+
+kwdlc:
+  path: ${oc.env:DATA_DIR}/kwdlc/train

@@ -3,12 +3,21 @@ from rhoknp import Document
 from transformers import BatchEncoding
 
 from jula.datamodule.datasets.base_dataset import BaseDataset
-from jula.utils.utils import BASE_PHRASE_FEATURES, DISCOURSE_RELATIONS, WORD_FEATURES
+from jula.utils.utils import (
+    BASE_PHRASE_FEATURES,
+    DISCOURSE_RELATIONS,
+    IGNORE_INDEX,
+    WORD_FEATURES,
+)
 
 
 class WordDataset(BaseDataset):
     def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
-        return self.encode(self.documents[index])
+        document = self.documents[index]
+        return {
+            "document_id": torch.tensor(index, dtype=torch.long),
+            **self.encode(document),
+        }
 
     def encode(self, document: Document) -> dict[str, torch.Tensor]:
         # TODO: deal with the case that the document is too long
@@ -39,7 +48,8 @@ class WordDataset(BaseDataset):
             word_features[end.global_index][WORD_FEATURES.index("文節-区切")] = 1
 
         base_phrase_features = [
-            [0] * len(BASE_PHRASE_FEATURES) for _ in range(self.max_seq_length)
+            [IGNORE_INDEX] * len(BASE_PHRASE_FEATURES)
+            for _ in range(self.max_seq_length)
         ]
         for base_phrase in document.base_phrases:
             for i, base_phrase_feature in enumerate(BASE_PHRASE_FEATURES):
@@ -47,9 +57,11 @@ class WordDataset(BaseDataset):
                     key, value = base_phrase_feature.split(":")
                 else:
                     key, value = base_phrase_feature, ""
+                head = base_phrase.head
                 if base_phrase.features.get(key, False) in (value, True):
-                    head = base_phrase.head
                     base_phrase_features[head.global_index][i] = 1
+                else:
+                    base_phrase_features[head.global_index][i] = 0
 
         # TODO: introduce the ROOT node
         dependencies = [[0] * self.max_seq_length for _ in range(self.max_seq_length)]
@@ -74,6 +86,9 @@ class WordDataset(BaseDataset):
             "word_features": torch.tensor(word_features, dtype=torch.float),
             "base_phrase_features": torch.tensor(
                 base_phrase_features, dtype=torch.float
+            ),
+            "num_base_phrases": torch.tensor(
+                len(document.base_phrases), dtype=torch.long
             ),
             "dependencies": torch.tensor(dependencies, dtype=torch.long),
             "discourse_relations": torch.tensor(discourse_relations, dtype=torch.long),

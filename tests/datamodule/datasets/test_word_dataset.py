@@ -4,7 +4,12 @@ from pathlib import Path
 from rhoknp import Document
 
 from jula.datamodule.datasets.word_dataset import WordDataset
-from jula.utils.utils import BASE_PHRASE_FEATURES, DISCOURSE_RELATIONS, WORD_FEATURES
+from jula.utils.utils import (
+    BASE_PHRASE_FEATURES,
+    DISCOURSE_RELATIONS,
+    IGNORE_INDEX,
+    WORD_FEATURES,
+)
 
 here = Path(__file__).absolute().parent
 path = here.joinpath("knp_files")
@@ -21,13 +26,16 @@ def test_getitem():
         document = dataset.documents[i]
         item = dataset[i]
         assert isinstance(item, dict)
+        assert "document_id" in item
         assert "input_ids" in item
         assert "attention_mask" in item
         assert "subword_map" in item
         assert "word_features" in item
         assert "base_phrase_features" in item
+        assert "num_base_phrases" in item
         assert "dependencies" in item
         assert "discourse_relations" in item
+        assert item["document_id"] == i
         assert item["input_ids"].shape == (max_seq_length,)
         assert item["attention_mask"].shape == (max_seq_length,)
         assert item["subword_map"].shape == (max_seq_length, max_seq_length)
@@ -36,6 +44,7 @@ def test_getitem():
             max_seq_length,
             len(BASE_PHRASE_FEATURES),
         )
+        assert item["num_base_phrases"].item() == len(document.base_phrases)
         assert item["word_features"].shape == (max_seq_length, len(WORD_FEATURES))
         assert item["dependencies"].shape == (max_seq_length, max_seq_length)
         assert item["discourse_relations"].shape == (
@@ -105,8 +114,14 @@ def test_encode():
     word_features[8][WORD_FEATURES.index("基本句-区切")] = 1.0
     word_features[8][WORD_FEATURES.index("文節-区切")] = 1.0
 
+    base_phrase_head_indices = {
+        base_phrase.head.global_index for base_phrase in document.base_phrases
+    }
     base_phrase_features = [
-        [0.0] * len(BASE_PHRASE_FEATURES) for _ in range(max_seq_length)
+        [0.0] * len(BASE_PHRASE_FEATURES)
+        if morpheme_global_index in base_phrase_head_indices
+        else [float(IGNORE_INDEX)] * len(BASE_PHRASE_FEATURES)
+        for morpheme_global_index in range(max_seq_length)
     ]
     # 0: 風
     base_phrase_features[0][BASE_PHRASE_FEATURES.index("体言")] = 1.0
