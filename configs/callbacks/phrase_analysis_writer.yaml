@@ -1,7 +1,6 @@
 prediction_writer:
-  _target_: jula.callbacks.typo_corrector_writer.TypoCorrectorWriter
+  _target_: jula.callbacks.phrase_analysis_writer.PhraseAnalysisWriter
   output_dir: ${run_dir}
-  extended_vocab_path: ${dataset.extended_vocab_path}
   pred_filename: "predict"
   model_name_or_path: ${model.model_name_or_path}
   tokenizer_kwargs: ${dataset.tokenizer_kwargs}

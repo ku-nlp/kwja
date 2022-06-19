@@ -9,4 +9,6 @@ char: [
 word: [
   "word_analyzer",
   "word_analyzer.debug",
+  "word_module",
+  "word_module.debug",
 ]
