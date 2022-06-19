@@ -1,4 +1,11 @@
-data_dir: ${oc.env:DATA_DIR}/typo_correction
+defaults:
+  - train:
+    - jwtd.yaml
+  - valid:
+    - jwtd.yaml
+  - test:
+    - jwtd.yaml
+
 extended_vocab_path: ${oc.env:DATA_DIR}/typo_correction/freq>=2.txt
 extended_vocab_size: 358
 tokenizer_kwargs:

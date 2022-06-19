@@ -20,8 +20,10 @@ class DataModule(pl.LightningDataModule):
         self.num_workers: int = cfg.num_workers
 
         self.train_dataset: CustomConcatDataset = None
-        self.valid_datasets: dict[str, WordDataset] = {}
-        self.test_datasets: dict[str, WordDataset] = {}
+        self.valid_datasets: dict[
+            str, Union[CharDataset, TypoDataset, WordDataset]
+        ] = {}
+        self.test_datasets: dict[str, Union[CharDataset, TypoDataset, WordDataset]] = {}
 
     def prepare_data(self):
         pass
