@@ -1,8 +1,9 @@
 from pathlib import Path
 
+import hydra
 from rhoknp import Document
 from torch.utils.data import Dataset
-from transformers import AutoTokenizer, PreTrainedTokenizerBase
+from transformers import AutoTokenizer, PreTrainedTokenizer
 
 
 class BaseDataset(Dataset):
@@ -20,8 +21,13 @@ class BaseDataset(Dataset):
         self.documents = self.load_documents(self.path, ext)
         assert len(self) != 0
 
-        tokenizer_kwargs = tokenizer_kwargs or {}
-        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
+        if tokenizer_kwargs:
+            tokenizer_kwargs = hydra.utils.instantiate(
+                tokenizer_kwargs, _convert_="partial"
+            )
+        else:
+            tokenizer_kwargs = {}
+        self.tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(
             model_name_or_path,
             **tokenizer_kwargs,
         )

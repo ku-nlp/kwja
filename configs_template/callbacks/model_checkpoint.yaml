@@ -1,9 +1,0 @@
-model_checkpoint:
-  _target_: pytorch_lightning.callbacks.ModelCheckpoint
-  dirpath: ${run_dir}
-  filename: "{epoch}-{step}"
-  auto_insert_metric_name: False
-  monitor: valid/f1                 # FIXME
-  mode: max
-  save_top_k: 1
-  every_n_epochs: 1

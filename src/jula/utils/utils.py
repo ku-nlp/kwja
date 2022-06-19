@@ -49,6 +49,7 @@ BASE_PHRASE_FEATURES = (
     "節-主辞",
     "節-区切",
 )
+IGNORE_INDEX = -100
 
 
 DISCOURSE_RELATIONS = (

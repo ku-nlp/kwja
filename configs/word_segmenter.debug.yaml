@@ -1,0 +1,21 @@
+defaults:
+  - base
+  - callbacks: [early_stopping, model_checkpoint, model_summary, progress_bar]
+  - datamodule: char
+  - dataset: char_dataset
+  - logger: wandb
+  - model: char_roberta_base
+  - module: default
+  - optimizer: adamw
+  - trainer: debug
+  - _self_
+
+devices: 1 # ${oc.env:GPUS,0}
+do_predict_after_train: False
+
+# set monitor and mode for early_stopping and model_checkpoint
+monitor: valid/f1
+mode: max
+# batch size
+batch_size: 8
+accumulate_grad_batches: 1

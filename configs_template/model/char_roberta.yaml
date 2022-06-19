@@ -1,2 +1,0 @@
-model_name_or_path: "/server_path/to/char-roberta"       # FIXME
-max_seq_length: 512

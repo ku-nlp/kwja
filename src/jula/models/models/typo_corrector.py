@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from omegaconf import DictConfig
-from transformers import PretrainedConfig, PreTrainedTokenizerBase
+from transformers import PretrainedConfig, PreTrainedTokenizer
 
 
 class TypoCorrector(nn.Module):
@@ -10,7 +10,7 @@ class TypoCorrector(nn.Module):
         self,
         hparams: DictConfig,
         pretrained_model_config: PretrainedConfig,
-        tokenizer: PreTrainedTokenizerBase,
+        tokenizer: PreTrainedTokenizer,
     ) -> None:
         super().__init__()
         self.hparams = hparams
@@ -31,6 +31,8 @@ class TypoCorrector(nn.Module):
             nn.Dropout(pretrained_model_config.hidden_dropout_prob),
             nn.Linear(self.hidden_size, self.num_ins_labels),
         )
+        assert self.tokenizer.pad_token_id is not None
+        self.pad_token_id: int = self.tokenizer.pad_token_id
 
     def forward(
         self, encoder_output: torch.Tensor, inputs: dict[str, torch.Tensor]
@@ -44,13 +46,13 @@ class TypoCorrector(nn.Module):
             kdr_loss = F.cross_entropy(
                 input=kdr_logits.reshape(-1, self.num_kdr_labels),
                 target=inputs["kdr_labels"].view(-1),
-                ignore_index=self.tokenizer.pad_token_id,
+                ignore_index=self.pad_token_id,
             )
             output["kdr_loss"] = kdr_loss
             ins_loss = F.cross_entropy(
                 input=ins_logits.reshape(-1, self.num_ins_labels),
                 target=inputs["ins_labels"].view(-1),
-                ignore_index=self.tokenizer.pad_token_id,
+                ignore_index=self.pad_token_id,
             )
             output["ins_loss"] = ins_loss
             output["loss"] = (kdr_loss + ins_loss) / 2

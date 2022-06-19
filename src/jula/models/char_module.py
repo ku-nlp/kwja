@@ -4,12 +4,10 @@ import hydra
 import torch
 from omegaconf import DictConfig
 from pytorch_lightning.core.lightning import LightningModule
-from transformers import AutoTokenizer, PretrainedConfig, PreTrainedTokenizerBase
+from transformers import AutoTokenizer, PretrainedConfig, PreTrainedTokenizer
 
-from jula.evaluators.typo_corrector_metrics import TypoCorrectorMetrics
-from jula.evaluators.word_segment_metrics import WordSegmenterMetrics
+from jula.evaluators.word_segment import WordSegmenterMetric
 from jula.models.models.char_encoder import CharEncoder
-from jula.models.models.typo_corrector import TypoCorrector
 from jula.models.models.word_segmenter import WordSegmenter
 
 
@@ -19,7 +17,7 @@ class CharModule(LightningModule):
         self.hparams.update(hparams)
         self.save_hyperparameters()
 
-        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
+        self.tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(
             hparams.model.model_name_or_path,
             **hydra.utils.instantiate(
                 hparams.dataset.tokenizer_kwargs, _convert_="partial"
@@ -30,20 +28,11 @@ class CharModule(LightningModule):
         pretrained_model_config: PretrainedConfig = (
             self.char_encoder.pretrained_model.config
         )
-        if hparams.module.type == "char":
-            self.model: WordSegmenter = WordSegmenter(
-                hparams=hparams, pretrained_model_config=pretrained_model_config
-            )
-            self.metrics: WordSegmenterMetrics = WordSegmenterMetrics()
-        elif hparams.module.type == "char_typo":
-            self.model: TypoCorrector = TypoCorrector(
-                hparams=hparams,
-                pretrained_model_config=pretrained_model_config,
-                tokenizer=self.tokenizer,
-            )
-            self.metrics: TypoCorrector = TypoCorrectorMetrics()
-        else:
-            raise ValueError("invalid module type")
+        self.model: WordSegmenter = WordSegmenter(
+            hparams=hparams,
+            pretrained_model_config=pretrained_model_config,
+        )
+        self.metrics: WordSegmenterMetric = WordSegmenterMetric()
 
     def forward(self, **kwargs):
         encoder_output = self.char_encoder(kwargs)  # (b, seq_len, h)
