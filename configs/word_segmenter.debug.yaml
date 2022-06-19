@@ -10,7 +10,7 @@ defaults:
   - trainer: debug
   - _self_
 
-devices: 1 # ${oc.env:GPUS,0}
+devices: ${oc.env:GPUS,0}
 do_predict_after_train: False
 
 # set monitor and mode for early_stopping and model_checkpoint
