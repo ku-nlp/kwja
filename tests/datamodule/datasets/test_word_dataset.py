@@ -6,6 +6,7 @@ from rhoknp import Document
 from jula.datamodule.datasets.word_dataset import WordDataset
 from jula.utils.utils import (
     BASE_PHRASE_FEATURES,
+    DEPENDENCY_TYPES,
     DISCOURSE_RELATIONS,
     IGNORE_INDEX,
     WORD_FEATURES,
@@ -21,7 +22,11 @@ def test_init():
 
 def test_getitem():
     max_seq_length = 512
-    dataset = WordDataset(str(path), max_seq_length=max_seq_length)
+    dataset = WordDataset(
+        str(path),
+        max_seq_length=max_seq_length,
+        tokenizer_kwargs={"additional_special_tokens": ["[ROOT]"]},
+    )
     for i in range(len(dataset)):
         document = dataset.documents[i]
         item = dataset[i]
@@ -34,6 +39,8 @@ def test_getitem():
         assert "base_phrase_features" in item
         assert "num_base_phrases" in item
         assert "dependencies" in item
+        assert "intra_mask" in item
+        assert "dependency_types" in item
         assert "discourse_relations" in item
         assert item["document_id"] == i
         assert item["input_ids"].shape == (max_seq_length,)
@@ -46,7 +53,9 @@ def test_getitem():
         )
         assert item["num_base_phrases"].item() == len(document.base_phrases)
         assert item["word_features"].shape == (max_seq_length, len(WORD_FEATURES))
-        assert item["dependencies"].shape == (max_seq_length, max_seq_length)
+        assert item["dependencies"].shape == (max_seq_length,)
+        assert item["intra_mask"].shape == (max_seq_length, max_seq_length)
+        assert item["dependency_types"].shape == (max_seq_length,)
         assert item["discourse_relations"].shape == (
             max_seq_length,
             max_seq_length,
@@ -56,7 +65,11 @@ def test_getitem():
 
 def test_encode():
     max_seq_length = 512
-    dataset = WordDataset(str(path), max_seq_length=max_seq_length)
+    dataset = WordDataset(
+        str(path),
+        max_seq_length=max_seq_length,
+        tokenizer_kwargs={"additional_special_tokens": ["[ROOT]"]},
+    )
     document = Document.from_knp(
         textwrap.dedent(
             """\
@@ -139,21 +152,44 @@ def test_encode():
     base_phrase_features[7][BASE_PHRASE_FEATURES.index("時制:非過去")] = 1.0
     assert encoding["base_phrase_features"].tolist() == base_phrase_features
 
-    dependencies = [[0] * max_seq_length for _ in range(max_seq_length)]
+    dependencies = [IGNORE_INDEX for _ in range(max_seq_length)]
     # 0: 風 -> 2: 吹く
-    dependencies[0][2] = 1
+    dependencies[0] = 2
     # 1: が -> 0: 風
-    dependencies[1][0] = 1
-    # 2: 吹く -> ROOT (TODO)
+    dependencies[1] = 0
+    # 2: 吹く -> ROOT
+    dependencies[2] = max_seq_length - 1
     # 3: 。 -> 2: 吹く
-    dependencies[3][2] = 1
+    dependencies[3] = 2
     # 4: すると -> 7: 儲かる
-    dependencies[4][7] = 1
+    dependencies[4] = 7
     # 5: 桶屋 -> 7: 儲かる
-    dependencies[5][7] = 1
+    dependencies[5] = 7
     # 6: が -> 5: 桶屋
-    dependencies[6][5] = 1
-    # 7: 儲かる -> ROOT (TODO)
+    dependencies[6] = 5
+    # 7: 儲かる -> ROOT
+    dependencies[7] = max_seq_length - 1
     # 8: 。 -> 7: 儲かる
-    dependencies[8][7] = 1
+    dependencies[8] = 7
     assert encoding["dependencies"].tolist() == dependencies
+
+    dependency_types = [IGNORE_INDEX for _ in range(max_seq_length)]
+    # 0: 風 -> 2: 吹く
+    dependency_types[0] = DEPENDENCY_TYPES.index("D")
+    # 1: が -> 0: 風
+    dependency_types[1] = DEPENDENCY_TYPES.index("D")
+    # 2: 吹く -> ROOT ("D"として扱う)
+    dependency_types[2] = DEPENDENCY_TYPES.index("D")
+    # 3: 。 -> 2: 吹く
+    dependency_types[3] = DEPENDENCY_TYPES.index("D")
+    # 4: すると -> 7: 儲かる
+    dependency_types[4] = DEPENDENCY_TYPES.index("D")
+    # 5: 桶屋 -> 7: 儲かる
+    dependency_types[5] = DEPENDENCY_TYPES.index("D")
+    # 6: が -> 5: 桶屋
+    dependency_types[6] = DEPENDENCY_TYPES.index("D")
+    # 7: 儲かる -> ROOT ("D"として扱う)
+    dependency_types[7] = DEPENDENCY_TYPES.index("D")
+    # 8: 。 -> 7: 儲かる
+    dependency_types[8] = DEPENDENCY_TYPES.index("D")
+    assert encoding["dependency_types"].tolist() == dependency_types

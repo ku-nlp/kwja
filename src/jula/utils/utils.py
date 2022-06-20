@@ -52,6 +52,17 @@ BASE_PHRASE_FEATURES = (
 IGNORE_INDEX = -100
 
 
+DEPENDENCY_TYPES = (
+    "D",
+    "P",
+    "A",
+    "I",
+)
+INDEX2DEPENDENCY_TYPE = {
+    index: dependency_type for index, dependency_type in enumerate(DEPENDENCY_TYPES)
+}
+
+
 DISCOURSE_RELATIONS = (
     "談話関係なし",
     "原因・理由",

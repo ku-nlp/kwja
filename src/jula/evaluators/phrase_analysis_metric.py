@@ -35,8 +35,8 @@ class PhraseAnalysisMetric(Metric):
         for i, (pred, label) in enumerate(zip(preds, labels)):
             # pred/label: (batch_size, seq_len)
             aligned_pred, aligned_label = self.align_predictions(
-                preds=pred.detach().cpu().numpy(),
-                labels=label.detach().cpu().numpy(),
+                pred=pred.detach().cpu().numpy(),
+                label=label.detach().cpu().numpy(),
             )
             if (
                 sum(bio_tag == "B" for bio_tag in chain.from_iterable(aligned_label))
@@ -64,14 +64,14 @@ class PhraseAnalysisMetric(Metric):
 
     @staticmethod
     def align_predictions(
-        preds: np.ndarray, labels: np.ndarray
+        pred: np.ndarray, label: np.ndarray
     ) -> tuple[list[list[str]], list[list[str]]]:
-        batch_size, seq_len = preds.shape
-        aligned_preds: list[list[str]] = [[] for _ in range(batch_size)]
-        aligned_labels: list[list[str]] = [[] for _ in range(batch_size)]
+        batch_size, seq_len = pred.shape
+        aligned_pred: list[list[str]] = [[] for _ in range(batch_size)]
+        aligned_label: list[list[str]] = [[] for _ in range(batch_size)]
         for i in range(batch_size):
             for j in range(seq_len):
-                if labels[i, j] != float(IGNORE_INDEX):
-                    aligned_preds[i].append("B" if preds[i][j] == 1.0 else "I")
-                    aligned_labels[i].append("B" if labels[i][j] == 1.0 else "I")
-        return aligned_preds, aligned_labels
+                if label[i, j] != float(IGNORE_INDEX):
+                    aligned_pred[i].append("B" if pred[i][j] == 1.0 else "I")
+                    aligned_label[i].append("B" if label[i][j] == 1.0 else "I")
+        return aligned_pred, aligned_label

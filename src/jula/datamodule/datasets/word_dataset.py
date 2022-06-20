@@ -5,6 +5,7 @@ from transformers import BatchEncoding
 from jula.datamodule.datasets.base_dataset import BaseDataset
 from jula.utils.utils import (
     BASE_PHRASE_FEATURES,
+    DEPENDENCY_TYPES,
     DISCOURSE_RELATIONS,
     IGNORE_INDEX,
     WORD_FEATURES,
@@ -25,10 +26,10 @@ class WordDataset(BaseDataset):
             " ".join(morpheme.text for morpheme in document.morphemes),
             truncation=True,
             padding="max_length",
-            max_length=self.max_seq_length,
+            max_length=self.max_seq_length - 1,
         )
-        input_ids = encoding["input_ids"]
-        attention_mask = encoding["attention_mask"]
+        input_ids = encoding["input_ids"] + [self.tokenizer.vocab["[ROOT]"]]
+        attention_mask = encoding["attention_mask"] + [1]
         subword_map = [
             [False] * self.max_seq_length for _ in range(self.max_seq_length)
         ]
@@ -63,12 +64,40 @@ class WordDataset(BaseDataset):
                 else:
                     base_phrase_features[head.global_index][i] = 0
 
-        # TODO: introduce the ROOT node
-        dependencies = [[0] * self.max_seq_length for _ in range(self.max_seq_length)]
+        dependencies = [IGNORE_INDEX for _ in range(self.max_seq_length)]
         for morpheme in document.morphemes:
             parent = morpheme.parent
             if parent:
-                dependencies[morpheme.global_index][morpheme.parent.global_index] = 1
+                dependencies[morpheme.global_index] = morpheme.parent.global_index
+            else:  # 係り先がなければ文末の[ROOT]を指す
+                dependencies[morpheme.global_index] = self.max_seq_length - 1
+
+        intra_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
+        for sentence in document.sentences:
+            morpheme_global_indices = [
+                morpheme.global_index for morpheme in sentence.morphemes
+            ]
+            begin, end = map(lambda x: x(morpheme_global_indices), [min, max])
+            for i in range(begin, end + 1):
+                # 末尾の基本句主辞だけ[ROOT]を指す (複数の係り先が[ROOT]を指さないように)
+                if i == sentence.base_phrases[-1].head.global_index:
+                    intra_mask[i][-1] = True
+                else:
+                    for j in range(begin, end + 1):
+                        if i != j:
+                            intra_mask[i][j] = True
+
+        dependency_types = [IGNORE_INDEX for _ in range(self.max_seq_length)]
+        for base_phrase in document.base_phrases:
+            for morpheme in base_phrase.morphemes:
+                if base_phrase.head == morpheme:
+                    dependency_types[morpheme.global_index] = DEPENDENCY_TYPES.index(
+                        base_phrase.dep_type.value
+                    )
+                else:
+                    dependency_types[morpheme.global_index] = DEPENDENCY_TYPES.index(
+                        "D"
+                    )
 
         # TODO: PAS analysis & coreference resolution
         # TODO: discourse relation analysis
@@ -91,5 +120,7 @@ class WordDataset(BaseDataset):
                 len(document.base_phrases), dtype=torch.long
             ),
             "dependencies": torch.tensor(dependencies, dtype=torch.long),
+            "intra_mask": torch.tensor(intra_mask, dtype=torch.bool),
+            "dependency_types": torch.tensor(dependency_types, dtype=torch.long),
             "discourse_relations": torch.tensor(discourse_relations, dtype=torch.long),
         }
