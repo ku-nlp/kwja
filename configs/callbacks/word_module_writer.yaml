@@ -1,5 +1,5 @@
 prediction_writer:
-  _target_: jula.callbacks.phrase_analysis_writer.PhraseAnalysisWriter
+  _target_: jula.callbacks.word_module_writer.WordModuleWriter
   output_dir: ${run_dir}
   pred_filename: "predict"
   model_name_or_path: ${model.model_name_or_path}

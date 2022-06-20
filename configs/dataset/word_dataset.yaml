@@ -13,4 +13,4 @@ defaults:
     - word_fuman.yaml
 
 tokenizer_kwargs:
-  additional_special_tokens: []
+  additional_special_tokens: ["[ROOT]"]
