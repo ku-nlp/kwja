@@ -112,10 +112,10 @@ class WordModuleWriter(BasePredictionWriter):
     @staticmethod
     def convert_dependency_parsing_pred(morpheme, pred, type_pred, max_seq_len):
         offset = min(morpheme.global_index for morpheme in morpheme.sentence.morphemes)
-        system_head = pred - offset if pred != max_seq_len - 1 else 0
-        system_deprel = INDEX2DEPENDENCY_TYPE[type_pred] if system_head > 0 else "ROOT"
+        system_head = pred - offset if pred != max_seq_len - 1 else -1
+        system_deprel = INDEX2DEPENDENCY_TYPE[type_pred] if system_head >= 0 else "ROOT"
         if morpheme == morpheme.base_phrase.head:
-            gold_head = morpheme.parent.index if morpheme.parent else 0
+            gold_head = morpheme.parent.index if morpheme.parent else -1
             gold_deprel = (
                 morpheme.base_phrase.dep_type.value if morpheme.parent else "ROOT"
             )
