@@ -11,6 +11,7 @@ from typing import Any, Optional, TextIO, Union
 
 import pandas as pd
 from rhoknp import BasePhrase, Document
+from rhoknp.rel import ExophoraReferent
 from rhoknp.rel.pas import (
     Argument,
     ArgumentType,
@@ -39,7 +40,7 @@ class Scorer:
         documents_pred (list[Document]): システム予測文書集合
         documents_gold (list[Document]): 正解文書集合
         target_cases (list[str]): 評価の対象とする格 (kyoto_reader.ALL_CASES を参照)
-        target_exophors (list[str]): 評価の対象とする外界照応の照応先 (kyoto_reader.ALL_EXOPHORS を参照)
+        exophora_referents (list[ExophoraReferent]): 評価の対象とする外界照応の照応先 (kyoto_reader.ALL_EXOPHORS を参照)
         bridging (bool): 橋渡し照応の評価を行うかどうか (default: False)
         coreference (bool): 共参照の評価を行うかどうか (default: False)
         pas_target (str): 述語項構造解析において述語として扱う対象 ('pred': 用言, 'noun': 体言, 'all': 両方, '': 述語なし (default: pred))
@@ -54,7 +55,7 @@ class Scorer:
         pas_target (str): 述語項構造解析において述語として扱う対象
         comp_result (dict[tuple, str]): 正解と予測を比較した結果を格納するための辞書
         sub_scorers (list[SubScorer]): 文書ごとの評価を行うオブジェクトのリスト
-        relax_exophors (dict[str, str]): 「不特定:人１」などを「不特定:人」として評価するためのマップ
+        exophora_referents (list[ExophoraReferent]): 「不特定:人１」などを「不特定:人」として評価するためのマップ
     """
 
     DEPTYPE2ANALYSIS = OrderedDict(
@@ -71,7 +72,7 @@ class Scorer:
         documents_pred: list[Document],
         documents_gold: list[Document],
         target_cases: list[str],
-        target_exophors: list[str],
+        exophora_referents: list[ExophoraReferent],
         bridging: bool = False,
         coreference: bool = False,
         pas_target: str = "pred",
@@ -94,12 +95,7 @@ class Scorer:
 
         self.comp_result: dict[tuple, str] = {}
         self.sub_scorers: list[SubScorer] = []
-        self.relax_exophors: dict[str, str] = {}
-        for exophor in target_exophors:
-            self.relax_exophors[exophor] = exophor
-            if exophor in ("不特定:人", "不特定:物", "不特定:状況"):
-                for n in ("１", "２", "３", "４", "５", "６", "７", "８", "９", "１０", "１１"):
-                    self.relax_exophors[exophor + n] = exophor
+        self.exophora_referents: list[ExophoraReferent] = exophora_referents
 
     def run(self) -> "ScoreResult":
         """読み込んだ正解文書集合とシステム予測文書集合に対して評価を行う
@@ -117,7 +113,7 @@ class Scorer:
                 cases=self.cases,
                 bridging=self.bridging,
                 coreference=self.coreference,
-                relax_exophors=self.relax_exophors,
+                exophora_referents=self.exophora_referents,
                 pas_target=self.pas_target,
             )
             all_results.append(sub_scorer.run())
@@ -137,7 +133,7 @@ class SubScorer:
         cases (list[str]): 評価の対象とする格
         bridging (bool): 橋渡し照応の評価を行うかどうか (default: False)
         coreference (bool): 共参照の評価を行うかどうか (default: False)
-        relax_exophors (dict[str, str]): 「不特定:人１」などを「不特定:人」として評価するためのマップ
+        exophora_referents (list[ExophoraReferent]): 「不特定:人１」などを「不特定:人」として評価するためのマップ
         pas_target (str): 述語項構造解析において述語として扱う対象
 
     Attributes:
@@ -149,7 +145,7 @@ class SubScorer:
         bridging (bool): 橋渡し照応の評価を行うかどうか
         coreference (bool): 共参照の評価を行うかどうか
         comp_result (dict[tuple, str]): 正解と予測を比較した結果を格納するための辞書
-        relax_exophors (dict[str, str]): 「不特定:人１」などを「不特定:人」として評価するためのマップ
+        exophora_referents (list[ExophoraReferent]): 「不特定:人１」などを「不特定:人」として評価するためのマップ
         predicates_pred: (list[BasePhrase]): システム予測文書に含まれる述語
         bridgings_pred: (list[BasePhrase]): システム予測文書に含まれる橋渡し照応詞
         mentions_pred: (list[BasePhrase]): システム予測文書に含まれるメンション
@@ -165,7 +161,7 @@ class SubScorer:
         cases: list[str],
         bridging: bool,
         coreference: bool,
-        relax_exophors: dict[str, str],
+        exophora_referents: list[ExophoraReferent],
         pas_target: str,
     ):
         assert document_pred.doc_id == document_gold.doc_id
@@ -177,7 +173,7 @@ class SubScorer:
         self.bridging: bool = bridging
         self.coreference: bool = coreference
         self.comp_result: dict[tuple, str] = {}
-        self.relax_exophors: dict[str, str] = relax_exophors
+        self.exophora_referents: list[ExophoraReferent] = exophora_referents
 
         self.predicates_pred: list[BasePhrase] = []
         self.bridgings_pred: list[BasePhrase] = []
@@ -307,12 +303,10 @@ class SubScorer:
         for arg in args:
             if isinstance(arg, SpecialArgument):
                 if (
-                    arg.exophor not in self.relax_exophors
+                    arg.exophora_referent not in self.exophora_referents
                 ):  # filter out non-target exophors
                     continue
-                arg.exophor = self.relax_exophors[
-                    arg.exophor
-                ]  # 「不特定:人１」なども「不特定:人」として扱う
+                arg.exophora_referent.index = None  # 「不特定:人１」なども「不特定:人」として扱う
             else:
                 assert isinstance(arg, Argument)
                 # filter out self-anaphora and cataphoras
@@ -739,7 +733,7 @@ def main():
         documents_pred,
         documents_gold,
         target_cases=args.case_string.split(","),
-        target_exophors=args.exophors.split(","),
+        exophora_referents=[ExophoraReferent(e) for e in args.exophors.split(",")],
         coreference=args.coreference,
         bridging=args.bridging,
         pas_target=args.pas_target,
