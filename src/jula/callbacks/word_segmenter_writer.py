@@ -20,6 +20,8 @@ class WordSegmenterWriter(BasePredictionWriter):
     ) -> None:
         super().__init__(write_interval="epoch")
         self.output_path = f"{output_dir}/{pred_filename}.json"
+
+        os.makedirs(output_dir, exist_ok=True)
         if os.path.isfile(self.output_path):
             os.remove(self.output_path)
 
