@@ -204,7 +204,7 @@ def test_pas():
         max_seq_length=max_seq_length,
     )
     _ = dataset.encode(dataset.documents[1])
-    example = dataset.did2example["w201106-0000060560"]
+    example = dataset.examples[1]
     example_expected = json.loads((data_dir / "expected/example/0.json").read_text())
     mrphs_exp = example_expected["mrphs"]
     annotation: PasAnnotation = example.annotations[Task.PAS_ANALYSIS]

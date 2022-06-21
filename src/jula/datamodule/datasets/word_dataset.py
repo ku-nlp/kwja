@@ -1,6 +1,7 @@
 import torch
 from rhoknp import Document
 from rhoknp.rel import ExophoraReferent
+from scipy.special import softmax
 from tokenizers import Encoding
 from transformers.file_utils import PaddingStrategy
 
@@ -62,7 +63,7 @@ class WordDataset(BaseDataset):
             token: self.max_seq_length - len(self.special_tokens) + i
             for i, token in enumerate(self.special_tokens)
         }
-        self.did2example = {}
+        self.examples: list[CohesionExample] = []
 
     @property
     def special_indices(self) -> list[int]:
@@ -157,7 +158,7 @@ class WordDataset(BaseDataset):
 
         # PAS analysis & coreference resolution
         cohesion_example = self._load_cohesion_example(document)
-        self.did2example[document.doc_id] = cohesion_example
+        self.examples.append(cohesion_example)
         cohesion_example.encoding = encoding
         cohesion_target: list[list[list[int]]] = []  # (task, src, tgt)
         candidates_set: list[list[list[int]]] = []  # (task, src, tgt)
@@ -225,6 +226,66 @@ class WordDataset(BaseDataset):
             "cohesion_target": torch.tensor(cohesion_target, dtype=torch.int),
             "cohesion_mask": torch.tensor(cohesion_mask, dtype=torch.bool),
         }
+
+    def dump_prediction(
+        self,
+        result: list[list[list[float]]],  # word level
+        example: CohesionExample,
+    ) -> list[list[list[float]]]:  # (phrase, rel, 0 or phrase+special)
+        """1 example 中に存在する基本句それぞれに対してシステム予測のリストを返す．"""
+        ret: list[list[list[float]]] = [
+            [] for _ in next(iter(example.phrases.values()))
+        ]
+        task_idx = 0
+        if Task.PAS_ANALYSIS in self.cohesion_tasks:
+            for _ in self.cases:
+                for i, p in enumerate(
+                    self._token2bp_level(
+                        result[task_idx], example.phrases[Task.PAS_ANALYSIS]
+                    )
+                ):
+                    ret[i].append(p)
+                task_idx += 1
+        if Task.BRIDGING in self.cohesion_tasks:
+            for i, p in enumerate(
+                self._token2bp_level(result[task_idx], example.phrases[Task.BRIDGING])
+            ):
+                ret[i].append(p)
+            task_idx += 1
+        if Task.COREFERENCE in self.cohesion_tasks:
+            for i, p in enumerate(
+                self._token2bp_level(
+                    result[task_idx], example.phrases[Task.COREFERENCE]
+                )
+            ):
+                ret[i].append(p)
+            task_idx += 1
+        return ret
+
+    def _token2bp_level(
+        self,
+        word_level_output: list[list[float]],
+        phrases: list[Phrase],
+    ) -> list[list[float]]:  # (phrase, 0 or phrase+special)
+        ret: list[list[float]] = [[] for _ in phrases]
+        for anaphor in filter(lambda p: p.is_target, phrases):
+            # token_index_span: tuple[int, int] = encoding.word_to_tokens(anaphor.dmid)
+            word_level_scores: list[float] = word_level_output[anaphor.dmid]
+            phrase_level_scores: list[float] = []
+            for tgt_bp in phrases:
+                if tgt_bp.dtid not in anaphor.candidates:
+                    phrase_level_scores.append(-1)  # pad -1 for non-candidate phrases
+                    continue
+                # tgt 側は複数のサブワードから構成されるため平均を取る
+                # token_index_span: tuple[int, int] = encoding.word_to_tokens(tgt_bp.dmid)
+                phrase_level_scores.append(word_level_scores[tgt_bp.dmid])
+                # phrase_level_scores.append(sum(scores) / len(scores))
+            phrase_level_scores += [
+                word_level_scores[idx] for idx in self.special_indices
+            ]
+            assert len(phrase_level_scores) == len(phrases) + len(self.special_to_index)
+            ret[anaphor.dtid] = softmax(phrase_level_scores).tolist()
+        return ret
 
     def _gen_subword_map(self, encoding: Encoding) -> list[list[bool]]:
         subword_map = [
