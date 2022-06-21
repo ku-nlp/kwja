@@ -1,7 +1,7 @@
 import torch
 from rhoknp import Document
 from rhoknp.rel import ExophoraReferent
-from transformers import BatchEncoding
+from tokenizers import Encoding
 from transformers.file_utils import PaddingStrategy
 
 from jula.datamodule.datasets.base_dataset import BaseDataset
@@ -22,8 +22,8 @@ from jula.utils.utils import (
 
 
 class WordDataset(BaseDataset):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.cohesion_tasks: list[Task] = [
             Task.PAS_ANALYSIS,
             Task.BRIDGING,
@@ -53,6 +53,7 @@ class WordDataset(BaseDataset):
             token: self.max_seq_length - len(self.special_tokens) + i
             for i, token in enumerate(self.special_tokens)
         }
+        self.did2example = {}
 
     @property
     def special_indices(self) -> list[int]:
@@ -76,12 +77,12 @@ class WordDataset(BaseDataset):
 
     def encode(self, document: Document) -> dict[str, torch.Tensor]:
         # TODO: deal with the case that the document is too long
-        encoding: BatchEncoding = self.tokenizer(
+        encoding: Encoding = self.tokenizer(
             " ".join(morpheme.text for morpheme in document.morphemes),
             truncation=True,
             padding=PaddingStrategy.MAX_LENGTH,
             max_length=self.max_seq_length - self.num_special_tokens,
-        )
+        ).encodings[0]
 
         # NOTE: hereafter, indices are given at the word level
         word_features = [[0] * len(WORD_FEATURES) for _ in range(self.max_seq_length)]
@@ -147,6 +148,7 @@ class WordDataset(BaseDataset):
 
         # PAS analysis & coreference resolution
         cohesion_example = self._load_cohesion(document)
+        self.did2example[document.doc_id] = cohesion_example
         cohesion_example.encoding = encoding
         cohesion_target: list[list[list[int]]] = []  # (task, src, tgt)
         candidates_set: list[list[list[int]]] = []  # (task, src, tgt)
@@ -170,16 +172,14 @@ class WordDataset(BaseDataset):
             cohesion_target.append(ret[0])
             candidates_set.append(ret[1])
 
-        special_encoding: BatchEncoding = self.tokenizer(
+        special_encoding: Encoding = self.tokenizer(
             self.special_tokens,
             is_split_into_words=True,
             padding=PaddingStrategy.DO_NOT_PAD,
             truncation=False,
             add_special_tokens=False,
-        )
-        merged_encoding: BatchEncoding = BatchEncoding.merge(
-            [encoding, special_encoding]
-        )
+        ).encodings[0]
+        merged_encoding: Encoding = Encoding.merge([encoding, special_encoding])
         cohesion_mask = [
             [[(x in cands) for x in range(self.max_seq_length)] for cands in candidates]
             for candidates in candidates_set
@@ -195,7 +195,7 @@ class WordDataset(BaseDataset):
         ]
 
         return {
-            "input_ids": torch.tensor(merged_encoding.input_ids, dtype=torch.long),
+            "input_ids": torch.tensor(merged_encoding.ids, dtype=torch.long),
             "attention_mask": torch.tensor(
                 merged_encoding.attention_mask, dtype=torch.long
             ),
@@ -217,7 +217,7 @@ class WordDataset(BaseDataset):
             "cohesion_mask": torch.tensor(cohesion_mask, dtype=torch.bool),
         }
 
-    def _gen_subword_map(self, encoding: BatchEncoding) -> list[list[bool]]:
+    def _gen_subword_map(self, encoding: Encoding) -> list[list[bool]]:
         subword_map = [
             [False] * self.max_seq_length for _ in range(self.max_seq_length)
         ]
