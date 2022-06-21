@@ -1,7 +1,8 @@
 import logging
 from dataclasses import dataclass
 
-from kyoto_reader import BasePhrase, Document
+from rhoknp import BasePhrase, Document
+from rhoknp.rel import ExophoraReferent
 
 from .base import Extractor, Phrase
 
@@ -16,70 +17,69 @@ class CoreferenceAnnotation:
 class CoreferenceExtractor(Extractor):
     def __init__(
         self,
-        # corefs: list[str],
-        exophors: list[str],
+        exophors: list[ExophoraReferent],
         kc: bool = False,
     ) -> None:
         super().__init__(exophors, kc)
-        # self.corefs = corefs
 
     def extract(
         self,
         document: Document,
         phrases: list[Phrase],
     ) -> CoreferenceAnnotation:
-        bp_list = document.bp_list()
+        bp_list = document.base_phrases
         arguments_set: list[list[str]] = [[] for _ in bp_list]
-        for sentence in document:
-            for anaphor in sentence.bps:
+        for sentence in document.sentences:
+            for anaphor in sentence.base_phrases:
                 is_target_phrase: bool = (
                     self.is_target(anaphor)
                     and self._kc_skip_sentence(sentence, document) is False
                 )
-                phrases[anaphor.dtid].is_target = is_target_phrase
+                phrases[anaphor.global_index].is_target = is_target_phrase
                 if is_target_phrase is False:
                     continue
                 candidates: list[int] = [
-                    bp.dtid for bp in bp_list if self.is_candidate(bp, anaphor) is True
+                    bp.global_index
+                    for bp in bp_list
+                    if self.is_candidate(bp, anaphor) is True
                 ]
-                phrases[anaphor.dtid].candidates = candidates
-                arguments_set[anaphor.dtid] = self._get_mentions(
-                    anaphor, document, candidates
+                phrases[anaphor.global_index].candidates = candidates
+                arguments_set[anaphor.global_index] = self._get_mentions(
+                    anaphor, candidates
                 )
 
         return CoreferenceAnnotation(arguments_set)
 
     def _get_mentions(
         self,
-        src_bp: BasePhrase,
-        document: Document,
+        src_mention: BasePhrase,
         candidates: list[int],
     ) -> list[str]:
-        if src_bp.dtid in document.mentions:
-            ment_strings: list[str] = []
-            src_mention = document.mentions[src_bp.dtid]
-            tgt_mentions = document.get_siblings(
-                src_mention, relax=False
-            )  # exclude uncertain entities
-            exophors = [
-                document.entities[eid].exophor
-                for eid in src_mention.eids
-                if document.entities[eid].is_special
-            ]
-            for mention in tgt_mentions:
-                if mention.dtid not in candidates:
-                    logger.debug(
-                        f"mention: {mention} in {document.doc_id} is not in candidates and ignored"
-                    )
-                    continue
-                ment_strings.append(str(mention.dtid))
-            for exophor in exophors:
-                if exophor in self.relax_exophors:
-                    ment_strings.append(self.relax_exophors[exophor])  # 不特定:人１ -> 不特定:人
-            if ment_strings:
-                return ment_strings
-            else:
-                return ["NA"]  # force cataphor to point [NA]
+        if not src_mention.entities:
+            return ["NA"]
+
+        ment_strings: list[str] = []
+        tgt_mentions = src_mention.get_coreferents(include_nonidentical=False)
+        exophora_referents = [
+            e.exophora_referent
+            for e in src_mention.entities
+            if e.exophora_referent is not None
+        ]
+        for mention in tgt_mentions:
+            if mention.global_index not in candidates:
+                logger.debug(
+                    f"mention: {mention} in {mention.sentence.sid} is not in candidates and ignored"
+                )
+                continue
+            ment_strings.append(str(mention.global_index))
+        for exophora_referent in exophora_referents:
+            exophora_referent = self._relax_exophora_referent(
+                exophora_referent
+            )  # 不特定:人１ -> 不特定:人
+            if exophora_referent in self.exophora_referents:
+                ment_strings.append(str(exophora_referent))
+        if ment_strings:
+            return ment_strings
         else:
             return ["NA"]
 
@@ -88,8 +88,8 @@ class CoreferenceExtractor(Extractor):
 
     @staticmethod
     def is_coreference_target(bp: BasePhrase) -> bool:
-        return "体言" in bp.tag.features
+        return bp.features.get("体言") is True
 
     @staticmethod
     def is_candidate(bp: BasePhrase, anaphor: BasePhrase) -> bool:
-        return bp.dtid < anaphor.dtid
+        return bp.global_index < anaphor.global_index

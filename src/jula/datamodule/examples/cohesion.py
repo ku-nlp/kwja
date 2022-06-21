@@ -2,7 +2,7 @@ import logging
 from enum import Enum
 from typing import Optional
 
-from kyoto_reader import Document
+from rhoknp import Document
 from tokenizers import Encoding
 
 from jula.datamodule.extractors import (
@@ -66,20 +66,20 @@ class CohesionExample:
         # construct phrases and mrphs
         phrases = []
         for sentence in document.sentences:
-            for anaphor in sentence.bps:
+            for anaphor in sentence.base_phrases:
                 phrase = Phrase(
-                    dtid=anaphor.dtid,
-                    surf=anaphor.surf,
-                    dmids=anaphor.dmids,
-                    dmid=anaphor.dmid,
+                    dtid=anaphor.global_index,
+                    surf=anaphor.text,
+                    dmids=[m.global_index for m in anaphor.morphemes],
+                    dmid=anaphor.head.global_index,
                     children=[],
                     is_target=False,
                     candidates=[],
                 )
-                for morpheme in anaphor.mrph_list():
+                for morpheme in anaphor.morphemes:
                     mrph = Mrph(
-                        dmid=document.mrph2dmid[morpheme],
-                        surf=morpheme.midasi,
+                        dmid=morpheme.global_index,
+                        surf=morpheme.text,
                         parent=phrase,
                     )
                     phrase.children.append(mrph)

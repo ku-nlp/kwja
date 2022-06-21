@@ -2,14 +2,9 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass
 
-from kyoto_reader import (
-    UNCERTAIN,
-    Argument,
-    BaseArgument,
-    BasePhrase,
-    Document,
-    SpecialArgument,
-)
+from rhoknp import BasePhrase, Document
+from rhoknp.rel import Argument, ArgumentType, ExophoraReferent, SpecialArgument
+from rhoknp.rel.pas import BaseArgument
 
 from .base import Extractor, Phrase
 
@@ -26,7 +21,7 @@ class PasExtractor(Extractor):
         self,
         cases: list[str],
         pas_targets: list[str],
-        exophors: list[str],
+        exophors: list[ExophoraReferent],
         kc: bool = False,
     ) -> None:
         self.pas_targets = pas_targets
@@ -38,25 +33,28 @@ class PasExtractor(Extractor):
         document: Document,
         phrases: list[Phrase],
     ) -> PasAnnotation:
-        bp_list = document.bp_list()
+        bp_list = document.base_phrases
         arguments_set: list[dict[str, list[str]]] = [defaultdict(list) for _ in bp_list]
-        for sentence in document:
-            for anaphor in sentence.bps:
+        for sentence in document.sentences:
+            for anaphor in sentence.base_phrases:
                 is_target_phrase: bool = (
                     self.is_target(anaphor)
                     and self._kc_skip_sentence(sentence, document) is False
                 )
-                phrases[anaphor.dtid].is_target = is_target_phrase
+                phrases[anaphor.global_index].is_target = is_target_phrase
                 if is_target_phrase is False:
                     continue
                 candidates: list[int] = [
-                    bp.dtid for bp in bp_list if self.is_candidate(bp, anaphor) is True
+                    bp.global_index
+                    for bp in bp_list
+                    if self.is_candidate(bp, anaphor) is True
                 ]
-                phrases[anaphor.dtid].candidates = candidates
-                arguments = document.get_arguments(anaphor, relax=False)
+                phrases[anaphor.global_index].candidates = candidates
+                # arguments = document.get_arguments(anaphor, relax=False)
                 for case in self.cases:
-                    arguments_set[anaphor.dtid][case] = self._get_args(
-                        arguments[case], candidates
+                    arguments = anaphor.pas.get_arguments(case, relax=False)
+                    arguments_set[anaphor.global_index][case] = self._get_args(
+                        arguments, candidates
                     )
 
         return PasAnnotation(arguments_set)
@@ -78,10 +76,12 @@ class PasExtractor(Extractor):
         args: list[BaseArgument] = []
         for arg in orig_args:
             if isinstance(arg, SpecialArgument):
-                if exophor := self.relax_exophors.get(arg.exophor):
-                    arg.exophor = exophor
+                arg.exophora_referent = self._relax_exophora_referent(
+                    arg.exophora_referent
+                )
+                if arg.exophora_referent in self.exophora_referents:
                     args.append(arg)
-                elif arg.exophor == UNCERTAIN:
+                elif arg.exophora_referent == ExophoraReferent("[不明]"):
                     return []  # don't train uncertain argument
             else:
                 args.append(arg)
@@ -90,19 +90,19 @@ class PasExtractor(Extractor):
         arg_strings: list[str] = []
         for arg in args:
             if isinstance(arg, Argument):
-                if arg.dtid not in candidates:
+                if arg.base_phrase.global_index not in candidates:
                     logger.debug(f"argument: {arg} is not in candidates and ignored")
                     continue
-                string = str(arg.dtid)
-                if arg.dep_type == "overt":
+                string = str(arg.base_phrase.global_index)
+                if arg.type == ArgumentType.CASE_EXPLICIT:
                     string += "%C"
-                elif arg.dep_type == "dep":
+                elif arg.type == ArgumentType.CASE_HIDDEN:
                     string += "%N"
                 else:
-                    assert arg.dep_type in ("intra", "inter")
+                    assert arg.type == ArgumentType.OMISSION
                     string += "%O"
-            # exophor
             else:
+                # exophora
                 string = str(arg)
             arg_strings.append(string)
         return arg_strings
@@ -116,8 +116,8 @@ class PasExtractor(Extractor):
 
     @staticmethod
     def is_pas_target(bp: BasePhrase, verbal: bool, nominal: bool) -> bool:
-        if verbal and "用言" in bp.tag.features:
+        if verbal and bp.features.get("用言") is True:
             return True
-        if nominal and "非用言格解析" in bp.tag.features:
+        if nominal and bp.features.get("非用言格解析") is True:
             return True
         return False

@@ -1,5 +1,6 @@
 import torch
 from rhoknp import Document
+from rhoknp.rel import ExophoraReferent
 from transformers import BatchEncoding
 from transformers.file_utils import PaddingStrategy
 
@@ -30,7 +31,9 @@ class WordDataset(BaseDataset):
         ]
         self.cases = ["ガ", "ヲ", "ニ", "ガ２"]
         self.pas_targets: list[str] = ["pred", "noun"]
-        self.exophora_referents: list[str] = ["著者", "読者", "不特定:人", "不特定:物"]
+        self.exophora_referents: list[ExophoraReferent] = [
+            ExophoraReferent(s) for s in ("著者", "読者", "不特定:人", "不特定:物")
+        ]
         self.bar_rels = ["ノ", "ノ？"]
         self.extractors = {
             Task.PAS_ANALYSIS: PasExtractor(
@@ -41,7 +44,7 @@ class WordDataset(BaseDataset):
                 self.bar_rels, self.exophora_referents, kc=False
             ),
         }
-        self.special_tokens: list[str] = self.exophora_referents + [
+        self.special_tokens: list[str] = [str(e) for e in self.exophora_referents] + [
             "NULL",
             "NA",
             "[ROOT]",

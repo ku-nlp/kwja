@@ -1,14 +1,9 @@
 import logging
 from dataclasses import dataclass
 
-from kyoto_reader import (
-    UNCERTAIN,
-    Argument,
-    BaseArgument,
-    BasePhrase,
-    Document,
-    SpecialArgument,
-)
+from rhoknp import BasePhrase, Document
+from rhoknp.rel import Argument, ExophoraReferent, SpecialArgument
+from rhoknp.rel.pas import BaseArgument
 
 from .base import Extractor, Phrase
 
@@ -24,7 +19,7 @@ class BridgingExtractor(Extractor):
     def __init__(
         self,
         bar_rels: list[str],
-        exophors: list[str],
+        exophors: list[ExophoraReferent],
         kc: bool = False,
     ) -> None:
         super().__init__(exophors, kc)
@@ -35,28 +30,35 @@ class BridgingExtractor(Extractor):
         document: Document,
         phrases: list[Phrase],
     ) -> BridgingAnnotation:
-        bp_list = document.bp_list()
+        bp_list = document.base_phrases
         arguments_set: list[list[str]] = [[] for _ in bp_list]
-        for sentence in document:
-            for anaphor in sentence.bps:
+        for sentence in document.sentences:
+            for anaphor in sentence.base_phrases:
                 is_target_phrase: bool = (
                     self.is_target(anaphor)
                     and self._kc_skip_sentence(sentence, document) is False
                 )
-                phrases[anaphor.dtid].is_target = is_target_phrase
+                phrases[anaphor.global_index].is_target = is_target_phrase
                 if is_target_phrase is False:
                     continue
                 candidates: list[int] = [
-                    bp.dtid for bp in bp_list if self.is_candidate(bp, anaphor) is True
+                    bp.global_index
+                    for bp in bp_list
+                    if self.is_candidate(bp, anaphor) is True
                 ]
-                phrases[anaphor.dtid].candidates = candidates
-                arguments: dict[str, list[BaseArgument]] = document.get_arguments(
-                    anaphor, relax=False
+                phrases[anaphor.global_index].candidates = candidates
+                # arguments: dict[str, list[BaseArgument]] = document.get_arguments(
+                #     anaphor, relax=False
+                # )
+                # args: list[BaseArgument] = sum(
+                #     (arguments[rel] for rel in self.rels), []
+                # )
+                arguments: list[BaseArgument] = []
+                for rel in self.rels:
+                    arguments += anaphor.pas.get_arguments(rel, relax=False)
+                arguments_set[anaphor.global_index] = self._get_args(
+                    arguments, candidates
                 )
-                args: list[BaseArgument] = sum(
-                    (arguments[rel] for rel in self.rels), []
-                )
-                arguments_set[anaphor.dtid] = self._get_args(args, candidates)
 
         return BridgingAnnotation(arguments_set)
 
@@ -77,10 +79,12 @@ class BridgingExtractor(Extractor):
         args: list[BaseArgument] = []
         for arg in orig_args:
             if isinstance(arg, SpecialArgument):
-                if exophor := self.relax_exophors.get(arg.exophor):
-                    arg.exophor = exophor
+                arg.exophora_referent = self._relax_exophora_referent(
+                    arg.exophora_referent
+                )
+                if arg.exophora_referent in self.exophora_referents:
                     args.append(arg)
-                elif arg.exophor == UNCERTAIN:
+                elif arg.exophora_referent == ExophoraReferent("[不明]"):
                     return []  # don't train uncertain argument
             else:
                 args.append(arg)
@@ -89,12 +93,12 @@ class BridgingExtractor(Extractor):
         arg_strings: list[str] = []
         for arg in args:
             if isinstance(arg, Argument):
-                if arg.dtid not in candidates:
+                if arg.base_phrase.global_index not in candidates:
                     logger.debug(f"argument: {arg} is not in candidates and ignored")
                     continue
-                string = str(arg.dtid)
-            # exophor
+                string = str(arg.base_phrase.global_index)
             else:
+                # exophora
                 string = str(arg)
             arg_strings.append(string)
         return arg_strings
@@ -104,4 +108,4 @@ class BridgingExtractor(Extractor):
 
     @staticmethod
     def is_bridging_target(bp: BasePhrase) -> bool:
-        return "体言" in bp.tag.features and "非用言格解析" not in bp.tag.features
+        return bp.features.get("体言") is True and bp.features.get("非用言格解析") is not True
