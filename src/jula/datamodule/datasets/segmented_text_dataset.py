@@ -29,7 +29,10 @@ class SegmentedTextDataset(Dataset):
         return len(self.texts)
 
     def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
-        return self.encode(self.texts[index])
+        return {
+            "document_id": torch.tensor(index, dtype=torch.long),
+            **self.encode(self.texts[index]),
+        }
 
     def encode(self, text: str) -> dict[str, torch.Tensor]:
         encoding: BatchEncoding = self.tokenizer(
