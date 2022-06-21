@@ -42,7 +42,7 @@ poetry run python scripts/train.py -cn word_segmenter devices=[0,1]
 If you only want to do evaluation after training, please use the following command:
 ```shell
 # For evaluating word segmenter
-poetry run python scripts/evaluate.py -cn word_segmenter devices=[0] checkpoint_path="/path/to/checkpoint"
+poetry run python scripts/predict.py -cn word_segmenter devices=[0] checkpoint_path="/path/to/checkpoint"
 ```
 
 ## Debugging
