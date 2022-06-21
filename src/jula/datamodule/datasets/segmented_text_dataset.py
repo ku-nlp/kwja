@@ -4,7 +4,7 @@ from torch.utils.data import Dataset
 from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizer
 
 
-class RawTextDataset(Dataset):
+class SegmentedTextDataset(Dataset):
     def __init__(
         self,
         texts: list[str],
