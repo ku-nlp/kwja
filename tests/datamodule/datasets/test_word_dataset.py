@@ -1,9 +1,12 @@
+import json
 import textwrap
 from pathlib import Path
 
 from rhoknp import Document
 
 from jula.datamodule.datasets.word_dataset import WordDataset
+from jula.datamodule.examples import Task
+from jula.datamodule.extractors import PasAnnotation
 from jula.utils.utils import (
     BASE_PHRASE_FEATURES,
     DEPENDENCY_TYPES,
@@ -14,6 +17,7 @@ from jula.utils.utils import (
 
 here = Path(__file__).absolute().parent
 path = here.joinpath("knp_files")
+data_dir = here.parent.parent / "data"
 
 
 def test_init():
@@ -25,7 +29,6 @@ def test_getitem():
     dataset = WordDataset(
         str(path),
         max_seq_length=max_seq_length,
-        tokenizer_kwargs={"additional_special_tokens": ["[ROOT]"]},
     )
     for i in range(len(dataset)):
         document = dataset.documents[i]
@@ -68,7 +71,6 @@ def test_encode():
     dataset = WordDataset(
         str(path),
         max_seq_length=max_seq_length,
-        tokenizer_kwargs={"additional_special_tokens": ["[ROOT]"]},
     )
     document = Document.from_knp(
         textwrap.dedent(
@@ -193,3 +195,43 @@ def test_encode():
     # 8: 。 -> 7: 儲かる
     dependency_types[8] = DEPENDENCY_TYPES.index("D")
     assert encoding["dependency_types"].tolist() == dependency_types
+
+
+def test_pas():
+    max_seq_length = 512
+    dataset = WordDataset(
+        str(data_dir / "knp"),
+        max_seq_length=max_seq_length,
+    )
+    _ = dataset.encode(dataset.documents[1])
+    example = dataset.did2example["w201106-0000060560"]
+    example_expected = json.loads((data_dir / "expected/example/0.json").read_text())
+    mrphs_exp = example_expected["mrphs"]
+    annotation: PasAnnotation = example.annotations[Task.PAS_ANALYSIS]
+    phrases = example.phrases[Task.PAS_ANALYSIS]
+    mrphs = example.mrphs[Task.PAS_ANALYSIS]
+
+    assert len(mrphs) == len(mrphs_exp)
+    for phrase in phrases:
+        arguments: dict[str, list[str]] = annotation.arguments_set[phrase.dtid]
+        for case in dataset.cases:
+            arg_strings = [
+                arg[:-2] if arg[-2:] in ("%C", "%N", "%O") else arg
+                for arg in arguments[case]
+            ]
+            arg_strings = [
+                (s if s in dataset.special_to_index else str(phrases[int(s)].dmid))
+                for s in arg_strings
+            ]
+            assert set(arg_strings) == set(mrphs_exp[phrase.dmid]["arguments"][case])
+        for dmid in phrase.dmids:
+            mrph = mrphs[dmid]
+            mrph_exp = mrphs_exp[dmid]
+            assert mrph.surf == mrph_exp["surf"]
+            if mrph.is_target or example.mrphs[Task.BRIDGING][dmid].is_target:
+                candidates = set(phrases[i].dmid for i in phrase.candidates)
+                bar_phrases = example.phrases[Task.BRIDGING]
+                candidates |= set(
+                    bar_phrases[i].dmid for i in bar_phrases[phrase.dtid].candidates
+                )
+                assert candidates == set(mrph_exp["arg_candidates"])
