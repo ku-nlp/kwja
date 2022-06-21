@@ -5,9 +5,13 @@ from transformers import BatchEncoding
 from jula.datamodule.datasets.base_dataset import BaseDataset
 from jula.utils.utils import (
     BASE_PHRASE_FEATURES,
+    CONJFORM_TYPES,
+    CONJTYPE_TYPES,
     DEPENDENCY_TYPES,
     DISCOURSE_RELATIONS,
     IGNORE_INDEX,
+    POS_TYPES,
+    SUBPOS_TYPES,
     WORD_FEATURES,
 )
 
@@ -38,6 +42,25 @@ class WordDataset(BaseDataset):
                 subword_map[word_id][token_id] = True
 
         # NOTE: hereafter, indices are given at the word level
+        mrph_types: list[list[int]] = [
+            [IGNORE_INDEX] * 4 for _ in range(self.max_seq_length)
+        ]
+        for morpheme in document.morphemes:
+            if morpheme.pos in POS_TYPES:
+                mrph_types[morpheme.global_index][0] = POS_TYPES.index(morpheme.pos)
+            if morpheme.subpos in SUBPOS_TYPES:
+                mrph_types[morpheme.global_index][1] = SUBPOS_TYPES.index(
+                    morpheme.subpos
+                )
+            if morpheme.conjtype in CONJTYPE_TYPES:
+                mrph_types[morpheme.global_index][2] = CONJTYPE_TYPES.index(
+                    morpheme.conjtype
+                )
+            if morpheme.conjtype in CONJTYPE_TYPES:
+                mrph_types[morpheme.global_index][3] = CONJFORM_TYPES.index(
+                    morpheme.conjform
+                )
+
         word_features = [[0] * len(WORD_FEATURES) for _ in range(self.max_seq_length)]
         for base_phrase in document.base_phrases:
             head = base_phrase.head
@@ -112,6 +135,7 @@ class WordDataset(BaseDataset):
             "input_ids": torch.tensor(input_ids, dtype=torch.long),
             "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
             "subword_map": torch.tensor(subword_map, dtype=torch.bool),
+            "mrph_types": torch.tensor(mrph_types, dtype=torch.long),
             "word_features": torch.tensor(word_features, dtype=torch.float),
             "base_phrase_features": torch.tensor(
                 base_phrase_features, dtype=torch.float
