@@ -59,10 +59,10 @@ class WordSegmenterWriter(BasePredictionWriter):
         example_id = 0
         for prediction in predictions:
             for batch_pred in prediction:
-                seg_preds, seg_labels = self.metrics.convert_num2label(
-                    preds=torch.argmax(batch_pred["logits"], dim=-1).cpu().tolist(),
-                    labels=batch_pred["seg_labels"].cpu().tolist(),
-                )  # (b, seq_len), (b, seq_len)
+                seg_preds = [
+                    self.metrics.convert_ids_to_labels(ids)
+                    for ids in torch.argmax(batch_pred["logits"], dim=-1).cpu().tolist()
+                ]  # (b, seq_len)
                 for idx in range(len(batch_pred["input_ids"])):
                     self.predicts[example_id] = dict(
                         input_ids=self.tokenizer.decode(
@@ -73,7 +73,6 @@ class WordSegmenterWriter(BasePredictionWriter):
                             ]
                         ),
                         seg_preds=seg_preds[idx],
-                        seg_labels=seg_labels[idx],
                     )
                     example_id += 1
 
