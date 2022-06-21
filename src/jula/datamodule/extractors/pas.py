@@ -116,7 +116,7 @@ class PasExtractor(Extractor):
 
     @staticmethod
     def is_pas_target(bp: BasePhrase, verbal: bool, nominal: bool) -> bool:
-        if verbal and bp.features.get("用言") is True:
+        if verbal and "用言" in bp.features:
             return True
         if nominal and bp.features.get("非用言格解析") is True:
             return True

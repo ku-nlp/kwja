@@ -23,7 +23,24 @@ from jula.utils.utils import (
 
 class WordDataset(BaseDataset):
     def __init__(self, *args, **kwargs):
+        self.exophora_referents: list[ExophoraReferent] = [
+            ExophoraReferent(s) for s in ("著者", "読者", "不特定:人", "不特定:物")
+        ]
+        self.special_tokens: list[str] = [str(e) for e in self.exophora_referents] + [
+            "NULL",
+            "NA",
+            "[ROOT]",
+        ]
+        tokenizer_kwargs = {
+            "additional_special_tokens": self.special_tokens,
+        }
+        if "tokenizer_kwargs" in kwargs:
+            kwargs["tokenizer_kwargs"].update(tokenizer_kwargs)
+        else:
+            kwargs["tokenizer_kwargs"] = tokenizer_kwargs
+
         super().__init__(*args, **kwargs)
+
         self.cohesion_tasks: list[Task] = [
             Task.PAS_ANALYSIS,
             Task.BRIDGING,
@@ -31,9 +48,6 @@ class WordDataset(BaseDataset):
         ]
         self.cases = ["ガ", "ヲ", "ニ", "ガ２"]
         self.pas_targets: list[str] = ["pred", "noun"]
-        self.exophora_referents: list[ExophoraReferent] = [
-            ExophoraReferent(s) for s in ("著者", "読者", "不特定:人", "不特定:物")
-        ]
         self.bar_rels = ["ノ", "ノ？"]
         self.extractors = {
             Task.PAS_ANALYSIS: PasExtractor(
@@ -44,11 +58,6 @@ class WordDataset(BaseDataset):
                 self.bar_rels, self.exophora_referents, kc=False
             ),
         }
-        self.special_tokens: list[str] = [str(e) for e in self.exophora_referents] + [
-            "NULL",
-            "NA",
-            "[ROOT]",
-        ]
         self.special_to_index: dict[str, int] = {
             token: self.max_seq_length - len(self.special_tokens) + i
             for i, token in enumerate(self.special_tokens)
@@ -63,7 +72,7 @@ class WordDataset(BaseDataset):
     def num_special_tokens(self) -> int:
         return len(self.special_tokens)
 
-    def _load_cohesion(self, document: Document) -> CohesionExample:
+    def _load_cohesion_example(self, document: Document) -> CohesionExample:
         example = CohesionExample()
         example.load(document, tasks=self.cohesion_tasks, extractors=self.extractors)
         return example
@@ -147,7 +156,7 @@ class WordDataset(BaseDataset):
                     )
 
         # PAS analysis & coreference resolution
-        cohesion_example = self._load_cohesion(document)
+        cohesion_example = self._load_cohesion_example(document)
         self.did2example[document.doc_id] = cohesion_example
         cohesion_example.encoding = encoding
         cohesion_target: list[list[list[int]]] = []  # (task, src, tgt)
@@ -221,7 +230,7 @@ class WordDataset(BaseDataset):
         subword_map = [
             [False] * self.max_seq_length for _ in range(self.max_seq_length)
         ]
-        for token_id, word_id in enumerate(encoding.word_ids()):
+        for token_id, word_id in enumerate(encoding.word_ids):
             if word_id is not None:
                 subword_map[word_id][token_id] = True
         return subword_map
