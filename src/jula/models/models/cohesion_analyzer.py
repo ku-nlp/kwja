@@ -8,20 +8,17 @@ class CohesionAnalyzer(nn.Module):
         self, pretrained_model_config: PretrainedConfig, num_rels: int
     ) -> None:
         super().__init__()
-        # self.loss_fn: Callable = loss_fns[loss_fn]
 
-        # self.bert: PreTrainedModel = AutoModel.from_pretrained(bert_model)
-        # self.bert.resize_token_embeddings(vocab_size)
         self.dropout = nn.Dropout(0.0)
 
         self.num_rels = num_rels
-        mid_hidden_size = self.bert.config.hidden_size
+        mid_hidden_size = pretrained_model_config.hidden_size
 
         self.l_src = nn.Linear(
-            self.bert.config.hidden_size, mid_hidden_size * self.num_rels
+            pretrained_model_config.hidden_size, mid_hidden_size * self.num_rels
         )
         self.l_tgt = nn.Linear(
-            self.bert.config.hidden_size, mid_hidden_size * self.num_rels
+            pretrained_model_config.hidden_size, mid_hidden_size * self.num_rels
         )
         self.out = nn.Linear(mid_hidden_size, 1, bias=False)
 

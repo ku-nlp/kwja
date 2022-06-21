@@ -86,7 +86,7 @@ class PasExtractor(Extractor):
             else:
                 args.append(arg)
         if not args:
-            return ["NULL"]
+            return ["[NULL]"]
         arg_strings: list[str] = []
         for arg in args:
             if isinstance(arg, Argument):

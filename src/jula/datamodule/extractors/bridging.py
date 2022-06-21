@@ -47,12 +47,6 @@ class BridgingExtractor(Extractor):
                     if self.is_candidate(bp, anaphor) is True
                 ]
                 phrases[anaphor.global_index].candidates = candidates
-                # arguments: dict[str, list[BaseArgument]] = document.get_arguments(
-                #     anaphor, relax=False
-                # )
-                # args: list[BaseArgument] = sum(
-                #     (arguments[rel] for rel in self.rels), []
-                # )
                 arguments: list[BaseArgument] = []
                 for rel in self.rels:
                     arguments += anaphor.pas.get_arguments(rel, relax=False)
@@ -89,7 +83,7 @@ class BridgingExtractor(Extractor):
             else:
                 args.append(arg)
         if not args:
-            return ["NULL"]
+            return ["[NULL]"]
         arg_strings: list[str] = []
         for arg in args:
             if isinstance(arg, Argument):

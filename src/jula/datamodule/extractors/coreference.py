@@ -56,7 +56,7 @@ class CoreferenceExtractor(Extractor):
         candidates: list[int],
     ) -> list[str]:
         if not src_mention.entities:
-            return ["NA"]
+            return ["[NA]"]
 
         ment_strings: list[str] = []
         tgt_mentions = src_mention.get_coreferents(include_nonidentical=False)
@@ -81,7 +81,7 @@ class CoreferenceExtractor(Extractor):
         if ment_strings:
             return ment_strings
         else:
-            return ["NA"]
+            return ["[NA]"]
 
     def is_target(self, bp: BasePhrase) -> bool:
         return self.is_coreference_target(bp)

@@ -40,6 +40,5 @@ class BaseDataset(Dataset):
     def load_documents(path: Path, ext: str = "knp") -> list[Document]:
         documents = []
         for file_path in sorted(path.glob(f"**/*.{ext}")):
-            with file_path.open("rt") as f:
-                documents.append(Document.from_knp(f.read()))
+            documents.append(Document.from_knp(file_path.read_text()))
         return documents

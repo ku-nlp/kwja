@@ -27,8 +27,8 @@ class WordDataset(BaseDataset):
             ExophoraReferent(s) for s in ("著者", "読者", "不特定:人", "不特定:物")
         ]
         self.special_tokens: list[str] = [str(e) for e in self.exophora_referents] + [
-            "NULL",
-            "NA",
+            "[NULL]",
+            "[NA]",
             "[ROOT]",
         ]
         tokenizer_kwargs = {
