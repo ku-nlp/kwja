@@ -46,8 +46,10 @@ class SegmentedTextDataset(Dataset):
         for token_id, word_id in enumerate(encoding.word_ids()):
             if word_id is not None:
                 subword_map[word_id][token_id] = True
+        intra_mask = [[True] * self.max_seq_length for _ in range(self.max_seq_length)]
         return {
             "input_ids": torch.tensor(input_ids, dtype=torch.long),
             "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
             "subword_map": torch.tensor(subword_map, dtype=torch.bool),
+            "intra_mask": torch.tensor(intra_mask, dtype=torch.bool),
         }
