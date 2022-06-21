@@ -1,4 +1,3 @@
-import json
 import os
 from typing import Any, Optional, Sequence
 
@@ -56,28 +55,26 @@ class WordSegmenterWriter(BasePredictionWriter):
         predictions: Sequence[Any],
         batch_indices: Optional[Sequence[Any]],
     ) -> None:
-        example_id = 0
+        results = []
         for prediction in predictions:
             for batch_pred in prediction:
                 seg_preds = [
                     self.metrics.convert_ids_to_labels(ids)
                     for ids in torch.argmax(batch_pred["logits"], dim=-1).cpu().tolist()
                 ]  # (b, seq_len)
-                for idx in range(len(batch_pred["input_ids"])):
-                    self.predicts[example_id] = dict(
-                        input_ids=self.tokenizer.decode(
-                            [
-                                x
-                                for x in batch_pred["input_ids"][idx]
-                                if x != self.tokenizer.pad_token_id
-                            ]
-                        ),
-                        seg_preds=seg_preds[idx],
-                    )
-                    example_id += 1
-
+                for item_index in range(len(batch_pred["input_ids"])):
+                    result = ""
+                    for token_index in range(len(batch_pred["input_ids"][item_index])):
+                        token_id = batch_pred["input_ids"][item_index][token_index]
+                        if token_id in self.tokenizer.all_special_ids:
+                            continue
+                        seg_pred = seg_preds[item_index][token_index]
+                        if seg_pred == "B":
+                            result += " "
+                        result += self.tokenizer.decode(token_id)
+                    results.append(result.strip())
         if self.use_stdout:
-            print(json.dumps(self.predicts, ensure_ascii=False, indent=2))
+            print("\n".join(results))
         else:
             with open(self.output_path, "w") as f:
-                json.dump(self.predicts, f, ensure_ascii=False, indent=2)
+                f.write("\n".join(results))
