@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from jula.datamodule.datasets.char_dataset import CharDataset
-from jula.utils.utils import SEG_LABEL2INDEX
+from jula.utils.utils import IGNORE_INDEX
 
 here = Path(__file__).absolute().parent
 path = here.joinpath("knp_files")
@@ -36,5 +36,5 @@ def test_getitem():
         sep_token_position = (
             item["input_ids"].tolist().index(dataset.tokenizer.sep_token_id)
         )
-        assert item["seg_labels"][cls_token_position].tolist() == SEG_LABEL2INDEX["PAD"]
-        assert item["seg_labels"][sep_token_position].tolist() == SEG_LABEL2INDEX["PAD"]
+        assert item["seg_labels"][cls_token_position].tolist() == IGNORE_INDEX
+        assert item["seg_labels"][sep_token_position].tolist() == IGNORE_INDEX

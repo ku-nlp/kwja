@@ -6,12 +6,11 @@ TYPO_OPN2TOKEN = {
 TOKEN2TYPO_OPN = {v: k for k, v in TYPO_OPN2TOKEN.items()}
 TYPO_DUMMY_TOKEN = "<dummy>"
 
-SEG_LABEL2INDEX = {
-    "PAD": 0,
-    "B": 1,
-    "I": 2,
-}
-INDEX2SEG_LABEL = {v: k for k, v in SEG_LABEL2INDEX.items()}
+SEG_TYPES = (
+    "B",
+    "I",
+)
+INDEX2SEG_TYPE = {index: seg_type for index, seg_type in enumerate(SEG_TYPES)}
 
 # 品詞
 POS_TYPES = (

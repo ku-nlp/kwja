@@ -4,7 +4,7 @@ import torch
 from seqeval.metrics import accuracy_score, f1_score
 from seqeval.scheme import IOB2
 
-from jula.utils.utils import INDEX2SEG_LABEL, SEG_LABEL2INDEX
+from jula.utils.utils import IGNORE_INDEX, INDEX2SEG_TYPE
 
 
 class WordSegmenterMetric:
@@ -21,12 +21,10 @@ class WordSegmenterMetric:
             converted_pred: list[str] = []
             converted_label: list[str] = []
             for pred_num, label_num in zip(pred, label):
-                if label_num == SEG_LABEL2INDEX["PAD"]:
+                if label_num == IGNORE_INDEX:
                     continue
-                converted_pred.append(
-                    INDEX2SEG_LABEL[pred_num] if pred_num != 0 else "O"
-                )
-                converted_label.append(INDEX2SEG_LABEL[label_num])
+                converted_pred.append(INDEX2SEG_TYPE[pred_num])
+                converted_label.append(INDEX2SEG_TYPE[label_num])
             converted_preds.append(converted_pred)
             converted_labels.append(converted_label)
         return converted_preds, converted_labels

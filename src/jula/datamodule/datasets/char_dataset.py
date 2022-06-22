@@ -3,7 +3,7 @@ from rhoknp import Document
 from transformers import BatchEncoding
 
 from jula.datamodule.datasets.base_dataset import BaseDataset
-from jula.utils.utils import SEG_LABEL2INDEX
+from jula.utils.utils import IGNORE_INDEX, SEG_TYPES
 
 
 class CharDataset(BaseDataset):
@@ -23,15 +23,13 @@ class CharDataset(BaseDataset):
         seg_labels: list[int] = []
         for morpheme in document.morphemes:
             seg_labels.extend(
-                [SEG_LABEL2INDEX["B"]]
-                + [SEG_LABEL2INDEX["I"]] * (len(morpheme.text) - 1)
+                [SEG_TYPES.index("B")]
+                + [SEG_TYPES.index("I")] * (len(morpheme.text) - 1)
             )
         seg_labels = (
-            [SEG_LABEL2INDEX["PAD"]]
-            + seg_labels[: self.max_seq_length - 2]
-            + [SEG_LABEL2INDEX["PAD"]]
+            [IGNORE_INDEX] + seg_labels[: self.max_seq_length - 2] + [IGNORE_INDEX]
         )
-        seg_labels = seg_labels + [SEG_LABEL2INDEX["PAD"]] * (
+        seg_labels = seg_labels + [IGNORE_INDEX] * (
             self.max_seq_length - len(seg_labels)
         )
 
