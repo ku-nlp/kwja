@@ -2,6 +2,9 @@ import torch
 import torch.nn as nn
 from omegaconf import DictConfig
 from transformers import AutoModel, PreTrainedTokenizer
+from transformers.models.roberta.modeling_roberta import (
+    create_position_ids_from_input_ids,
+)
 
 from jula.utils.utils import ENE_TYPE_BIES
 
@@ -15,6 +18,7 @@ class CharEncoder(nn.Module):
             hparams.model.model_name_or_path, add_pooling_layer=False
         )
         self.pretrained_model.resize_token_embeddings(len(tokenizer))
+        self.word_embed = self.pretrained_model.embeddings.word_embeddings
 
         self.max_ene_num: int = self.hparams.dataset.max_ene_num
         if self.max_ene_num > 0:
@@ -31,11 +35,15 @@ class CharEncoder(nn.Module):
             ene_embed_sum = torch.sum(
                 ene_embed.reshape(batch_size, ene_num, seq_len, -1), dim=1
             )  # (b, seq_len, h)
-            inputs_embeds = self.pretrained_model.embeddings.word_embeddings(
-                inputs["input_ids"]
-            )  # (b, seq_len, h)
+
+            position_ids = create_position_ids_from_input_ids(
+                inputs["input_ids"],
+                padding_idx=self.pretrained_model.config.pad_token_id,
+            )
+            inputs_embeds = self.word_embed(inputs["input_ids"])  # (b, seq_len, h)
             outputs = self.pretrained_model(
                 attention_mask=inputs["attention_mask"],
+                position_ids=position_ids,
                 inputs_embeds=inputs_embeds + ene_embed_sum,
             )
         else:
