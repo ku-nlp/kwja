@@ -26,7 +26,7 @@ protobuf = "~3.20"
 seqeval = "^1.2.2"
 wandb = "^0.12.17"
 rich = "^12.4.4"
-rhoknp = {git = "https://github.com/ku-nlp/rhoknp.git", rev = "coreference"}
+rhoknp = { git = "https://github.com/ku-nlp/rhoknp.git", rev = "develop" }
 python-Levenshtein = "^0.12.2"
 fugashi = "^1.1.2"
 ipadic = "^1.0.0"
