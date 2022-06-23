@@ -3,13 +3,16 @@ from typing import Tuple, Union
 import torch
 from seqeval.metrics import accuracy_score, f1_score
 from seqeval.scheme import IOB2
+from torchmetrics import Metric
 
 from jula.utils.utils import IGNORE_INDEX, INDEX2SEG_TYPE
 
 
-class WordSegmenterMetric:
+class WordSegmenterMetric(Metric):
     def __init__(self) -> None:
-        pass
+        super().__init__()
+        self.add_state("seg_preds", default=[], dist_reduce_fx="cat")
+        self.add_state("seg_labels", default=[], dist_reduce_fx="cat")
 
     @staticmethod
     def convert_num2label(
@@ -29,22 +32,20 @@ class WordSegmenterMetric:
             converted_labels.append(converted_label)
         return converted_preds, converted_labels
 
-    def compute_metrics(
-        self,
-        outputs: dict[str, torch.Tensor],
-        batch: dict[str, torch.Tensor],
-    ) -> dict[str, Union[torch.Tensor, float]]:
-        metrics: dict[str, Union[torch.Tensor, float]] = dict(loss=outputs["loss"])
-        for key in outputs.keys():
-            if "_loss" in key:
-                metrics[key] = outputs[key].detach()
+    def update(self, seg_preds: torch.Tensor, seg_labels: torch.Tensor) -> None:
+        self.seg_preds.append(seg_preds)
+        self.seg_labels.append(seg_labels)
 
+    def compute(self):
+        metrics: dict[str, Union[torch.Tensor, float]] = dict()
         seg_preds, seg_labels = self.convert_num2label(
-            preds=torch.argmax(outputs["logits"], dim=-1).cpu().tolist(),
-            labels=batch["seg_labels"].cpu().tolist(),
+            preds=self.seg_preds.cpu().tolist(),
+            labels=self.seg_labels.cpu().tolist(),
         )  # (b, seq_len), (b, seq_len)
-        metrics["acc"] = accuracy_score(y_true=seg_labels, y_pred=seg_preds)
-        metrics["f1"] = f1_score(
+        metrics["word_segmenter_acc"] = accuracy_score(
+            y_true=seg_labels, y_pred=seg_preds
+        )
+        metrics["word_segmenter_f1"] = f1_score(
             y_true=seg_labels,
             y_pred=seg_preds,
             mode="strict",

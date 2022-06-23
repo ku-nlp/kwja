@@ -26,7 +26,11 @@ class CharDataset(BaseDataset):
         )
 
     def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
-        return self.encode(self.documents[index])
+        document = self.documents[index]
+        return {
+            "document_id": torch.tensor(index, dtype=torch.long),
+            **self.encode(document),
+        }
 
     def get_ene_ids(self, text: str) -> list[list[int]]:
         pos2ene_ids: dict[int, list[int]] = {

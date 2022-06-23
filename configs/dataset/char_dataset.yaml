@@ -1,10 +1,16 @@
 defaults:
   - train:
+    - char_kyoto.yaml
     - char_kwdlc.yaml
+    - char_fuman.yaml
   - valid:
+    - char_kyoto.yaml
     - char_kwdlc.yaml
+    - char_fuman.yaml
   - test:
+    - char_kyoto.yaml
     - char_kwdlc.yaml
+    - char_fuman.yaml
 
 wiki_ene_dic_path: ${oc.env:DATA_DIR}/wiki_ene_dic
 max_ene_num: 3
