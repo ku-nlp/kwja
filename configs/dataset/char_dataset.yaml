@@ -6,5 +6,7 @@ defaults:
   - test:
     - char_kwdlc.yaml
 
+wiki_ene_dic_path: ${oc.env:DATA_DIR}/wiki_ene_dic
+max_ene_num: 3
 tokenizer_kwargs:
   do_word_tokenize: False
