@@ -132,14 +132,11 @@ class CharModule(LightningModule):
         self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None
     ) -> Any:
         outputs: dict[str, dict[str, torch.Tensor]] = self(**batch)
-        predict_output = dict(input_ids=batch["input_ids"])
-        for key in batch:
-            if "labels" in key:
-                predict_output[key] = batch[key]
-        for key in outputs:
-            if "logits" in key:
-                predict_output[key] = outputs[key]
-        return predict_output
+        return {
+            "document_ids": batch["document_id"],
+            "word_segmenter_logits": outputs["word_segmenter_outputs"]["logits"],
+            "word_segmenter_labels": batch["seg_labels"],
+        }
 
     def configure_optimizers(self):
         optimizer = hydra.utils.instantiate(

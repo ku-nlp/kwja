@@ -1,5 +1,6 @@
 import json
 import os
+from collections import defaultdict
 from typing import Any, Optional, Sequence
 
 import pytorch_lightning as pl
@@ -7,7 +8,7 @@ import torch
 from pytorch_lightning.callbacks import BasePredictionWriter
 from transformers import AutoTokenizer, PreTrainedTokenizer
 
-from jula.evaluators.word_segment import WordSegmenterMetric
+from jula.evaluators.word_segmenter import WordSegmenterMetric
 
 
 class WordSegmenterWriter(BasePredictionWriter):
@@ -29,7 +30,6 @@ class WordSegmenterWriter(BasePredictionWriter):
             model_name_or_path,
             **tokenizer_kwargs,
         )
-        self.predicts: dict[int, Any] = dict()
         self.metrics: WordSegmenterMetric = WordSegmenterMetric()
 
     def write_on_batch_end(
@@ -51,25 +51,29 @@ class WordSegmenterWriter(BasePredictionWriter):
         predictions: Sequence[Any],
         batch_indices: Optional[Sequence[Any]],
     ) -> None:
-        example_id = 0
-        for prediction in predictions:
-            for batch_pred in prediction:
-                seg_preds, seg_labels = self.metrics.convert_num2label(
-                    preds=torch.argmax(batch_pred["logits"], dim=-1).cpu().tolist(),
-                    labels=batch_pred["seg_labels"].cpu().tolist(),
+        results = defaultdict(list)
+        for dataloader_idx, prediction_step_outputs in enumerate(predictions):
+            corpus = pl_module.test_corpora[dataloader_idx]
+            dataset = trainer.datamodule.test_datasets[corpus]
+            for prediction_step_output in prediction_step_outputs:
+                batch_seg_preds, batch_seg_labels = self.metrics.convert_num2label(
+                    preds=torch.argmax(
+                        prediction_step_output["word_segmenter_logits"], dim=-1
+                    ).tolist(),
+                    labels=prediction_step_output["word_segmenter_labels"].tolist(),
                 )  # (b, seq_len), (b, seq_len)
-                for idx in range(len(batch_pred["input_ids"])):
-                    self.predicts[example_id] = dict(
-                        input_ids=self.tokenizer.decode(
-                            [
-                                x
-                                for x in batch_pred["input_ids"][idx]
-                                if x != self.tokenizer.pad_token_id
-                            ]
-                        ),
-                        seg_preds=seg_preds[idx],
-                        seg_labels=seg_labels[idx],
+                for (document_id, seg_preds, seg_labels,) in zip(
+                    prediction_step_output["document_ids"],
+                    batch_seg_preds,
+                    batch_seg_labels,
+                ):
+                    document = dataset.documents[document_id]
+                    results[corpus].append(
+                        {
+                            "text": document.text,
+                            "seg_preds": "".join(seg_preds),
+                            "seg_labels": "".join(seg_labels),
+                        }
                     )
-                    example_id += 1
         with open(self.output_path, "w") as f:
-            json.dump(self.predicts, f, ensure_ascii=False, indent=2)
+            json.dump(results, f, ensure_ascii=False, indent=2)
