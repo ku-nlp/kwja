@@ -35,14 +35,14 @@ echo MODEL_DIR="/path/to/model_dir" >> .env
 ## Training and evaluation
 You can train and test the models in the following command:
 ```shell
-# For training and evaluating word segmentor
-poetry run python scripts/train.py -cn word_segmentor devices=[0,1]
+# For training and evaluating word segmenter
+poetry run python scripts/train.py -cn word_segmenter devices=[0,1]
 ```
 
 If you only want to do evaluation after training, please use the following command:
 ```shell
-# For evaluating word segmentor
-poetry run python scripts/evaluate.py -cn word_segmentor devices=[0] checkpoint_path="/path/to/checkpoint"
+# For evaluating word segmenter
+poetry run python scripts/evaluate.py -cn word_segmenter devices=[0] checkpoint_path="/path/to/checkpoint"
 ```
 
 ## Debugging
@@ -50,13 +50,13 @@ You can do debugging on local and server environments:
 
 Local environment (using CPU):
 ```shell
-# For debugging word segmentor
-poetry run python scripts/train.py -cn word_segmentor.debug devices=1
+# For debugging word segmenter
+poetry run python scripts/train.py -cn word_segmenter.debug devices=1
 ```
 Server environment (using GPU):
 ```shell
-# For debugging word segmentor
-poetry run python scripts/train.py -cn word_segmentor.debug devices=[0]
+# For debugging word segmenter
+poetry run python scripts/train.py -cn word_segmenter.debug devices=[0]
 ```
 
 ## Unit tests

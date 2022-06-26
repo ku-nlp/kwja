@@ -1,4 +1,3 @@
-from pathlib import Path
 from typing import Union
 
 import hydra
@@ -24,7 +23,6 @@ def main(cfg: DictConfig):
             cfg.devices = [int(x) for x in cfg.devices.split(",")]
         except ValueError:
             cfg.devices = None
-    cfg.seed = int(Path(cfg.checkpoint_path).parent.stem)
 
     callbacks: list[Callback] = []
     for k, v in cfg.get("callbacks", {}).items():
