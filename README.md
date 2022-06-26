@@ -33,7 +33,7 @@ echo MODEL_DIR="/path/to/model_dir" >> .env
 ```
 
 ## Preprocessing
-If you want to use the word segmenter, Please prepare a word matcher in advance with the following command.
+If you want to use the word segmenter, please prepare a word matcher in advance with the following command.
 ```shell
 poetry run python src/jula/preprocessors/wiki_ene_dic.py
   --input-json-path "/path/to/wiki_ene_json_file"
