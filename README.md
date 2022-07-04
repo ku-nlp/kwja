@@ -32,6 +32,16 @@ echo DATA_DIR="/path/to/data_dir" >> .env
 echo MODEL_DIR="/path/to/model_dir" >> .env
 ```
 
+## Preprocessing
+If you want to use the word segmenter, please prepare a word matcher in advance with the following command.
+```shell
+poetry run python src/jula/preprocessors/wiki_ene_dic.py
+  --input-json-path "/path/to/wiki_ene_json_file"
+```
+Options:
+- `--output-dir, -o`: path to directory to save. Default: `./data`
+- `--save-filtered-results, -s`: whether to create an intermediate file to save the filtering results.
+
 ## Training and evaluation
 You can train and test the models in the following command:
 ```shell
