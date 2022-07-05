@@ -14,11 +14,11 @@ from jula.datamodule.examples import CohesionExample, Task
 logger = logging.getLogger(__file__)
 
 
-class PredictionKNPWriter:
+class CohesionKNPWriter:
     """A class to write the system output in a KNP format.
 
     Args:
-        dataset (PASDataset): 解析対象のデータセット
+        dataset (WordDataset): 解析対象のデータセット
     """
 
     def __init__(self, dataset: WordDataset) -> None:

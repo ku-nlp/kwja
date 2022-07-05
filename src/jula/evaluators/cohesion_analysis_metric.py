@@ -5,7 +5,7 @@ from torchmetrics import Metric
 from jula.datamodule.datasets.word_dataset import WordDataset
 from jula.datamodule.examples import CohesionExample, Task
 from jula.evaluators.cohesion_scorer import Scorer, ScoreResult
-from jula.writer.knp import PredictionKNPWriter
+from jula.writer.knp import CohesionKNPWriter
 
 
 class CohesionAnalysisMetric(Metric):
@@ -47,7 +47,7 @@ class CohesionAnalysisMetric(Metric):
             )
 
     def compute(self, dataset: WordDataset) -> ScoreResult:
-        knp_writer = PredictionKNPWriter(dataset)
+        knp_writer = CohesionKNPWriter(dataset)
         assert len(self.example_ids) == len(self.predictions)
         predictions = {
             eid.item(): prediction.tolist()
