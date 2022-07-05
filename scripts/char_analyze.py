@@ -29,6 +29,7 @@ def main(cfg: DictConfig):
     trainer: pl.Trainer = hydra.utils.instantiate(
         cfg.trainer,
         logger=None,
+        enable_progress_bar=False,
         callbacks=callbacks,
         devices=cfg.devices,
     )
