@@ -5,15 +5,13 @@ from typing import Any, Optional, Sequence
 
 import hydra
 import pytorch_lightning as pl
-
-# import torch
+import torch
 from pytorch_lightning.callbacks import BasePredictionWriter
 
 # from rhoknp import Morpheme
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from jula.utils.utils import (
-    BASE_PHRASE_FEATURES,
+from jula.utils.utils import (  # BASE_PHRASE_FEATURES,
     INDEX2CONJFORM_TYPE,
     INDEX2CONJTYPE_TYPE,
     INDEX2DEPENDENCY_TYPE,
@@ -59,18 +57,18 @@ class WordModuleWriter(BasePredictionWriter):
         for prediction in predictions:
             for batch_pred in prediction:
                 batch_texts = batch_pred["text"]
-                # batch_pos_preds = torch.argmax(
-                #     batch_pred["word_analysis_pos_logits"], dim=-1
-                # )
-                # batch_subpos_preds = torch.argmax(
-                #     batch_pred["word_analysis_subpos_logits"], dim=-1
-                # )
-                # batch_conjtype_preds = torch.argmax(
-                #     batch_pred["word_analysis_conjtype_logits"], dim=-1
-                # )
-                # batch_conjform_preds = torch.argmax(
-                #     batch_pred["word_analysis_conjform_logits"], dim=-1
-                # )
+                batch_pos_preds = torch.argmax(
+                    batch_pred["word_analysis_pos_logits"], dim=-1
+                )
+                batch_subpos_preds = torch.argmax(
+                    batch_pred["word_analysis_subpos_logits"], dim=-1
+                )
+                batch_conjtype_preds = torch.argmax(
+                    batch_pred["word_analysis_conjtype_logits"], dim=-1
+                )
+                batch_conjform_preds = torch.argmax(
+                    batch_pred["word_analysis_conjform_logits"], dim=-1
+                )
                 # batch_phrase_analysis_preds = torch.where(
                 #     batch_pred["phrase_analysis_logits"] >= 0.5, 1.0, 0.0
                 # )
@@ -80,65 +78,22 @@ class WordModuleWriter(BasePredictionWriter):
                 # batch_dependency_type_preds = torch.argmax(
                 #     batch_pred["dependency_type_logits"], dim=2
                 # )
-                for (
-                    text,
-                    # pos_preds,
-                    # subpos_preds,
-                    # conjtype_preds,
-                    # conjform_preds,
-                    # phrase_analysis_preds,
-                    # dependency_preds,
-                    # dependency_type_preds,
-                ) in zip(
+                for values in zip(
                     batch_texts,
-                    # batch_pos_preds.tolist(),
-                    # batch_subpos_preds.tolist(),
-                    # batch_conjtype_preds.tolist(),
-                    # batch_conjform_preds.tolist(),
+                    batch_pos_preds.tolist(),
+                    batch_subpos_preds.tolist(),
+                    batch_conjtype_preds.tolist(),
+                    batch_conjform_preds.tolist(),
                     # batch_phrase_analysis_preds.tolist(),
                     # batch_dependency_preds.tolist(),
                     # batch_dependency_type_preds.tolist(),
                 ):
-                    results.append(self.convert_predictions(text))
+                    results.append(self.convert_predictions(*values))
         if self.use_stdout:
             print("\n".join(results))
         else:
             with open(self.output_path, "w") as f:
                 f.write("\n".join(results))
-
-    @staticmethod
-    def convert_word_analysis_pred(
-        # morpheme: Morpheme,
-        text: str,
-        pos_pred: int,
-        subpos_pred: int,
-        conjtype_pred: int,
-        conjform_pred: int,
-    ):
-        pred = (
-            f"{INDEX2POS_TYPE[pos_pred]} {INDEX2SUBPOS_TYPE[subpos_pred]} "
-            f"{INDEX2CONJTYPE_TYPE[conjtype_pred]} {INDEX2CONJFORM_TYPE[conjform_pred]}"
-        )
-        return pred
-        # label = (
-        #     f"{morpheme.pos} {morpheme.subpos} {morpheme.conjtype} {morpheme.conjform}"
-        # )
-        # return f"{pred}|{label}"
-
-    @staticmethod
-    def convert_phrase_analysis_pred(pred, label, head):
-        pred, label = map(
-            lambda x: " ".join(
-                f"<{feature}>"
-                for feature, element in zip(BASE_PHRASE_FEATURES, x)
-                if element == 1.0
-            ),
-            [pred, label],
-        )
-        if not head:
-            return f"|{label}"
-        else:
-            return f"{pred}|{label}"
 
     @staticmethod
     def convert_dependency_parsing_pred(morpheme, pred, type_pred, max_seq_len):
@@ -156,12 +111,29 @@ class WordModuleWriter(BasePredictionWriter):
             gold_deprel = "D"
             return f"{system_head}{system_deprel}|{gold_head}{gold_deprel}"
 
+    @staticmethod
     def convert_predictions(
-        self,
         text: str,
+        pos_preds: list[int],
+        subpos_preds: list[int],
+        conjtype_preds: list[int],
+        conjform_preds: list[int],
     ) -> str:
+        results = []
         words = text.split()
-        return "\n".join(words)
+        for i, word in enumerate(words):
+            results.append(
+                " ".join(
+                    (
+                        word,
+                        INDEX2POS_TYPE[pos_preds[i]],
+                        INDEX2SUBPOS_TYPE[subpos_preds[i]],
+                        INDEX2CONJTYPE_TYPE[conjtype_preds[i]],
+                        INDEX2CONJFORM_TYPE[conjform_preds[i]],
+                    )
+                )
+            )
+        return "\n".join(results)
         # id_, surf = morpheme.index, morpheme.surf
         # word_analysis_result = self.convert_word_analysis_pred(
         #     morpheme,
