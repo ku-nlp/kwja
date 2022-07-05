@@ -81,18 +81,6 @@ class TypoCorrectorWriter(BasePredictionWriter):
             labels_list.append(labels)
         return preds_list, labels_list
 
-    def write_on_batch_end(
-        self,
-        trainer: pl.Trainer,
-        pl_module: pl.LightningModule,
-        prediction: Any,
-        batch_indices: Optional[Sequence[int]],
-        batch: Any,
-        batch_idx: int,
-        dataloader_idx: int,
-    ) -> None:
-        pass
-
     def write_on_epoch_end(
         self,
         trainer: pl.Trainer,
