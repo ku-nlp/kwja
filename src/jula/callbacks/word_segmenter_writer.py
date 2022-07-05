@@ -1,6 +1,4 @@
-import json
 import os
-from collections import defaultdict
 from typing import Any, Optional, Sequence
 
 import pytorch_lightning as pl
@@ -18,13 +16,18 @@ class WordSegmenterWriter(BasePredictionWriter):
         pred_filename: str = "predict",
         model_name_or_path: str = "cl-tohoku/bert-base-japanese-char",
         tokenizer_kwargs: dict = None,
+        use_stdout: bool = False,
     ) -> None:
         super().__init__(write_interval="epoch")
-        self.output_path = f"{output_dir}/{pred_filename}.json"
 
-        os.makedirs(output_dir, exist_ok=True)
-        if os.path.isfile(self.output_path):
-            os.remove(self.output_path)
+        self.use_stdout = use_stdout
+        if self.use_stdout:
+            self.output_path = ""
+        else:
+            self.output_path = f"{output_dir}/{pred_filename}.json"
+            os.makedirs(output_dir, exist_ok=True)
+            if os.path.isfile(self.output_path):
+                os.remove(self.output_path)
 
         self.tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(
             model_name_or_path,
@@ -51,29 +54,26 @@ class WordSegmenterWriter(BasePredictionWriter):
         predictions: Sequence[Any],
         batch_indices: Optional[Sequence[Any]],
     ) -> None:
-        results = defaultdict(list)
-        for dataloader_idx, prediction_step_outputs in enumerate(predictions):
-            corpus = pl_module.test_corpora[dataloader_idx]
-            dataset = trainer.datamodule.test_datasets[corpus]
-            for prediction_step_output in prediction_step_outputs:
-                batch_seg_preds, batch_seg_labels = self.metrics.convert_num2label(
-                    preds=torch.argmax(
-                        prediction_step_output["word_segmenter_logits"], dim=-1
-                    ).tolist(),
-                    labels=prediction_step_output["word_segmenter_labels"].tolist(),
-                )  # (b, seq_len), (b, seq_len)
-                for (document_id, seg_preds, seg_labels,) in zip(
-                    prediction_step_output["document_ids"],
-                    batch_seg_preds,
-                    batch_seg_labels,
-                ):
-                    document = dataset.documents[document_id]
-                    results[corpus].append(
-                        {
-                            "text": document.text,
-                            "seg_preds": "".join(seg_preds),
-                            "seg_labels": "".join(seg_labels),
-                        }
-                    )
-        with open(self.output_path, "w") as f:
-            json.dump(results, f, ensure_ascii=False, indent=2)
+        results = []
+        for prediction in predictions:
+            for batch_pred in prediction:
+                seg_preds = [
+                    self.metrics.convert_ids_to_labels(ids)
+                    for ids in torch.argmax(batch_pred["logits"], dim=-1).cpu().tolist()
+                ]  # (b, seq_len)
+                for item_index in range(len(batch_pred["input_ids"])):
+                    result = ""
+                    for token_index in range(len(batch_pred["input_ids"][item_index])):
+                        token_id = batch_pred["input_ids"][item_index][token_index]
+                        if token_id in self.tokenizer.all_special_ids:
+                            continue
+                        seg_pred = seg_preds[item_index][token_index]
+                        if seg_pred == "B":
+                            result += " "
+                        result += self.tokenizer.decode(token_id)
+                    results.append(result.strip())
+        if self.use_stdout:
+            print("\n".join(results))
+        else:
+            with open(self.output_path, "w") as f:
+                f.write("\n".join(results))

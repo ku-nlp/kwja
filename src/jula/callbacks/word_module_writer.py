@@ -27,13 +27,18 @@ class WordModuleWriter(BasePredictionWriter):
         pred_filename: str = "predict",
         model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
         tokenizer_kwargs: dict = None,
+        use_stdout: bool = False,
     ) -> None:
         super().__init__(write_interval="epoch")
-        self.output_path = f"{output_dir}/{pred_filename}.json"
 
-        os.makedirs(output_dir, exist_ok=True)
-        if os.path.isfile(self.output_path):
-            os.remove(self.output_path)
+        self.use_stdout = use_stdout
+        if self.use_stdout:
+            self.output_path = ""
+        else:
+            self.output_path = f"{output_dir}/{pred_filename}.json"
+            os.makedirs(output_dir, exist_ok=True)
+            if os.path.isfile(self.output_path):
+                os.remove(self.output_path)
 
         self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             model_name_or_path,
@@ -125,8 +130,11 @@ class WordModuleWriter(BasePredictionWriter):
                         ]
                     )
 
-        with open(self.output_path, "w") as f:
-            json.dump(results, f, ensure_ascii=False, indent=2)
+        if self.use_stdout:
+            print(json.dumps(results, ensure_ascii=False, indent=2))
+        else:
+            with open(self.output_path, "w") as f:
+                json.dump(results, f, ensure_ascii=False, indent=2)
 
     @staticmethod
     def convert_word_analysis_pred(
