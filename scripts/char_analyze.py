@@ -45,7 +45,7 @@ def main(cfg: DictConfig):
 
     # TODO: Use hydra for configuration
     dataset = RawTextDataset(
-        inp.split("\n"),
+        [sent for sent in inp.split("\n") if sent],
         model_name_or_path=cfg.datamodule.model_name_or_path,
         max_seq_length=cfg.datamodule.max_seq_length,
         tokenizer_kwargs=cfg.datamodule.tokenizer_kwargs,
