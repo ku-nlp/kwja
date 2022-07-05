@@ -1,15 +1,15 @@
 import hydra
 import pytorch_lightning as pl
-import transformers.utils.logging as hf_logging
 from dotenv import load_dotenv
 from omegaconf import DictConfig
 from pytorch_lightning.callbacks import Callback
 from torch.utils.data import DataLoader
 
+from jula.cli.utils import suppress_debug_info
 from jula.datamodule.datasets.segmented_text_dataset import SegmentedTextDataset
 from jula.models.word_module import WordModule
 
-hf_logging.set_verbosity(hf_logging.ERROR)
+suppress_debug_info()
 
 
 @hydra.main(version_base=None, config_path="../configs", config_name="word_module")
