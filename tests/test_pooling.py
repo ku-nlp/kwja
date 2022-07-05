@@ -1,8 +1,7 @@
+import pytest
 import torch
 
 from jula.models.models.pooling import PoolingStrategy, pool_subwords
-
-eps = 1e-3
 
 # (b, word, seq) = (2, 3, 5)
 subword_map = torch.tensor(
@@ -64,7 +63,7 @@ def test_first_pooling():
         ],
         dtype=torch.float,
     )
-    assert (pooled_output - expected_output).abs().sum().item() < eps
+    assert pooled_output == pytest.approx(expected_output)
 
 
 def test_last_pooling():
@@ -85,7 +84,7 @@ def test_last_pooling():
         ],
         dtype=torch.float,
     )
-    assert (pooled_output - expected_output).abs().sum().item() < eps
+    assert pooled_output == pytest.approx(expected_output)
 
 
 def test_max_pooling():
@@ -106,7 +105,7 @@ def test_max_pooling():
         ],
         dtype=torch.float,
     )
-    assert (pooled_output - expected_output).abs().sum().item() < eps
+    assert pooled_output == pytest.approx(expected_output)
 
 
 def test_average_pooling():
@@ -127,4 +126,4 @@ def test_average_pooling():
         ],
         dtype=torch.float,
     )
-    assert (pooled_output - expected_output).abs().sum().item() < eps
+    assert pooled_output == pytest.approx(expected_output)
