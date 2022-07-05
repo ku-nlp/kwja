@@ -1,13 +1,12 @@
 import io
 import logging
-import re
-from collections import defaultdict
 from pathlib import Path
-from typing import NamedTuple, Optional, TextIO, Union
+from typing import TextIO, Union
 
 from rhoknp import BasePhrase, Document
 from rhoknp.rel import ExophoraReferent
 from rhoknp.rel.pas import Argument, BaseArgument, Pas, SpecialArgument
+from rhoknp.units.utils import Rel
 
 from jula.datamodule.datasets.word_dataset import WordDataset
 from jula.datamodule.examples import CohesionExample, Task
@@ -22,15 +21,7 @@ class PredictionKNPWriter:
         dataset (PASDataset): 解析対象のデータセット
     """
 
-    REL_PAT = re.compile(
-        r'<rel type="(\S+?)"(?: mode="([^>]+?)")? target="(.*?)"(?: sid="(.*?)" id="(.+?)")?/>'
-    )
-    TAG_PAT = re.compile(r"^\+ -?\d+\w ?")
-
-    def __init__(
-        self,
-        dataset: WordDataset,
-    ) -> None:
+    def __init__(self, dataset: WordDataset) -> None:
         self.examples: list[CohesionExample] = dataset.examples
         self.cases: list[str] = dataset.cases
         self.tasks: list[Task] = dataset.cohesion_tasks
@@ -71,97 +62,36 @@ class PredictionKNPWriter:
         did2prediction: dict[str, list] = {
             self.examples[eid].doc_id: pred for eid, pred in predictions.items()
         }
-        did2knps: dict[str, list[str]] = defaultdict(list)
         for document in self.documents:
             did = document.doc_id
-            input_knp_lines: list[str] = document.knp_string.strip().splitlines()
             if prediction := did2prediction.get(did):  # (phrase, rel)
-                output_knp_lines = self._rewrite_rel(
-                    input_knp_lines,
-                    prediction,
-                    document,
-                )  # overtを抽出するためこれはreparse後に格解析したものがいい
+                for phrase, pred in zip(document.base_phrases, prediction):
+                    phrase.rels = self._to_rels(pred, document.base_phrases)
             else:
                 if skip_untagged is True:
                     continue
-                assert all("<rel " not in line for line in input_knp_lines)
-                output_knp_lines = input_knp_lines
+            document.reparse_rel()
 
-            knp_strings: list[str] = []  # list of knp_string of one sentence
-            buff = ""
-            for knp_line in output_knp_lines:
-                buff += knp_line + "\n"
-                if knp_line.strip() == "EOS":
-                    knp_strings.append(buff)
-                    buff = ""
-            if self.kc is True:
-                # merge documents
-                orig_did, idx = did.split("-")
-                if idx == "00":
-                    did2knps[orig_did] += knp_strings
-                else:
-                    did2knps[orig_did].append(knp_strings[-1])
-            else:
-                did2knps[did] = knp_strings
-
-        documents_pred: list[Document] = []  # kc については元通り結合された文書のリスト
-        for did, knp_strings in did2knps.items():
-            document_pred = Document.from_knp("".join(knp_strings))
-            document_pred.doc_id = did
-            documents_pred.append(document_pred)
+        for document in self.documents:
             if destination is None:
                 continue
-            output_knp_lines = "".join(knp_strings).strip().split("\n")
+            output_knp_lines = document.to_knp().splitlines()
             if add_pas_tag is True:
-                output_knp_lines = self._add_pas_tag(output_knp_lines, document_pred)
+                output_knp_lines = self._add_pas_tag(output_knp_lines, document)
             output_string = "\n".join(output_knp_lines) + "\n"
             if isinstance(destination, Path):
-                destination.joinpath(f"{did}.knp").write_text(output_string)
+                destination.joinpath(f"{document.doc_id}.knp").write_text(output_string)
             elif isinstance(destination, io.TextIOBase):
                 destination.write(output_string)
 
-        return documents_pred
+        return self.documents
 
-    def _rewrite_rel(
-        self,
-        knp_lines: list[str],
-        prediction: list[list[int]],  # (phrase, rel)
-        document: Document,  # <格解析>付き
-    ) -> list[str]:
-        base_phrases: list[BasePhrase] = document.base_phrases
-
-        output_knp_lines = []
-        dtid = 0
-        sent_idx = 0
-        for line in knp_lines:
-            if not line.startswith("+ "):
-                output_knp_lines.append(line)
-                if line == "EOS":
-                    sent_idx += 1
-                continue
-
-            assert "<rel " not in line
-            if match := self.TAG_PAT.match(line):
-                rel_string = self._rel_string(
-                    prediction[dtid],
-                    base_phrases,
-                )
-                rel_idx = match.end()
-                output_knp_lines.append(line[:rel_idx] + rel_string + line[rel_idx:])
-            else:
-                logger.warning(f"invalid format line: {line}")
-                output_knp_lines.append(line)
-
-            dtid += 1
-
-        return output_knp_lines
-
-    def _rel_string(
+    def _to_rels(
         self,
         prediction: list[int],  # (rel)
         bp_list: list[BasePhrase],
-    ) -> str:
-        rels: list[RelTag] = []
+    ) -> list[Rel]:
+        rels: list[Rel] = []
         assert len(self.relations) == len(prediction)
         for relation, pred in zip(self.relations, prediction):
             if pred < 0:
@@ -170,11 +100,12 @@ class PredictionKNPWriter:
                 # normal
                 prediction_bp: BasePhrase = bp_list[pred]
                 rels.append(
-                    RelTag(
-                        relation,
-                        prediction_bp.head.text,
-                        prediction_bp.sentence.sid,
-                        prediction_bp.index,
+                    Rel(
+                        type=relation,
+                        target=prediction_bp.head.text,
+                        sid=prediction_bp.sentence.sid,
+                        base_phrase_index=prediction_bp.index,
+                        mode=None,
                     )
                 )
             elif 0 <= pred - len(bp_list) < len(self.specials):
@@ -183,11 +114,19 @@ class PredictionKNPWriter:
                 if special_arg in [
                     str(e) for e in self.exophora_referents
                 ]:  # exclude [NULL] and [NA]
-                    rels.append(RelTag(relation, special_arg, None, None))
+                    rels.append(
+                        Rel(
+                            type=relation,
+                            target=special_arg,
+                            sid=None,
+                            base_phrase_index=None,
+                            mode=None,
+                        )
+                    )
             else:
                 raise ValueError(f"invalid pred index: {pred}")
 
-        return "".join(rel.to_string() for rel in rels)
+        return rels
 
     def _add_pas_tag(
         self,
@@ -222,7 +161,6 @@ class PredictionKNPWriter:
         sid2index: dict[str, int] = {
             sent.sid: i for i, sent in enumerate(document.sentences)
         }
-        # dtype2caseflag = {'overt': 'C', 'dep': 'N', 'intra': 'O', 'inter': 'O', 'exo': 'E'}
         case_elements = []
         for case in self.cases + ["ノ"] * (Task.BRIDGING in self.tasks):
             items = ["-"] * 6
@@ -247,17 +185,3 @@ class PredictionKNPWriter:
                 items[1] = "U"
             case_elements.append("/".join(items))
         return f"<述語項構造:{cfid}:{';'.join(case_elements)}>"
-
-
-class RelTag(NamedTuple):
-    type_: str
-    target: str
-    sid: Optional[str]
-    tid: Optional[int]
-
-    def to_string(self) -> str:
-        string = f'<rel type="{self.type_}" target="{self.target}"'
-        if self.sid is not None:
-            string += f' sid="{self.sid}" id="{self.tid}"'
-        string += "/>"
-        return string
