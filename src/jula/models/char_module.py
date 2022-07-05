@@ -133,9 +133,7 @@ class CharModule(LightningModule):
     ) -> Any:
         outputs: dict[str, dict[str, torch.Tensor]] = self(**batch)
         return {
-            "document_ids": batch["document_id"],
             "word_segmenter_logits": outputs["word_segmenter_outputs"]["logits"],
-            "word_segmenter_labels": batch["seg_labels"],
         }
 
     def configure_optimizers(self):
