@@ -31,7 +31,9 @@ class CohesionKNPWriter:
         )
         self.exophora_referents: list[ExophoraReferent] = dataset.exophora_referents
         self.specials: list[str] = dataset.special_tokens
-        self.documents: list[Document] = dataset.documents
+        self.documents: list[Document] = [
+            Document.from_knp(doc.to_knp()) for doc in dataset.documents
+        ]
         self.kc: bool = False
 
     def write(
@@ -61,11 +63,7 @@ class CohesionKNPWriter:
         did2prediction: dict[str, list] = {
             self.documents[eid].doc_id: pred for eid, pred in predictions.items()
         }
-        # copy instance
-        documents: list[Document] = [
-            Document.from_knp(doc.to_knp()) for doc in self.documents
-        ]
-        for document in documents:
+        for document in self.documents:
             did = document.doc_id
             if prediction := did2prediction.get(did):  # (phrase, rel)
                 for base_phrase, pred in zip(document.base_phrases, prediction):
@@ -76,9 +74,8 @@ class CohesionKNPWriter:
                 for base_phrase in document.base_phrases:
                     base_phrase.rels = []
             document.reparse_rel()
-            documents.append(document)
 
-        for document in documents:
+        for document in self.documents:
             if destination is None:
                 continue
             output_knp_lines = document.to_knp().splitlines()
@@ -90,7 +87,7 @@ class CohesionKNPWriter:
             elif isinstance(destination, io.TextIOBase):
                 destination.write(output_string)
 
-        return documents
+        return self.documents
 
     def _to_rels(
         self,
