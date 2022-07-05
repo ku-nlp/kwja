@@ -1,5 +1,3 @@
-from typing import Union
-
 import hydra
 import pytorch_lightning as pl
 import transformers.utils.logging as hf_logging
@@ -10,8 +8,6 @@ from torch.utils.data import DataLoader
 
 from jula.datamodule.datasets.raw_text_dataset import RawTextDataset
 from jula.models.char_module import CharModule
-from jula.models.typo_module import TypoModule
-from jula.models.word_module import WordModule
 
 hf_logging.set_verbosity(hf_logging.ERROR)
 
@@ -37,18 +33,8 @@ def main(cfg: DictConfig):
         devices=cfg.devices,
     )
 
-    model: Union[TypoModule, CharModule, WordModule]
-    # add config name if you want
-    if cfg.config_name in cfg.module.typo:
-        model = TypoModule.load_from_checkpoint(
-            checkpoint_path=cfg.checkpoint_path, hparams=cfg
-        )
-    elif cfg.config_name in cfg.module.char:
+    if cfg.config_name in cfg.module.char:
         model = CharModule.load_from_checkpoint(
-            checkpoint_path=cfg.checkpoint_path, hparams=cfg
-        )
-    elif cfg.config_name in cfg.module.word:
-        model = WordModule.load_from_checkpoint(
             checkpoint_path=cfg.checkpoint_path, hparams=cfg
         )
     else:
