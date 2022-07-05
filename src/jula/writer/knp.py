@@ -61,8 +61,11 @@ class CohesionKNPWriter:
         did2prediction: dict[str, list] = {
             self.documents[eid].doc_id: pred for eid, pred in predictions.items()
         }
-        documents: list[Document] = []
-        for document in self.documents:
+        # copy instance
+        documents: list[Document] = [
+            Document.from_knp(doc.to_knp()) for doc in self.documents
+        ]
+        for document in documents:
             did = document.doc_id
             if prediction := did2prediction.get(did):  # (phrase, rel)
                 for base_phrase, pred in zip(document.base_phrases, prediction):

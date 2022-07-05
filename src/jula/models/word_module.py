@@ -384,7 +384,7 @@ class WordModule(LightningModule):
             "phrase_analysis_logits": outputs["phrase_analyzer_outputs"][
                 "phrase_analysis_logits"
             ],
-            # "base_phrase_features": batch["base_phrase_features"],
+            "base_phrase_features": batch["base_phrase_features"],  # TODO: use outputs
             "dependency_logits": outputs["relation_analyzer_outputs"][
                 "dependency_logits"
             ],
