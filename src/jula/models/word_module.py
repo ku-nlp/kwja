@@ -117,11 +117,19 @@ class WordModule(LightningModule):
             on_step=True,
             on_epoch=True,
         )
+        cohesion_loss = outputs["relation_analyzer_outputs"]["cohesion_loss"]
+        self.log(
+            "train/cohesion_loss",
+            cohesion_loss,
+            on_step=True,
+            on_epoch=True,
+        )
         return (
             word_analysis_loss
             + phrase_analysis_loss
             + dependency_loss
             + dependency_type_loss
+            + cohesion_loss
         )
 
     def validation_step(
