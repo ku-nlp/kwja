@@ -28,7 +28,9 @@ class CharDataset(BaseDataset):
     def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
         document = self.documents[index]
         return {
-            "document_id": torch.tensor(index, dtype=torch.long),
+            "example_ids": torch.tensor(
+                index, dtype=torch.long
+            ),  # FIXME: use static id
             **self.encode(document),
         }
 

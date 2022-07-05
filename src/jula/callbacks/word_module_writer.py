@@ -92,7 +92,7 @@ class WordModuleWriter(BasePredictionWriter):
                     prediction_step_output["dependency_type_logits"], dim=2
                 )
                 for (
-                    document_id,
+                    example_id,
                     pos_preds,
                     subpos_preds,
                     conjtype_preds,
@@ -102,7 +102,7 @@ class WordModuleWriter(BasePredictionWriter):
                     dependency_preds,
                     dependency_type_preds,
                 ) in zip(
-                    prediction_step_output["document_ids"],
+                    prediction_step_output["example_ids"],
                     batch_pos_preds.tolist(),
                     batch_subpos_preds.tolist(),
                     batch_conjtype_preds.tolist(),
@@ -112,7 +112,7 @@ class WordModuleWriter(BasePredictionWriter):
                     batch_dependency_preds.tolist(),
                     batch_dependency_type_preds.tolist(),
                 ):
-                    document = dataset.documents[document_id]
+                    document = dataset.documents[example_id]
                     results[corpus].append(
                         [
                             self.convert_predictions(values, len(dependency_preds))

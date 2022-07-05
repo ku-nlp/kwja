@@ -30,7 +30,9 @@ class SegmentedTextDataset(Dataset):
 
     def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
         return {
-            "document_id": torch.tensor(index, dtype=torch.long),
+            "example_ids": torch.tensor(
+                index, dtype=torch.long
+            ),  # FIXME: use static id
             **self.encode(self.texts[index]),
         }
 

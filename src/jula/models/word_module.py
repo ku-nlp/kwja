@@ -162,7 +162,7 @@ class WordModule(LightningModule):
         )
 
         phrase_analysis_metric_args = {
-            "document_ids": batch["document_id"],
+            "example_ids": batch["example_ids"],
             "preds": torch.where(
                 outputs["phrase_analyzer_outputs"]["phrase_analysis_logits"] >= 0.5,
                 1.0,
@@ -177,7 +177,7 @@ class WordModule(LightningModule):
         )
 
         dependency_parsing_metric_args = {
-            "document_ids": batch["document_id"],
+            "example_ids": batch["example_ids"],
             "preds": torch.argmax(
                 outputs["relation_analyzer_outputs"]["dependency_logits"], dim=2
             ),
@@ -194,7 +194,7 @@ class WordModule(LightningModule):
         )
 
         cohesion_analysis_metric_args = {
-            "example_ids": batch["document_id"],
+            "example_ids": batch["example_ids"],
             "output": outputs["relation_analyzer_outputs"]["cohesion_logits"],
             "dataset": self.trainer.val_dataloaders[dataloader_idx or 0].dataset,
         }
@@ -278,7 +278,7 @@ class WordModule(LightningModule):
             outputs["word_analyzer_outputs"]["loss"],
         )
         phrase_analysis_metric_args = {
-            "document_ids": batch["document_id"],
+            "example_ids": batch["example_ids"],
             "preds": torch.where(
                 outputs["phrase_analyzer_outputs"]["phrase_analysis_logits"] >= 0.5,
                 1.0,
@@ -293,7 +293,7 @@ class WordModule(LightningModule):
         )
 
         dependency_parsing_metric_args = {
-            "document_ids": batch["document_id"],
+            "example_ids": batch["example_ids"],
             "preds": torch.argmax(
                 outputs["relation_analyzer_outputs"]["dependency_logits"], dim=2
             ),
@@ -310,7 +310,7 @@ class WordModule(LightningModule):
         )
 
         cohesion_analysis_metric_args = {
-            "example_ids": batch["document_id"],
+            "example_ids": batch["example_ids"],
             "output": outputs["relation_analyzer_outputs"]["cohesion_logits"],
             "dataset": self.trainer.test_dataloaders[dataloader_idx or 0].dataset,
         }
@@ -370,7 +370,7 @@ class WordModule(LightningModule):
     ) -> Any:
         outputs: dict[str, torch.Tensor] = self(inference=True, **batch)
         return {
-            "document_ids": batch["document_id"],
+            "example_ids": batch["example_ids"],
             "word_analysis_pos_logits": outputs["word_analyzer_outputs"]["pos_logits"],
             "word_analysis_subpos_logits": outputs["word_analyzer_outputs"][
                 "subpos_logits"

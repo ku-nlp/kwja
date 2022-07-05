@@ -9,7 +9,7 @@ from rhoknp.rel.pas import Argument, BaseArgument, Pas, SpecialArgument
 from rhoknp.units.utils import Rel
 
 from jula.datamodule.datasets.word_dataset import WordDataset
-from jula.datamodule.examples import CohesionExample, Task
+from jula.datamodule.examples import Task
 
 logger = logging.getLogger(__file__)
 
@@ -22,7 +22,6 @@ class CohesionKNPWriter:
     """
 
     def __init__(self, dataset: WordDataset) -> None:
-        self.examples: list[CohesionExample] = dataset.examples
         self.cases: list[str] = dataset.cases
         self.tasks: list[Task] = dataset.cohesion_tasks
         self.relations: list[str] = (
@@ -60,7 +59,7 @@ class CohesionKNPWriter:
             logger.warning("invalid output destination")
 
         did2prediction: dict[str, list] = {
-            self.examples[eid].doc_id: pred for eid, pred in predictions.items()
+            self.documents[eid].doc_id: pred for eid, pred in predictions.items()
         }
         documents: list[Document] = []
         for document in self.documents:

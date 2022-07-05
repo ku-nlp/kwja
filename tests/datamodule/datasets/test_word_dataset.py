@@ -38,7 +38,7 @@ def test_getitem():
         document = dataset.documents[i]
         item = dataset[i]
         assert isinstance(item, dict)
-        assert "document_id" in item
+        assert "example_ids" in item
         assert "input_ids" in item
         assert "attention_mask" in item
         assert "subword_map" in item
@@ -50,7 +50,7 @@ def test_getitem():
         assert "intra_mask" in item
         assert "dependency_types" in item
         assert "discourse_relations" in item
-        assert item["document_id"] == i
+        assert item["example_ids"] == i
         assert item["input_ids"].shape == (max_seq_length,)
         assert item["attention_mask"].shape == (max_seq_length,)
         assert item["subword_map"].shape == (max_seq_length, max_seq_length)
@@ -107,7 +107,7 @@ def test_encode():
             """
         )
     )
-    encoding = dataset.encode(document)
+    encoding = dataset.encode(document, dataset.cohesion_examples["000"])
 
     mrph_types = [[IGNORE_INDEX] * 4 for _ in range(max_seq_length)]
     # 0: 風
@@ -257,8 +257,7 @@ def test_pas():
         str(data_dir / "knp"),
         max_seq_length=max_seq_length,
     )
-    _ = dataset.encode(dataset.documents[1])
-    example = dataset.examples[0]
+    example = dataset.cohesion_examples["w201106-0000060560"]
     example_expected = json.loads((data_dir / "expected/example/0.json").read_text())
     mrphs_exp = example_expected["mrphs"]
     annotation: PasAnnotation = example.annotations[Task.PAS_ANALYSIS]

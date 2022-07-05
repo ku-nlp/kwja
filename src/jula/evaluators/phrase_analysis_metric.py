@@ -13,19 +13,19 @@ from jula.utils.utils import BASE_PHRASE_FEATURES, IGNORE_INDEX
 class PhraseAnalysisMetric(Metric):
     def __init__(self) -> None:
         super().__init__()
-        self.add_state("document_ids", default=[], dist_reduce_fx="cat")
+        self.add_state("example_ids", default=[], dist_reduce_fx="cat")
         self.add_state("preds", default=[], dist_reduce_fx="cat")
         self.add_state("labels", default=[], dist_reduce_fx="cat")
 
     def update(
-        self, document_ids: torch.Tensor, preds: torch.Tensor, labels: torch.Tensor
+        self, example_ids: torch.Tensor, preds: torch.Tensor, labels: torch.Tensor
     ):
-        self.document_ids.append(document_ids)
+        self.example_ids.append(example_ids)
         self.preds.append(preds)
         self.labels.append(labels)
 
     def compute(self) -> dict[str, Union[torch.Tensor, float]]:
-        sorted_indices = self.unique(self.document_ids)
+        sorted_indices = self.unique(self.example_ids)
         # (num_base_phrase_features, batch_size, max_seq_len)
         preds, labels = map(
             lambda x: x[sorted_indices].permute(2, 0, 1), [self.preds, self.labels]

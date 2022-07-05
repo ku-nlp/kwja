@@ -67,7 +67,11 @@ class WordDataset(BaseDataset):
             token: self.max_seq_length - len(self.special_tokens) + i
             for i, token in enumerate(self.special_tokens)
         }
-        self.examples: list[CohesionExample] = []
+        self.cohesion_examples: dict[str, CohesionExample] = {}
+        for example_id, document in enumerate(self.documents):
+            cohesion_example = self._load_cohesion_example(document)
+            cohesion_example.example_id = example_id
+            self.cohesion_examples[document.doc_id] = cohesion_example
 
     @property
     def special_indices(self) -> list[int]:
@@ -84,12 +88,12 @@ class WordDataset(BaseDataset):
 
     def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
         document = self.documents[index]
-        return {
-            "document_id": torch.tensor(index, dtype=torch.long),
-            **self.encode(document),
-        }
+        cohesion_example = self.cohesion_examples[document.doc_id]
+        return self.encode(document, cohesion_example)
 
-    def encode(self, document: Document) -> dict[str, torch.Tensor]:
+    def encode(
+        self, document: Document, cohesion_example: CohesionExample
+    ) -> dict[str, torch.Tensor]:
         # TODO: deal with the case that the document is too long
         encoding: Encoding = self.tokenizer(
             " ".join(morpheme.text for morpheme in document.morphemes),
@@ -180,8 +184,6 @@ class WordDataset(BaseDataset):
                     )
 
         # PAS analysis & coreference resolution
-        cohesion_example = self._load_cohesion_example(document)
-        self.examples.append(cohesion_example)
         cohesion_example.encoding = encoding
         cohesion_target: list[list[list[int]]] = []  # (task, src, tgt)
         candidates_set: list[list[list[int]]] = []  # (task, src, tgt)
@@ -228,6 +230,7 @@ class WordDataset(BaseDataset):
         ]
 
         return {
+            "example_ids": torch.tensor(cohesion_example.example_id, dtype=torch.long),
             "input_ids": torch.tensor(merged_encoding.ids, dtype=torch.long),
             "attention_mask": torch.tensor(
                 merged_encoding.attention_mask, dtype=torch.long

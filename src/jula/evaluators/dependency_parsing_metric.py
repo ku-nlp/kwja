@@ -12,24 +12,23 @@ from jula.utils.utils import INDEX2DEPENDENCY_TYPE
 class DependencyParsingMetric(Metric):
     def __init__(self) -> None:
         super().__init__()
-        self.add_state("document_ids", default=[], dist_reduce_fx="cat")
+        self.add_state("example_ids", default=[], dist_reduce_fx="cat")
         self.add_state("preds", default=[], dist_reduce_fx="cat")
         self.add_state("type_preds", default=[], dist_reduce_fx="cat")
 
     def update(
-        self, document_ids: torch.Tensor, preds: torch.Tensor, type_preds: torch.Tensor
+        self, example_ids: torch.Tensor, preds: torch.Tensor, type_preds: torch.Tensor
     ) -> None:
-        self.document_ids.append(document_ids)
+        self.example_ids.append(example_ids)
         self.preds.append(preds)
         self.type_preds.append(type_preds)
 
     def compute(self, dataset: WordDataset) -> dict[str, Union[torch.Tensor, float]]:
-        sorted_indices = self.unique(self.document_ids)
-        document_ids, preds, type_preds = map(
-            lambda x: x[sorted_indices].tolist(),
-            [self.document_ids, self.preds, self.type_preds],
-        )
-        documents = [dataset.documents[document_id] for document_id in document_ids]
+        documents = [
+            dataset.documents[example_id.item()] for example_id in self.example_ids
+        ]
+        preds = self.preds.tolist()
+        type_preds = self.type_preds.tolist()
 
         base_phrase_based_metrics = main(
             *self.to_base_phrase_based_conll(documents, preds, type_preds)
