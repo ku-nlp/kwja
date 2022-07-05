@@ -49,7 +49,9 @@ class CohesionAnalysisMetric(Metric):
 
     def compute(self, dataset: WordDataset) -> ScoreResult:
         knp_writer = CohesionKNPWriter(dataset)
-        assert len(self.example_ids) == len(self.predictions), f"{len(self.example_ids)} vs {len(self.predictions)}"
+        assert len(self.example_ids) == len(
+            self.predictions
+        ), f"{len(self.example_ids)} vs {len(self.predictions)}"
         predictions = {
             eid.item(): prediction.tolist()
             for eid, prediction in zip(self.example_ids, self.predictions)
