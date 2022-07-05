@@ -62,17 +62,21 @@ class CohesionKNPWriter:
         did2prediction: dict[str, list] = {
             self.examples[eid].doc_id: pred for eid, pred in predictions.items()
         }
+        documents: list[Document] = []
         for document in self.documents:
             did = document.doc_id
             if prediction := did2prediction.get(did):  # (phrase, rel)
-                for phrase, pred in zip(document.base_phrases, prediction):
-                    phrase.rels = self._to_rels(pred, document.base_phrases)
+                for base_phrase, pred in zip(document.base_phrases, prediction):
+                    base_phrase.rels = self._to_rels(pred, document.base_phrases)
             else:
                 if skip_untagged is True:
                     continue
+                for base_phrase in document.base_phrases:
+                    base_phrase.rels = []
             document.reparse_rel()
+            documents.append(document)
 
-        for document in self.documents:
+        for document in documents:
             if destination is None:
                 continue
             output_knp_lines = document.to_knp().splitlines()
@@ -84,7 +88,7 @@ class CohesionKNPWriter:
             elif isinstance(destination, io.TextIOBase):
                 destination.write(output_string)
 
-        return self.documents
+        return documents
 
     def _to_rels(
         self,
