@@ -133,6 +133,7 @@ class CharModule(LightningModule):
     ) -> Any:
         outputs: dict[str, dict[str, torch.Tensor]] = self(**batch)
         return {
+            "input_ids": batch["input_ids"],
             "word_segmenter_logits": outputs["word_segmenter_outputs"]["logits"],
         }
 
