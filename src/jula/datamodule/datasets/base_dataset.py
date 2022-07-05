@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 import hydra
@@ -41,5 +42,9 @@ class BaseDataset(Dataset):
     def load_documents(path: Path, ext: str = "knp") -> list[Document]:
         documents = []
         for file_path in sorted(path.glob(f"**/*.{ext}")):
-            documents.append(Document.from_knp(file_path.read_text()))
+            # TODO: fix document file
+            try:
+                documents.append(Document.from_knp(file_path.read_text()))
+            except AssertionError:
+                print(f"{file_path} is not a valid knp file.", file=sys.stderr)
         return documents
