@@ -15,19 +15,6 @@ class WordSegmenterMetric(Metric):
         self.add_state("seg_labels", default=[], dist_reduce_fx="cat")
 
     @staticmethod
-    def filter_predictions(
-        preds: list[str], labels: list[str]
-    ) -> Tuple[list[str], list[str]]:
-        filtered_preds = []
-        filtered_labels = []
-        for pred, label in zip(preds, labels):
-            if label == "O":
-                continue
-            filtered_preds.append(pred)
-            filtered_labels.append(label)
-        return filtered_preds, filtered_labels
-
-    @staticmethod
     def convert_num2label(
         preds: list[list[int]], labels: list[list[int]]
     ) -> Tuple[list[list[str]], list[list[str]]]:
