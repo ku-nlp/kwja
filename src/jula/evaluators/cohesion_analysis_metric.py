@@ -15,21 +15,20 @@ class CohesionAnalysisMetric(Metric):
         super().__init__()
         # Metric state variables can either be torch.Tensor or an empty list which can be used to store torch.Tensors`.
         # i.e. Expected metric state to be either a Tensor or a list of Tensor
-        self.add_state("document_ids", default=list())  # list[torch.Tensor]
+        self.add_state("example_ids", default=list())  # list[torch.Tensor]
         self.add_state(
             "predictions", default=list()
         )  # list[torch.Tensor]  # [(rel, phrase)]
 
     def update(
         self,
-        document_ids: torch.Tensor,  # (b)
+        example_ids: torch.Tensor,  # (b)
         output: torch.Tensor,  # (b, rel, seq, seq)
-        mask: torch.Tensor,  # (b, rel, seq, seq)
         dataset: WordDataset,
     ) -> None:
-        assert len(output) == len(document_ids)
-        for out, eid in zip(output, document_ids):
-            self.document_ids.append(eid)
+        assert len(output) == len(example_ids)
+        for out, eid in zip(output, example_ids):
+            self.example_ids.append(eid)
             gold_example: CohesionExample = dataset.examples[eid.item()]
             # (rel, phrase, 0 or phrase+special)
             preds: list[list[list[float]]] = dataset.dump_prediction(

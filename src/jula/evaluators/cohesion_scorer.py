@@ -146,11 +146,11 @@ class SubScorer:
         coreference (bool): 共参照の評価を行うかどうか
         comp_result (dict[tuple, str]): 正解と予測を比較した結果を格納するための辞書
         exophora_referents (list[ExophoraReferent]): 「不特定:人１」などを「不特定:人」として評価するためのマップ
-        predicates_pred: (list[BasePhrase]): システム予測文書に含まれる述語
-        bridgings_pred: (list[BasePhrase]): システム予測文書に含まれる橋渡し照応詞
+        predicates_pred: (list[Predicate]): システム予測文書に含まれる述語
+        bridgings_pred: (list[Predicate]): システム予測文書に含まれる橋渡し照応詞
         mentions_pred: (list[BasePhrase]): システム予測文書に含まれるメンション
-        predicates_gold: (list[BasePhrase]): 正解文書に含まれる述語
-        bridgings_gold: (list[BasePhrase]): 正解文書に含まれる橋渡し照応詞
+        predicates_gold: (list[Predicate]): 正解文書に含まれる述語
+        bridgings_gold: (list[Predicate]): 正解文書に含まれる橋渡し照応詞
         mentions_gold: (list[BasePhrase]): 正解文書に含まれるメンション
     """
 
@@ -175,8 +175,8 @@ class SubScorer:
         self.comp_result: dict[tuple, str] = {}
         self.exophora_referents: list[ExophoraReferent] = exophora_referents
 
-        self.predicates_pred: list[BasePhrase] = []
-        self.bridgings_pred: list[BasePhrase] = []
+        self.predicates_pred: list[Predicate] = []
+        self.bridgings_pred: list[Predicate] = []
         self.mentions_pred: list[BasePhrase] = []
         for bp in document_pred.base_phrases:
             if PasExtractor.is_pas_target(
@@ -184,13 +184,13 @@ class SubScorer:
                 verbal=(pas_target in ("pred", "all")),
                 nominal=(pas_target in ("noun", "all")),
             ):
-                self.predicates_pred.append(bp)
+                self.predicates_pred.append(bp.pas.predicate)
             if self.bridging and BridgingExtractor.is_bridging_target(bp):
-                self.bridgings_pred.append(bp)
+                self.bridgings_pred.append(bp.pas.predicate)
             if self.coreference and CoreferenceExtractor.is_coreference_target(bp):
                 self.mentions_pred.append(bp)
-        self.predicates_gold: list[BasePhrase] = []
-        self.bridgings_gold: list[BasePhrase] = []
+        self.predicates_gold: list[Predicate] = []
+        self.bridgings_gold: list[Predicate] = []
         self.mentions_gold: list[BasePhrase] = []
         for bp in document_gold.base_phrases:
             if PasExtractor.is_pas_target(
@@ -198,9 +198,9 @@ class SubScorer:
                 verbal=(pas_target in ("pred", "all")),
                 nominal=(pas_target in ("noun", "all")),
             ):
-                self.predicates_gold.append(bp)
+                self.predicates_gold.append(bp.pas.predicate)
             if self.bridging and BridgingExtractor.is_bridging_target(bp):
-                self.bridgings_gold.append(bp)
+                self.bridgings_gold.append(bp.pas.predicate)
             if self.coreference and CoreferenceExtractor.is_coreference_target(bp):
                 self.mentions_gold.append(bp)
 
@@ -224,10 +224,10 @@ class SubScorer:
             columns=Scorer.DEPTYPE2ANALYSIS.values(),
         )
         global_index2predicate_pred: dict[int, Predicate] = {
-            pred.global_index: pred for pred in self.predicates_pred
+            pred.base_phrase.global_index: pred for pred in self.predicates_pred
         }
         global_index2predicate_gold: dict[int, Predicate] = {
-            pred.global_index: pred for pred in self.predicates_gold
+            pred.base_phrase.global_index: pred for pred in self.predicates_gold
         }
 
         for global_index in range(len(self.document_pred.base_phrases)):
@@ -327,10 +327,10 @@ class SubScorer:
             (anal, Measure()) for anal in Scorer.DEPTYPE2ANALYSIS.values()
         )
         global_index2anaphor_pred: dict[int, Predicate] = {
-            pred.global_index: pred for pred in self.bridgings_pred
+            pred.base_phrase.global_index: pred for pred in self.bridgings_pred
         }
         global_index2anaphor_gold: dict[int, Predicate] = {
-            pred.global_index: pred for pred in self.bridgings_gold
+            pred.base_phrase.global_index: pred for pred in self.bridgings_gold
         }
 
         for global_index in range(len(self.document_pred.base_phrases)):
@@ -419,7 +419,7 @@ class SubScorer:
                 src_mention_pred.get_coreferents(), src_mention_pred
             )
             exophors_pred = {
-                e.exophora_referent
+                e.exophora_referent.text
                 for e in src_mention_pred.entities
                 if e.exophora_referent is not None
             }
@@ -434,12 +434,12 @@ class SubScorer:
                 src_mention_gold,
             )
             exophors_gold = {
-                e.exophora_referent
+                e.exophora_referent.text
                 for e in src_mention_gold.entities
                 if e.exophora_referent is not None
             }
             exophors_gold_relaxed = {
-                e.exophora_referent
+                e.exophora_referent.text
                 for e in src_mention_gold.entities_all
                 if e.exophora_referent is not None
             }
