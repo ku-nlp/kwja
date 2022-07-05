@@ -20,5 +20,5 @@ num_rels: 6  # TODO: fix hard coding
 monitor: valid/f1
 mode: max
 # batch size
-batch_size: 8
+batch_size: 4
 accumulate_grad_batches: 1
