@@ -7,6 +7,7 @@ from omegaconf import DictConfig
 from pytorch_lightning.core.lightning import LightningModule
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
+from jula.evaluators.cohesion_analysis_metric import CohesionAnalysisMetric
 from jula.evaluators.dependency_parsing_metric import DependencyParsingMetric
 from jula.evaluators.phrase_analysis_metric import PhraseAnalysisMetric
 from jula.evaluators.word_analyzer import WordAnalysisMetric
@@ -65,6 +66,12 @@ class WordModule(LightningModule):
         }
         self.test_dependency_parsing_metrics: dict[str, DependencyParsingMetric] = {
             corpus: DependencyParsingMetric() for corpus in self.test_corpora
+        }
+        self.valid_cohesion_analysis_metrics: dict[str, CohesionAnalysisMetric] = {
+            corpus: CohesionAnalysisMetric() for corpus in self.valid_corpora
+        }
+        self.test_cohesion_analysis_metrics: dict[str, CohesionAnalysisMetric] = {
+            corpus: CohesionAnalysisMetric() for corpus in self.test_corpora
         }
 
     def forward(self, inference=False, **batch) -> dict[str, dict[str, torch.Tensor]]:
@@ -178,6 +185,19 @@ class WordModule(LightningModule):
             outputs["relation_analyzer_outputs"]["dependency_loss"],
         )
 
+        cohesion_analysis_metric_args = {
+            "example_ids": batch["document_id"],
+            "output": outputs["relation_analyzer_outputs"]["cohesion_logits"],
+            "dataset": self.trainer.val_dataloaders[dataloader_idx or 0].dataset,
+        }
+        self.valid_cohesion_analysis_metrics[corpus].update(
+            **cohesion_analysis_metric_args
+        )
+        self.log(
+            "valid/cohesion_loss",
+            outputs["relation_analyzer_outputs"]["cohesion_loss"],
+        )
+
     def validation_epoch_end(self, validation_step_outputs) -> None:
         f1s: list[float] = []
         word_analysis_f1 = 0.0
@@ -212,6 +232,13 @@ class WordModule(LightningModule):
             dataset = self.trainer.datamodule.valid_datasets[corpus]
             for name, value in metric.compute(dataset).items():
                 self.log(f"valid_{corpus}/{name}", value)
+            metric.reset()
+
+        for corpus, metric in self.valid_cohesion_analysis_metrics.items():
+            dataset = self.trainer.datamodule.valid_datasets[corpus]
+            for rel, val in metric.compute(dataset).to_dict().items():
+                for met, sub_val in val.items():
+                    self.log(f"valid_{corpus}/{met}_{rel}", sub_val.f1)
             metric.reset()
 
     def test_step(
@@ -274,6 +301,19 @@ class WordModule(LightningModule):
             outputs["relation_analyzer_outputs"]["dependency_loss"],
         )
 
+        cohesion_analysis_metric_args = {
+            "example_ids": batch["document_id"],
+            "output": outputs["relation_analyzer_outputs"]["cohesion_logits"],
+            "dataset": self.trainer.test_dataloaders[dataloader_idx or 0].dataset,
+        }
+        self.test_cohesion_analysis_metrics[corpus].update(
+            **cohesion_analysis_metric_args
+        )
+        self.log(
+            "test/cohesion_loss",
+            outputs["relation_analyzer_outputs"]["cohesion_loss"],
+        )
+
     def test_epoch_end(self, test_step_outputs) -> None:
         f1s: list[float] = []
         word_analysis_f1 = 0.0
@@ -308,6 +348,13 @@ class WordModule(LightningModule):
             dataset = self.trainer.datamodule.test_datasets[corpus]
             for name, value in metric.compute(dataset).items():
                 self.log(f"test_{corpus}/{name}", value)
+            metric.reset()
+
+        for corpus, metric in self.test_cohesion_analysis_metrics.items():
+            dataset = self.trainer.datamodule.test_datasets[corpus]
+            for rel, val in metric.compute(dataset).to_dict().items():
+                for met, sub_val in val.items():
+                    self.log(f"test_{corpus}/{met}_{rel}", sub_val.f1)
             metric.reset()
 
     def predict_step(

@@ -33,7 +33,7 @@ class DependencyParser(nn.Module):
 
     def forward(
         self, pooled_outputs: torch.Tensor, dependencies: Optional[torch.Tensor] = None
-    ):  # (batch_size, max_seq_len, max_seq_len)
+    ):  # (batch_size, max_seq_len, hidden_size)
         h_i = self.W_a(pooled_outputs)
         h_j = self.U_a(pooled_outputs)
         dependency_logits = self.v_a(

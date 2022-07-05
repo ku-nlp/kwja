@@ -14,6 +14,9 @@ devices: ${oc.env:GPUS,0}
 do_predict_after_train: True
 checkpoint_path: ""
 
+# for cohesion analysis
+num_rels: 6  # TODO: fix hard coding
+
 # set monitor and mode for early_stopping and model_checkpoint
 monitor: valid/f1
 mode: max
