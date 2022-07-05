@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from omegaconf import DictConfig
 from transformers import PretrainedConfig
 
-from jula.utils.utils import SEG_LABEL2INDEX
+from jula.utils.utils import IGNORE_INDEX, SEG_TYPES
 
 
 class WordSegmenter(nn.Module):
@@ -15,7 +15,7 @@ class WordSegmenter(nn.Module):
         self.hparams = hparams
 
         self.hidden_size: int = pretrained_model_config.hidden_size
-        self.num_labels: int = len(SEG_LABEL2INDEX)
+        self.num_labels: int = len(SEG_TYPES)
         self.cls = nn.Sequential(
             nn.Linear(self.hidden_size, self.hidden_size),
             nn.ReLU(),
@@ -33,7 +33,7 @@ class WordSegmenter(nn.Module):
             seg_loss = F.cross_entropy(
                 input=logits.reshape(-1, self.num_labels),
                 target=inputs["seg_labels"].view(-1),
-                ignore_index=SEG_LABEL2INDEX["PAD"],
+                ignore_index=IGNORE_INDEX,
             )
             output["loss"] = seg_loss
         return output

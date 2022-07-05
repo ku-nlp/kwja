@@ -7,9 +7,17 @@ import hydra
 import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks import BasePredictionWriter
+from rhoknp import Morpheme
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from jula.utils.utils import BASE_PHRASE_FEATURES, INDEX2DEPENDENCY_TYPE
+from jula.utils.utils import (
+    BASE_PHRASE_FEATURES,
+    INDEX2CONJFORM_TYPE,
+    INDEX2CONJTYPE_TYPE,
+    INDEX2DEPENDENCY_TYPE,
+    INDEX2POS_TYPE,
+    INDEX2SUBPOS_TYPE,
+)
 
 
 class WordModuleWriter(BasePredictionWriter):
@@ -22,6 +30,8 @@ class WordModuleWriter(BasePredictionWriter):
     ) -> None:
         super().__init__(write_interval="epoch")
         self.output_path = f"{output_dir}/{pred_filename}.json"
+
+        os.makedirs(output_dir, exist_ok=True)
         if os.path.isfile(self.output_path):
             os.remove(self.output_path)
 
@@ -55,6 +65,18 @@ class WordModuleWriter(BasePredictionWriter):
             corpus = pl_module.test_corpora[dataloader_idx]
             dataset = trainer.datamodule.test_datasets[corpus]
             for prediction_step_output in prediction_step_outputs:
+                batch_pos_preds = torch.argmax(
+                    prediction_step_output["word_analysis_pos_logits"], dim=-1
+                )
+                batch_subpos_preds = torch.argmax(
+                    prediction_step_output["word_analysis_subpos_logits"], dim=-1
+                )
+                batch_conjtype_preds = torch.argmax(
+                    prediction_step_output["word_analysis_conjtype_logits"], dim=-1
+                )
+                batch_conjform_preds = torch.argmax(
+                    prediction_step_output["word_analysis_conjform_logits"], dim=-1
+                )
                 batch_phrase_analysis_preds = torch.where(
                     prediction_step_output["phrase_analysis_logits"] >= 0.5, 1.0, 0.0
                 )
@@ -66,12 +88,20 @@ class WordModuleWriter(BasePredictionWriter):
                 )
                 for (
                     document_id,
+                    pos_preds,
+                    subpos_preds,
+                    conjtype_preds,
+                    conjform_preds,
                     phrase_analysis_preds,
                     base_phrase_features,
                     dependency_preds,
                     dependency_type_preds,
                 ) in zip(
                     prediction_step_output["document_ids"],
+                    batch_pos_preds.tolist(),
+                    batch_subpos_preds.tolist(),
+                    batch_conjtype_preds.tolist(),
+                    batch_conjform_preds.tolist(),
                     batch_phrase_analysis_preds.tolist(),
                     prediction_step_output["base_phrase_features"].tolist(),
                     batch_dependency_preds.tolist(),
@@ -83,6 +113,10 @@ class WordModuleWriter(BasePredictionWriter):
                             self.convert_predictions(values, len(dependency_preds))
                             for values in zip(
                                 document.morphemes,
+                                pos_preds,
+                                subpos_preds,
+                                conjtype_preds,
+                                conjform_preds,
                                 phrase_analysis_preds,
                                 base_phrase_features,
                                 dependency_preds,
@@ -93,6 +127,23 @@ class WordModuleWriter(BasePredictionWriter):
 
         with open(self.output_path, "w") as f:
             json.dump(results, f, ensure_ascii=False, indent=2)
+
+    @staticmethod
+    def convert_word_analysis_pred(
+        morpheme: Morpheme,
+        pos_pred: int,
+        subpos_pred: int,
+        conjtype_pred: int,
+        conjform_pred: int,
+    ):
+        pred = (
+            f"{INDEX2POS_TYPE[pos_pred]} {INDEX2SUBPOS_TYPE[subpos_pred]} "
+            f"{INDEX2CONJTYPE_TYPE[conjtype_pred]} {INDEX2CONJFORM_TYPE[conjform_pred]}"
+        )
+        label = (
+            f"{morpheme.pos} {morpheme.subpos} {morpheme.conjtype} {morpheme.conjform}"
+        )
+        return f"{pred}|{label}"
 
     @staticmethod
     def convert_phrase_analysis_pred(pred, label, head):
@@ -128,12 +179,23 @@ class WordModuleWriter(BasePredictionWriter):
     def convert_predictions(self, values, max_seq_len):
         (
             morpheme,
+            pos_pred,
+            subpos_pred,
+            conjtype_pred,
+            conjform_pred,
             phrase_analysis_pred,
             base_phrase_feature,
             dependency_pred,
             dependency_type_pred,
         ) = values
         id_, surf = morpheme.index, morpheme.surf
+        word_analysis_result = self.convert_word_analysis_pred(
+            morpheme,
+            pos_pred,
+            subpos_pred,
+            conjtype_pred,
+            conjform_pred,
+        )
         phrase_analysis_result = self.convert_phrase_analysis_pred(
             phrase_analysis_pred,
             base_phrase_feature,
@@ -142,4 +204,4 @@ class WordModuleWriter(BasePredictionWriter):
         dependency_parsing_result = self.convert_dependency_parsing_pred(
             morpheme, dependency_pred, dependency_type_pred, max_seq_len
         )
-        return f"{id_}|{surf}|{phrase_analysis_result}|{dependency_parsing_result}"
+        return f"{id_}|{surf}|{word_analysis_result}|{phrase_analysis_result}|{dependency_parsing_result}"

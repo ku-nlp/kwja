@@ -9,9 +9,13 @@ from jula.datamodule.examples import Task
 from jula.datamodule.extractors import PasAnnotation
 from jula.utils.utils import (
     BASE_PHRASE_FEATURES,
+    CONJFORM_TYPES,
+    CONJTYPE_TYPES,
     DEPENDENCY_TYPES,
     DISCOURSE_RELATIONS,
     IGNORE_INDEX,
+    POS_TYPES,
+    SUBPOS_TYPES,
     WORD_FEATURES,
 )
 
@@ -38,6 +42,7 @@ def test_getitem():
         assert "input_ids" in item
         assert "attention_mask" in item
         assert "subword_map" in item
+        assert "mrph_types" in item
         assert "word_features" in item
         assert "base_phrase_features" in item
         assert "num_base_phrases" in item
@@ -50,6 +55,7 @@ def test_getitem():
         assert item["attention_mask"].shape == (max_seq_length,)
         assert item["subword_map"].shape == (max_seq_length, max_seq_length)
         assert (item["subword_map"].sum(dim=1) != 0).sum() == len(document.morphemes)
+        assert item["mrph_types"].shape == (max_seq_length, 4)
         assert item["base_phrase_features"].shape == (
             max_seq_length,
             len(BASE_PHRASE_FEATURES),
@@ -102,6 +108,54 @@ def test_encode():
         )
     )
     encoding = dataset.encode(document)
+
+    mrph_types = [[IGNORE_INDEX] * 4 for _ in range(max_seq_length)]
+    # 0: 風
+    mrph_types[0][0] = POS_TYPES.index("名詞")
+    mrph_types[0][1] = SUBPOS_TYPES.index("普通名詞")
+    mrph_types[0][2] = CONJTYPE_TYPES.index("*")
+    mrph_types[0][3] = CONJFORM_TYPES.index("*")
+    # 1: が
+    mrph_types[1][0] = POS_TYPES.index("助詞")
+    mrph_types[1][1] = SUBPOS_TYPES.index("格助詞")
+    mrph_types[1][2] = CONJTYPE_TYPES.index("*")
+    mrph_types[1][3] = CONJFORM_TYPES.index("*")
+    # 2: 吹く
+    mrph_types[2][0] = POS_TYPES.index("動詞")
+    mrph_types[2][1] = SUBPOS_TYPES.index("*")
+    mrph_types[2][2] = CONJTYPE_TYPES.index("子音動詞カ行")
+    mrph_types[2][3] = CONJFORM_TYPES.index("基本形")
+    # 3: 。
+    mrph_types[3][0] = POS_TYPES.index("特殊")
+    mrph_types[3][1] = SUBPOS_TYPES.index("句点")
+    mrph_types[3][2] = CONJTYPE_TYPES.index("*")
+    mrph_types[3][3] = CONJFORM_TYPES.index("*")
+    # 4: すると
+    mrph_types[4][0] = POS_TYPES.index("接続詞")
+    mrph_types[4][1] = SUBPOS_TYPES.index("*")
+    mrph_types[4][2] = CONJTYPE_TYPES.index("*")
+    mrph_types[4][3] = CONJFORM_TYPES.index("*")
+    # 5: 桶屋
+    mrph_types[5][0] = POS_TYPES.index("名詞")
+    mrph_types[5][1] = SUBPOS_TYPES.index("普通名詞")
+    mrph_types[5][2] = CONJTYPE_TYPES.index("*")
+    mrph_types[5][3] = CONJFORM_TYPES.index("*")
+    # 6: が
+    mrph_types[6][0] = POS_TYPES.index("助詞")
+    mrph_types[6][1] = SUBPOS_TYPES.index("格助詞")
+    mrph_types[6][2] = CONJTYPE_TYPES.index("*")
+    mrph_types[6][3] = CONJFORM_TYPES.index("*")
+    # 7: 儲かる
+    mrph_types[7][0] = POS_TYPES.index("動詞")
+    mrph_types[7][1] = SUBPOS_TYPES.index("*")
+    mrph_types[7][2] = CONJTYPE_TYPES.index("子音動詞ラ行")
+    mrph_types[7][3] = CONJFORM_TYPES.index("基本形")
+    # 8: 。
+    mrph_types[8][0] = POS_TYPES.index("特殊")
+    mrph_types[8][1] = SUBPOS_TYPES.index("句点")
+    mrph_types[8][2] = CONJTYPE_TYPES.index("*")
+    mrph_types[8][3] = CONJFORM_TYPES.index("*")
+    assert encoding["mrph_types"].tolist() == mrph_types
 
     word_features = [[0.0] * len(WORD_FEATURES) for _ in range(max_seq_length)]
     # 0: 風
