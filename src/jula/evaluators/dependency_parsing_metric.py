@@ -24,6 +24,7 @@ class DependencyParsingMetric(Metric):
         self.type_preds.append(type_preds)
 
     def compute(self, dataset: WordDataset) -> dict[str, Union[torch.Tensor, float]]:
+        # TODO: uniq example ids
         documents = [
             dataset.documents[example_id.item()] for example_id in self.example_ids
         ]
