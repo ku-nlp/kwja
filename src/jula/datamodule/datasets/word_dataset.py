@@ -293,20 +293,16 @@ class WordDataset(BaseDataset):
         self,
         word_level_output: list[list[float]],
         phrases: list[Phrase],
-    ) -> list[list[float]]:  # (phrase, 0 or phrase+special)
+    ) -> list[list[float]]:  # (bp, 0 or bp+special)
         ret: list[list[float]] = [[] for _ in phrases]
         for anaphor in filter(lambda p: p.is_target, phrases):
-            # token_index_span: tuple[int, int] = encoding.word_to_tokens(anaphor.dmid)
             word_level_scores: list[float] = word_level_output[anaphor.dmid]
             phrase_level_scores: list[float] = []
             for tgt_bp in phrases:
                 if tgt_bp.dtid not in anaphor.candidates:
                     phrase_level_scores.append(-1)  # pad -1 for non-candidate phrases
                     continue
-                # tgt 側は複数のサブワードから構成されるため平均を取る
-                # token_index_span: tuple[int, int] = encoding.word_to_tokens(tgt_bp.dmid)
                 phrase_level_scores.append(word_level_scores[tgt_bp.dmid])
-                # phrase_level_scores.append(sum(scores) / len(scores))
             phrase_level_scores += [
                 word_level_scores[idx] for idx in self.special_indices
             ]
