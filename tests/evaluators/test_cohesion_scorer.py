@@ -34,7 +34,6 @@ def test_scorer(fixture_data_dir: Path):
     )
 
     result = scorer.run().to_dict()
-    print(result)
     for case in cases:
         case_result = result[case]
         for anal in Scorer.DEPTYPE2ANALYSIS.values():
