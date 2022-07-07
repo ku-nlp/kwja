@@ -325,7 +325,7 @@ class WordDataset(BaseDataset):
         phrases: list[Phrase],
     ) -> tuple[list[list[int]], list[list[int]]]:
         scores_set: list[list[int]] = [
-            [False] * self.max_seq_length for _ in range(self.max_seq_length)
+            [0] * self.max_seq_length for _ in range(self.max_seq_length)
         ]
         candidates_set: list[list[int]] = [[] for _ in range(self.max_seq_length)]
 
@@ -342,9 +342,9 @@ class WordDataset(BaseDataset):
                         arg_string = arg_string[:-2]
                     if arg_string in self.special_to_index:
                         word_index = self.special_to_index[arg_string]
-                        scores[word_index] = 1
                     else:
-                        scores[phrases[int(arg_string)].dmid] = 1
+                        word_index = phrases[int(arg_string)].dmid
+                    scores[word_index] = 1
 
                 word_level_candidates: list[int] = []
                 for candidate in candidates:
