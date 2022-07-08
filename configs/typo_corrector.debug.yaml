@@ -20,3 +20,5 @@ mode: min
 # batch size
 batch_size: 4
 accumulate_grad_batches: 1
+# scheduler options
+warmup_steps: 100
