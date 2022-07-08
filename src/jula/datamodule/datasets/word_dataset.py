@@ -29,7 +29,7 @@ from jula.utils.utils import (
 class WordDataset(BaseDataset):
     def __init__(self, *args, **kwargs):
         self.exophora_referents: list[ExophoraReferent] = [
-            ExophoraReferent(s) for s in ("著者", "読者", "不特定:人", "不特定:物")
+            ExophoraReferent(s) for s in kwargs.pop("exophora_referents")
         ]
         self.special_tokens: list[str] = [str(e) for e in self.exophora_referents] + [
             "[NULL]",
@@ -46,14 +46,11 @@ class WordDataset(BaseDataset):
 
         super().__init__(*args, **kwargs)
 
-        self.cohesion_tasks: list[Task] = [
-            Task.PAS_ANALYSIS,
-            Task.BRIDGING,
-            Task.COREFERENCE,
-        ]
-        self.cases = ["ガ", "ヲ", "ニ", "ガ２"]
+        self.cohesion_tasks: list[Task] = [Task(t) for t in kwargs["cohesion_tasks"]]
+
+        self.cases: list[str] = list(kwargs["cases"])
         self.pas_targets: list[str] = ["pred", "noun"]
-        self.bar_rels = ["ノ", "ノ？"]
+        self.bar_rels = list(kwargs["bar_rels"])
         self.extractors = {
             Task.PAS_ANALYSIS: PasExtractor(
                 self.cases, self.pas_targets, self.exophora_referents, kc=False

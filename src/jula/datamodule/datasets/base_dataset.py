@@ -15,6 +15,7 @@ class BaseDataset(Dataset):
         max_seq_length: int = 512,
         tokenizer_kwargs: dict = None,
         ext: str = "knp",
+        **kwargs,
     ) -> None:
         self.path = Path(path)
         assert self.path.is_dir()

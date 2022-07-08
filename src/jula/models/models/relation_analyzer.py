@@ -26,7 +26,9 @@ class RelationAnalyzer(nn.Module):
         )
         self.cohesion_analyzer: CohesionAnalyzer = CohesionAnalyzer(
             pretrained_model_config=pretrained_model_config,
-            num_rels=hparams.num_rels,
+            num_rels=int("pas_analysis" in hparams.cohesion_tasks) * len(hparams.cases)
+            + int("coreference" in hparams.cohesion_tasks)
+            + int("bridging" in hparams.cohesion_tasks),
         )
 
     def forward(
