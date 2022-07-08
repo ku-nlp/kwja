@@ -44,6 +44,7 @@ def test_getitem():
         assert "subword_map" in item
         assert "mrph_types" in item
         assert "word_features" in item
+        assert "num_morphemes" in item
         assert "base_phrase_features" in item
         assert "num_base_phrases" in item
         assert "dependencies" in item
@@ -56,12 +57,13 @@ def test_getitem():
         assert item["subword_map"].shape == (max_seq_length, max_seq_length)
         assert (item["subword_map"].sum(dim=1) != 0).sum() == len(document.morphemes)
         assert item["mrph_types"].shape == (max_seq_length, 4)
+        assert item["word_features"].shape == (max_seq_length, len(WORD_FEATURES))
+        assert item["num_morphemes"].item() == len(document.morphemes)
         assert item["base_phrase_features"].shape == (
             max_seq_length,
             len(BASE_PHRASE_FEATURES),
         )
         assert item["num_base_phrases"].item() == len(document.base_phrases)
-        assert item["word_features"].shape == (max_seq_length, len(WORD_FEATURES))
         assert item["dependencies"].shape == (max_seq_length,)
         assert item["intra_mask"].shape == (max_seq_length, max_seq_length)
         assert item["dependency_types"].shape == (max_seq_length,)
