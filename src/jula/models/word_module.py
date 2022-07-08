@@ -262,14 +262,16 @@ class WordModule(LightningModule):
 
         self.log("valid/f1", mean(f1s))
 
-        for corpus, metric in self.valid_dependency_parsing_metrics.items():
-            dataset = self.trainer.datamodule.valid_datasets[corpus]
+        for idx, corpus in enumerate(self.valid_corpora):
+            dataset = self.trainer.val_dataloaders[idx].dataset
+            metric = self.valid_dependency_parsing_metrics[corpus]
             for name, value in metric.compute(dataset).items():
                 self.log(f"valid_{corpus}/{name}", value)
             metric.reset()
 
-        for corpus, metric in self.valid_cohesion_analysis_metrics.items():
-            dataset = self.trainer.datamodule.valid_datasets[corpus]
+        for idx, corpus in enumerate(self.valid_corpora):
+            dataset = self.trainer.val_dataloaders[idx].dataset
+            metric = self.valid_cohesion_analysis_metrics[corpus]
             for rel, val in metric.compute(dataset).to_dict().items():
                 for met, sub_val in val.items():
                     self.log(f"valid_{corpus}/{met}_{rel}", sub_val.f1)
@@ -397,14 +399,16 @@ class WordModule(LightningModule):
 
         self.log("test/f1", mean(f1s))
 
-        for corpus, metric in self.test_dependency_parsing_metrics.items():
-            dataset = self.trainer.datamodule.test_datasets[corpus]
+        for idx, corpus in enumerate(self.test_corpora):
+            dataset = self.trainer.test_dataloaders[idx].dataset
+            metric = self.test_dependency_parsing_metrics[corpus]
             for name, value in metric.compute(dataset).items():
                 self.log(f"test_{corpus}/{name}", value)
             metric.reset()
 
-        for corpus, metric in self.test_cohesion_analysis_metrics.items():
-            dataset = self.trainer.datamodule.test_datasets[corpus]
+        for idx, corpus in enumerate(self.test_corpora):
+            dataset = self.trainer.test_dataloaders[idx].dataset
+            metric = self.test_cohesion_analysis_metrics[corpus]
             for rel, val in metric.compute(dataset).to_dict().items():
                 for met, sub_val in val.items():
                     self.log(f"test_{corpus}/{met}_{rel}", sub_val.f1)
