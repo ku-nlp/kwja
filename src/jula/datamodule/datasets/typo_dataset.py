@@ -6,6 +6,7 @@ import hydra
 import torch
 from torch.utils.data import Dataset
 from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizer
+from transformers.utils import PaddingStrategy
 
 from jula.utils.utils import TYPO_DUMMY_TOKEN, TYPO_OPN2TOKEN
 
@@ -68,7 +69,7 @@ class TypoDataset(Dataset):
         encoding: BatchEncoding = self.tokenizer(
             document["pre_text"] + TYPO_DUMMY_TOKEN,
             truncation=True,
-            padding="max_length",
+            padding=PaddingStrategy.MAX_LENGTH,
             max_length=self.max_seq_length,
         )
         input_ids = encoding["input_ids"]

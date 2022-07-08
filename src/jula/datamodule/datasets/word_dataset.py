@@ -3,7 +3,7 @@ from rhoknp import Document
 from rhoknp.rel import ExophoraReferent
 from scipy.special import softmax
 from tokenizers import Encoding
-from transformers.file_utils import PaddingStrategy
+from transformers.utils import PaddingStrategy
 
 from jula.datamodule.datasets.base_dataset import BaseDataset
 from jula.datamodule.examples import CohesionExample, Task
