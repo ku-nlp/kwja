@@ -7,6 +7,7 @@ defaults:
   - model: char_roberta_base
   - module: default
   - optimizer: adamw
+  - scheduler: constant_schedule_with_warmup
   - trainer: debug
   - _self_
 
@@ -21,3 +22,5 @@ batch_size: 8
 accumulate_grad_batches: 1
 # option
 add_ene_embed_before_encoder: True
+# scheduler options
+warmup_steps: 100

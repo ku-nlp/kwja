@@ -7,6 +7,7 @@ defaults:
   - model: word_roberta_base
   - module: default
   - optimizer: adamw
+  - scheduler: constant_schedule_with_warmup
   - trainer: debug
   - _self_
 
@@ -29,3 +30,5 @@ mode: max
 # batch size
 batch_size: 4
 accumulate_grad_batches: 1
+# scheduler options
+warmup_steps: 100
