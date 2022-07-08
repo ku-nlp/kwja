@@ -24,12 +24,12 @@ class DependencyParsingMetric(Metric):
         self.type_preds.append(type_preds)
 
     def compute(self, dataset: WordDataset) -> dict[str, Union[torch.Tensor, float]]:
-        # TODO: uniq example ids
-        documents = [
-            dataset.documents[example_id.item()] for example_id in self.example_ids
-        ]
-        preds = self.preds.tolist()
-        type_preds = self.type_preds.tolist()
+        sorted_indices = self.unique(self.example_ids)
+        example_ids, preds, type_preds = map(
+            lambda x: x[sorted_indices].tolist(),
+            (self.document_ids, self.preds, self.type_preds),
+        )
+        documents = [dataset.documents[example_id] for example_id in example_ids]
 
         base_phrase_based_metrics = main(
             *self.to_base_phrase_based_conll(documents, preds, type_preds)
