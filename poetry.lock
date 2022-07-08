@@ -763,7 +763,7 @@ develop = false
 type = "git"
 url = "https://github.com/ku-nlp/rhoknp.git"
 reference = "develop"
-resolved_reference = "ce13c9699cab4bc969a322e5532235c3e446b4c8"
+resolved_reference = "b18316259d68e16637b5ddb492c81813a7672924"
 
 [[package]]
 name = "rich"
