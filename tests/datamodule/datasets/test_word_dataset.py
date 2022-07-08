@@ -23,9 +23,16 @@ here = Path(__file__).absolute().parent
 path = here.joinpath("knp_files")
 data_dir = here.parent.parent / "data"
 
+word_dataset_kwargs = {
+    "cases": ["ガ", "ヲ", "ニ", "ガ２"],
+    "bar_rels": ["ノ", "ノ？"],
+    "exophora_referents": ["著者", "読者", "不特定:人", "不特定:物"],
+    "cohesion_tasks": ["pas_analysis", "bridging", "coreference"],
+}
+
 
 def test_init():
-    _ = WordDataset(str(path))
+    _ = WordDataset(str(path), **word_dataset_kwargs)
 
 
 def test_getitem():
@@ -33,6 +40,7 @@ def test_getitem():
     dataset = WordDataset(
         str(path),
         max_seq_length=max_seq_length,
+        **word_dataset_kwargs,
     )
     for i in range(len(dataset)):
         document = dataset.documents[i]
@@ -75,6 +83,7 @@ def test_encode():
     dataset = WordDataset(
         str(path),
         max_seq_length=max_seq_length,
+        **word_dataset_kwargs,
     )
     document = Document.from_knp(
         textwrap.dedent(
@@ -254,6 +263,7 @@ def test_pas():
     dataset = WordDataset(
         str(data_dir / "knp"),
         max_seq_length=max_seq_length,
+        **word_dataset_kwargs,
     )
     example = dataset.cohesion_examples["w201106-0000060560"]
     example_expected = json.loads((data_dir / "expected/example/0.json").read_text())
