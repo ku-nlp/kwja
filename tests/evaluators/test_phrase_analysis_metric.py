@@ -4,7 +4,7 @@ from jula.evaluators.phrase_analysis_metric import PhraseAnalysisMetric
 from jula.utils.utils import BASE_PHRASE_FEATURES, IGNORE_INDEX
 
 """  Example
-# S-ID:000-1
+# S-ID:0-1
 * 0
 + 0 <体言>
 国立 <基本句-主辞><基本句-区切>
@@ -59,11 +59,12 @@ base_phrase_feature_predictions = torch.tensor(
             [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 国立
             [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 国会
             [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 図書
-            [  # 館
+            # 館 (<節-主辞>と誤って予測)
+            [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+            [
                 0,
                 0,
                 0,
-                1,
                 0,
                 0,
                 0,
@@ -79,12 +80,13 @@ base_phrase_feature_predictions = torch.tensor(
                 0,
                 0,
                 0,
-                1,  # <節-主辞>と誤って予測
                 0,
-            ],
-            [  # に (IGNORED)
                 0,
                 0,
+            ],  # に (IGNORED)
+            # 行こう (<モダリティ-命令>と誤って予測)
+            [1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+            [
                 0,
                 0,
                 0,
@@ -104,53 +106,9 @@ base_phrase_feature_predictions = torch.tensor(
                 0,
                 0,
                 0,
-            ],
-            [  # 行こう
-                1,
                 0,
                 0,
-                0,
-                0,
-                1,
-                0,
-                1,
-                0,
-                0,  # <モダリティ-命令>と誤って予測
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                1,
-                1,
-            ],
-            [  # 。 (IGNORED)
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ],
+            ],  # 。 (IGNORED)
         ]
     ],
     dtype=torch.long,

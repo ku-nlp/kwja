@@ -1,3 +1,4 @@
+from collections import defaultdict
 from statistics import mean
 from typing import Any, Optional
 
@@ -170,17 +171,17 @@ class WordModule(LightningModule):
 
         phrase_analysis_metric_args = {
             "example_ids": batch["example_ids"],
-            "word_feature_predictions": torch.where(
-                outputs["phrase_analyzer_outputs"]["word_feature_logits"] >= 0.5,
-                1.0,
-                0.0,
-            ),
+            "word_feature_predictions": outputs["phrase_analyzer_outputs"][
+                "word_feature_logits"
+            ]
+            .ge(0.5)
+            .long(),
             "word_features": batch["word_features"],
-            "base_phrase_feature_predictions": torch.where(
-                outputs["phrase_analyzer_outputs"]["base_phrase_feature_logits"] >= 0.5,
-                1.0,
-                0.0,
-            ),
+            "base_phrase_feature_predictions": outputs["phrase_analyzer_outputs"][
+                "base_phrase_feature_logits"
+            ]
+            .ge(0.5)
+            .long(),
             "base_phrase_features": batch["base_phrase_features"],
         }
         self.valid_phrase_analysis_metrics[corpus].update(**phrase_analysis_metric_args)
@@ -224,43 +225,37 @@ class WordModule(LightningModule):
         )
 
     def validation_epoch_end(self, validation_step_outputs) -> None:
-        f1s: list[float] = []
-        word_analysis_f1 = 0.0
+        f1_scores: dict[str, float] = defaultdict(float)
+
         for corpus, metric in self.valid_word_analysis_metrics.items():
             for name, value in metric.compute().items():
                 if name == "word_analysis_f1":
-                    word_analysis_f1 += value
+                    f1_scores["word_analysis_f1"] += value / len(
+                        self.valid_word_analysis_metrics
+                    )
                 self.log(f"valid_{corpus}/{name}", value)
                 metric.reset()
         self.log(
             "valid/word_analysis_f1",
-            word_analysis_f1 / len(self.valid_word_analysis_metrics),
+            f1_scores["word_analysis_f1"],
         )
-        f1s.append(word_analysis_f1 / len(self.valid_word_analysis_metrics))
 
-        macro_word_feature_f1, macro_base_phrase_feature_f1 = 0.0, 0.0
+        keys = {
+            "macro_word_feature_f1",
+            "micro_word_feature_f1",
+            "macro_base_phrase_feature_f1",
+            "micro_base_phrase_feature_f1",
+        }
         for corpus, metric in self.valid_phrase_analysis_metrics.items():
             for name, value in metric.compute().items():
-                if name == "macro_word_feature_f1":
-                    macro_word_feature_f1 += value
-                elif name == "macro_base_phrase_feature_f1":
-                    macro_base_phrase_feature_f1 += value
+                if name in keys:
+                    f1_scores[name] += value / len(self.valid_phrase_analysis_metrics)
                 self.log(f"valid_{corpus}/{name}", value)
             metric.reset()
-        macro_word_feature_f1 /= len(self.valid_phrase_analysis_metrics)
-        macro_base_phrase_feature_f1 /= len(self.valid_phrase_analysis_metrics)
-        self.log(
-            "valid/macro_word_feature_f1",
-            macro_word_feature_f1,
-        )
-        self.log(
-            "valid/macro_base_phrase_feature_f1",
-            macro_base_phrase_feature_f1,
-        )
-        f1s.append(macro_word_feature_f1)
-        f1s.append(macro_base_phrase_feature_f1)
+        for key in sorted(keys):
+            self.log(f"valid/{key}", f1_scores[key])
 
-        self.log("valid/f1", mean(f1s))
+        self.log("valid/f1", mean(f1_scores.values()))
 
         for idx, corpus in enumerate(self.valid_corpora):
             dataset = self.trainer.val_dataloaders[idx].dataset
@@ -305,19 +300,20 @@ class WordModule(LightningModule):
             "test/word_analysis_loss",
             outputs["word_analyzer_outputs"]["loss"],
         )
+
         phrase_analysis_metric_args = {
             "example_ids": batch["example_ids"],
-            "word_feature_predictions": torch.where(
-                outputs["phrase_analyzer_outputs"]["word_feature_logits"] >= 0.5,
-                1.0,
-                0.0,
-            ),
+            "word_feature_predictions": outputs["phrase_analyzer_outputs"][
+                "word_feature_logits"
+            ]
+            .ge(0.5)
+            .long(),
             "word_features": batch["word_features"],
-            "base_phrase_feature_predictions": torch.where(
-                outputs["phrase_analyzer_outputs"]["base_phrase_feature_logits"] >= 0.5,
-                1.0,
-                0.0,
-            ),
+            "base_phrase_feature_predictions": outputs["phrase_analyzer_outputs"][
+                "base_phrase_feature_logits"
+            ]
+            .ge(0.5)
+            .long(),
             "base_phrase_features": batch["base_phrase_features"],
         }
         self.test_phrase_analysis_metrics[corpus].update(**phrase_analysis_metric_args)
@@ -361,43 +357,35 @@ class WordModule(LightningModule):
         )
 
     def test_epoch_end(self, test_step_outputs) -> None:
-        f1s: list[float] = []
-        word_analysis_f1 = 0.0
+        f1_scores: dict[str, float] = defaultdict(float)
+
         for corpus, metric in self.test_word_analysis_metrics.items():
             for name, value in metric.compute().items():
                 if name == "word_analysis_f1":
-                    word_analysis_f1 += value
+                    f1_scores[name] += value / len(self.test_word_analysis_metrics)
                 self.log(f"test_{corpus}/{name}", value)
                 metric.reset()
         self.log(
             "test/word_analysis_f1",
-            word_analysis_f1 / len(self.test_word_analysis_metrics),
+            f1_scores["word_analysis_f1"],
         )
-        f1s.append(word_analysis_f1 / len(self.test_word_analysis_metrics))
 
-        macro_word_feature_f1, macro_base_phrase_feature_f1 = 0.0, 0.0
+        keys = {
+            "macro_word_feature_f1",
+            "micro_word_feature_f1",
+            "macro_base_phrase_feature_f1",
+            "micro_base_phrase_feature_f1",
+        }
         for corpus, metric in self.test_phrase_analysis_metrics.items():
             for name, value in metric.compute().items():
-                if name == "macro_word_feature_f1":
-                    macro_word_feature_f1 += value
-                elif name == "macro_base_phrase_feature_f1":
-                    macro_base_phrase_feature_f1 += value
-                self.log(f"test_{corpus}/{name}", value)
+                if name in keys:
+                    f1_scores[name] += value / len(self.test_phrase_analysis_metrics)
+                self.log(f"valid_{corpus}/{name}", value)
             metric.reset()
-        macro_word_feature_f1 /= len(self.test_phrase_analysis_metrics)
-        macro_base_phrase_feature_f1 /= len(self.test_phrase_analysis_metrics)
-        self.log(
-            "test/macro_word_feature_f1",
-            macro_word_feature_f1,
-        )
-        self.log(
-            "test/macro_base_phrase_feature_f1",
-            macro_base_phrase_feature_f1,
-        )
-        f1s.append(macro_word_feature_f1)
-        f1s.append(macro_base_phrase_feature_f1)
+        for key in sorted(keys):
+            self.log(f"test/{key}", f1_scores[key])
 
-        self.log("test/f1", mean(f1s))
+        self.log("test/f1", mean(f1_scores.values()))
 
         for idx, corpus in enumerate(self.test_corpora):
             dataset = self.trainer.test_dataloaders[idx].dataset

@@ -83,13 +83,11 @@ class WordModuleWriter(BasePredictionWriter):
                 batch_conjform_preds = torch.argmax(
                     prediction_step_output["word_analysis_conjform_logits"], dim=-1
                 )
-                batch_word_feature_predictions = torch.where(
-                    prediction_step_output["word_feature_logits"] >= 0.5, 1.0, 0.0
+                batch_word_feature_predictions = (
+                    prediction_step_output["word_feature_logits"].ge(0.5).long()
                 )
-                batch_base_phrase_feature_predictions = torch.where(
-                    prediction_step_output["base_phrase_feature_logits"] >= 0.5,
-                    1.0,
-                    0.0,
+                batch_base_phrase_feature_predictions = (
+                    prediction_step_output["base_phrase_feature_logits"].ge(0.5).long()
                 )
                 batch_dependency_predictions = torch.argmax(
                     prediction_step_output["dependency_logits"], dim=2
@@ -170,7 +168,7 @@ class WordModuleWriter(BasePredictionWriter):
         word_features = "".join(
             f"<{feature}>"
             for feature, pred in zip(WORD_FEATURES, word_feature_prediction)
-            if pred == 1.0
+            if pred == 1
         )
         if not is_base_phrase_head:
             return f"{word_features}|"
@@ -180,7 +178,7 @@ class WordModuleWriter(BasePredictionWriter):
                 for feature, pred in zip(
                     BASE_PHRASE_FEATURES, base_phrase_feature_prediction
                 )
-                if pred == 1.0
+                if pred == 1
             )
             return f"{word_features}|{base_phrase_features}"
 
