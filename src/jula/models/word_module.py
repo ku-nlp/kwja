@@ -47,7 +47,6 @@ class WordModule(LightningModule):
         }
 
         self.phrase_analyzer: PhraseAnalyzer = PhraseAnalyzer(
-            hparams=hparams,
             pretrained_model_config=self.word_encoder.pretrained_model.config,
         )
         self.valid_phrase_analysis_metrics: dict[str, PhraseAnalysisMetric] = {
@@ -97,12 +96,19 @@ class WordModule(LightningModule):
             on_step=True,
             on_epoch=True,
         )
-        phrase_analysis_loss = outputs["phrase_analyzer_outputs"][
-            "phrase_analysis_loss"
+        word_feature_loss = outputs["phrase_analyzer_outputs"]["word_feature_loss"]
+        self.log(
+            "train/word_feature_loss",
+            word_feature_loss,
+            on_step=True,
+            on_epoch=True,
+        )
+        base_phrase_feature_loss = outputs["phrase_analyzer_outputs"][
+            "base_phrase_feature_loss"
         ]
         self.log(
-            "train/phrase_analysis_loss",
-            phrase_analysis_loss,
+            "train/base_phrase_feature_loss",
+            base_phrase_feature_loss,
             on_step=True,
             on_epoch=True,
         )
@@ -126,7 +132,8 @@ class WordModule(LightningModule):
         )
         return (
             word_analysis_loss
-            + phrase_analysis_loss
+            + word_feature_loss
+            + base_phrase_feature_loss
             + dependency_loss
             + dependency_type_loss
             + cohesion_loss
@@ -163,17 +170,27 @@ class WordModule(LightningModule):
 
         phrase_analysis_metric_args = {
             "example_ids": batch["example_ids"],
-            "preds": torch.where(
-                outputs["phrase_analyzer_outputs"]["phrase_analysis_logits"] >= 0.5,
+            "word_feature_predictions": torch.where(
+                outputs["phrase_analyzer_outputs"]["word_feature_logits"] >= 0.5,
                 1.0,
                 0.0,
             ),
-            "labels": batch["base_phrase_features"],
+            "word_features": batch["word_features"],
+            "base_phrase_feature_predictions": torch.where(
+                outputs["phrase_analyzer_outputs"]["base_phrase_feature_logits"] >= 0.5,
+                1.0,
+                0.0,
+            ),
+            "base_phrase_features": batch["base_phrase_features"],
         }
         self.valid_phrase_analysis_metrics[corpus].update(**phrase_analysis_metric_args)
         self.log(
-            "valid/phrase_analysis_loss",
-            outputs["phrase_analyzer_outputs"]["phrase_analysis_loss"],
+            "valid/word_feature_loss",
+            outputs["phrase_analyzer_outputs"]["word_feature_loss"],
+        )
+        self.log(
+            "valid/base_phrase_feature_loss",
+            outputs["phrase_analyzer_outputs"]["base_phrase_feature_loss"],
         )
 
         dependency_parsing_metric_args = {
@@ -221,18 +238,27 @@ class WordModule(LightningModule):
         )
         f1s.append(word_analysis_f1 / len(self.valid_word_analysis_metrics))
 
-        phrase_analysis_f1 = 0.0
+        macro_word_feature_f1, macro_base_phrase_feature_f1 = 0.0, 0.0
         for corpus, metric in self.valid_phrase_analysis_metrics.items():
             for name, value in metric.compute().items():
-                if name == "phrase_analysis_f1":
-                    phrase_analysis_f1 += value
+                if name == "macro_word_feature_f1":
+                    macro_word_feature_f1 += value
+                elif name == "macro_base_phrase_feature_f1":
+                    macro_base_phrase_feature_f1 += value
                 self.log(f"valid_{corpus}/{name}", value)
             metric.reset()
+        macro_word_feature_f1 /= len(self.valid_phrase_analysis_metrics)
+        macro_base_phrase_feature_f1 /= len(self.valid_phrase_analysis_metrics)
         self.log(
-            "valid/phrase_analysis_f1",
-            phrase_analysis_f1 / len(self.valid_phrase_analysis_metrics),
+            "valid/macro_word_feature_f1",
+            macro_word_feature_f1,
         )
-        f1s.append(phrase_analysis_f1 / len(self.valid_phrase_analysis_metrics))
+        self.log(
+            "valid/macro_base_phrase_feature_f1",
+            macro_base_phrase_feature_f1,
+        )
+        f1s.append(macro_word_feature_f1)
+        f1s.append(macro_base_phrase_feature_f1)
 
         self.log("valid/f1", mean(f1s))
 
@@ -279,17 +305,27 @@ class WordModule(LightningModule):
         )
         phrase_analysis_metric_args = {
             "example_ids": batch["example_ids"],
-            "preds": torch.where(
-                outputs["phrase_analyzer_outputs"]["phrase_analysis_logits"] >= 0.5,
+            "word_feature_predictions": torch.where(
+                outputs["phrase_analyzer_outputs"]["word_feature_logits"] >= 0.5,
                 1.0,
                 0.0,
             ),
-            "labels": batch["base_phrase_features"],
+            "word_features": batch["word_features"],
+            "base_phrase_feature_predictions": torch.where(
+                outputs["phrase_analyzer_outputs"]["base_phrase_feature_logits"] >= 0.5,
+                1.0,
+                0.0,
+            ),
+            "base_phrase_features": batch["base_phrase_features"],
         }
         self.test_phrase_analysis_metrics[corpus].update(**phrase_analysis_metric_args)
         self.log(
-            "test/phrase_analysis_loss",
-            outputs["phrase_analyzer_outputs"]["phrase_analysis_loss"],
+            "test/word_feature_loss",
+            outputs["phrase_analyzer_outputs"]["word_feature_loss"],
+        )
+        self.log(
+            "test/base_phrase_feature_loss",
+            outputs["phrase_analyzer_outputs"]["base_phrase_feature_loss"],
         )
 
         dependency_parsing_metric_args = {
@@ -337,18 +373,27 @@ class WordModule(LightningModule):
         )
         f1s.append(word_analysis_f1 / len(self.test_word_analysis_metrics))
 
-        phrase_analysis_f1 = 0.0
+        macro_word_feature_f1, macro_base_phrase_feature_f1 = 0.0, 0.0
         for corpus, metric in self.test_phrase_analysis_metrics.items():
             for name, value in metric.compute().items():
-                if name == "phrase_analysis_f1":
-                    phrase_analysis_f1 += value
+                if name == "macro_word_feature_f1":
+                    macro_word_feature_f1 += value
+                elif name == "macro_base_phrase_feature_f1":
+                    macro_base_phrase_feature_f1 += value
                 self.log(f"test_{corpus}/{name}", value)
             metric.reset()
+        macro_word_feature_f1 /= len(self.test_phrase_analysis_metrics)
+        macro_base_phrase_feature_f1 /= len(self.test_phrase_analysis_metrics)
         self.log(
-            "test/phrase_analysis_f1",
-            phrase_analysis_f1 / len(self.test_phrase_analysis_metrics),
+            "test/macro_word_feature_f1",
+            macro_word_feature_f1,
         )
-        f1s.append(phrase_analysis_f1 / len(self.test_phrase_analysis_metrics))
+        self.log(
+            "test/macro_base_phrase_feature_f1",
+            macro_base_phrase_feature_f1,
+        )
+        f1s.append(macro_word_feature_f1)
+        f1s.append(macro_base_phrase_feature_f1)
 
         self.log("test/f1", mean(f1s))
 
@@ -381,10 +426,12 @@ class WordModule(LightningModule):
             "word_analysis_conjform_logits": outputs["word_analyzer_outputs"][
                 "conjform_logits"
             ],
-            "phrase_analysis_logits": outputs["phrase_analyzer_outputs"][
-                "phrase_analysis_logits"
+            "word_feature_logits": outputs["phrase_analyzer_outputs"][
+                "word_feature_logits"
             ],
-            "base_phrase_features": batch["base_phrase_features"],  # TODO: use outputs
+            "base_phrase_feature_logits": outputs["phrase_analyzer_outputs"][
+                "base_phrase_feature_logits"
+            ],
             "dependency_logits": outputs["relation_analyzer_outputs"][
                 "dependency_logits"
             ],

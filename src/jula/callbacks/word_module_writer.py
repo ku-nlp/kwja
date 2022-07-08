@@ -17,6 +17,7 @@ from jula.utils.utils import (
     INDEX2DEPENDENCY_TYPE,
     INDEX2POS_TYPE,
     INDEX2SUBPOS_TYPE,
+    WORD_FEATURES,
 )
 
 
@@ -82,13 +83,18 @@ class WordModuleWriter(BasePredictionWriter):
                 batch_conjform_preds = torch.argmax(
                     prediction_step_output["word_analysis_conjform_logits"], dim=-1
                 )
-                batch_phrase_analysis_preds = torch.where(
-                    prediction_step_output["phrase_analysis_logits"] >= 0.5, 1.0, 0.0
+                batch_word_feature_predictions = torch.where(
+                    prediction_step_output["word_feature_logits"] >= 0.5, 1.0, 0.0
                 )
-                batch_dependency_preds = torch.argmax(
+                batch_base_phrase_feature_predictions = torch.where(
+                    prediction_step_output["base_phrase_feature_logits"] >= 0.5,
+                    1.0,
+                    0.0,
+                )
+                batch_dependency_predictions = torch.argmax(
                     prediction_step_output["dependency_logits"], dim=2
                 )
-                batch_dependency_type_preds = torch.argmax(
+                batch_dependency_type_predictions = torch.argmax(
                     prediction_step_output["dependency_type_logits"], dim=2
                 )
                 for (
@@ -97,35 +103,37 @@ class WordModuleWriter(BasePredictionWriter):
                     subpos_preds,
                     conjtype_preds,
                     conjform_preds,
-                    phrase_analysis_preds,
-                    base_phrase_features,
-                    dependency_preds,
-                    dependency_type_preds,
+                    word_feature_predictions,
+                    base_phrase_feature_predictions,
+                    dependency_predictions,
+                    dependency_type_predictions,
                 ) in zip(
                     prediction_step_output["example_ids"],
                     batch_pos_preds.tolist(),
                     batch_subpos_preds.tolist(),
                     batch_conjtype_preds.tolist(),
                     batch_conjform_preds.tolist(),
-                    batch_phrase_analysis_preds.tolist(),
-                    prediction_step_output["base_phrase_features"].tolist(),
-                    batch_dependency_preds.tolist(),
-                    batch_dependency_type_preds.tolist(),
+                    batch_word_feature_predictions.tolist(),
+                    batch_base_phrase_feature_predictions.tolist(),
+                    batch_dependency_predictions.tolist(),
+                    batch_dependency_type_predictions.tolist(),
                 ):
                     document = dataset.documents[example_id]
                     results[corpus].append(
                         [
-                            self.convert_predictions(values, len(dependency_preds))
+                            self.convert_predictions(
+                                values, len(dependency_predictions)
+                            )
                             for values in zip(
                                 document.morphemes,
                                 pos_preds,
                                 subpos_preds,
                                 conjtype_preds,
                                 conjform_preds,
-                                phrase_analysis_preds,
-                                base_phrase_features,
-                                dependency_preds,
-                                dependency_type_preds,
+                                word_feature_predictions,
+                                base_phrase_feature_predictions,
+                                dependency_predictions,
+                                dependency_type_predictions,
                             )
                         ]
                     )
@@ -154,25 +162,40 @@ class WordModuleWriter(BasePredictionWriter):
         return f"{pred}|{label}"
 
     @staticmethod
-    def convert_phrase_analysis_pred(pred, label, head):
-        pred, label = map(
-            lambda x: " ".join(
-                f"<{feature}>"
-                for feature, element in zip(BASE_PHRASE_FEATURES, x)
-                if element == 1.0
-            ),
-            [pred, label],
+    def convert_phrase_analysis_prediction(
+        word_feature_prediction,
+        base_phrase_feature_prediction,
+        is_base_phrase_head: bool,
+    ):
+        word_features = "".join(
+            f"<{feature}>"
+            for feature, pred in zip(WORD_FEATURES, word_feature_prediction)
+            if pred == 1.0
         )
-        if not head:
-            return f"|{label}"
+        if not is_base_phrase_head:
+            return f"{word_features}|"
         else:
-            return f"{pred}|{label}"
+            base_phrase_features = "".join(
+                f"<{feature}>"
+                for feature, pred in zip(
+                    BASE_PHRASE_FEATURES, base_phrase_feature_prediction
+                )
+                if pred == 1.0
+            )
+            return f"{word_features}|{base_phrase_features}"
 
     @staticmethod
-    def convert_dependency_parsing_pred(morpheme, pred, type_pred, max_seq_len):
+    def convert_dependency_parsing_prediction(
+        morpheme, dependency_prediction, dependency_type_prediction, seq_len
+    ):
         offset = min(morpheme.global_index for morpheme in morpheme.sentence.morphemes)
-        system_head = pred - offset if pred != max_seq_len - 1 else -1
-        system_deprel = INDEX2DEPENDENCY_TYPE[type_pred] if system_head >= 0 else "ROOT"
+        if dependency_prediction == seq_len - 1:
+            system_head = -1
+            system_deprel = "D"
+        else:
+            system_head = dependency_prediction - offset
+            system_deprel = INDEX2DEPENDENCY_TYPE[dependency_type_prediction]
+
         if morpheme == morpheme.base_phrase.head:
             gold_head = morpheme.parent.index if morpheme.parent else -1
             gold_deprel = (
@@ -184,17 +207,17 @@ class WordModuleWriter(BasePredictionWriter):
             gold_deprel = "D"
             return f"{system_head}{system_deprel}|{gold_head}{gold_deprel}"
 
-    def convert_predictions(self, values, max_seq_len):
+    def convert_predictions(self, values, seq_len):
         (
             morpheme,
             pos_pred,
             subpos_pred,
             conjtype_pred,
             conjform_pred,
-            phrase_analysis_pred,
-            base_phrase_feature,
-            dependency_pred,
-            dependency_type_pred,
+            word_feature_prediction,
+            base_phrase_feature_prediction,
+            dependency_prediction,
+            dependency_type_prediction,
         ) = values
         id_, surf = morpheme.index, morpheme.surf
         word_analysis_result = self.convert_word_analysis_pred(
@@ -204,12 +227,12 @@ class WordModuleWriter(BasePredictionWriter):
             conjtype_pred,
             conjform_pred,
         )
-        phrase_analysis_result = self.convert_phrase_analysis_pred(
-            phrase_analysis_pred,
-            base_phrase_feature,
+        phrase_analysis_result = self.convert_phrase_analysis_prediction(
+            word_feature_prediction,
+            base_phrase_feature_prediction,
             morpheme == morpheme.base_phrase.head,
         )
-        dependency_parsing_result = self.convert_dependency_parsing_pred(
-            morpheme, dependency_pred, dependency_type_pred, max_seq_len
+        dependency_parsing_result = self.convert_dependency_parsing_prediction(
+            morpheme, dependency_prediction, dependency_type_prediction, seq_len
         )
         return f"{id_}|{surf}|{word_analysis_result}|{phrase_analysis_result}|{dependency_parsing_result}"

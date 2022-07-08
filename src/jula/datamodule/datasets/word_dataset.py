@@ -122,7 +122,12 @@ class WordDataset(BaseDataset):
                     morpheme.conjform
                 )
 
-        word_features = [[0] * len(WORD_FEATURES) for _ in range(self.max_seq_length)]
+        word_features = [
+            [0] * len(WORD_FEATURES)
+            if i < len(document.morphemes)
+            else [IGNORE_INDEX] * len(WORD_FEATURES)
+            for i in range(self.max_seq_length)
+        ]
         for base_phrase in document.base_phrases:
             head = base_phrase.head
             end = base_phrase.morphemes[-1]
@@ -240,6 +245,7 @@ class WordDataset(BaseDataset):
             ),
             "mrph_types": torch.tensor(mrph_types, dtype=torch.long),
             "word_features": torch.tensor(word_features, dtype=torch.float),
+            "num_morphemes": torch.tensor(len(document.morphemes), dtype=torch.long),
             "base_phrase_features": torch.tensor(
                 base_phrase_features, dtype=torch.float
             ),
