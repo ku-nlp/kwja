@@ -5,7 +5,7 @@ from rhoknp import BasePhrase, Document, Morpheme, Sentence
 from torchmetrics import Metric
 
 from jula.datamodule.datasets.word_dataset import WordDataset
-from jula.evaluators.my_conll18_ud_eval import main
+from jula.evaluators.my_conll18_ud_eval import main as conll18_ud_eval
 from jula.utils.utils import INDEX2DEPENDENCY_TYPE
 
 
@@ -31,10 +31,10 @@ class DependencyParsingMetric(Metric):
         )
         documents = [dataset.documents[example_id] for example_id in example_ids]
 
-        base_phrase_based_metrics = main(
+        base_phrase_based_metrics = conll18_ud_eval(
             *self.to_base_phrase_based_conll(documents, preds, type_preds)
         )
-        morpheme_based_metrics = main(
+        morpheme_based_metrics = conll18_ud_eval(
             *self.to_morpheme_based_conll(documents, preds, type_preds)
         )
         metrics = {
