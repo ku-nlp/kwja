@@ -27,7 +27,7 @@ class DependencyParsingMetric(Metric):
         sorted_indices = self.unique(self.example_ids)
         example_ids, preds, type_preds = map(
             lambda x: x[sorted_indices].tolist(),
-            (self.document_ids, self.preds, self.type_preds),
+            (self.example_ids, self.preds, self.type_preds),
         )
         documents = [dataset.documents[example_id] for example_id in example_ids]
 
