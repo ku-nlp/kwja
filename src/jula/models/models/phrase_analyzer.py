@@ -54,41 +54,35 @@ class PhraseAnalyzer(nn.Module):
         base_phrase_feature_logits = self.base_phrase_feature_head(pooled_outputs)
         outputs["base_phrase_feature_logits"] = base_phrase_feature_logits
         if "word_features" in batch:
-            input_ = self.mask(word_feature_logits, batch["word_features"])
-            target = self.mask(batch["word_features"], batch["word_features"])
+            word_feature_mask = batch["word_features"].ne(IGNORE_INDEX)
+            input_ = word_feature_logits * word_feature_mask
+            target = batch["word_features"] * word_feature_mask
             word_feature_loss = self.compute_loss(
-                input_, target, batch["num_morphemes"]
+                input_, target.float(), torch.sum(word_feature_mask[:, :, 0], dim=1)
             )
             outputs["word_feature_loss"] = word_feature_loss
         if "base_phrase_features" in batch:
-            input_ = self.mask(
-                base_phrase_feature_logits, batch["base_phrase_features"]
-            )
-            target = self.mask(
-                batch["base_phrase_features"], batch["base_phrase_features"]
-            )
+            base_phrase_feature_mask = batch["base_phrase_features"].ne(IGNORE_INDEX)
+            input_ = base_phrase_feature_logits * base_phrase_feature_mask
+            target = batch["base_phrase_features"] * base_phrase_feature_mask
             base_phrase_feature_loss = self.compute_loss(
-                input_, target, batch["num_base_phrases"]
+                input_,
+                target.float(),
+                torch.sum(base_phrase_feature_mask[:, :, 0], dim=1),
             )
             outputs["base_phrase_feature_loss"] = base_phrase_feature_loss
         return outputs
 
     @staticmethod
-    def mask(x: torch.Tensor, features: torch.Tensor) -> torch.Tensor:
-        return torch.where(
-            features != float(IGNORE_INDEX),
-            x,
-            torch.zeros_like(x),
-        )
-
-    @staticmethod
     def compute_loss(
-        input_: torch.Tensor, target: torch.Tensor, num_units: torch.Tensor
+        input_: torch.FloatTensor,
+        target: torch.FloatTensor,
+        num_units: torch.LongTensor,
     ) -> torch.Tensor:
         # (b, seq_len, num_features)
         losses = F.binary_cross_entropy(input=input_, target=target, reduction="none")
         # 各featureのlossの和
         losses = torch.sum(torch.sum(losses, dim=1), dim=1)  # (b, )
-        # BCELossはIGNORE_INDEXを渡せないので、batchにnum_unitsを含めておく
+        # binary_cross_entropyはIGNORE_INDEXを渡せない
         loss = torch.mean(losses / num_units)
         return loss
