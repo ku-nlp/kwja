@@ -44,9 +44,7 @@ def test_getitem():
         assert "subword_map" in item
         assert "mrph_types" in item
         assert "word_features" in item
-        assert "num_morphemes" in item
         assert "base_phrase_features" in item
-        assert "num_base_phrases" in item
         assert "dependencies" in item
         assert "intra_mask" in item
         assert "dependency_types" in item
@@ -58,12 +56,10 @@ def test_getitem():
         assert (item["subword_map"].sum(dim=1) != 0).sum() == len(document.morphemes)
         assert item["mrph_types"].shape == (max_seq_length, 4)
         assert item["word_features"].shape == (max_seq_length, len(WORD_FEATURES))
-        assert item["num_morphemes"].item() == len(document.morphemes)
         assert item["base_phrase_features"].shape == (
             max_seq_length,
             len(BASE_PHRASE_FEATURES),
         )
-        assert item["num_base_phrases"].item() == len(document.base_phrases)
         assert item["dependencies"].shape == (max_seq_length,)
         assert item["intra_mask"].shape == (max_seq_length, max_seq_length)
         assert item["dependency_types"].shape == (max_seq_length,)
@@ -159,55 +155,55 @@ def test_encode():
     mrph_types[8][3] = CONJFORM_TYPES.index("*")
     assert encoding["mrph_types"].tolist() == mrph_types
 
-    word_features = [[0.0] * len(WORD_FEATURES) for _ in range(max_seq_length)]
+    word_features = [[0] * len(WORD_FEATURES) for _ in range(max_seq_length)]
     # 0: 風
-    word_features[0][WORD_FEATURES.index("基本句-主辞")] = 1.0
+    word_features[0][WORD_FEATURES.index("基本句-主辞")] = 1
     # 1: が
-    word_features[1][WORD_FEATURES.index("基本句-区切")] = 1.0
-    word_features[1][WORD_FEATURES.index("文節-区切")] = 1.0
+    word_features[1][WORD_FEATURES.index("基本句-区切")] = 1
+    word_features[1][WORD_FEATURES.index("文節-区切")] = 1
     # 2: 吹く
-    word_features[2][WORD_FEATURES.index("基本句-主辞")] = 1.0
+    word_features[2][WORD_FEATURES.index("基本句-主辞")] = 1
     # 3: 。
-    word_features[3][WORD_FEATURES.index("基本句-区切")] = 1.0
-    word_features[3][WORD_FEATURES.index("文節-区切")] = 1.0
+    word_features[3][WORD_FEATURES.index("基本句-区切")] = 1
+    word_features[3][WORD_FEATURES.index("文節-区切")] = 1
     # 4: すると
-    word_features[4][WORD_FEATURES.index("基本句-主辞")] = 1.0
-    word_features[4][WORD_FEATURES.index("基本句-区切")] = 1.0
-    word_features[4][WORD_FEATURES.index("文節-区切")] = 1.0
+    word_features[4][WORD_FEATURES.index("基本句-主辞")] = 1
+    word_features[4][WORD_FEATURES.index("基本句-区切")] = 1
+    word_features[4][WORD_FEATURES.index("文節-区切")] = 1
     # 5: 桶屋
-    word_features[5][WORD_FEATURES.index("基本句-主辞")] = 1.0
+    word_features[5][WORD_FEATURES.index("基本句-主辞")] = 1
     # 6: が
-    word_features[6][WORD_FEATURES.index("基本句-区切")] = 1.0
-    word_features[6][WORD_FEATURES.index("文節-区切")] = 1.0
+    word_features[6][WORD_FEATURES.index("基本句-区切")] = 1
+    word_features[6][WORD_FEATURES.index("文節-区切")] = 1
     # 7: 儲かる
-    word_features[7][WORD_FEATURES.index("基本句-主辞")] = 1.0
+    word_features[7][WORD_FEATURES.index("基本句-主辞")] = 1
     # 8: 。
-    word_features[8][WORD_FEATURES.index("基本句-区切")] = 1.0
-    word_features[8][WORD_FEATURES.index("文節-区切")] = 1.0
+    word_features[8][WORD_FEATURES.index("基本句-区切")] = 1
+    word_features[8][WORD_FEATURES.index("文節-区切")] = 1
 
     base_phrase_head_indices = {
         base_phrase.head.global_index for base_phrase in document.base_phrases
     }
     base_phrase_features = [
-        [0.0] * len(BASE_PHRASE_FEATURES)
+        [0] * len(BASE_PHRASE_FEATURES)
         if morpheme_global_index in base_phrase_head_indices
-        else [float(IGNORE_INDEX)] * len(BASE_PHRASE_FEATURES)
+        else [IGNORE_INDEX] * len(BASE_PHRASE_FEATURES)
         for morpheme_global_index in range(max_seq_length)
     ]
     # 0: 風
-    base_phrase_features[0][BASE_PHRASE_FEATURES.index("体言")] = 1.0
+    base_phrase_features[0][BASE_PHRASE_FEATURES.index("体言")] = 1
     # 2: 吹く
-    base_phrase_features[2][BASE_PHRASE_FEATURES.index("用言:動")] = 1.0
-    base_phrase_features[2][BASE_PHRASE_FEATURES.index("節-区切")] = 1.0
-    base_phrase_features[2][BASE_PHRASE_FEATURES.index("節-主辞")] = 1.0
-    base_phrase_features[2][BASE_PHRASE_FEATURES.index("時制:非過去")] = 1.0
+    base_phrase_features[2][BASE_PHRASE_FEATURES.index("用言:動")] = 1
+    base_phrase_features[2][BASE_PHRASE_FEATURES.index("節-区切")] = 1
+    base_phrase_features[2][BASE_PHRASE_FEATURES.index("節-主辞")] = 1
+    base_phrase_features[2][BASE_PHRASE_FEATURES.index("時制:非過去")] = 1
     # 5: 桶屋
-    base_phrase_features[5][BASE_PHRASE_FEATURES.index("体言")] = 1.0
+    base_phrase_features[5][BASE_PHRASE_FEATURES.index("体言")] = 1
     # 7: 儲かる
-    base_phrase_features[7][BASE_PHRASE_FEATURES.index("用言:動")] = 1.0
-    base_phrase_features[7][BASE_PHRASE_FEATURES.index("節-区切")] = 1.0
-    base_phrase_features[7][BASE_PHRASE_FEATURES.index("節-主辞")] = 1.0
-    base_phrase_features[7][BASE_PHRASE_FEATURES.index("時制:非過去")] = 1.0
+    base_phrase_features[7][BASE_PHRASE_FEATURES.index("用言:動")] = 1
+    base_phrase_features[7][BASE_PHRASE_FEATURES.index("節-区切")] = 1
+    base_phrase_features[7][BASE_PHRASE_FEATURES.index("節-主辞")] = 1
+    base_phrase_features[7][BASE_PHRASE_FEATURES.index("時制:非過去")] = 1
     assert encoding["base_phrase_features"].tolist() == base_phrase_features
 
     dependencies = [IGNORE_INDEX for _ in range(max_seq_length)]

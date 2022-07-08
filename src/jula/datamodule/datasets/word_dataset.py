@@ -244,13 +244,9 @@ class WordDataset(BaseDataset):
                 self._gen_subword_map(encoding), dtype=torch.bool
             ),
             "mrph_types": torch.tensor(mrph_types, dtype=torch.long),
-            "word_features": torch.tensor(word_features, dtype=torch.float),
-            "num_morphemes": torch.tensor(len(document.morphemes), dtype=torch.long),
+            "word_features": torch.tensor(word_features, dtype=torch.long),
             "base_phrase_features": torch.tensor(
-                base_phrase_features, dtype=torch.float
-            ),
-            "num_base_phrases": torch.tensor(
-                len(document.base_phrases), dtype=torch.long
+                base_phrase_features, dtype=torch.long
             ),
             "dependencies": torch.tensor(dependencies, dtype=torch.long),
             "intra_mask": torch.tensor(intra_mask, dtype=torch.bool),

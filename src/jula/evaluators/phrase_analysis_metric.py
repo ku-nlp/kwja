@@ -23,11 +23,11 @@ class PhraseAnalysisMetric(Metric):
 
     def update(
         self,
-        example_ids: torch.Tensor,
-        word_feature_predictions: torch.Tensor,
-        word_features: torch.Tensor,
-        base_phrase_feature_predictions: torch.Tensor,
-        base_phrase_features: torch.Tensor,
+        example_ids: torch.LongTensor,
+        word_feature_predictions: torch.LongTensor,
+        word_features: torch.LongTensor,
+        base_phrase_feature_predictions: torch.LongTensor,
+        base_phrase_features: torch.LongTensor,
     ):
         self.example_ids.append(example_ids)
         self.word_feature_predictions.append(word_feature_predictions)
@@ -35,7 +35,7 @@ class PhraseAnalysisMetric(Metric):
         self.base_phrase_feature_predictions.append(base_phrase_feature_predictions)
         self.base_phrase_features.append(base_phrase_features)
 
-    def compute(self) -> dict[str, Union[torch.Tensor, float]]:
+    def compute(self) -> dict[str, Union[torch.LongTensor, float]]:
         sorted_indices = self.unique(self.example_ids)
         # (num_base_phrase_features, b, seq_len)
         (
@@ -53,61 +53,18 @@ class PhraseAnalysisMetric(Metric):
             ],
         )
 
-        metrics = {}
-        word_feature_metrics = {}
-        base_phrase_feature_metrics = {}
-
-        for i, (word_feature_prediction, word_feature_label) in enumerate(
-            zip(word_feature_predictions, word_features)
-        ):
-            # prediction / label: (b, seq_len)
-            aligned_prediction, aligned_label = self.align_predictions(
-                prediction=word_feature_prediction.detach().cpu().numpy(),
-                label=word_feature_label.detach().cpu().numpy(),
-                io_tag="I",
+        metrics = self.compute_word_feature_metrics(
+            word_feature_predictions, word_features
+        )
+        metrics.update(
+            self.compute_base_phrase_feature_metrics(
+                base_phrase_feature_predictions, base_phrase_features
             )
-            word_feature_metrics[f"{WORD_FEATURES[i]}_f1"] = f1_score(
-                y_true=aligned_label,
-                y_pred=aligned_prediction,
-                mode="strict",
-                zero_division=0,
-                scheme=IOB2,
-            )
-        else:
-            sum_f1 = sum(value for key, value in word_feature_metrics.items())
-            metrics["macro_word_feature_f1"] = sum_f1 / len(word_feature_metrics)
-
-        for i, (base_phrase_feature_prediction, base_phrase_feature_label) in enumerate(
-            zip(base_phrase_feature_predictions, base_phrase_features)
-        ):
-            # pred/label: (batch_size, seq_len)
-            aligned_prediction, aligned_label = self.align_predictions(
-                prediction=base_phrase_feature_prediction.detach().cpu().numpy(),
-                label=base_phrase_feature_label.detach().cpu().numpy(),
-                io_tag="O",
-            )
-            t = sum(bio_tag == "B" for bio_tag in chain.from_iterable(aligned_label))
-            # 正解ラベルがない基本句素性は評価対象外
-            if t > 0:
-                base_phrase_feature_metrics[f"{BASE_PHRASE_FEATURES[i]}_f1"] = f1_score(
-                    y_true=aligned_label,
-                    y_pred=aligned_prediction,
-                    mode="strict",
-                    zero_division=0,
-                    scheme=IOB2,
-                )
-        else:
-            sum_f1 = sum(value for key, value in base_phrase_feature_metrics.items())
-            metrics["macro_base_phrase_feature_f1"] = sum_f1 / len(
-                base_phrase_feature_metrics
-            )
-
-        metrics.update(word_feature_metrics)
-        metrics.update(base_phrase_feature_metrics)
+        )
         return metrics
 
     @staticmethod
-    def unique(x, dim=None):
+    def unique(x: torch.Tensor, dim: int = None):
         unique, inverse = torch.unique(x, sorted=True, return_inverse=True, dim=dim)
         perm = torch.arange(inverse.size(0), dtype=inverse.dtype, device=inverse.device)
         inverse, perm = inverse.flip([0]), perm.flip([0])
@@ -123,9 +80,90 @@ class PhraseAnalysisMetric(Metric):
         for i in range(b):
             for j in range(seq_len):
                 # 評価対象外の label / prediction は含めない
-                if label[i, j] != float(IGNORE_INDEX):
+                if label[i, j] != IGNORE_INDEX:
                     aligned_prediction[i].append(
-                        "B" if prediction[i][j] == 1.0 else io_tag
+                        "B" if prediction[i][j] == 1 else io_tag
                     )
-                    aligned_label[i].append("B" if label[i][j] == 1.0 else io_tag)
+                    aligned_label[i].append("B" if label[i][j] == 1 else io_tag)
         return aligned_prediction, aligned_label
+
+    def compute_word_feature_metrics(
+        self,
+        word_feature_predictions: torch.LongTensor,
+        word_features: torch.LongTensor,
+    ) -> dict[str, float]:
+        word_feature_metrics = {}
+        aligned_predictions, aligned_labels = [], []
+        for i, (word_feature_prediction, word_feature_label) in enumerate(
+            zip(word_feature_predictions, word_features)
+        ):
+            # prediction / label: (b, seq_len)
+            aligned_prediction, aligned_label = self.align_predictions(
+                prediction=word_feature_prediction.detach().cpu().numpy(),
+                label=word_feature_label.detach().cpu().numpy(),
+                io_tag="I",
+            )
+            aligned_predictions += aligned_prediction
+            aligned_labels += aligned_label
+            word_feature_metrics[f"{WORD_FEATURES[i]}_f1"] = f1_score(
+                y_true=aligned_label,
+                y_pred=aligned_prediction,
+                mode="strict",
+                zero_division=0,
+                scheme=IOB2,
+            )
+        else:
+            sum_f1 = sum(value for key, value in word_feature_metrics.items())
+            word_feature_metrics["macro_word_feature_f1"] = sum_f1 / len(
+                word_feature_metrics
+            )
+            word_feature_metrics["micro_word_feature_f1"] = f1_score(
+                y_true=aligned_labels,
+                y_pred=aligned_predictions,
+                mode="strict",
+                zero_division=0,
+                scheme=IOB2,
+            )
+        return word_feature_metrics
+
+    def compute_base_phrase_feature_metrics(
+        self,
+        base_phrase_feature_predictions: torch.LongTensor,
+        base_phrase_features: torch.LongTensor,
+    ) -> dict[str, float]:
+        base_phrase_feature_metrics = {}
+        aligned_predictions, aligned_labels = [], []
+        for i, (base_phrase_feature_prediction, base_phrase_feature_label) in enumerate(
+            zip(base_phrase_feature_predictions, base_phrase_features)
+        ):
+            # pred/label: (batch_size, seq_len)
+            aligned_prediction, aligned_label = self.align_predictions(
+                prediction=base_phrase_feature_prediction.detach().cpu().numpy(),
+                label=base_phrase_feature_label.detach().cpu().numpy(),
+                io_tag="O",
+            )
+            t = sum(bio_tag == "B" for bio_tag in chain.from_iterable(aligned_label))
+            # 正解ラベルがない基本句素性は評価対象外
+            if t > 0:
+                aligned_predictions += aligned_prediction
+                aligned_labels += aligned_label
+                base_phrase_feature_metrics[f"{BASE_PHRASE_FEATURES[i]}_f1"] = f1_score(
+                    y_true=aligned_label,
+                    y_pred=aligned_prediction,
+                    mode="strict",
+                    zero_division=0,
+                    scheme=IOB2,
+                )
+        else:
+            sum_f1 = sum(value for key, value in base_phrase_feature_metrics.items())
+            base_phrase_feature_metrics["macro_base_phrase_feature_f1"] = sum_f1 / len(
+                base_phrase_feature_metrics
+            )
+            base_phrase_feature_metrics["micro_base_phrase_feature_f1"] = f1_score(
+                y_true=aligned_labels,
+                y_pred=aligned_predictions,
+                mode="strict",
+                zero_division=0,
+                scheme=IOB2,
+            )
+        return base_phrase_feature_metrics
