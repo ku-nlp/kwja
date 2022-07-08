@@ -56,7 +56,7 @@ class CharModule(LightningModule):
             "train/word_segmenter_loss",
             outputs["word_segmenter_outputs"]["loss"],
             on_step=True,
-            on_epoch=True,
+            on_epoch=False,
         )
         return outputs["word_segmenter_outputs"]["loss"]
 

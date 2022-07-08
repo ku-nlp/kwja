@@ -94,14 +94,14 @@ class WordModule(LightningModule):
             "train/word_analysis_loss",
             word_analysis_loss,
             on_step=True,
-            on_epoch=True,
+            on_epoch=False,
         )
         word_feature_loss = outputs["phrase_analyzer_outputs"]["word_feature_loss"]
         self.log(
             "train/word_feature_loss",
             word_feature_loss,
             on_step=True,
-            on_epoch=True,
+            on_epoch=False,
         )
         base_phrase_feature_loss = outputs["phrase_analyzer_outputs"][
             "base_phrase_feature_loss"
@@ -110,7 +110,7 @@ class WordModule(LightningModule):
             "train/base_phrase_feature_loss",
             base_phrase_feature_loss,
             on_step=True,
-            on_epoch=True,
+            on_epoch=False,
         )
         dependency_loss = outputs["relation_analyzer_outputs"]["dependency_loss"]
         self.log("train/dependency_loss", dependency_loss, on_step=True, on_epoch=True)
@@ -121,14 +121,14 @@ class WordModule(LightningModule):
             "train/dependency_type_loss",
             dependency_type_loss,
             on_step=True,
-            on_epoch=True,
+            on_epoch=False,
         )
         cohesion_loss = outputs["relation_analyzer_outputs"]["cohesion_loss"]
         self.log(
             "train/cohesion_loss",
             cohesion_loss,
             on_step=True,
-            on_epoch=True,
+            on_epoch=False,
         )
         return (
             word_analysis_loss
