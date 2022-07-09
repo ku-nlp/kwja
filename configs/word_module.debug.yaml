@@ -14,6 +14,9 @@ defaults:
 devices: ${oc.env:GPUS,0}
 do_predict_after_train: False
 
+# for dependency parser
+k: 4
+
 # for cohesion analysis
 cases: ["ガ", "ヲ", "ニ", "ガ２"]
 bar_rels: ["ノ", "ノ？"]

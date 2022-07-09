@@ -74,14 +74,12 @@ class WordModule(LightningModule):
             corpus: CohesionAnalysisMetric() for corpus in self.test_corpora
         }
 
-    def forward(self, inference=False, **batch) -> dict[str, dict[str, torch.Tensor]]:
+    def forward(self, **batch) -> dict[str, dict[str, torch.Tensor]]:
         # (batch_size, seq_len, hidden_size)
         pooled_outputs = self.word_encoder(batch, PoolingStrategy.FIRST)
         word_analyzer_outputs = self.word_analyzer(pooled_outputs, batch)
         phrase_analyzer_outputs = self.phrase_analyzer(pooled_outputs, batch)
-        relation_analyzer_output = self.relation_analyzer(
-            pooled_outputs, batch, inference=inference
-        )
+        relation_analyzer_output = self.relation_analyzer(pooled_outputs, batch)
         return {
             "word_analyzer_outputs": word_analyzer_outputs,
             "phrase_analyzer_outputs": phrase_analyzer_outputs,
@@ -89,7 +87,8 @@ class WordModule(LightningModule):
         }
 
     def training_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
-        outputs: dict[str, torch.Tensor] = self(inference=False, **batch)
+        batch["training"] = True
+        outputs: dict[str, torch.Tensor] = self(**batch)
         word_analysis_loss = outputs["word_analyzer_outputs"]["loss"]
         self.log(
             "train/word_analysis_loss",
@@ -143,7 +142,8 @@ class WordModule(LightningModule):
     def validation_step(
         self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None
     ) -> None:
-        outputs: dict[str, torch.Tensor] = self(inference=True, **batch)
+        batch["training"] = False
+        outputs: dict[str, torch.Tensor] = self(**batch)
         corpus = self.valid_corpora[dataloader_idx or 0]
         word_analysis_metric_args = {
             "pos_preds": torch.argmax(
@@ -196,11 +196,14 @@ class WordModule(LightningModule):
 
         dependency_parsing_metric_args = {
             "example_ids": batch["example_ids"],
-            "preds": torch.argmax(
-                outputs["relation_analyzer_outputs"]["dependency_logits"], dim=2
-            ),
-            "type_preds": torch.argmax(
-                outputs["relation_analyzer_outputs"]["dependency_type_logits"], dim=2
+            "dependency_predictions": torch.topk(
+                outputs["relation_analyzer_outputs"]["dependency_logits"],
+                self.hparams.k,
+                dim=2,
+            ).indices,
+            "dependency_type_predictions": torch.argmax(
+                outputs["relation_analyzer_outputs"]["dependency_type_logits"],
+                dim=3,
             ),
         }
         self.valid_dependency_parsing_metrics[corpus].update(
@@ -260,7 +263,7 @@ class WordModule(LightningModule):
         for idx, corpus in enumerate(self.valid_corpora):
             dataset = self.trainer.val_dataloaders[idx].dataset
             metric = self.valid_dependency_parsing_metrics[corpus]
-            for name, value in metric.compute(dataset).items():
+            for name, value in metric.compute(dataset.documents).items():
                 self.log(f"valid_{corpus}/{name}", value)
             metric.reset()
 
@@ -275,7 +278,8 @@ class WordModule(LightningModule):
     def test_step(
         self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None
     ) -> None:
-        outputs: dict[str, torch.Tensor] = self(inference=True, **batch)
+        batch["training"] = False
+        outputs: dict[str, torch.Tensor] = self(**batch)
         corpus = self.test_corpora[dataloader_idx or 0]
         word_analysis_metric_args = {
             "pos_preds": torch.argmax(
@@ -328,11 +332,14 @@ class WordModule(LightningModule):
 
         dependency_parsing_metric_args = {
             "example_ids": batch["example_ids"],
-            "preds": torch.argmax(
-                outputs["relation_analyzer_outputs"]["dependency_logits"], dim=2
-            ),
-            "type_preds": torch.argmax(
-                outputs["relation_analyzer_outputs"]["dependency_type_logits"], dim=2
+            "dependency_predictions": torch.topk(
+                outputs["relation_analyzer_outputs"]["dependency_logits"],
+                self.hparams.k,
+                dim=2,
+            ).indices,
+            "dependency_type_predictions": torch.argmax(
+                outputs["relation_analyzer_outputs"]["dependency_type_logits"],
+                dim=3,
             ),
         }
         self.test_dependency_parsing_metrics[corpus].update(
@@ -390,8 +397,8 @@ class WordModule(LightningModule):
         for idx, corpus in enumerate(self.test_corpora):
             dataset = self.trainer.test_dataloaders[idx].dataset
             metric = self.test_dependency_parsing_metrics[corpus]
-            for name, value in metric.compute(dataset).items():
-                self.log(f"test_{corpus}/{name}", value)
+            for name, value in metric.compute(dataset.documents).items():
+                self.log(f"valid_{corpus}/{name}", value)
             metric.reset()
 
         for idx, corpus in enumerate(self.test_corpora):
@@ -405,7 +412,8 @@ class WordModule(LightningModule):
     def predict_step(
         self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None
     ) -> Any:
-        outputs: dict[str, torch.Tensor] = self(inference=True, **batch)
+        batch["training"] = False
+        outputs: dict[str, torch.Tensor] = self(**batch)
         return {
             "example_ids": batch["example_ids"],
             "word_analysis_pos_logits": outputs["word_analyzer_outputs"]["pos_logits"],
