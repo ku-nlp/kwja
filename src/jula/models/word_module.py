@@ -1,3 +1,4 @@
+from collections import defaultdict
 from statistics import mean
 from typing import Any, Optional
 
@@ -7,6 +8,7 @@ from omegaconf import DictConfig
 from pytorch_lightning.core.lightning import LightningModule
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
+from jula.evaluators.cohesion_analysis_metric import CohesionAnalysisMetric
 from jula.evaluators.dependency_parsing_metric import DependencyParsingMetric
 from jula.evaluators.phrase_analysis_metric import PhraseAnalysisMetric
 from jula.evaluators.word_analyzer import WordAnalysisMetric
@@ -46,7 +48,6 @@ class WordModule(LightningModule):
         }
 
         self.phrase_analyzer: PhraseAnalyzer = PhraseAnalyzer(
-            hparams=hparams,
             pretrained_model_config=self.word_encoder.pretrained_model.config,
         )
         self.valid_phrase_analysis_metrics: dict[str, PhraseAnalysisMetric] = {
@@ -65,6 +66,12 @@ class WordModule(LightningModule):
         }
         self.test_dependency_parsing_metrics: dict[str, DependencyParsingMetric] = {
             corpus: DependencyParsingMetric() for corpus in self.test_corpora
+        }
+        self.valid_cohesion_analysis_metrics: dict[str, CohesionAnalysisMetric] = {
+            corpus: CohesionAnalysisMetric() for corpus in self.valid_corpora
+        }
+        self.test_cohesion_analysis_metrics: dict[str, CohesionAnalysisMetric] = {
+            corpus: CohesionAnalysisMetric() for corpus in self.test_corpora
         }
 
     def forward(self, inference=False, **batch) -> dict[str, dict[str, torch.Tensor]]:
@@ -88,16 +95,23 @@ class WordModule(LightningModule):
             "train/word_analysis_loss",
             word_analysis_loss,
             on_step=True,
-            on_epoch=True,
+            on_epoch=False,
         )
-        phrase_analysis_loss = outputs["phrase_analyzer_outputs"][
-            "phrase_analysis_loss"
+        word_feature_loss = outputs["phrase_analyzer_outputs"]["word_feature_loss"]
+        self.log(
+            "train/word_feature_loss",
+            word_feature_loss,
+            on_step=True,
+            on_epoch=False,
+        )
+        base_phrase_feature_loss = outputs["phrase_analyzer_outputs"][
+            "base_phrase_feature_loss"
         ]
         self.log(
-            "train/phrase_analysis_loss",
-            phrase_analysis_loss,
+            "train/base_phrase_feature_loss",
+            base_phrase_feature_loss,
             on_step=True,
-            on_epoch=True,
+            on_epoch=False,
         )
         dependency_loss = outputs["relation_analyzer_outputs"]["dependency_loss"]
         self.log("train/dependency_loss", dependency_loss, on_step=True, on_epoch=True)
@@ -108,13 +122,22 @@ class WordModule(LightningModule):
             "train/dependency_type_loss",
             dependency_type_loss,
             on_step=True,
-            on_epoch=True,
+            on_epoch=False,
+        )
+        cohesion_loss = outputs["relation_analyzer_outputs"]["cohesion_loss"]
+        self.log(
+            "train/cohesion_loss",
+            cohesion_loss,
+            on_step=True,
+            on_epoch=False,
         )
         return (
             word_analysis_loss
-            + phrase_analysis_loss
+            + word_feature_loss
+            + base_phrase_feature_loss
             + dependency_loss
             + dependency_type_loss
+            + cohesion_loss
         )
 
     def validation_step(
@@ -147,22 +170,32 @@ class WordModule(LightningModule):
         )
 
         phrase_analysis_metric_args = {
-            "document_ids": batch["document_id"],
-            "preds": torch.where(
-                outputs["phrase_analyzer_outputs"]["phrase_analysis_logits"] >= 0.5,
-                1.0,
-                0.0,
-            ),
-            "labels": batch["base_phrase_features"],
+            "example_ids": batch["example_ids"],
+            "word_feature_predictions": outputs["phrase_analyzer_outputs"][
+                "word_feature_logits"
+            ]
+            .ge(0.5)
+            .long(),
+            "word_features": batch["word_features"],
+            "base_phrase_feature_predictions": outputs["phrase_analyzer_outputs"][
+                "base_phrase_feature_logits"
+            ]
+            .ge(0.5)
+            .long(),
+            "base_phrase_features": batch["base_phrase_features"],
         }
         self.valid_phrase_analysis_metrics[corpus].update(**phrase_analysis_metric_args)
         self.log(
-            "valid/phrase_analysis_loss",
-            outputs["phrase_analyzer_outputs"]["phrase_analysis_loss"],
+            "valid/word_feature_loss",
+            outputs["phrase_analyzer_outputs"]["word_feature_loss"],
+        )
+        self.log(
+            "valid/base_phrase_feature_loss",
+            outputs["phrase_analyzer_outputs"]["base_phrase_feature_loss"],
         )
 
         dependency_parsing_metric_args = {
-            "document_ids": batch["document_id"],
+            "example_ids": batch["example_ids"],
             "preds": torch.argmax(
                 outputs["relation_analyzer_outputs"]["dependency_logits"], dim=2
             ),
@@ -178,40 +211,65 @@ class WordModule(LightningModule):
             outputs["relation_analyzer_outputs"]["dependency_loss"],
         )
 
+        cohesion_analysis_metric_args = {
+            "example_ids": batch["example_ids"],
+            "output": outputs["relation_analyzer_outputs"]["cohesion_logits"],
+            "dataset": self.trainer.val_dataloaders[dataloader_idx or 0].dataset,
+        }
+        self.valid_cohesion_analysis_metrics[corpus].update(
+            **cohesion_analysis_metric_args
+        )
+        self.log(
+            "valid/cohesion_loss",
+            outputs["relation_analyzer_outputs"]["cohesion_loss"],
+        )
+
     def validation_epoch_end(self, validation_step_outputs) -> None:
-        f1s: list[float] = []
-        word_analysis_f1 = 0.0
+        f1_scores: dict[str, float] = defaultdict(float)
+
         for corpus, metric in self.valid_word_analysis_metrics.items():
             for name, value in metric.compute().items():
                 if name == "word_analysis_f1":
-                    word_analysis_f1 += value
+                    f1_scores["word_analysis_f1"] += value / len(
+                        self.valid_word_analysis_metrics
+                    )
                 self.log(f"valid_{corpus}/{name}", value)
                 metric.reset()
         self.log(
             "valid/word_analysis_f1",
-            word_analysis_f1 / len(self.valid_word_analysis_metrics),
+            f1_scores["word_analysis_f1"],
         )
-        f1s.append(word_analysis_f1 / len(self.valid_word_analysis_metrics))
 
-        phrase_analysis_f1 = 0.0
+        keys = {
+            "macro_word_feature_f1",
+            "micro_word_feature_f1",
+            "macro_base_phrase_feature_f1",
+            "micro_base_phrase_feature_f1",
+        }
         for corpus, metric in self.valid_phrase_analysis_metrics.items():
             for name, value in metric.compute().items():
-                if name == "phrase_analysis_f1":
-                    phrase_analysis_f1 += value
+                if name in keys:
+                    f1_scores[name] += value / len(self.valid_phrase_analysis_metrics)
                 self.log(f"valid_{corpus}/{name}", value)
             metric.reset()
-        self.log(
-            "valid/phrase_analysis_f1",
-            phrase_analysis_f1 / len(self.valid_phrase_analysis_metrics),
-        )
-        f1s.append(phrase_analysis_f1 / len(self.valid_phrase_analysis_metrics))
+        for key in sorted(keys):
+            self.log(f"valid/{key}", f1_scores[key])
 
-        self.log("valid/f1", mean(f1s))
+        self.log("valid/f1", mean(f1_scores.values()))
 
-        for corpus, metric in self.valid_dependency_parsing_metrics.items():
-            dataset = self.trainer.datamodule.valid_datasets[corpus]
+        for idx, corpus in enumerate(self.valid_corpora):
+            dataset = self.trainer.val_dataloaders[idx].dataset
+            metric = self.valid_dependency_parsing_metrics[corpus]
             for name, value in metric.compute(dataset).items():
                 self.log(f"valid_{corpus}/{name}", value)
+            metric.reset()
+
+        for idx, corpus in enumerate(self.valid_corpora):
+            dataset = self.trainer.val_dataloaders[idx].dataset
+            metric = self.valid_cohesion_analysis_metrics[corpus]
+            for rel, val in metric.compute(dataset).to_dict().items():
+                for met, sub_val in val.items():
+                    self.log(f"valid_{corpus}/{met}_{rel}", sub_val.f1)
             metric.reset()
 
     def test_step(
@@ -242,23 +300,34 @@ class WordModule(LightningModule):
             "test/word_analysis_loss",
             outputs["word_analyzer_outputs"]["loss"],
         )
+
         phrase_analysis_metric_args = {
-            "document_ids": batch["document_id"],
-            "preds": torch.where(
-                outputs["phrase_analyzer_outputs"]["phrase_analysis_logits"] >= 0.5,
-                1.0,
-                0.0,
-            ),
-            "labels": batch["base_phrase_features"],
+            "example_ids": batch["example_ids"],
+            "word_feature_predictions": outputs["phrase_analyzer_outputs"][
+                "word_feature_logits"
+            ]
+            .ge(0.5)
+            .long(),
+            "word_features": batch["word_features"],
+            "base_phrase_feature_predictions": outputs["phrase_analyzer_outputs"][
+                "base_phrase_feature_logits"
+            ]
+            .ge(0.5)
+            .long(),
+            "base_phrase_features": batch["base_phrase_features"],
         }
         self.test_phrase_analysis_metrics[corpus].update(**phrase_analysis_metric_args)
         self.log(
-            "test/phrase_analysis_loss",
-            outputs["phrase_analyzer_outputs"]["phrase_analysis_loss"],
+            "test/word_feature_loss",
+            outputs["phrase_analyzer_outputs"]["word_feature_loss"],
+        )
+        self.log(
+            "test/base_phrase_feature_loss",
+            outputs["phrase_analyzer_outputs"]["base_phrase_feature_loss"],
         )
 
         dependency_parsing_metric_args = {
-            "document_ids": batch["document_id"],
+            "example_ids": batch["example_ids"],
             "preds": torch.argmax(
                 outputs["relation_analyzer_outputs"]["dependency_logits"], dim=2
             ),
@@ -274,40 +343,63 @@ class WordModule(LightningModule):
             outputs["relation_analyzer_outputs"]["dependency_loss"],
         )
 
+        cohesion_analysis_metric_args = {
+            "example_ids": batch["example_ids"],
+            "output": outputs["relation_analyzer_outputs"]["cohesion_logits"],
+            "dataset": self.trainer.test_dataloaders[dataloader_idx or 0].dataset,
+        }
+        self.test_cohesion_analysis_metrics[corpus].update(
+            **cohesion_analysis_metric_args
+        )
+        self.log(
+            "test/cohesion_loss",
+            outputs["relation_analyzer_outputs"]["cohesion_loss"],
+        )
+
     def test_epoch_end(self, test_step_outputs) -> None:
-        f1s: list[float] = []
-        word_analysis_f1 = 0.0
+        f1_scores: dict[str, float] = defaultdict(float)
+
         for corpus, metric in self.test_word_analysis_metrics.items():
             for name, value in metric.compute().items():
                 if name == "word_analysis_f1":
-                    word_analysis_f1 += value
+                    f1_scores[name] += value / len(self.test_word_analysis_metrics)
                 self.log(f"test_{corpus}/{name}", value)
                 metric.reset()
         self.log(
             "test/word_analysis_f1",
-            word_analysis_f1 / len(self.test_word_analysis_metrics),
+            f1_scores["word_analysis_f1"],
         )
-        f1s.append(word_analysis_f1 / len(self.test_word_analysis_metrics))
 
-        phrase_analysis_f1 = 0.0
+        keys = {
+            "macro_word_feature_f1",
+            "micro_word_feature_f1",
+            "macro_base_phrase_feature_f1",
+            "micro_base_phrase_feature_f1",
+        }
         for corpus, metric in self.test_phrase_analysis_metrics.items():
             for name, value in metric.compute().items():
-                if name == "phrase_analysis_f1":
-                    phrase_analysis_f1 += value
-                self.log(f"test_{corpus}/{name}", value)
+                if name in keys:
+                    f1_scores[name] += value / len(self.test_phrase_analysis_metrics)
+                self.log(f"valid_{corpus}/{name}", value)
             metric.reset()
-        self.log(
-            "test/phrase_analysis_f1",
-            phrase_analysis_f1 / len(self.test_phrase_analysis_metrics),
-        )
-        f1s.append(phrase_analysis_f1 / len(self.test_phrase_analysis_metrics))
+        for key in sorted(keys):
+            self.log(f"test/{key}", f1_scores[key])
 
-        self.log("test/f1", mean(f1s))
+        self.log("test/f1", mean(f1_scores.values()))
 
-        for corpus, metric in self.test_dependency_parsing_metrics.items():
-            dataset = self.trainer.datamodule.test_datasets[corpus]
+        for idx, corpus in enumerate(self.test_corpora):
+            dataset = self.trainer.test_dataloaders[idx].dataset
+            metric = self.test_dependency_parsing_metrics[corpus]
             for name, value in metric.compute(dataset).items():
                 self.log(f"test_{corpus}/{name}", value)
+            metric.reset()
+
+        for idx, corpus in enumerate(self.test_corpora):
+            dataset = self.trainer.test_dataloaders[idx].dataset
+            metric = self.test_cohesion_analysis_metrics[corpus]
+            for rel, val in metric.compute(dataset).to_dict().items():
+                for met, sub_val in val.items():
+                    self.log(f"test_{corpus}/{met}_{rel}", sub_val.f1)
             metric.reset()
 
     def predict_step(
@@ -315,7 +407,7 @@ class WordModule(LightningModule):
     ) -> Any:
         outputs: dict[str, torch.Tensor] = self(inference=True, **batch)
         return {
-            "document_ids": batch["document_id"],
+            "example_ids": batch["example_ids"],
             "word_analysis_pos_logits": outputs["word_analyzer_outputs"]["pos_logits"],
             "word_analysis_subpos_logits": outputs["word_analyzer_outputs"][
                 "subpos_logits"
@@ -326,10 +418,12 @@ class WordModule(LightningModule):
             "word_analysis_conjform_logits": outputs["word_analyzer_outputs"][
                 "conjform_logits"
             ],
-            "phrase_analysis_logits": outputs["phrase_analyzer_outputs"][
-                "phrase_analysis_logits"
+            "word_feature_logits": outputs["phrase_analyzer_outputs"][
+                "word_feature_logits"
             ],
-            # "base_phrase_features": batch["base_phrase_features"],
+            "base_phrase_feature_logits": outputs["phrase_analyzer_outputs"][
+                "base_phrase_feature_logits"
+            ],
             "dependency_logits": outputs["relation_analyzer_outputs"][
                 "dependency_logits"
             ],
@@ -339,7 +433,45 @@ class WordModule(LightningModule):
         }
 
     def configure_optimizers(self):
+        # Split weights in two groups, one with weight decay and the other not.
+        no_decay = ("bias", "LayerNorm.weight")
+        optimizer_grouped_parameters = [
+            {
+                "params": [
+                    p
+                    for n, p in self.named_parameters()
+                    if not any(nd in n for nd in no_decay) and p.requires_grad
+                ],
+                "weight_decay": self.hparams.optimizer.weight_decay,
+                "name": "decay",
+            },
+            {
+                "params": [
+                    p
+                    for n, p in self.named_parameters()
+                    if any(nd in n for nd in no_decay) and p.requires_grad
+                ],
+                "weight_decay": 0.0,
+                "name": "no_decay",
+            },
+        ]
         optimizer = hydra.utils.instantiate(
-            self.hparams.optimizer, params=self.parameters(), _convert_="partial"
+            self.hparams.optimizer,
+            params=optimizer_grouped_parameters,
+            _convert_="partial",
         )
-        return [optimizer], []
+
+        warmup_steps = self.hparams.warmup_steps
+        lr_scheduler = hydra.utils.instantiate(
+            self.hparams.scheduler,
+            optimizer=optimizer,
+            num_warmup_steps=warmup_steps,
+        )
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": lr_scheduler,
+                "interval": "step",
+                "frequency": 1,
+            },
+        }

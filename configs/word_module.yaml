@@ -7,6 +7,7 @@ defaults:
   - model: word_roberta_base
   - module: default
   - optimizer: adamw
+  - scheduler: constant_schedule_with_warmup
   - trainer: default
   - _self_
 
@@ -14,9 +15,21 @@ devices: ${oc.env:GPUS,0}
 do_predict_after_train: True
 checkpoint_path: ""
 
+# for cohesion analysis
+cases: ["ガ", "ヲ", "ニ", "ガ２"]
+bar_rels: ["ノ", "ノ？"]
+exophora_referents:
+  - 著者
+  - 読者
+  - 不特定:人
+  - 不特定:物
+cohesion_tasks: [pas_analysis, bridging, coreference]  # pas_analysis, bridging, and/or coreference
+
 # set monitor and mode for early_stopping and model_checkpoint
 monitor: valid/f1
 mode: max
 # batch size
-batch_size: 8
+batch_size: 4
 accumulate_grad_batches: 1
+# scheduler options
+warmup_steps: 100

@@ -4,6 +4,7 @@ import dartsclone
 import torch
 from rhoknp import Document
 from transformers import BatchEncoding
+from transformers.utils import PaddingStrategy
 
 from jula.datamodule.datasets.base_dataset import BaseDataset
 from jula.utils.utils import ENE_TYPE_BIES, IGNORE_INDEX, SEG_TYPES
@@ -28,7 +29,7 @@ class CharDataset(BaseDataset):
     def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
         document = self.documents[index]
         return {
-            "document_id": torch.tensor(index, dtype=torch.long),
+            "example_ids": torch.tensor(index, dtype=torch.long),
             **self.encode(document),
         }
 
@@ -66,7 +67,7 @@ class CharDataset(BaseDataset):
         encoding: BatchEncoding = self.tokenizer(
             document.text,
             truncation=True,
-            padding="max_length",
+            padding=PaddingStrategy.MAX_LENGTH,
             max_length=self.max_seq_length,
         )
         input_ids = encoding["input_ids"]

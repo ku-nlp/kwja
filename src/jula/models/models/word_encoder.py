@@ -17,7 +17,7 @@ class WordEncoder(nn.Module):
 
     def forward(
         self, batch: dict[str, torch.Tensor], pooling_strategy: PoolingStrategy
-    ) -> dict[str, torch.Tensor]:
+    ) -> torch.Tensor:
         outputs = self.pretrained_model(
             input_ids=batch["input_ids"],
             attention_mask=batch["attention_mask"],

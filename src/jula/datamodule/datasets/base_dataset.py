@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 import hydra
@@ -14,12 +15,14 @@ class BaseDataset(Dataset):
         max_seq_length: int = 512,
         tokenizer_kwargs: dict = None,
         ext: str = "knp",
+        **kwargs,
     ) -> None:
         self.path = Path(path)
         assert self.path.is_dir()
 
         self.documents = self.load_documents(self.path, ext)
         assert len(self) != 0
+        self.document_ids: list[str] = [doc.doc_id for doc in self.documents]
 
         if tokenizer_kwargs:
             tokenizer_kwargs = hydra.utils.instantiate(
@@ -40,6 +43,9 @@ class BaseDataset(Dataset):
     def load_documents(path: Path, ext: str = "knp") -> list[Document]:
         documents = []
         for file_path in sorted(path.glob(f"**/*.{ext}")):
-            with file_path.open("rt") as f:
-                documents.append(Document.from_knp(f.read()))
+            # TODO: fix document file
+            try:
+                documents.append(Document.from_knp(file_path.read_text()))
+            except AssertionError:
+                print(f"{file_path} is not a valid knp file.", file=sys.stderr)
         return documents

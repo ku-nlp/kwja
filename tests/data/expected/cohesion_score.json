@@ -1,0 +1,123 @@
+{
+  "ガ": {
+    "overt": {
+      "denom_pred": 0,
+      "denom_gold": 0,
+      "correct": 0
+    },
+    "dep": {
+      "denom_pred": 1,
+      "denom_gold": 1,
+      "correct": 1
+    },
+    "zero_endophora": {
+      "denom_pred": 1,
+      "denom_gold": 1,
+      "correct": 1
+    },
+    "zero_exophora": {
+      "denom_pred": 0,
+      "denom_gold": 0,
+      "correct": 0
+    },
+    "zero": {
+      "denom_pred": 1,
+      "denom_gold": 1,
+      "correct": 1
+    },
+    "dep_zero": {
+      "denom_pred": 2,
+      "denom_gold": 2,
+      "correct": 2
+    },
+    "all": {
+      "denom_pred": 2,
+      "denom_gold": 2,
+      "correct": 2
+    }
+  },
+  "ヲ": {
+    "overt": {
+      "denom_pred": 0,
+      "denom_gold": 1,
+      "correct": 0
+    },
+    "dep": {
+      "denom_pred": 0,
+      "denom_gold": 0,
+      "correct": 0
+    },
+    "zero_endophora": {
+      "denom_pred": 1,
+      "denom_gold": 1,
+      "correct": 1
+    },
+    "zero_exophora": {
+      "denom_pred": 0,
+      "denom_gold": 0,
+      "correct": 0
+    },
+    "zero": {
+      "denom_pred": 1,
+      "denom_gold": 1,
+      "correct": 1
+    },
+    "dep_zero": {
+      "denom_pred": 1,
+      "denom_gold": 1,
+      "correct": 1
+    },
+    "all": {
+      "denom_pred": 1,
+      "denom_gold": 2,
+      "correct": 1
+    }
+  },
+  "all_case": {
+    "overt": {
+      "denom_pred": 0,
+      "denom_gold": 1,
+      "correct": 0
+    },
+    "dep": {
+      "denom_pred": 1,
+      "denom_gold": 1,
+      "correct": 1
+    },
+    "zero_endophora": {
+      "denom_pred": 2,
+      "denom_gold": 2,
+      "correct": 2
+    },
+    "zero_exophora": {
+      "denom_pred": 0,
+      "denom_gold": 0,
+      "correct": 0
+    },
+    "zero": {
+      "denom_pred": 2,
+      "denom_gold": 2,
+      "correct": 2
+    },
+    "dep_zero": {
+      "denom_pred": 3,
+      "denom_gold": 3,
+      "correct": 3
+    },
+    "all": {
+      "denom_pred": 3,
+      "denom_gold": 4,
+      "correct": 3
+    },
+    "bridging": {
+      "denom_pred": 1,
+      "denom_gold": 1,
+      "correct": 1
+    },
+    "coreference": {
+      "denom_pred": 2,
+      "denom_gold": 1,
+      "correct": 0
+    }
+  }
+}

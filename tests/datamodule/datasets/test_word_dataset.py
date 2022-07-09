@@ -1,9 +1,12 @@
+import json
 import textwrap
 from pathlib import Path
 
 from rhoknp import Document
 
 from jula.datamodule.datasets.word_dataset import WordDataset
+from jula.datamodule.examples import Task
+from jula.datamodule.extractors import PasAnnotation
 from jula.utils.utils import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TYPES,
@@ -18,10 +21,18 @@ from jula.utils.utils import (
 
 here = Path(__file__).absolute().parent
 path = here.joinpath("knp_files")
+data_dir = here.parent.parent / "data"
+
+word_dataset_kwargs = {
+    "cases": ["ガ", "ヲ", "ニ", "ガ２"],
+    "bar_rels": ["ノ", "ノ？"],
+    "exophora_referents": ["著者", "読者", "不特定:人", "不特定:物"],
+    "cohesion_tasks": ["pas_analysis", "bridging", "coreference"],
+}
 
 
 def test_init():
-    _ = WordDataset(str(path))
+    _ = WordDataset(str(path), **word_dataset_kwargs)
 
 
 def test_getitem():
@@ -29,36 +40,34 @@ def test_getitem():
     dataset = WordDataset(
         str(path),
         max_seq_length=max_seq_length,
-        tokenizer_kwargs={"additional_special_tokens": ["[ROOT]"]},
+        **word_dataset_kwargs,
     )
     for i in range(len(dataset)):
         document = dataset.documents[i]
         item = dataset[i]
         assert isinstance(item, dict)
-        assert "document_id" in item
+        assert "example_ids" in item
         assert "input_ids" in item
         assert "attention_mask" in item
         assert "subword_map" in item
         assert "mrph_types" in item
         assert "word_features" in item
         assert "base_phrase_features" in item
-        assert "num_base_phrases" in item
         assert "dependencies" in item
         assert "intra_mask" in item
         assert "dependency_types" in item
         assert "discourse_relations" in item
-        assert item["document_id"] == i
+        assert item["example_ids"] == i
         assert item["input_ids"].shape == (max_seq_length,)
         assert item["attention_mask"].shape == (max_seq_length,)
         assert item["subword_map"].shape == (max_seq_length, max_seq_length)
         assert (item["subword_map"].sum(dim=1) != 0).sum() == len(document.morphemes)
         assert item["mrph_types"].shape == (max_seq_length, 4)
+        assert item["word_features"].shape == (max_seq_length, len(WORD_FEATURES))
         assert item["base_phrase_features"].shape == (
             max_seq_length,
             len(BASE_PHRASE_FEATURES),
         )
-        assert item["num_base_phrases"].item() == len(document.base_phrases)
-        assert item["word_features"].shape == (max_seq_length, len(WORD_FEATURES))
         assert item["dependencies"].shape == (max_seq_length,)
         assert item["intra_mask"].shape == (max_seq_length, max_seq_length)
         assert item["dependency_types"].shape == (max_seq_length,)
@@ -74,7 +83,7 @@ def test_encode():
     dataset = WordDataset(
         str(path),
         max_seq_length=max_seq_length,
-        tokenizer_kwargs={"additional_special_tokens": ["[ROOT]"]},
+        **word_dataset_kwargs,
     )
     document = Document.from_knp(
         textwrap.dedent(
@@ -85,7 +94,7 @@ def test_encode():
             風 かぜ 風 名詞 6 普通名詞 1 * 0 * 0 "代表表記:風/かぜ カテゴリ:抽象物 漢字読み:訓" <代表表記:風/かぜ><カテゴリ:抽象物><漢字読み:訓><正規化代表表記:風/かぜ><漢字><かな漢字><名詞相当語><文頭><自立><内容語><タグ単位始><文節始><文節主辞>
             が が が 助詞 9 格助詞 1 * 0 * 0 NIL <かな漢字><ひらがな><付属>
             * -1D <BGH:吹く/ふく><文末><補文ト><句点><用言:動><レベル:C><区切:5-5><ID:（文末）><係:文末><提題受:30><主節><格要素><連用要素><動態述語><正規化代表表記:吹く/ふく><主辞代表表記:吹く/ふく>
-            + -1D <BGH:吹く/ふく><文末><補文ト><句点><用言:動><レベル:C><区切:5-5><ID:（文末）><係:文末><提題受:30><主節><格要素><連用要素><動態述語><正規化代表表記:吹く/ふく><主辞代表表記:吹く/ふく><用言代表表記:吹く/ふく><節-区切><節-主辞><時制:非過去><主題格:一人称優位><格関係0:ガ:風><格解析結果:吹く/ふく:動1:ガ/C/風/0/0/1;ニ/U/-/-/-/-;ト/U/-/-/-/-;デ/U/-/-/-/-;カラ/U/-/-/-/-;時間/U/-/-/-/-><標準用言代表表記:吹く/ふく>
+            + -1D <BGH:吹く/ふく><文末><補文ト><句点><用言:動><レベル:C><区切:5-5><ID:（文末）><係:文末><提題受:30><主節><格要素><連用要素><動態述語><正規化代表表記:吹く/ふく><主辞代表表記:吹く/ふく><用言代表表記:吹く/ふく><節-区切><節-主辞><時制:非過去><主題格:一人称優位><格関係0:ガ:風><格解析結果:吹く/ふく:動1:ガ/C/風/0/0/000-1;ニ/U/-/-/-/-;ト/U/-/-/-/-;デ/U/-/-/-/-;カラ/U/-/-/-/-;時間/U/-/-/-/-><標準用言代表表記:吹く/ふく>
             吹く ふく 吹く 動詞 2 * 0 子音動詞カ行 2 基本形 2 "代表表記:吹く/ふく 補文ト" <代表表記:吹く/ふく><補文ト><正規化代表表記:吹く/ふく><かな漢字><活用語><表現文末><自立><内容語><タグ単位始><文節始><文節主辞><用言表記先頭><用言表記末尾><用言意味表記末尾>
             。 。 。 特殊 1 句点 1 * 0 * 0 NIL <英記号><記号><文末><付属>
             EOS
@@ -98,14 +107,14 @@ def test_encode():
             桶屋 桶屋 桶屋 名詞 6 普通名詞 1 * 0 * 0 "自動獲得:Wikipedia 読み不明 Wikipediaリダイレクト:桶 疑似代表表記 代表表記:桶屋/桶屋" <自動獲得:Wikipedia><読み不明><Wikipediaリダイレクト:桶><疑似代表表記><代表表記:桶屋/桶屋><正規化代表表記:桶屋/桶屋><漢字><かな漢字><名詞相当語><自立><内容語><タグ単位始><文節始><文節主辞><用言表記先頭><用言表記末尾><用言意味表記末尾>
             が が が 助詞 9 格助詞 1 * 0 * 0 NIL <かな漢字><ひらがな><付属>
             * -1D <BGH:儲かる/もうかる><文末><句点><用言:動><レベル:C><区切:5-5><ID:（文末）><係:文末><提題受:30><主節><格要素><連用要素><動態述語><正規化代表表記:儲かる/もうかる><主辞代表表記:儲かる/もうかる>
-            + -1D <BGH:儲かる/もうかる><文末><句点><用言:動><レベル:C><区切:5-5><ID:（文末）><係:文末><提題受:30><主節><格要素><連用要素><動態述語><正規化代表表記:儲かる/もうかる><主辞代表表記:儲かる/もうかる><用言代表表記:儲かる/もうかる><節-区切><節-主辞><時制:非過去><主題格:一人称優位><格関係0:修飾:すると><格関係1:ガ:桶屋><格解析結果:儲かる/もうかる:動2:ガ/C/桶屋/1/0/2;修飾/C/すると/0/0/2><標準用言代表表記:儲かる/もうかる>
+            + -1D <BGH:儲かる/もうかる><文末><句点><用言:動><レベル:C><区切:5-5><ID:（文末）><係:文末><提題受:30><主節><格要素><連用要素><動態述語><正規化代表表記:儲かる/もうかる><主辞代表表記:儲かる/もうかる><用言代表表記:儲かる/もうかる><節-区切><節-主辞><時制:非過去><主題格:一人称優位><格関係0:修飾:すると><格関係1:ガ:桶屋><格解析結果:儲かる/もうかる:動2:ガ/C/桶屋/1/0/000-2;修飾/C/すると/0/0/000-2><標準用言代表表記:儲かる/もうかる>
             儲かる もうかる 儲かる 動詞 2 * 0 子音動詞ラ行 10 基本形 2 "代表表記:儲かる/もうかる ドメイン:ビジネス 自他動詞:他:儲ける/もうける" <代表表記:儲かる/もうかる><ドメイン:ビジネス><自他動詞:他:儲ける/もうける><正規化代表表記:儲かる/もうかる><かな漢字><活用語><表現文末><自立><内容語><タグ単位始><文節始><文節主辞><用言表記先頭><用言表記末尾><用言意味表記末尾>
             。 。 。 特殊 1 句点 1 * 0 * 0 NIL <英記号><記号><文末><付属>
             EOS
             """
         )
     )
-    encoding = dataset.encode(document)
+    encoding = dataset.encode(document, dataset.cohesion_examples["000"])
 
     mrph_types = [[IGNORE_INDEX] * 4 for _ in range(max_seq_length)]
     # 0: 風
@@ -155,55 +164,55 @@ def test_encode():
     mrph_types[8][3] = CONJFORM_TYPES.index("*")
     assert encoding["mrph_types"].tolist() == mrph_types
 
-    word_features = [[0.0] * len(WORD_FEATURES) for _ in range(max_seq_length)]
+    word_features = [[0] * len(WORD_FEATURES) for _ in range(max_seq_length)]
     # 0: 風
-    word_features[0][WORD_FEATURES.index("基本句-主辞")] = 1.0
+    word_features[0][WORD_FEATURES.index("基本句-主辞")] = 1
     # 1: が
-    word_features[1][WORD_FEATURES.index("基本句-区切")] = 1.0
-    word_features[1][WORD_FEATURES.index("文節-区切")] = 1.0
+    word_features[1][WORD_FEATURES.index("基本句-区切")] = 1
+    word_features[1][WORD_FEATURES.index("文節-区切")] = 1
     # 2: 吹く
-    word_features[2][WORD_FEATURES.index("基本句-主辞")] = 1.0
+    word_features[2][WORD_FEATURES.index("基本句-主辞")] = 1
     # 3: 。
-    word_features[3][WORD_FEATURES.index("基本句-区切")] = 1.0
-    word_features[3][WORD_FEATURES.index("文節-区切")] = 1.0
+    word_features[3][WORD_FEATURES.index("基本句-区切")] = 1
+    word_features[3][WORD_FEATURES.index("文節-区切")] = 1
     # 4: すると
-    word_features[4][WORD_FEATURES.index("基本句-主辞")] = 1.0
-    word_features[4][WORD_FEATURES.index("基本句-区切")] = 1.0
-    word_features[4][WORD_FEATURES.index("文節-区切")] = 1.0
+    word_features[4][WORD_FEATURES.index("基本句-主辞")] = 1
+    word_features[4][WORD_FEATURES.index("基本句-区切")] = 1
+    word_features[4][WORD_FEATURES.index("文節-区切")] = 1
     # 5: 桶屋
-    word_features[5][WORD_FEATURES.index("基本句-主辞")] = 1.0
+    word_features[5][WORD_FEATURES.index("基本句-主辞")] = 1
     # 6: が
-    word_features[6][WORD_FEATURES.index("基本句-区切")] = 1.0
-    word_features[6][WORD_FEATURES.index("文節-区切")] = 1.0
+    word_features[6][WORD_FEATURES.index("基本句-区切")] = 1
+    word_features[6][WORD_FEATURES.index("文節-区切")] = 1
     # 7: 儲かる
-    word_features[7][WORD_FEATURES.index("基本句-主辞")] = 1.0
+    word_features[7][WORD_FEATURES.index("基本句-主辞")] = 1
     # 8: 。
-    word_features[8][WORD_FEATURES.index("基本句-区切")] = 1.0
-    word_features[8][WORD_FEATURES.index("文節-区切")] = 1.0
+    word_features[8][WORD_FEATURES.index("基本句-区切")] = 1
+    word_features[8][WORD_FEATURES.index("文節-区切")] = 1
 
     base_phrase_head_indices = {
         base_phrase.head.global_index for base_phrase in document.base_phrases
     }
     base_phrase_features = [
-        [0.0] * len(BASE_PHRASE_FEATURES)
+        [0] * len(BASE_PHRASE_FEATURES)
         if morpheme_global_index in base_phrase_head_indices
-        else [float(IGNORE_INDEX)] * len(BASE_PHRASE_FEATURES)
+        else [IGNORE_INDEX] * len(BASE_PHRASE_FEATURES)
         for morpheme_global_index in range(max_seq_length)
     ]
     # 0: 風
-    base_phrase_features[0][BASE_PHRASE_FEATURES.index("体言")] = 1.0
+    base_phrase_features[0][BASE_PHRASE_FEATURES.index("体言")] = 1
     # 2: 吹く
-    base_phrase_features[2][BASE_PHRASE_FEATURES.index("用言:動")] = 1.0
-    base_phrase_features[2][BASE_PHRASE_FEATURES.index("節-区切")] = 1.0
-    base_phrase_features[2][BASE_PHRASE_FEATURES.index("節-主辞")] = 1.0
-    base_phrase_features[2][BASE_PHRASE_FEATURES.index("時制:非過去")] = 1.0
+    base_phrase_features[2][BASE_PHRASE_FEATURES.index("用言:動")] = 1
+    base_phrase_features[2][BASE_PHRASE_FEATURES.index("節-区切")] = 1
+    base_phrase_features[2][BASE_PHRASE_FEATURES.index("節-主辞")] = 1
+    base_phrase_features[2][BASE_PHRASE_FEATURES.index("時制:非過去")] = 1
     # 5: 桶屋
-    base_phrase_features[5][BASE_PHRASE_FEATURES.index("体言")] = 1.0
+    base_phrase_features[5][BASE_PHRASE_FEATURES.index("体言")] = 1
     # 7: 儲かる
-    base_phrase_features[7][BASE_PHRASE_FEATURES.index("用言:動")] = 1.0
-    base_phrase_features[7][BASE_PHRASE_FEATURES.index("節-区切")] = 1.0
-    base_phrase_features[7][BASE_PHRASE_FEATURES.index("節-主辞")] = 1.0
-    base_phrase_features[7][BASE_PHRASE_FEATURES.index("時制:非過去")] = 1.0
+    base_phrase_features[7][BASE_PHRASE_FEATURES.index("用言:動")] = 1
+    base_phrase_features[7][BASE_PHRASE_FEATURES.index("節-区切")] = 1
+    base_phrase_features[7][BASE_PHRASE_FEATURES.index("節-主辞")] = 1
+    base_phrase_features[7][BASE_PHRASE_FEATURES.index("時制:非過去")] = 1
     assert encoding["base_phrase_features"].tolist() == base_phrase_features
 
     dependencies = [IGNORE_INDEX for _ in range(max_seq_length)]
@@ -247,3 +256,43 @@ def test_encode():
     # 8: 。 -> 7: 儲かる
     dependency_types[8] = DEPENDENCY_TYPES.index("D")
     assert encoding["dependency_types"].tolist() == dependency_types
+
+
+def test_pas():
+    max_seq_length = 512
+    dataset = WordDataset(
+        str(data_dir / "knp"),
+        max_seq_length=max_seq_length,
+        **word_dataset_kwargs,
+    )
+    example = dataset.cohesion_examples["w201106-0000060560"]
+    example_expected = json.loads((data_dir / "expected/example/0.json").read_text())
+    mrphs_exp = example_expected["mrphs"]
+    annotation: PasAnnotation = example.annotations[Task.PAS_ANALYSIS]
+    phrases = example.phrases[Task.PAS_ANALYSIS]
+    mrphs = example.mrphs[Task.PAS_ANALYSIS]
+
+    assert len(mrphs) == len(mrphs_exp)
+    for phrase in phrases:
+        arguments: dict[str, list[str]] = annotation.arguments_set[phrase.dtid]
+        for case in dataset.cases:
+            arg_strings = [
+                arg[:-2] if arg[-2:] in ("%C", "%N", "%O") else arg
+                for arg in arguments[case]
+            ]
+            arg_strings = [
+                (s if s in dataset.special_to_index else str(phrases[int(s)].dmid))
+                for s in arg_strings
+            ]
+            assert set(arg_strings) == set(mrphs_exp[phrase.dmid]["arguments"][case])
+        for dmid in phrase.dmids:
+            mrph = mrphs[dmid]
+            mrph_exp = mrphs_exp[dmid]
+            assert mrph.surf == mrph_exp["surf"]
+            if mrph.is_target or example.mrphs[Task.BRIDGING][dmid].is_target:
+                candidates = set(phrases[i].dmid for i in phrase.candidates)
+                bar_phrases = example.phrases[Task.BRIDGING]
+                candidates |= set(
+                    bar_phrases[i].dmid for i in bar_phrases[phrase.dtid].candidates
+                )
+                assert candidates == set(mrph_exp["arg_candidates"])

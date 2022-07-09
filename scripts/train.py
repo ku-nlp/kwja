@@ -1,3 +1,4 @@
+import logging
 from typing import Optional, Union
 
 import hydra
@@ -15,6 +16,7 @@ from jula.models.typo_module import TypoModule
 from jula.models.word_module import WordModule
 
 hf_logging.set_verbosity(hf_logging.ERROR)
+logging.getLogger("rhoknp").setLevel(logging.WARNING)
 
 
 @hydra.main(version_base=None, config_path="../configs", config_name="word_segmenter")

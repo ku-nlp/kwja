@@ -2,6 +2,7 @@ import hydra
 import torch
 from torch.utils.data import Dataset
 from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizer
+from transformers.utils import PaddingStrategy
 
 
 class SegmentedTextDataset(Dataset):
@@ -30,7 +31,7 @@ class SegmentedTextDataset(Dataset):
 
     def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
         return {
-            "document_id": torch.tensor(index, dtype=torch.long),
+            "example_ids": torch.tensor(index, dtype=torch.long),
             **self.encode(self.texts[index]),
         }
 
@@ -38,7 +39,7 @@ class SegmentedTextDataset(Dataset):
         encoding: BatchEncoding = self.tokenizer(
             text,
             truncation=True,
-            padding="max_length",
+            padding=PaddingStrategy.MAX_LENGTH,
             max_length=self.max_seq_length - 1,
         )
         input_ids = encoding["input_ids"] + [self.tokenizer.vocab["[ROOT]"]]

@@ -17,5 +17,5 @@ class CustomConcatDataset(ConcatDataset):
         else:
             sample_idx = idx - self.cumulative_sizes[dataset_idx - 1]
         sample = self.datasets[dataset_idx][sample_idx]
-        sample["document_id"] = idx
+        sample["example_ids"] = idx
         return sample

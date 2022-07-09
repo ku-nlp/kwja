@@ -6,6 +6,10 @@ import torch.nn.functional as F
 from omegaconf import DictConfig
 from transformers import PretrainedConfig
 
+from jula.models.models.cohesion_analyzer import (
+    CohesionAnalyzer,
+    cohesion_cross_entropy_loss,
+)
 from jula.models.models.dependency_parser import DependencyParser
 from jula.utils.utils import IGNORE_INDEX
 
@@ -19,6 +23,12 @@ class RelationAnalyzer(nn.Module):
 
         self.dependency_parser: DependencyParser = DependencyParser(
             pretrained_model_config=pretrained_model_config
+        )
+        self.cohesion_analyzer: CohesionAnalyzer = CohesionAnalyzer(
+            pretrained_model_config=pretrained_model_config,
+            num_rels=int("pas_analysis" in hparams.cohesion_tasks) * len(hparams.cases)
+            + int("coreference" in hparams.cohesion_tasks)
+            + int("bridging" in hparams.cohesion_tasks),
         )
 
     def forward(
@@ -57,4 +67,18 @@ class RelationAnalyzer(nn.Module):
                 ignore_index=IGNORE_INDEX,
             )
             output.update({"dependency_type_loss": dependency_type_loss})
+
+        cohesion_logits = self.cohesion_analyzer(pooled_outputs)  # (b, rel, seq, seq)
+        output.update(
+            {
+                "cohesion_logits": cohesion_logits,
+            }
+        )
+        if "cohesion_target" in batch and "cohesion_mask" in batch:
+            cohesion_loss = cohesion_cross_entropy_loss(
+                cohesion_logits,
+                batch["cohesion_target"],
+                batch["cohesion_mask"],
+            )
+            output.update({"cohesion_loss": cohesion_loss})
         return output

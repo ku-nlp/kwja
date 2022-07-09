@@ -56,7 +56,7 @@ class CharModule(LightningModule):
             "train/word_segmenter_loss",
             outputs["word_segmenter_outputs"]["loss"],
             on_step=True,
-            on_epoch=True,
+            on_epoch=False,
         )
         return outputs["word_segmenter_outputs"]["loss"]
 
@@ -133,13 +133,51 @@ class CharModule(LightningModule):
     ) -> Any:
         outputs: dict[str, dict[str, torch.Tensor]] = self(**batch)
         return {
-            "document_ids": batch["document_id"],
+            "example_ids": batch["example_ids"],
             "word_segmenter_logits": outputs["word_segmenter_outputs"]["logits"],
             "word_segmenter_labels": batch["seg_labels"],
         }
 
     def configure_optimizers(self):
+        # Split weights in two groups, one with weight decay and the other not.
+        no_decay = ("bias", "LayerNorm.weight")
+        optimizer_grouped_parameters = [
+            {
+                "params": [
+                    p
+                    for n, p in self.named_parameters()
+                    if not any(nd in n for nd in no_decay) and p.requires_grad
+                ],
+                "weight_decay": self.hparams.optimizer.weight_decay,
+                "name": "decay",
+            },
+            {
+                "params": [
+                    p
+                    for n, p in self.named_parameters()
+                    if any(nd in n for nd in no_decay) and p.requires_grad
+                ],
+                "weight_decay": 0.0,
+                "name": "no_decay",
+            },
+        ]
         optimizer = hydra.utils.instantiate(
-            self.hparams.optimizer, params=self.parameters(), _convert_="partial"
+            self.hparams.optimizer,
+            params=optimizer_grouped_parameters,
+            _convert_="partial",
         )
-        return [optimizer], []
+
+        warmup_steps = self.hparams.warmup_steps
+        lr_scheduler = hydra.utils.instantiate(
+            self.hparams.scheduler,
+            optimizer=optimizer,
+            num_warmup_steps=warmup_steps,
+        )
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": lr_scheduler,
+                "interval": "step",
+                "frequency": 1,
+            },
+        }
