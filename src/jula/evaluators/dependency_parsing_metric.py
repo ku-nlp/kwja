@@ -240,11 +240,8 @@ class DependencyParsingMetric(Metric):
             system_head = morpheme_global_index2unit_index[head]
             system_deprel = INDEX2DEPENDENCY_TYPE[dependency_type]
             dependency_manager.add_edge(src, system_head)
-            # == > and > or
-            if (
-                dependency_manager.has_cycle()
-                or system_head == 0
-                and dependency_manager.root
+            if dependency_manager.has_cycle() or (
+                system_head == 0 and dependency_manager.root
             ):
                 dependency_manager.remove_edge(src, system_head)
             else:
