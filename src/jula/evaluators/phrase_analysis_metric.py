@@ -23,11 +23,11 @@ class PhraseAnalysisMetric(Metric):
 
     def update(
         self,
-        example_ids: torch.LongTensor,
-        word_feature_predictions: torch.LongTensor,
-        word_features: torch.LongTensor,
-        base_phrase_feature_predictions: torch.LongTensor,
-        base_phrase_features: torch.LongTensor,
+        example_ids: torch.Tensor,
+        word_feature_predictions: torch.Tensor,
+        word_features: torch.Tensor,
+        base_phrase_feature_predictions: torch.Tensor,
+        base_phrase_features: torch.Tensor,
     ):
         self.example_ids.append(example_ids)
         self.word_feature_predictions.append(word_feature_predictions)
@@ -35,9 +35,9 @@ class PhraseAnalysisMetric(Metric):
         self.base_phrase_feature_predictions.append(base_phrase_feature_predictions)
         self.base_phrase_features.append(base_phrase_features)
 
-    def compute(self) -> dict[str, Union[torch.LongTensor, float]]:
+    def compute(self) -> dict[str, Union[torch.Tensor, float]]:
         sorted_indices = self.unique(self.example_ids)
-        # (num_base_phrase_features, b, seq_len)
+        # (num_base_phrase_features, b, seq)
         (
             word_feature_predictions,
             word_features,
@@ -89,15 +89,15 @@ class PhraseAnalysisMetric(Metric):
 
     def compute_word_feature_metrics(
         self,
-        word_feature_predictions: torch.LongTensor,
-        word_features: torch.LongTensor,
+        word_feature_predictions: torch.Tensor,
+        word_features: torch.Tensor,
     ) -> dict[str, float]:
         word_feature_metrics = {}
         aligned_predictions, aligned_labels = [], []
         for i, (word_feature_prediction, word_feature_label) in enumerate(
             zip(word_feature_predictions, word_features)
         ):
-            # prediction / label: (b, seq_len)
+            # prediction / label: (b, seq)
             aligned_prediction, aligned_label = self.align_predictions(
                 prediction=word_feature_prediction.detach().cpu().numpy(),
                 label=word_feature_label.detach().cpu().numpy(),
@@ -128,15 +128,15 @@ class PhraseAnalysisMetric(Metric):
 
     def compute_base_phrase_feature_metrics(
         self,
-        base_phrase_feature_predictions: torch.LongTensor,
-        base_phrase_features: torch.LongTensor,
+        base_phrase_feature_predictions: torch.Tensor,
+        base_phrase_features: torch.Tensor,
     ) -> dict[str, float]:
         base_phrase_feature_metrics = {}
         aligned_predictions, aligned_labels = [], []
         for i, (base_phrase_feature_prediction, base_phrase_feature_label) in enumerate(
             zip(base_phrase_feature_predictions, base_phrase_features)
         ):
-            # pred/label: (batch_size, seq_len)
+            # prediction / label: (b, seq)
             aligned_prediction, aligned_label = self.align_predictions(
                 prediction=base_phrase_feature_prediction.detach().cpu().numpy(),
                 label=base_phrase_feature_label.detach().cpu().numpy(),
