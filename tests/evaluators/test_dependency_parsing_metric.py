@@ -107,15 +107,15 @@ def test_cyclic_dependency():
         )
     """
     cyclic dependency を解消すると
-    　　　　　 s  g
-    　風が　　 1  1
-    　吹く。　-1 -1
+    　　　　　  s   g
+    　風が　　 1P  1D
+    　吹く。　-1D -1D
 
-    　　　　 s  g
-    　風　　 1  2
-    　が　　 2  0
-    　吹く　 3 -1
-    　。　　-1  2
+    　　　　  s   g
+    　風　　 1P  2D
+    　が　　 2D  0D
+    　吹く　 3D -1D
+    　。　　-1D  2D
     となる
     """
     results = dependency_parsing_metric.compute(documents)
@@ -159,15 +159,15 @@ def test_multiple_roots():
         )
     """
     multiple roots を解消すると
-    　　　　　 s  g
-    　風が　　-1  1
-    　吹く。　 0 -1
+    　　　　　  s   g
+    　風が　　-1P  1D
+    　吹く。　 0D -1D
 
-    　　　　 s  g
-    　風　　-1  2
-    　が　　 0  0
-    　吹く　 3 -1
-    　。　　 1  2
+    　　　　  s   g
+    　風　　-1P  2D
+    　が　　 0D  0D
+    　吹く　 3D -1D
+    　。　　 1D  2D
     となる
     """
     results = dependency_parsing_metric.compute(documents)
@@ -211,15 +211,15 @@ def test_no_root():
         )
     """
     no root を解消すると
-    　　　　　 s  g
-    　風が　　 1  1
-    　吹く。　-1 -1
+    　　　　　  s   g
+    　風が　　 1P  1D
+    　吹く。　-1D -1D
 
-    　　　　s g
-    　風　　2 2
-    　が　　0 0
-    　吹く　3 6
-    　。　　6 2
+    　　　　 s  g
+    　風　　2P 2D
+    　が　　0D 0D
+    　吹く　3D 6D
+    　。　　6D 2D
     となる
     """
     results = dependency_parsing_metric.compute(documents)
