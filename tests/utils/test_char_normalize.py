@@ -1,0 +1,92 @@
+import pytest
+
+from jula.utils.char_normalize import get_normalization_opns, get_normalized_midasi
+
+wellformed_list = [
+    ("なぁ", ["K", "S"], "なあ"),
+    ("なー", ["K", "D"], "な"),
+    ("な〜", ["K", "D"], "な"),
+    ("おっ", ["K", "D"], "お"),
+    ("さぁ", ["K", "S"], "さあ"),
+    ("だぁ", ["K", "D"], "だ"),
+    ("ねぇ", ["K", "S"], "ねえ"),
+    ("うむっ", ["K", "K", "D"], "うむ"),
+    ("のッ", ["K", "D"], "の"),
+    ("バイキングっ", ["K", "K", "K", "K", "K", "D"], "バイキング"),
+    ("楽しむっ", ["K", "K", "K", "D"], "楽しむ"),
+    ("あっっっっっ", ["K", "K", "D", "D", "D", "D"], "あっ"),
+    ("ますぅ", ["K", "K", "D"], "ます"),
+    ("かい〜", ["K", "K", "D"], "かい"),
+    ("そう〜", ["K", "K", "D"], "そう"),
+    ("おーい",  ["K", "D", "K"], "おい"),
+    ("あーーー", ["K", "K", "D", "D"], "あー"),
+    ("自然ー", ["K", "K", 'D'], "自然"),
+    ("きたー", ["K", "K", "D"], "きた"),
+    ("ましたー", ["K", "K", "K", "D"], "ました"),
+    ("ました〜", ["K", "K", "K", "D"], "ました"),
+    ("飲んだー", ["K", "K", "K", "D"], "飲んだ"),
+    ("続くー", ["K", "K", "D"], "続く"),
+    ("寒〜い", ["K", "D", "K"], "寒い"),
+    ("いや〜", ["K", "K", "D"], "いや"),
+    ("あっちこち", ["K", "D", "K", "K", "K"], "あちこち"),
+    ("かるーい", ["K", "K", "D", "K"], "かるい"),
+    ("ずーっと", ["K", "P", "K", "K"], "ずうっと"),
+    ("よー", ["K", "P"], "よう"),
+    ("もーれつ",  ["K", "P", "K", "K"], "もうれつ"),
+    ("咲いたー", ["K", "K", "K", "D"], "咲いた"),
+    ("なぁ〜", ["K", "S", "D"], "なあ"),
+    ("ふわーっと", ["K", "K", "D", "K", "K"], "ふわっと"),
+    ("ずら〜っと", ["K", "K", "D", "K", "K"], "ずらっと"),
+    ("でーす", ["K", "D", "K"], "です"),
+    ("で〜す", ["K", "D", "K"], "です"),
+    ("まーす", ["K", "D", "K"], "ます"),
+    ("ま〜す", ["K", "D", "K"], "ます"),
+    ("いや〜", ["K", "K", "D"], "いや"),
+    ("安っぽぃ", ["K", "K", "K", "S"], "安っぽい"),
+    ("だー", ["K", "D"], "だ"),
+    ("ね〜", ["K", "E"], "ねえ"),
+    ("すっげー",  ["K", "D", "K", "E"], "すげえ"),
+    ("まぁまぁだ", ["K", "S", "K", "S", "K"], "まあまあだ"),
+    ("びみょーーー", ["K", "K", "K", "P", "D", "D"], "びみょう"),
+    ("ごめんなさーぃ", ["K", "K", "K", "K", "K", "D", "S"], "ごめんなさい"),
+    ("あっまい", ["K", "D", "K", "K"], "あまい"),
+    ("もどかしー", ["K", "K", "K", "K", "P"], "もどかしい"),
+    ("鎌ヶ谷", ["K", "S", "K"], "鎌ケ谷"),
+    ("龍ヶ崎", ["K", "S", "K"], "龍ケ崎"),
+    ("八ヶ岳", ["K", "S", "K"], "八ケ岳"),
+    ("湯ヶ島", ["K", "S", "K"], "湯ケ島"),
+    ("がえる", ["V", "K", "K"], "かえる"),
+    ("がえるー", ["V", "K", "K", "D"], "かえる"),
+]
+
+
+@pytest.mark.parametrize("midasi,ops,expected", wellformed_list)
+
+def test_gen_ormalized_midasi(midasi, ops, expected):
+    assert get_normalized_midasi(midasi, ops, strict=True) == expected
+
+
+@pytest.mark.parametrize("midasi,expected,normalized", wellformed_list)
+
+def test_get_normalization_opns(midasi, expected, normalized):
+    ops = get_normalization_opns(midasi, normalized)
+    assert len(ops) == len(expected)
+    assert all([a == b for a, b in zip(ops, expected)])
+
+
+malformed_list = [
+    ("なあ", ["K", "S"], "なあ"),
+    ("なー", ["K", "S"], "なー"),
+    ("ー", ["P"], "ー"),
+]
+
+@pytest.mark.parametrize("midasi,ops,expected", malformed_list)
+
+def test_gen_ormalized_midasi_malformed(midasi, ops, expected):
+    with pytest.raises(ValueError):
+        get_normalized_midasi(midasi, ops, strict=True)
+
+@pytest.mark.parametrize("midasi,ops,expected", malformed_list)
+        
+def test_gen_ormalized_midasi_malformed_loose(midasi, ops, expected):
+    assert get_normalized_midasi(midasi, ops, strict=False) == expected
