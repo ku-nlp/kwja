@@ -87,6 +87,8 @@ def test_encode():
     )
     encoding = dataset.encode(document)
 
+    assert(len(list(filter(lambda x: x == 0, encoding["charnorm_labels"]))) == 16)
+
     ene_ids = [
         [ENE_TYPE_BIES.index("PAD")] * max_seq_length for _ in range(max_ene_num)
     ]

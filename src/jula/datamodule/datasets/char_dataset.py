@@ -7,7 +7,8 @@ from transformers import BatchEncoding
 from transformers.utils import PaddingStrategy
 
 from jula.datamodule.datasets.base_dataset import BaseDataset
-from jula.utils.utils import ENE_TYPE_BIES, IGNORE_INDEX, SEG_TYPES
+from jula.utils.utils import ENE_TYPE_BIES, IGNORE_INDEX, SEG_TYPES, CHARNORM_TYPES
+from jula.utils.char_normalize import MorphemeNormalizer
 
 
 class CharDataset(BaseDataset):
@@ -19,6 +20,7 @@ class CharDataset(BaseDataset):
     ) -> None:
         super().__init__(**kwargs)
 
+        self.normalizer = MorphemeNormalizer()
         self.max_ene_num = max_ene_num
         self.darts = dartsclone.DoubleArray()
         self.darts.open(f"{wiki_ene_dic_path}/wiki.da")
@@ -86,6 +88,17 @@ class CharDataset(BaseDataset):
             self.max_seq_length - len(seg_labels)
         )
 
+        charnorm_labels: list[int] = []
+        for morpheme in document.morphemes:
+            for opn in self.normalizer.get_normalization_opns(morpheme):
+                charnorm_labels.append(CHARNORM_TYPES.index(opn))
+        charnorm_labels = (
+            [IGNORE_INDEX] + charnorm_labels[: self.max_seq_length - 2] + [IGNORE_INDEX]
+        )
+        charnorm_labels = charnorm_labels + [IGNORE_INDEX] * (
+            self.max_seq_length - len(charnorm_labels)
+        )
+
         raw_ene_ids: list[list[int]] = self.get_ene_ids(document.text)
         ene_ids: list[list[int]] = []
         for raw_ene_id in raw_ene_ids:
@@ -100,4 +113,5 @@ class CharDataset(BaseDataset):
             "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
             "ene_ids": torch.tensor(ene_ids, dtype=torch.long),
             "seg_labels": torch.tensor(seg_labels, dtype=torch.long),
+            "charnorm_labels": torch.tensor(charnorm_labels, dtype=torch.long),
         }

@@ -34,6 +34,16 @@ SEG_TYPES = (
 )
 INDEX2SEG_TYPE = {index: seg_type for index, seg_type in enumerate(SEG_TYPES)}
 
+CHARNORM_TYPES = (
+    "K",
+    "D",
+    "V",
+    "S",
+    "P",
+    "E",
+)
+INDEX2CHARNORM_TYPE = {index: charnorm_type for index, charnorm_type in enumerate(CHARNORM_TYPES)}
+
 # 品詞
 POS_TYPES = (
     "助動詞",
