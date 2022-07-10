@@ -1,6 +1,7 @@
 import pytest
 
-from jula.utils.char_normalize import get_normalization_opns, get_normalized_midasi
+from jula.utils.char_normalize import MorphemeNormalizer, get_normalization_opns, get_normalized
+from rhoknp import Morpheme
 
 wellformed_list = [
     ("なぁ", ["K", "S"], "なあ"),
@@ -60,18 +61,18 @@ wellformed_list = [
 ]
 
 
-@pytest.mark.parametrize("midasi,ops,expected", wellformed_list)
+@pytest.mark.parametrize("surf,ops,expected", wellformed_list)
 
-def test_gen_ormalized_midasi(midasi, ops, expected):
-    assert get_normalized_midasi(midasi, ops, strict=True) == expected
+def test_gen_ormalized_surf(surf, ops, expected):
+    assert get_normalized(surf, ops, strict=True) == expected
 
 
-@pytest.mark.parametrize("midasi,expected,normalized", wellformed_list)
+@pytest.mark.parametrize("surf,expected,normalized", wellformed_list)
 
-def test_get_normalization_opns(midasi, expected, normalized):
-    ops = get_normalization_opns(midasi, normalized)
-    assert len(ops) == len(expected)
-    assert all([a == b for a, b in zip(ops, expected)])
+def test_get_normalization_opns(surf, expected, normalized):
+    opns = get_normalization_opns(surf, normalized)
+    assert len(opns) == len(expected)
+    assert all([a == b for a, b in zip(opns, expected)])
 
 
 malformed_list = [
@@ -80,13 +81,24 @@ malformed_list = [
     ("ー", ["P"], "ー"),
 ]
 
-@pytest.mark.parametrize("midasi,ops,expected", malformed_list)
+@pytest.mark.parametrize("surf,ops,expected", malformed_list)
 
-def test_gen_ormalized_midasi_malformed(midasi, ops, expected):
+def test_gen_ormalized_surf_malformed(surf, ops, expected):
     with pytest.raises(ValueError):
-        get_normalized_midasi(midasi, ops, strict=True)
+        get_normalized(surf, ops, strict=True)
 
-@pytest.mark.parametrize("midasi,ops,expected", malformed_list)
+
+@pytest.mark.parametrize("surf,ops,expected", malformed_list)
         
-def test_gen_ormalized_midasi_malformed_loose(midasi, ops, expected):
-    assert get_normalized_midasi(midasi, ops, strict=False) == expected
+def test_gen_ormalized_surf_malformed_loose(surf, ops, expected):
+    assert get_normalized(surf, ops, strict=False) == expected
+
+
+def test_morpheme_normalizer():
+    jumanpp_text = "きたー きた きる 動詞 2 * 0 母音動詞 1 タ形 10 \"代表表記:着る/きる ドメイン:家庭・暮らし 反義:動詞:脱ぐ/ぬぐ 非標準表記:DPL\""
+    expected = ["K", "K", "D"]
+    morpheme = Morpheme.from_jumanpp(jumanpp_text)
+    normalizer = MorphemeNormalizer()
+    opns = normalizer.get_normalization_opns(morpheme)
+    assert len(opns) == len(expected)
+    assert all([a == b for a, b in zip(opns, expected)])

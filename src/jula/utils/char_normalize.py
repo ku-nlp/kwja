@@ -1,6 +1,10 @@
 from typing import List
 import numpy as np
 
+from rhoknp import Morpheme
+from jinf import Jinf
+
+
 # KATAKANA-HIRAGANA PROLONGED SOUND MARK (0x30fc)
 # "〜"(0x301C)  "⁓" (U+2053)、Full-width tilde:
 # "～" (U+FF5E)、tilde operator: "∼" (U+223C)
@@ -49,9 +53,23 @@ PROLONGED_MAP_FOR_EROW = {
 }
 
 
-def get_normalization_opns(midasi : str,
+class MorphemeNormalizer:
+    def __init__(self):
+        self.jinf = Jinf()
+
+    def get_normalization_opns(self,
+                               morpheme : Morpheme) -> List[str]:
+        if morpheme.conjtype == "*":
+            normalized = morpheme.surf
+        else:
+            normalized = self.jinf(morpheme.lemma, morpheme.conjtype, "基本形", morpheme.conjform)
+            print(normalized)
+        return get_normalization_opns(morpheme.surf, normalized)
+
+
+def get_normalization_opns(surf : str,
           normalized : str) -> List[str]:
-    I = len(midasi) + 1
+    I = len(surf) + 1
     J = len(normalized) + 1
     if I < J:
         raise ValueError
@@ -69,7 +87,7 @@ def get_normalization_opns(midasi : str,
         for i in range(1, I):
             if i < j:
                 continue
-            ci = midasi[i - 1]
+            ci = surf[i - 1]
             lops = []
             costs = []
             # heuristics: add D before K
@@ -92,7 +110,7 @@ def get_normalization_opns(midasi : str,
                 if ci in CHOON_SET and i > 1 \
                    and dops[i-1][j-1] == "K":
                     # NOTE: "P" and "E" must follow "K"
-                    p = midasi[i - 2]
+                    p = surf[i - 2]
                     if p in PROLONGED_MAP and cj == PROLONGED_MAP[p]:
                         lops.append("P")
                         costs.append(d[i-1, j-1] + 1)
@@ -122,46 +140,46 @@ def get_normalization_opns(midasi : str,
     return ops
 
 
-def get_normalized_midasi(midasi : str,
-                          ops : List[str],
-                          strict : bool=True) -> str:
-    assert(len(midasi) == len(ops))
+def get_normalized(surf : str,
+                   ops : List[str],
+                   strict : bool=True) -> str:
+    assert(len(surf) == len(ops))
     normalized = ""
-    for i, (c, op) in enumerate(zip(midasi, ops)):
+    for i, (c, op) in enumerate(zip(surf, ops)):
         if op == "K":
             normalized += c
         elif op == "V":
             if strict and i != 0:
-                raise ValueError(f"not an initial kana {c} in {midasi}")
+                raise ValueError(f"not an initial kana {c} in {surf}")
             if c in VOICED2VOICELESS:
                 normalized += VOICED2VOICELESS[c]
             else:
                 if strict:
-                    raise ValueError(f"not a voiced kana {c} in {midasi}")
+                    raise ValueError(f"not a voiced kana {c} in {surf}")
                 normalized += c                
         elif op == "D":
             if strict \
                and c not in CHOON_SET \
                and c not in HATSUON_SET \
                and c not in LOWER2UPPER:
-                raise ValueError(f"not a removable kana {c} in {midasi}")
+                raise ValueError(f"not a removable kana {c} in {surf}")
         elif op == "S":
             if c in LOWER2UPPER:
                 normalized += LOWER2UPPER[c]
             else:
                 if strict:
-                    raise ValueError(f"not a small kana {c} in {midasi}")
+                    raise ValueError(f"not a small kana {c} in {surf}")
                 normalized += c
         elif op == "P":
             # NOTE: in cannonical ops, P and E must follow K
             # but we do not check this constraint here
             if len(normalized) <= 0:
                 if strict:
-                    raise ValueError(f"no preceding kana for {c} in {midasi}")
+                    raise ValueError(f"no preceding kana for {c} in {surf}")
                 normalized += c
             elif c not in CHOON_SET:
                 if strict:
-                    raise ValueError(f"not a prolonged sign for {c} in {midasi}")
+                    raise ValueError(f"not a prolonged sign for {c} in {surf}")
                 normalized += c
             else:
                 p = normalized[-1]
@@ -169,16 +187,16 @@ def get_normalized_midasi(midasi : str,
                     normalized += PROLONGED_MAP[p]
                 else:
                     if strict:
-                        raise ValueError(f"not a valid precding kana {p} in {midasi}")
+                        raise ValueError(f"not a valid precding kana {p} in {surf}")
                     normalized += c
         elif op == "E":
             if len(normalized) <= 0:
                 if strict:
-                    raise ValueError(f"no preceding kana for {c} in {midasi}")
+                    raise ValueError(f"no preceding kana for {c} in {surf}")
                 normalized += c
             elif c not in CHOON_SET:
                 if strict:
-                    raise ValueError(f"not a prolonged sign for {c} in {midasi}")
+                    raise ValueError(f"not a prolonged sign for {c} in {surf}")
                 normalized += c
             else:
                 p = normalized[-1]
@@ -186,7 +204,7 @@ def get_normalized_midasi(midasi : str,
                     normalized += PROLONGED_MAP_FOR_EROW[p]
                 else:
                     if strict:
-                        raise ValueError(f"not a valid precding kana {p} in {midasi}")
+                        raise ValueError(f"not a valid precding kana {p} in {surf}")
                     normalized += c
         else:
             raise NotImplementedError(f"unknown op {op}")
@@ -194,6 +212,6 @@ def get_normalized_midasi(midasi : str,
 
 
 if __name__ == "__main__":
-    # print(get_normalized_midasi("がえるー", ["V", "K", "K", "D"], strict=True) == "かえる")
+    # print(get_normalized("がえるー", ["V", "K", "K", "D"], strict=True) == "かえる")
     print(get_normalization_opns("あーーーー", "あー"))
     print(get_normalization_opns("ね〜", "ねえ"))
