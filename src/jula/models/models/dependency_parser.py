@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from transformers import PretrainedConfig
 
-from jula.utils.utils import DEPENDENCY_TYPES, IGNORE_INDEX
+from jula.utils.utils import DEPENDENCY_TYPE2INDEX, IGNORE_INDEX
 
 
 class DependencyParser(nn.Module):
@@ -26,7 +26,7 @@ class DependencyParser(nn.Module):
                         "dropout",
                         nn.Dropout(pretrained_model_config.hidden_dropout_prob),
                     ),
-                    ("fc", nn.Linear(hidden_size, len(DEPENDENCY_TYPES))),
+                    ("fc", nn.Linear(hidden_size, len(DEPENDENCY_TYPE2INDEX))),
                 ]
             )
         )
