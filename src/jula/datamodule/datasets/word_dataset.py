@@ -165,13 +165,10 @@ class WordDataset(BaseDataset):
             ]
             begin, end = map(lambda x: x(morpheme_global_indices), [min, max])
             for i in range(begin, end + 1):
-                # 末尾の基本句主辞だけ[ROOT]を指す (複数の係り先が[ROOT]を指さないように)
-                if i == sentence.base_phrases[-1].head.global_index:
-                    intra_mask[i][-1] = True
-                else:
-                    for j in range(begin, end + 1):
-                        if i != j:
-                            intra_mask[i][j] = True
+                for j in range(begin, end + 1):
+                    if i != j:
+                        intra_mask[i][j] = True
+                intra_mask[i][-1] = True
 
         dependency_types = [IGNORE_INDEX for _ in range(self.max_seq_length)]
         for base_phrase in document.base_phrases:

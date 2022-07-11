@@ -22,8 +22,6 @@ from jula.utils.utils import BASE_PHRASE_FEATURES, IGNORE_INDEX
 EOS
 """
 
-phrase_analysis_metric = PhraseAnalysisMetric()
-
 word_feature_predictions = torch.tensor(
     [
         [
@@ -61,54 +59,12 @@ base_phrase_feature_predictions = torch.tensor(
             [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 図書
             # 館 (<節-主辞>と誤って予測)
             [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-            [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ],  # に (IGNORED)
+            # に (IGNORE)
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             # 行こう (<モダリティ-命令>と誤って予測)
             [1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
-            [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ],  # 。 (IGNORED)
+            # 。 (IGNORED)
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         ]
     ],
     dtype=torch.long,
@@ -128,6 +84,7 @@ base_phrase_features = torch.tensor(
     dtype=torch.long,
 )
 
+phrase_analysis_metric = PhraseAnalysisMetric()
 phrase_analysis_metric_args = {
     "example_ids": torch.as_tensor([0]),
     "word_feature_predictions": word_feature_predictions,
@@ -135,7 +92,6 @@ phrase_analysis_metric_args = {
     "base_phrase_feature_predictions": base_phrase_feature_predictions,
     "base_phrase_features": base_phrase_features,
 }
-
 phrase_analysis_metric.update(**phrase_analysis_metric_args)
 for attr in phrase_analysis_metric_args.keys():
     setattr(
@@ -143,7 +99,6 @@ for attr in phrase_analysis_metric_args.keys():
         attr,
         torch.cat(getattr(phrase_analysis_metric, attr), dim=0),
     )
-
 results = phrase_analysis_metric.compute()
 
 
@@ -163,7 +118,7 @@ def test_phrase_analysis_metric():
     assert results["体言_f1"] == 2 * prec * rec / (prec + rec)
     prec, rec = 1 / 1, 1 / 1
     assert results["モダリティ-意志_f1"] == 2 * prec * rec / (prec + rec)
-    # prec, rec = 0., 0 / 1
+    # prec, rec = 0 / 0, 0 / 1
     assert results["モダリティ-勧誘_f1"] == 0.0
     prec, rec = 1 / 2, 1 / 1
     assert results["節-主辞_f1"] == 2 * prec * rec / (prec + rec)
