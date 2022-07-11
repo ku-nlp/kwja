@@ -4,15 +4,13 @@ from pathlib import Path
 
 from jula.evaluators.cohesion_scorer import Measure, Scorer
 
-CASES = ["ガ", "ヲ"]
-
 
 def test_scorer(fixture_data_dir: Path, fixture_scorer: Scorer):
     expected_scores = json.loads(
         fixture_data_dir.joinpath("expected/cohesion_score.json").read_text()
     )
     score_dict = fixture_scorer.run().to_dict()
-    for case in CASES:
+    for case in fixture_scorer.cases:
         case_result = score_dict[case]
         for anal in Scorer.DEPTYPE2ANALYSIS.values():
             expected: dict = expected_scores[case][anal]
@@ -31,7 +29,7 @@ def test_score_result_add(fixture_data_dir: Path, fixture_scorer: Scorer):
     score_result = score_result1 + score_result2
     score_dict = score_result.to_dict()
 
-    for case in CASES:
+    for case in fixture_scorer.cases:
         case_result = score_dict[case]
         for anal in Scorer.DEPTYPE2ANALYSIS.values():
             expected: dict = expected_scores[case][anal]
