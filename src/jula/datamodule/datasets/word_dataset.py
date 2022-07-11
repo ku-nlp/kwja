@@ -6,7 +6,7 @@ from tokenizers import Encoding
 from transformers.utils import PaddingStrategy
 
 from jula.datamodule.datasets.base_dataset import BaseDataset
-from jula.datamodule.examples import CohesionExample, Task
+from jula.datamodule.examples import CohesionExample, DependencyExample, Task
 from jula.datamodule.extractors import (
     BridgingExtractor,
     CoreferenceExtractor,
@@ -17,7 +17,7 @@ from jula.utils.utils import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TYPES,
     CONJTYPE_TYPES,
-    DEPENDENCY_TYPES,
+    DEPENDENCY_TYPE2INDEX,
     DISCOURSE_RELATIONS,
     IGNORE_INDEX,
     POS_TYPES,
@@ -47,7 +47,6 @@ class WordDataset(BaseDataset):
         super().__init__(*args, **kwargs)
 
         self.cohesion_tasks: list[Task] = [Task(t) for t in kwargs["cohesion_tasks"]]
-
         self.cases: list[str] = list(kwargs["cases"])
         self.pas_targets: list[str] = ["pred", "noun"]
         self.bar_rels = list(kwargs["bar_rels"])
@@ -65,10 +64,16 @@ class WordDataset(BaseDataset):
             for i, token in enumerate(self.special_tokens)
         }
         self.cohesion_examples: dict[str, CohesionExample] = {}
+        self.dependency_examples: dict[str, DependencyExample] = {}
         for example_id, document in enumerate(self.documents):
             cohesion_example = self._load_cohesion_example(document)
             cohesion_example.example_id = example_id
             self.cohesion_examples[document.doc_id] = cohesion_example
+
+            dependency_example = DependencyExample()
+            dependency_example.load(document)
+            dependency_example.example_id = example_id
+            self.dependency_examples[document.doc_id] = dependency_example
 
     @property
     def special_indices(self) -> list[int]:
@@ -86,10 +91,14 @@ class WordDataset(BaseDataset):
     def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
         document = self.documents[index]
         cohesion_example = self.cohesion_examples[document.doc_id]
-        return self.encode(document, cohesion_example)
+        dependency_example = self.dependency_examples[document.doc_id]
+        return self.encode(document, cohesion_example, dependency_example)
 
     def encode(
-        self, document: Document, cohesion_example: CohesionExample
+        self,
+        document: Document,
+        cohesion_example: CohesionExample,
+        dependency_example: DependencyExample,
     ) -> dict[str, torch.Tensor]:
         # TODO: deal with the case that the document is too long
         encoding: Encoding = self.tokenizer(
@@ -150,37 +159,30 @@ class WordDataset(BaseDataset):
                 else:
                     base_phrase_features[head.global_index][i] = 0
 
-        dependencies = [IGNORE_INDEX for _ in range(self.max_seq_length)]
-        for morpheme in document.morphemes:
-            parent = morpheme.parent
-            if parent:
-                dependencies[morpheme.global_index] = morpheme.parent.global_index
-            else:  # 係り先がなければ文末の[ROOT]を指す
-                dependencies[morpheme.global_index] = self.special_to_index["[ROOT]"]
+        # dependency parsing
+        dependencies: list[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
+        for global_morpheme_index, dependency in enumerate(
+            dependency_example.dependencies
+        ):
+            dependencies[global_morpheme_index] = (
+                dependency if dependency != -1 else self.special_to_index["[ROOT]"]
+            )
 
-        intra_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
-        for sentence in document.sentences:
-            morpheme_global_indices = [
-                morpheme.global_index for morpheme in sentence.morphemes
+        dependency_mask: list[list[bool]] = []  # False -> mask, True -> keep
+        for cands in dependency_example.candidates:
+            cands.append(self.special_to_index["[ROOT]"])
+            dependency_mask.append([(x in cands) for x in range(self.max_seq_length)])
+        dependency_mask += [[False] * self.max_seq_length] * (
+            self.max_seq_length - len(dependency_mask)
+        )  # pad
+
+        dependency_types: list[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
+        for global_morpheme_index, dependency_type in enumerate(
+            dependency_example.dependency_types
+        ):
+            dependency_types[global_morpheme_index] = DEPENDENCY_TYPE2INDEX[
+                dependency_type
             ]
-            begin, end = map(lambda x: x(morpheme_global_indices), [min, max])
-            for i in range(begin, end + 1):
-                for j in range(begin, end + 1):
-                    if i != j:
-                        intra_mask[i][j] = True
-                intra_mask[i][-1] = True
-
-        dependency_types = [IGNORE_INDEX for _ in range(self.max_seq_length)]
-        for base_phrase in document.base_phrases:
-            for morpheme in base_phrase.morphemes:
-                if base_phrase.head == morpheme:
-                    dependency_types[morpheme.global_index] = DEPENDENCY_TYPES.index(
-                        base_phrase.dep_type.value
-                    )
-                else:
-                    dependency_types[morpheme.global_index] = DEPENDENCY_TYPES.index(
-                        "D"
-                    )
 
         # PAS analysis & coreference resolution
         cohesion_example.encoding = encoding
@@ -205,15 +207,6 @@ class WordDataset(BaseDataset):
             ret = self._convert_annotation_to_feature(annotation, phrases)
             cohesion_target.append(ret[0])
             candidates_set.append(ret[1])
-
-        special_encoding: Encoding = self.tokenizer(
-            self.special_tokens,
-            is_split_into_words=True,
-            padding=PaddingStrategy.DO_NOT_PAD,
-            truncation=False,
-            add_special_tokens=False,
-        ).encodings[0]
-        merged_encoding: Encoding = Encoding.merge([encoding, special_encoding])
         cohesion_mask = [
             [[(x in cands) for x in range(self.max_seq_length)] for cands in candidates]
             for candidates in candidates_set
@@ -227,6 +220,15 @@ class WordDataset(BaseDataset):
             ]
             for _ in range(self.max_seq_length)
         ]
+
+        special_encoding: Encoding = self.tokenizer(
+            self.special_tokens,
+            is_split_into_words=True,
+            padding=PaddingStrategy.DO_NOT_PAD,
+            truncation=False,
+            add_special_tokens=False,
+        ).encodings[0]
+        merged_encoding: Encoding = Encoding.merge([encoding, special_encoding])
 
         return {
             "example_ids": torch.tensor(cohesion_example.example_id, dtype=torch.long),
@@ -243,7 +245,7 @@ class WordDataset(BaseDataset):
                 base_phrase_features, dtype=torch.long
             ),
             "dependencies": torch.tensor(dependencies, dtype=torch.long),
-            "intra_mask": torch.tensor(intra_mask, dtype=torch.bool),
+            "intra_mask": torch.tensor(dependency_mask, dtype=torch.bool),
             "dependency_types": torch.tensor(dependency_types, dtype=torch.long),
             "discourse_relations": torch.tensor(discourse_relations, dtype=torch.long),
             "cohesion_target": torch.tensor(cohesion_target, dtype=torch.int),

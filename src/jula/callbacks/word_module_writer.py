@@ -8,6 +8,7 @@ import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks import BasePredictionWriter
 from rhoknp import Morpheme
+from rhoknp.units.utils import DepType
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from jula.utils.utils import (
@@ -196,11 +197,11 @@ class WordModuleWriter(BasePredictionWriter):
         offset = min(morpheme.global_index for morpheme in morpheme.sentence.morphemes)
         if head == sequence_len - 1:
             system_head = -1
-            system_deprel = "D"
+            system_deprel = DepType.DEPENDENCY
         else:
             system_head = head - offset
             system_deprel = INDEX2DEPENDENCY_TYPE[dependency_type]
-        return f"{system_head}{system_deprel}"
+        return f"{system_head}{system_deprel.value}"
 
     def convert_predictions(self, values, sequence_len: int):
         (

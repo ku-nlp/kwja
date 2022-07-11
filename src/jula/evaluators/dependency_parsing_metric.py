@@ -3,6 +3,7 @@ from typing import Union
 
 import torch
 from rhoknp import BasePhrase, Document, Morpheme
+from rhoknp.units.utils import DepType
 from torchmetrics import Metric
 
 from jula.evaluators.my_conll18_ud_eval import main as conll18_ud_eval
@@ -127,7 +128,7 @@ class DependencyParsingMetric(Metric):
 
                 for base_phrase in sentence.base_phrases:
                     gold_head = base_phrase.parent_index + 1
-                    gold_deprel = base_phrase.dep_type.value
+                    gold_deprel = base_phrase.dep_type
                     gold_lines.append(
                         self._to_conll_line(base_phrase, gold_head, gold_deprel)
                     )
@@ -173,9 +174,9 @@ class DependencyParsingMetric(Metric):
                 for morpheme in sentence.morphemes:
                     gold_head = morpheme.parent.index + 1 if morpheme.parent else 0
                     if morpheme == morpheme.base_phrase.head:
-                        gold_deprel = morpheme.base_phrase.dep_type.value
+                        gold_deprel = morpheme.base_phrase.dep_type
                     else:
-                        gold_deprel = "D"
+                        gold_deprel = DepType.DEPENDENCY
                     gold_lines.append(
                         self._to_conll_line(morpheme, gold_head, gold_deprel)
                     )
@@ -200,7 +201,7 @@ class DependencyParsingMetric(Metric):
 
     @staticmethod
     def _to_conll_line(
-        unit: Union[BasePhrase, Morpheme], head: int, deprel: str
+        unit: Union[BasePhrase, Morpheme], head: int, deprel: DepType
     ) -> str:
         id_ = unit.index + 1  # 0-origin -> 1-origin
         if isinstance(unit, BasePhrase):
@@ -215,7 +216,10 @@ class DependencyParsingMetric(Metric):
         deps = "_"
         misc = "_"
         return "\t".join(
-            map(str, [id_, form, lemma, upos, xpos, feats, head, deprel, deps, misc])
+            map(
+                str,
+                [id_, form, lemma, upos, xpos, feats, head, deprel.value, deps, misc],
+            )
         )
 
     @staticmethod
@@ -234,7 +238,7 @@ class DependencyParsingMetric(Metric):
         topk_dependency_types: torch.Tensor,  # (k, )
         morpheme_global_index2unit_index: dict[int, int],
         dependency_manager: DependencyManager,
-    ):
+    ) -> tuple[int, DepType]:
         src = unit.index + 1
         for head, dependency_type in zip(topk_heads, topk_dependency_types):
             system_head = morpheme_global_index2unit_index[head]
@@ -249,7 +253,7 @@ class DependencyParsingMetric(Metric):
         else:
             # 末尾の基本句/形態素まで見てROOTがない時
             if src == self.get_number_of_units(unit) and not dependency_manager.root:
-                system_head, system_deprel = 0, "D"
+                system_head, system_deprel = 0, DepType.DEPENDENCY
             else:
                 system_head, system_deprel = self.resolve_dependency(
                     unit, dependency_manager
@@ -258,7 +262,7 @@ class DependencyParsingMetric(Metric):
 
     def resolve_dependency(
         self, unit: Union[BasePhrase, Morpheme], dependency_manager: DependencyManager
-    ):
+    ) -> tuple[int, DepType]:
         src = unit.index + 1
         num_units = self.get_number_of_units(unit)
         # 日本語の係り受けは基本的にleft-to-rightなので、まず右方向に係れるか調べる
@@ -267,13 +271,13 @@ class DependencyParsingMetric(Metric):
             if dependency_manager.has_cycle():
                 dependency_manager.remove_edge(src, dst)
             else:
-                return dst, "D"
+                return dst, DepType.DEPENDENCY
 
         for dst in range(src - 1, 0, -1):
             dependency_manager.add_edge(src, dst)
             if dependency_manager.has_cycle():
                 dependency_manager.remove_edge(src, dst)
             else:
-                return dst, "D"
+                return dst, DepType.DEPENDENCY
 
         raise RuntimeError("couldn't resolve dependency")
