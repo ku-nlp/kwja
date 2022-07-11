@@ -54,7 +54,7 @@ def main(cfg: DictConfig):
     elif cfg.config_name in cfg.module.word:
         model = WordModule(hparams=cfg)
     else:
-        raise ValueError("invalid config name")
+        raise ValueError(f"invalid config name: `{cfg.config_name}`")
 
     trainer.fit(model=model, datamodule=datamodule)
     trainer.test(
