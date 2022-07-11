@@ -30,7 +30,7 @@ TASK2EXTRACTOR = {
 
 
 class CohesionExample:
-    """A single training/test example for bridging anaphora resolution."""
+    """A single training/test example for cohesion analysis."""
 
     def __init__(self) -> None:
         self.example_id: int = -1

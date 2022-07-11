@@ -28,27 +28,27 @@ class CoreferenceExtractor(Extractor):
         phrases: list[Phrase],
     ) -> CoreferenceAnnotation:
         bp_list = document.base_phrases
-        arguments_set: list[list[str]] = [[] for _ in bp_list]
+        mentions_set: list[list[str]] = [[] for _ in bp_list]
         for sentence in document.sentences:
-            for anaphor in sentence.base_phrases:
+            for mention in sentence.base_phrases:
                 is_target_phrase: bool = (
-                    self.is_target(anaphor)
+                    self.is_target(mention)
                     and self._kc_skip_sentence(sentence, document) is False
                 )
-                phrases[anaphor.global_index].is_target = is_target_phrase
+                phrases[mention.global_index].is_target = is_target_phrase
                 if is_target_phrase is False:
                     continue
                 candidates: list[int] = [
                     bp.global_index
                     for bp in bp_list
-                    if self.is_candidate(bp, anaphor) is True
+                    if self.is_candidate(bp, mention) is True
                 ]
-                phrases[anaphor.global_index].candidates = candidates
-                arguments_set[anaphor.global_index] = self._get_mentions(
-                    anaphor, candidates
+                phrases[mention.global_index].candidates = candidates
+                mentions_set[mention.global_index] = self._get_mentions(
+                    mention, candidates
                 )
 
-        return CoreferenceAnnotation(arguments_set)
+        return CoreferenceAnnotation(mentions_set)
 
     def _get_mentions(
         self,
