@@ -42,7 +42,9 @@ CHARNORM_TYPES = (
     "P",
     "E",
 )
-INDEX2CHARNORM_TYPE = {index: charnorm_type for index, charnorm_type in enumerate(CHARNORM_TYPES)}
+INDEX2CHARNORM_TYPE = {
+    index: charnorm_type for index, charnorm_type in enumerate(CHARNORM_TYPES)
+}
 
 # 品詞
 POS_TYPES = (

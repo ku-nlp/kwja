@@ -7,8 +7,8 @@ from transformers import BatchEncoding
 from transformers.utils import PaddingStrategy
 
 from jula.datamodule.datasets.base_dataset import BaseDataset
-from jula.utils.utils import ENE_TYPE_BIES, IGNORE_INDEX, SEG_TYPES, CHARNORM_TYPES
 from jula.utils.char_normalize import MorphemeNormalizer
+from jula.utils.utils import CHARNORM_TYPES, ENE_TYPE_BIES, IGNORE_INDEX, SEG_TYPES
 
 
 class CharDataset(BaseDataset):

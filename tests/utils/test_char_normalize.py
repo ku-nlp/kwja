@@ -1,7 +1,11 @@
 import pytest
-
-from jula.utils.char_normalize import MorphemeNormalizer, get_normalization_opns, get_normalized
 from rhoknp import Morpheme
+
+from jula.utils.char_normalize import (
+    MorphemeNormalizer,
+    get_normalization_opns,
+    get_normalized,
+)
 
 wellformed_list = [
     ("なぁ", ["K", "S"], "なあ"),
@@ -19,9 +23,9 @@ wellformed_list = [
     ("ますぅ", ["K", "K", "D"], "ます"),
     ("かい〜", ["K", "K", "D"], "かい"),
     ("そう〜", ["K", "K", "D"], "そう"),
-    ("おーい",  ["K", "D", "K"], "おい"),
+    ("おーい", ["K", "D", "K"], "おい"),
     ("あーーー", ["K", "K", "D", "D"], "あー"),
-    ("自然ー", ["K", "K", 'D'], "自然"),
+    ("自然ー", ["K", "K", "D"], "自然"),
     ("きたー", ["K", "K", "D"], "きた"),
     ("ましたー", ["K", "K", "K", "D"], "ました"),
     ("ました〜", ["K", "K", "K", "D"], "ました"),
@@ -33,7 +37,7 @@ wellformed_list = [
     ("かるーい", ["K", "K", "D", "K"], "かるい"),
     ("ずーっと", ["K", "P", "K", "K"], "ずうっと"),
     ("よー", ["K", "P"], "よう"),
-    ("もーれつ",  ["K", "P", "K", "K"], "もうれつ"),
+    ("もーれつ", ["K", "P", "K", "K"], "もうれつ"),
     ("咲いたー", ["K", "K", "K", "D"], "咲いた"),
     ("なぁ〜", ["K", "S", "D"], "なあ"),
     ("ふわーっと", ["K", "K", "D", "K", "K"], "ふわっと"),
@@ -46,7 +50,7 @@ wellformed_list = [
     ("安っぽぃ", ["K", "K", "K", "S"], "安っぽい"),
     ("だー", ["K", "D"], "だ"),
     ("ね〜", ["K", "E"], "ねえ"),
-    ("すっげー",  ["K", "D", "K", "E"], "すげえ"),
+    ("すっげー", ["K", "D", "K", "E"], "すげえ"),
     ("まぁまぁだ", ["K", "S", "K", "S", "K"], "まあまあだ"),
     ("びみょーーー", ["K", "K", "K", "P", "D", "D"], "びみょう"),
     ("ごめんなさーぃ", ["K", "K", "K", "K", "K", "D", "S"], "ごめんなさい"),
@@ -62,13 +66,11 @@ wellformed_list = [
 
 
 @pytest.mark.parametrize("surf,ops,expected", wellformed_list)
-
 def test_gen_ormalized_surf(surf, ops, expected):
     assert get_normalized(surf, ops, strict=True) == expected
 
 
 @pytest.mark.parametrize("surf,expected,normalized", wellformed_list)
-
 def test_get_normalization_opns(surf, expected, normalized):
     opns = get_normalization_opns(surf, normalized)
     assert len(opns) == len(expected)
@@ -81,21 +83,22 @@ malformed_list = [
     ("ー", ["P"], "ー"),
 ]
 
-@pytest.mark.parametrize("surf,ops,expected", malformed_list)
 
+@pytest.mark.parametrize("surf,ops,expected", malformed_list)
 def test_gen_ormalized_surf_malformed(surf, ops, expected):
     with pytest.raises(ValueError):
         get_normalized(surf, ops, strict=True)
 
 
 @pytest.mark.parametrize("surf,ops,expected", malformed_list)
-        
 def test_gen_ormalized_surf_malformed_loose(surf, ops, expected):
     assert get_normalized(surf, ops, strict=False) == expected
 
 
 def test_morpheme_normalizer():
-    jumanpp_text = "きたー きた きる 動詞 2 * 0 母音動詞 1 タ形 10 \"代表表記:着る/きる ドメイン:家庭・暮らし 反義:動詞:脱ぐ/ぬぐ 非標準表記:DPL\""
+    jumanpp_text = (
+        'きたー きた きる 動詞 2 * 0 母音動詞 1 タ形 10 "代表表記:着る/きる ドメイン:家庭・暮らし 反義:動詞:脱ぐ/ぬぐ 非標準表記:DPL"'
+    )
     expected = ["K", "K", "D"]
     morpheme = Morpheme.from_jumanpp(jumanpp_text)
     normalizer = MorphemeNormalizer()
