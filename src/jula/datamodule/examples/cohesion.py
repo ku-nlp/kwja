@@ -13,7 +13,7 @@ from jula.datamodule.extractors import (
 )
 from jula.datamodule.extractors.base import Extractor, Mrph, Phrase
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 
 class Task(Enum):

@@ -11,7 +11,7 @@ from rhoknp.units.utils import Rel
 from jula.datamodule.datasets.word_dataset import WordDataset
 from jula.datamodule.examples import Task
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 
 class CohesionKNPWriter:

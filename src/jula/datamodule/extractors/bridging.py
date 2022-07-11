@@ -7,7 +7,7 @@ from rhoknp.rel.pas import BaseArgument
 
 from .base import Extractor, Phrase
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
