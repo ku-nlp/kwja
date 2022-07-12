@@ -72,21 +72,11 @@ class WordModuleWriter(BasePredictionWriter):
             corpus = pl_module.test_corpora[dataloader_idx]
             dataset = trainer.datamodule.test_datasets[corpus]
             for prediction_step_output in prediction_step_outputs:
-                batch_pos_preds = torch.argmax(
-                    prediction_step_output["word_analysis_pos_logits"], dim=-1
-                )
-                batch_subpos_preds = torch.argmax(
-                    prediction_step_output["word_analysis_subpos_logits"], dim=-1
-                )
-                batch_conjtype_preds = torch.argmax(
-                    prediction_step_output["word_analysis_conjtype_logits"], dim=-1
-                )
-                batch_conjform_preds = torch.argmax(
-                    prediction_step_output["word_analysis_conjform_logits"], dim=-1
-                )
-                batch_word_feature_predictions = (
-                    prediction_step_output["word_feature_logits"].ge(0.5).long()
-                )
+                batch_pos_preds = torch.argmax(prediction_step_output["word_analysis_pos_logits"], dim=-1)
+                batch_subpos_preds = torch.argmax(prediction_step_output["word_analysis_subpos_logits"], dim=-1)
+                batch_conjtype_preds = torch.argmax(prediction_step_output["word_analysis_conjtype_logits"], dim=-1)
+                batch_conjform_preds = torch.argmax(prediction_step_output["word_analysis_conjform_logits"], dim=-1)
+                batch_word_feature_predictions = prediction_step_output["word_feature_logits"].ge(0.5).long()
                 batch_base_phrase_feature_predictions = (
                     prediction_step_output["base_phrase_feature_logits"].ge(0.5).long()
                 )
@@ -122,9 +112,7 @@ class WordModuleWriter(BasePredictionWriter):
                     document = dataset.documents[example_id]
                     results[corpus].append(
                         [
-                            self.convert_predictions(
-                                values, len(dependency_predictions)
-                            )
+                            self.convert_predictions(values, len(dependency_predictions))
                             for values in zip(
                                 document.morphemes,
                                 pos_preds,
@@ -157,9 +145,7 @@ class WordModuleWriter(BasePredictionWriter):
             f"{INDEX2POS_TYPE[pos_pred]} {INDEX2SUBPOS_TYPE[subpos_pred]} "
             f"{INDEX2CONJTYPE_TYPE[conjtype_pred]} {INDEX2CONJFORM_TYPE[conjform_pred]}"
         )
-        label = (
-            f"{morpheme.pos} {morpheme.subpos} {morpheme.conjtype} {morpheme.conjform}"
-        )
+        label = f"{morpheme.pos} {morpheme.subpos} {morpheme.conjtype} {morpheme.conjform}"
         return f"{pred}|{label}"
 
     @staticmethod
@@ -169,18 +155,14 @@ class WordModuleWriter(BasePredictionWriter):
         is_base_phrase_head: bool,
     ):
         word_features = "".join(
-            f"<{feature}>"
-            for feature, pred in zip(WORD_FEATURES, word_feature_prediction)
-            if pred == 1
+            f"<{feature}>" for feature, pred in zip(WORD_FEATURES, word_feature_prediction) if pred == 1
         )
         if not is_base_phrase_head:
             return f"{word_features}|"
         else:
             base_phrase_features = "".join(
                 f"<{feature}>"
-                for feature, pred in zip(
-                    BASE_PHRASE_FEATURES, base_phrase_feature_prediction
-                )
+                for feature, pred in zip(BASE_PHRASE_FEATURES, base_phrase_feature_prediction)
                 if pred == 1
             )
             return f"{word_features}|{base_phrase_features}"

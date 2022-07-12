@@ -24,9 +24,7 @@ class DependencyExample:
         for sentence in document.sentences:
             intra_morphemes = sentence.morphemes
             for morpheme in sentence.morphemes:
-                self.candidates.append(
-                    [m.global_index for m in intra_morphemes if m != morpheme]
-                )
+                self.candidates.append([m.global_index for m in intra_morphemes if m != morpheme])
 
         self.dependency_types = [DepType.DEPENDENCY] * len(document.morphemes)
         for base_phrase in document.base_phrases:

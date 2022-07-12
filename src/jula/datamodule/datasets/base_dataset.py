@@ -25,9 +25,7 @@ class BaseDataset(Dataset):
         self.document_ids: list[str] = [doc.doc_id for doc in self.documents]
 
         if tokenizer_kwargs:
-            tokenizer_kwargs = hydra.utils.instantiate(
-                tokenizer_kwargs, _convert_="partial"
-            )
+            tokenizer_kwargs = hydra.utils.instantiate(tokenizer_kwargs, _convert_="partial")
         else:
             tokenizer_kwargs = {}
         self.tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(

@@ -33,27 +33,19 @@ class DependencyParser(nn.Module):
 
         self.k = k
 
-    def forward(
-        self, pooled_outputs: torch.Tensor, dependencies: Optional[torch.Tensor] = None
-    ):
+    def forward(self, pooled_outputs: torch.Tensor, dependencies: Optional[torch.Tensor] = None):
         # (b, seq, h)
         h_i = self.W_a(pooled_outputs)
         h_j = self.U_a(pooled_outputs)
-        dependency_logits = self.v_a(
-            torch.tanh(h_i.unsqueeze(1) + h_j.unsqueeze(2))
-        ).squeeze(-1)
+        dependency_logits = self.v_a(torch.tanh(h_i.unsqueeze(1) + h_j.unsqueeze(2))).squeeze(-1)
 
         pooled_outputs = pooled_outputs.unsqueeze(2)
         batch_size, sequence_len, k, hidden_size = pooled_outputs.shape
         if dependencies is not None:
             # gather_indexにINGORE(=-100)を渡すことはできないので、0に上書き
-            dependencies = (
-                (dependencies * dependencies.ne(IGNORE_INDEX)).unsqueeze(2).unsqueeze(3)
-            )
+            dependencies = (dependencies * dependencies.ne(IGNORE_INDEX)).unsqueeze(2).unsqueeze(3)
         else:
-            dependencies = torch.topk(
-                dependency_logits, self.k, dim=2
-            ).indices.unsqueeze(3)
+            dependencies = torch.topk(dependency_logits, self.k, dim=2).indices.unsqueeze(3)
             k = self.k
 
         # head_hidden_states[0][0][0] == pooled_outputs[0][dependencies[0][0][0]]

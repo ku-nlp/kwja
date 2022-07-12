@@ -39,12 +39,8 @@ def test_getitem():
         assert item["ene_ids"].shape == (max_ene_num, max_seq_length)
         assert item["seg_labels"].shape == (max_seq_length,)
 
-        cls_token_position = (
-            item["input_ids"].tolist().index(dataset.tokenizer.cls_token_id)
-        )
-        sep_token_position = (
-            item["input_ids"].tolist().index(dataset.tokenizer.sep_token_id)
-        )
+        cls_token_position = item["input_ids"].tolist().index(dataset.tokenizer.cls_token_id)
+        sep_token_position = item["input_ids"].tolist().index(dataset.tokenizer.sep_token_id)
         assert item["seg_labels"][cls_token_position].tolist() == IGNORE_INDEX
         assert item["seg_labels"][sep_token_position].tolist() == IGNORE_INDEX
 
@@ -87,9 +83,7 @@ def test_encode():
     )
     encoding = dataset.encode(document)
 
-    ene_ids = [
-        [ENE_TYPE_BIES.index("PAD")] * max_seq_length for _ in range(max_ene_num)
-    ]
+    ene_ids = [[ENE_TYPE_BIES.index("PAD")] * max_seq_length for _ in range(max_ene_num)]
     # 0: 大学
     ene_ids[0][1] = ENE_TYPE_BIES.index("B-0")
     ene_ids[0][2] = ENE_TYPE_BIES.index("E-0")

@@ -43,9 +43,7 @@ class PhraseAnalyzer(nn.Module):
             )
         )
 
-    def forward(
-        self, pooled_outputs: torch.Tensor, batch: dict[str, torch.Tensor]
-    ) -> dict[str, torch.Tensor]:
+    def forward(self, pooled_outputs: torch.Tensor, batch: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         outputs: dict[str, torch.Tensor] = {}
         # (b, seq, num_word_features)
         word_feature_logits = self.word_feature_head(pooled_outputs)
@@ -57,9 +55,7 @@ class PhraseAnalyzer(nn.Module):
             word_feature_mask = batch["word_features"].ne(IGNORE_INDEX)
             input_ = word_feature_logits * word_feature_mask
             target = batch["word_features"] * word_feature_mask
-            word_feature_loss = self.compute_loss(
-                input_, target.float(), torch.sum(word_feature_mask[:, :, 0], dim=1)
-            )
+            word_feature_loss = self.compute_loss(input_, target.float(), torch.sum(word_feature_mask[:, :, 0], dim=1))
             outputs["word_feature_loss"] = word_feature_loss
         if "base_phrase_features" in batch:
             base_phrase_feature_mask = batch["base_phrase_features"].ne(IGNORE_INDEX)

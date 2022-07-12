@@ -7,11 +7,7 @@ from transformers.utils import PaddingStrategy
 
 from jula.datamodule.datasets.base_dataset import BaseDataset
 from jula.datamodule.examples import CohesionExample, DependencyExample, Task
-from jula.datamodule.extractors import (
-    BridgingExtractor,
-    CoreferenceExtractor,
-    PasExtractor,
-)
+from jula.datamodule.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
 from jula.datamodule.extractors.base import Phrase
 from jula.utils.utils import (
     BASE_PHRASE_FEATURES,
@@ -51,17 +47,12 @@ class WordDataset(BaseDataset):
         self.pas_targets: list[str] = ["pred", "noun"]
         self.bar_rels = list(kwargs["bar_rels"])
         self.extractors = {
-            Task.PAS_ANALYSIS: PasExtractor(
-                self.cases, self.pas_targets, self.exophora_referents, kc=False
-            ),
+            Task.PAS_ANALYSIS: PasExtractor(self.cases, self.pas_targets, self.exophora_referents, kc=False),
             Task.COREFERENCE: CoreferenceExtractor(self.exophora_referents, kc=False),
-            Task.BRIDGING: BridgingExtractor(
-                self.bar_rels, self.exophora_referents, kc=False
-            ),
+            Task.BRIDGING: BridgingExtractor(self.bar_rels, self.exophora_referents, kc=False),
         }
         self.special_to_index: dict[str, int] = {
-            token: self.max_seq_length - len(self.special_tokens) + i
-            for i, token in enumerate(self.special_tokens)
+            token: self.max_seq_length - len(self.special_tokens) + i for i, token in enumerate(self.special_tokens)
         }
         self.cohesion_examples: dict[str, CohesionExample] = {}
         self.dependency_examples: dict[str, DependencyExample] = {}
@@ -109,29 +100,19 @@ class WordDataset(BaseDataset):
         ).encodings[0]
 
         # NOTE: hereafter, indices are given at the word level
-        mrph_types: list[list[int]] = [
-            [IGNORE_INDEX] * 4 for _ in range(self.max_seq_length)
-        ]
+        mrph_types: list[list[int]] = [[IGNORE_INDEX] * 4 for _ in range(self.max_seq_length)]
         for morpheme in document.morphemes:
             if morpheme.pos in POS_TYPES:
                 mrph_types[morpheme.global_index][0] = POS_TYPES.index(morpheme.pos)
             if morpheme.subpos in SUBPOS_TYPES:
-                mrph_types[morpheme.global_index][1] = SUBPOS_TYPES.index(
-                    morpheme.subpos
-                )
+                mrph_types[morpheme.global_index][1] = SUBPOS_TYPES.index(morpheme.subpos)
             if morpheme.conjtype in CONJTYPE_TYPES:
-                mrph_types[morpheme.global_index][2] = CONJTYPE_TYPES.index(
-                    morpheme.conjtype
-                )
+                mrph_types[morpheme.global_index][2] = CONJTYPE_TYPES.index(morpheme.conjtype)
             if morpheme.conjtype in CONJTYPE_TYPES:
-                mrph_types[morpheme.global_index][3] = CONJFORM_TYPES.index(
-                    morpheme.conjform
-                )
+                mrph_types[morpheme.global_index][3] = CONJFORM_TYPES.index(morpheme.conjform)
 
         word_features = [
-            [0] * len(WORD_FEATURES)
-            if i < len(document.morphemes)
-            else [IGNORE_INDEX] * len(WORD_FEATURES)
+            [0] * len(WORD_FEATURES) if i < len(document.morphemes) else [IGNORE_INDEX] * len(WORD_FEATURES)
             for i in range(self.max_seq_length)
         ]
         for base_phrase in document.base_phrases:
@@ -143,10 +124,7 @@ class WordDataset(BaseDataset):
             end = phrase.morphemes[-1]
             word_features[end.global_index][WORD_FEATURES.index("文節-区切")] = 1
 
-        base_phrase_features = [
-            [IGNORE_INDEX] * len(BASE_PHRASE_FEATURES)
-            for _ in range(self.max_seq_length)
-        ]
+        base_phrase_features = [[IGNORE_INDEX] * len(BASE_PHRASE_FEATURES) for _ in range(self.max_seq_length)]
         for base_phrase in document.base_phrases:
             for i, base_phrase_feature in enumerate(BASE_PHRASE_FEATURES):
                 if ":" in base_phrase_feature:
@@ -161,28 +139,18 @@ class WordDataset(BaseDataset):
 
         # dependency parsing
         dependencies: list[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
-        for global_morpheme_index, dependency in enumerate(
-            dependency_example.dependencies
-        ):
-            dependencies[global_morpheme_index] = (
-                dependency if dependency != -1 else self.special_to_index["[ROOT]"]
-            )
+        for global_morpheme_index, dependency in enumerate(dependency_example.dependencies):
+            dependencies[global_morpheme_index] = dependency if dependency != -1 else self.special_to_index["[ROOT]"]
 
         dependency_mask: list[list[bool]] = []  # False -> mask, True -> keep
         for cands in dependency_example.candidates:
             cands.append(self.special_to_index["[ROOT]"])
             dependency_mask.append([(x in cands) for x in range(self.max_seq_length)])
-        dependency_mask += [[False] * self.max_seq_length] * (
-            self.max_seq_length - len(dependency_mask)
-        )  # pad
+        dependency_mask += [[False] * self.max_seq_length] * (self.max_seq_length - len(dependency_mask))  # pad
 
         dependency_types: list[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
-        for global_morpheme_index, dependency_type in enumerate(
-            dependency_example.dependency_types
-        ):
-            dependency_types[global_morpheme_index] = DEPENDENCY_TYPE2INDEX[
-                dependency_type
-            ]
+        for global_morpheme_index, dependency_type in enumerate(dependency_example.dependency_types):
+            dependency_types[global_morpheme_index] = DEPENDENCY_TYPE2INDEX[dependency_type]
 
         # PAS analysis & coreference resolution
         cohesion_example.encoding = encoding
@@ -193,9 +161,7 @@ class WordDataset(BaseDataset):
             annotation = cohesion_example.annotations[task]
             phrases = cohesion_example.phrases[task]
             for case in self.cases:
-                arguments_set = [
-                    arguments[case] for arguments in annotation.arguments_set
-                ]
+                arguments_set = [arguments[case] for arguments in annotation.arguments_set]
                 ret = self._convert_annotation_to_feature(arguments_set, phrases)
                 cohesion_target.append(ret[0])
                 candidates_set.append(ret[1])
@@ -214,10 +180,7 @@ class WordDataset(BaseDataset):
 
         # TODO: discourse relation analysis
         discourse_relations = [
-            [
-                [DISCOURSE_RELATIONS.index("談話関係なし")] * len(DISCOURSE_RELATIONS)
-                for _ in range(self.max_seq_length)
-            ]
+            [[DISCOURSE_RELATIONS.index("談話関係なし")] * len(DISCOURSE_RELATIONS) for _ in range(self.max_seq_length)]
             for _ in range(self.max_seq_length)
         ]
 
@@ -233,17 +196,11 @@ class WordDataset(BaseDataset):
         return {
             "example_ids": torch.tensor(cohesion_example.example_id, dtype=torch.long),
             "input_ids": torch.tensor(merged_encoding.ids, dtype=torch.long),
-            "attention_mask": torch.tensor(
-                merged_encoding.attention_mask, dtype=torch.long
-            ),
-            "subword_map": torch.tensor(
-                self._gen_subword_map(encoding), dtype=torch.bool
-            ),
+            "attention_mask": torch.tensor(merged_encoding.attention_mask, dtype=torch.long),
+            "subword_map": torch.tensor(self._gen_subword_map(encoding), dtype=torch.bool),
             "mrph_types": torch.tensor(mrph_types, dtype=torch.long),
             "word_features": torch.tensor(word_features, dtype=torch.long),
-            "base_phrase_features": torch.tensor(
-                base_phrase_features, dtype=torch.long
-            ),
+            "base_phrase_features": torch.tensor(base_phrase_features, dtype=torch.long),
             "dependencies": torch.tensor(dependencies, dtype=torch.long),
             "intra_mask": torch.tensor(dependency_mask, dtype=torch.bool),
             "dependency_types": torch.tensor(dependency_types, dtype=torch.long),
@@ -258,31 +215,19 @@ class WordDataset(BaseDataset):
         example: CohesionExample,
     ) -> list[list[list[float]]]:  # (phrase, rel, 0 or phrase+special)
         """1 example 中に存在する基本句それぞれに対してシステム予測のリストを返す．"""
-        ret: list[list[list[float]]] = [
-            [] for _ in next(iter(example.phrases.values()))
-        ]
+        ret: list[list[list[float]]] = [[] for _ in next(iter(example.phrases.values()))]
         task_idx = 0
         if Task.PAS_ANALYSIS in self.cohesion_tasks:
             for _ in self.cases:
-                for i, p in enumerate(
-                    self._token2bp_level(
-                        result[task_idx], example.phrases[Task.PAS_ANALYSIS]
-                    )
-                ):
+                for i, p in enumerate(self._token2bp_level(result[task_idx], example.phrases[Task.PAS_ANALYSIS])):
                     ret[i].append(p)
                 task_idx += 1
         if Task.BRIDGING in self.cohesion_tasks:
-            for i, p in enumerate(
-                self._token2bp_level(result[task_idx], example.phrases[Task.BRIDGING])
-            ):
+            for i, p in enumerate(self._token2bp_level(result[task_idx], example.phrases[Task.BRIDGING])):
                 ret[i].append(p)
             task_idx += 1
         if Task.COREFERENCE in self.cohesion_tasks:
-            for i, p in enumerate(
-                self._token2bp_level(
-                    result[task_idx], example.phrases[Task.COREFERENCE]
-                )
-            ):
+            for i, p in enumerate(self._token2bp_level(result[task_idx], example.phrases[Task.COREFERENCE])):
                 ret[i].append(p)
             task_idx += 1
         return ret
@@ -301,17 +246,13 @@ class WordDataset(BaseDataset):
                     phrase_level_scores.append(-1)  # pad -1 for non-candidate phrases
                     continue
                 phrase_level_scores.append(word_level_scores[tgt_bp.dmid])
-            phrase_level_scores += [
-                word_level_scores[idx] for idx in self.special_indices
-            ]
+            phrase_level_scores += [word_level_scores[idx] for idx in self.special_indices]
             assert len(phrase_level_scores) == len(phrases) + len(self.special_to_index)
             ret[anaphor.dtid] = softmax(phrase_level_scores).tolist()
         return ret
 
     def _gen_subword_map(self, encoding: Encoding) -> list[list[bool]]:
-        subword_map = [
-            [False] * self.max_seq_length for _ in range(self.max_seq_length)
-        ]
+        subword_map = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
         for token_id, word_id in enumerate(encoding.word_ids):
             if word_id is not None:
                 subword_map[word_id][token_id] = True
@@ -322,9 +263,7 @@ class WordDataset(BaseDataset):
         annotation: list[list[str]],  # phrase level
         phrases: list[Phrase],
     ) -> tuple[list[list[int]], list[list[int]]]:
-        scores_set: list[list[int]] = [
-            [0] * self.max_seq_length for _ in range(self.max_seq_length)
-        ]
+        scores_set: list[list[int]] = [[0] * self.max_seq_length for _ in range(self.max_seq_length)]
         candidates_set: list[list[int]] = [[] for _ in range(self.max_seq_length)]
 
         for phrase in phrases:

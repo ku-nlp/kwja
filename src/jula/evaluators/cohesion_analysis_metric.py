@@ -16,9 +16,7 @@ class CohesionAnalysisMetric(Metric):
         # Metric state variables can either be torch.Tensor or an empty list which can be used to store torch.Tensors`.
         # i.e. Expected metric state to be either a Tensor or a list of Tensor
         self.add_state("example_ids", default=list())  # list[torch.Tensor]
-        self.add_state(
-            "predictions", default=list()
-        )  # list[torch.Tensor]  # [(rel, phrase)]
+        self.add_state("predictions", default=list())  # list[torch.Tensor]  # [(rel, phrase)]
 
     def update(
         self,
@@ -29,19 +27,12 @@ class CohesionAnalysisMetric(Metric):
         assert len(output) == len(example_ids)
         for out, eid in zip(output, example_ids):
             self.example_ids.append(eid)
-            gold_example: CohesionExample = dataset.cohesion_examples[
-                dataset.document_ids[eid.item()]
-            ]
+            gold_example: CohesionExample = dataset.cohesion_examples[dataset.document_ids[eid.item()]]
             # (rel, phrase, 0 or phrase+special)
-            preds: list[list[list[float]]] = dataset.dump_prediction(
-                out.tolist(), gold_example
-            )
+            preds: list[list[list[float]]] = dataset.dump_prediction(out.tolist(), gold_example)
             self.predictions.append(
                 torch.as_tensor(
-                    [
-                        [(np.argmax(ps).item() if ps else -1) for ps in pred]
-                        for pred in preds
-                    ],
+                    [[(np.argmax(ps).item() if ps else -1) for ps in pred] for pred in preds],
                     dtype=torch.long,
                     device=example_ids.device,
                 )
@@ -49,13 +40,8 @@ class CohesionAnalysisMetric(Metric):
 
     def compute(self, dataset: WordDataset) -> ScoreResult:
         knp_writer = CohesionKNPWriter(dataset)
-        assert len(self.example_ids) == len(
-            self.predictions
-        ), f"{len(self.example_ids)} vs {len(self.predictions)}"
-        predictions = {
-            eid.item(): prediction.tolist()
-            for eid, prediction in zip(self.example_ids, self.predictions)
-        }
+        assert len(self.example_ids) == len(self.predictions), f"{len(self.example_ids)} vs {len(self.predictions)}"
+        predictions = {eid.item(): prediction.tolist() for eid, prediction in zip(self.example_ids, self.predictions)}
         documents_pred = knp_writer.write(predictions, destination=None)
         targets2label = {
             tuple(): "",

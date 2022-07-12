@@ -65,9 +65,7 @@ class DependencyParsingMetric(Metric):
         self.dependency_predictions.append(dependency_predictions)
         self.dependency_type_predictions.append(dependency_type_predictions)
 
-    def compute(
-        self, documents: list[Document]
-    ) -> dict[str, Union[torch.Tensor, float]]:
+    def compute(self, documents: list[Document]) -> dict[str, Union[torch.Tensor, float]]:
         sorted_indices = self.unique(self.example_ids)
         (example_ids, dependency_predictions, dependency_type_predictions) = map(
             lambda x: x[sorted_indices].tolist(),
@@ -80,22 +78,13 @@ class DependencyParsingMetric(Metric):
         documents = [documents[example_id] for example_id in example_ids]
 
         base_phrase_based_metrics = conll18_ud_eval(
-            *self._to_base_phrase_based_conll(
-                documents, dependency_predictions, dependency_type_predictions
-            )
+            *self._to_base_phrase_based_conll(documents, dependency_predictions, dependency_type_predictions)
         )
         morpheme_based_metrics = conll18_ud_eval(
-            *self._to_morpheme_based_conll(
-                documents, dependency_predictions, dependency_type_predictions
-            )
+            *self._to_morpheme_based_conll(documents, dependency_predictions, dependency_type_predictions)
         )
-        metrics = {
-            "base_phrase_" + key: value
-            for key, value in base_phrase_based_metrics.items()
-        }
-        metrics.update(
-            {"morpheme_" + key: value for key, value in morpheme_based_metrics.items()}
-        )
+        metrics = {"base_phrase_" + key: value for key, value in base_phrase_based_metrics.items()}
+        metrics.update({"morpheme_" + key: value for key, value in morpheme_based_metrics.items()})
         return metrics
 
     @staticmethod
@@ -129,9 +118,7 @@ class DependencyParsingMetric(Metric):
                 for base_phrase in sentence.base_phrases:
                     gold_head = base_phrase.parent_index + 1
                     gold_deprel = base_phrase.dep_type
-                    gold_lines.append(
-                        self._to_conll_line(base_phrase, gold_head, gold_deprel)
-                    )
+                    gold_lines.append(self._to_conll_line(base_phrase, gold_head, gold_deprel))
 
                     # goldの基本句主辞
                     system_head, system_deprel = self.get_system_predictions(
@@ -141,9 +128,7 @@ class DependencyParsingMetric(Metric):
                         morpheme_global_index2base_phrase_index,
                         dependency_manager,
                     )
-                    system_lines.append(
-                        self._to_conll_line(base_phrase, system_head, system_deprel)
-                    )
+                    system_lines.append(self._to_conll_line(base_phrase, system_head, system_deprel))
                     if system_head == 0:
                         dependency_manager.root = True
 
@@ -165,8 +150,7 @@ class DependencyParsingMetric(Metric):
 
             for sentence in document.sentences:
                 morpheme_global_index2morpheme_index = {
-                    morpheme.global_index: morpheme.index + 1
-                    for morpheme in sentence.morphemes
+                    morpheme.global_index: morpheme.index + 1 for morpheme in sentence.morphemes
                 }
                 morpheme_global_index2morpheme_index[sequence_len - 1] = 0
                 dependency_manager = DependencyManager()
@@ -177,9 +161,7 @@ class DependencyParsingMetric(Metric):
                         gold_deprel = morpheme.base_phrase.dep_type
                     else:
                         gold_deprel = DepType.DEPENDENCY
-                    gold_lines.append(
-                        self._to_conll_line(morpheme, gold_head, gold_deprel)
-                    )
+                    gold_lines.append(self._to_conll_line(morpheme, gold_head, gold_deprel))
 
                     system_head, system_deprel = self.get_system_predictions(
                         morpheme,
@@ -189,9 +171,7 @@ class DependencyParsingMetric(Metric):
                         dependency_manager,
                     )
 
-                    system_lines.append(
-                        self._to_conll_line(morpheme, system_head, system_deprel)
-                    )
+                    system_lines.append(self._to_conll_line(morpheme, system_head, system_deprel))
                     if system_head == 0:
                         dependency_manager.root = True
 
@@ -200,9 +180,7 @@ class DependencyParsingMetric(Metric):
         return gold_lines, system_lines
 
     @staticmethod
-    def _to_conll_line(
-        unit: Union[BasePhrase, Morpheme], head: int, deprel: DepType
-    ) -> str:
+    def _to_conll_line(unit: Union[BasePhrase, Morpheme], head: int, deprel: DepType) -> str:
         id_ = unit.index + 1  # 0-origin -> 1-origin
         if isinstance(unit, BasePhrase):
             form = "".join(morpheme.surf for morpheme in unit.morphemes)
@@ -244,9 +222,7 @@ class DependencyParsingMetric(Metric):
             system_head = morpheme_global_index2unit_index[head]
             system_deprel = INDEX2DEPENDENCY_TYPE[dependency_type]
             dependency_manager.add_edge(src, system_head)
-            if dependency_manager.has_cycle() or (
-                system_head == 0 and dependency_manager.root
-            ):
+            if dependency_manager.has_cycle() or (system_head == 0 and dependency_manager.root):
                 dependency_manager.remove_edge(src, system_head)
             else:
                 break
@@ -255,9 +231,7 @@ class DependencyParsingMetric(Metric):
             if src == self.get_number_of_units(unit) and not dependency_manager.root:
                 system_head, system_deprel = 0, DepType.DEPENDENCY
             else:
-                system_head, system_deprel = self.resolve_dependency(
-                    unit, dependency_manager
-                )
+                system_head, system_deprel = self.resolve_dependency(unit, dependency_manager)
         return system_head, system_deprel
 
     def resolve_dependency(

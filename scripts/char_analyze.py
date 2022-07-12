@@ -40,17 +40,11 @@ def main(cfg: DictConfig):
     model: Union[TypoModule, CharModule, WordModule]
     # add config name if you want
     if cfg.config_name in cfg.module.typo:
-        model = TypoModule.load_from_checkpoint(
-            checkpoint_path=cfg.checkpoint_path, hparams=cfg
-        )
+        model = TypoModule.load_from_checkpoint(checkpoint_path=cfg.checkpoint_path, hparams=cfg)
     elif cfg.config_name in cfg.module.char:
-        model = CharModule.load_from_checkpoint(
-            checkpoint_path=cfg.checkpoint_path, hparams=cfg
-        )
+        model = CharModule.load_from_checkpoint(checkpoint_path=cfg.checkpoint_path, hparams=cfg)
     elif cfg.config_name in cfg.module.word:
-        model = WordModule.load_from_checkpoint(
-            checkpoint_path=cfg.checkpoint_path, hparams=cfg
-        )
+        model = WordModule.load_from_checkpoint(checkpoint_path=cfg.checkpoint_path, hparams=cfg)
     else:
         raise ValueError("invalid config name")
 

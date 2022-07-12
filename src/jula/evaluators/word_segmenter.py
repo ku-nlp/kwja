@@ -15,9 +15,7 @@ class WordSegmenterMetric(Metric):
         self.add_state("seg_labels", default=[], dist_reduce_fx="cat")
 
     @staticmethod
-    def filter_predictions(
-        preds: list[str], labels: list[str]
-    ) -> Tuple[list[str], list[str]]:
+    def filter_predictions(preds: list[str], labels: list[str]) -> Tuple[list[str], list[str]]:
         filtered_preds = []
         filtered_labels = []
         for pred, label in zip(preds, labels):
@@ -28,9 +26,7 @@ class WordSegmenterMetric(Metric):
         return filtered_preds, filtered_labels
 
     @staticmethod
-    def convert_num2label(
-        preds: list[list[int]], labels: list[list[int]]
-    ) -> Tuple[list[list[str]], list[list[str]]]:
+    def convert_num2label(preds: list[list[int]], labels: list[list[int]]) -> Tuple[list[list[str]], list[list[str]]]:
         converted_preds: list[list[str]] = []
         converted_labels: list[list[str]] = []
         for pred, label in zip(preds, labels):
@@ -55,9 +51,7 @@ class WordSegmenterMetric(Metric):
             preds=self.seg_preds.cpu().tolist(),
             labels=self.seg_labels.cpu().tolist(),
         )  # (b, seq_len), (b, seq_len)
-        metrics["word_segmenter_acc"] = accuracy_score(
-            y_true=seg_labels, y_pred=seg_preds
-        )
+        metrics["word_segmenter_acc"] = accuracy_score(y_true=seg_labels, y_pred=seg_preds)
         metrics["word_segmenter_f1"] = f1_score(
             y_true=seg_labels,
             y_pred=seg_preds,

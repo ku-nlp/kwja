@@ -4,18 +4,13 @@ import torch.nn.functional as F
 from omegaconf import DictConfig
 from transformers import PretrainedConfig
 
-from jula.models.models.cohesion_analyzer import (
-    CohesionAnalyzer,
-    cohesion_cross_entropy_loss,
-)
+from jula.models.models.cohesion_analyzer import CohesionAnalyzer, cohesion_cross_entropy_loss
 from jula.models.models.dependency_parser import DependencyParser
 from jula.utils.utils import IGNORE_INDEX
 
 
 class RelationAnalyzer(nn.Module):
-    def __init__(
-        self, hparams: DictConfig, pretrained_model_config: PretrainedConfig
-    ) -> None:
+    def __init__(self, hparams: DictConfig, pretrained_model_config: PretrainedConfig) -> None:
         super().__init__()
         self.hparams = hparams
 

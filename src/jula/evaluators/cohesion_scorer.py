@@ -12,19 +12,9 @@ from typing import Any, Optional, TextIO, Union
 import pandas as pd
 from rhoknp import BasePhrase, Document
 from rhoknp.rel import ExophoraReferent
-from rhoknp.rel.pas import (
-    Argument,
-    ArgumentType,
-    BaseArgument,
-    Predicate,
-    SpecialArgument,
-)
+from rhoknp.rel.pas import Argument, ArgumentType, BaseArgument, Predicate, SpecialArgument
 
-from jula.datamodule.extractors import (
-    BridgingExtractor,
-    CoreferenceExtractor,
-    PasExtractor,
-)
+from jula.datamodule.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
@@ -78,17 +68,11 @@ class Scorer:
         pas_target: str = "pred",
     ) -> None:
         # long document may have been ignored
-        assert set(doc.doc_id for doc in documents_pred) <= set(
-            doc.doc_id for doc in documents_gold
-        )
+        assert set(doc.doc_id for doc in documents_pred) <= set(doc.doc_id for doc in documents_gold)
         self.cases: list[str] = target_cases if pas_target != "" else []
         self.doc_ids: list[str] = [doc.doc_id for doc in documents_pred]
-        self.did2document_pred: dict[str, Document] = {
-            doc.doc_id: doc for doc in documents_pred
-        }
-        self.did2document_gold: dict[str, Document] = {
-            doc.doc_id: doc for doc in documents_gold
-        }
+        self.did2document_pred: dict[str, Document] = {doc.doc_id: doc for doc in documents_pred}
+        self.did2document_gold: dict[str, Document] = {doc.doc_id: doc for doc in documents_gold}
         self.bridging: bool = bridging
         self.coreference: bool = coreference
         self.pas_target: str = pas_target
@@ -118,9 +102,7 @@ class Scorer:
             )
             all_results.append(sub_scorer.run())
             self.sub_scorers.append(sub_scorer)
-            self.comp_result.update(
-                {(doc_id, *key): val for key, val in sub_scorer.comp_result.items()}
-            )
+            self.comp_result.update({(doc_id, *key): val for key, val in sub_scorer.comp_result.items()})
         return reduce(add, all_results)
 
 
@@ -246,13 +228,9 @@ class SubScorer:
                     predicate_gold = global_index2predicate_gold[global_index]
                     args_gold = predicate_gold.pas.get_arguments(case, relax=False)
                     args_gold = self._filter_args(args_gold, predicate_gold)
-                    args_gold_relaxed = predicate_gold.pas.get_arguments(
-                        case, relax=True
-                    )
+                    args_gold_relaxed = predicate_gold.pas.get_arguments(case, relax=True)
                     if case == "ガ":
-                        args_gold_relaxed += predicate_gold.pas.get_arguments(
-                            "判ガ", relax=True
-                        )
+                        args_gold_relaxed += predicate_gold.pas.get_arguments("判ガ", relax=True)
                 else:
                     args_gold = args_gold_relaxed = []
 
@@ -276,9 +254,7 @@ class SubScorer:
                 # calculate recall
                 # 正解が複数ある場合、そのうち一つが当てられていればそれを正解に採用
                 # いずれも当てられていなければ、relax されていない項から一つを選び正解に採用
-                if args_gold or (
-                    self.comp_result.get(key, None) in Scorer.DEPTYPE2ANALYSIS.values()
-                ):
+                if args_gold or (self.comp_result.get(key, None) in Scorer.DEPTYPE2ANALYSIS.values()):
                     arg_gold = None
                     for arg in args_gold_relaxed:
                         if arg in args_pred:
@@ -296,15 +272,11 @@ class SubScorer:
                     measures.at[case, analysis].denom_gold += 1
         return measures
 
-    def _filter_args(
-        self, args: list[BaseArgument], predicate: Predicate
-    ) -> list[BaseArgument]:
+    def _filter_args(self, args: list[BaseArgument], predicate: Predicate) -> list[BaseArgument]:
         filtered_args = []
         for arg in args:
             if isinstance(arg, SpecialArgument):
-                if (
-                    arg.exophora_referent not in self.exophora_referents
-                ):  # filter out non-target exophors
+                if arg.exophora_referent not in self.exophora_referents:  # filter out non-target exophors
                     continue
                 arg.exophora_referent.index = None  # 「不特定:人１」なども「不特定:人」として扱う
             else:
@@ -314,8 +286,7 @@ class SubScorer:
                     continue
                 if (
                     predicate.base_phrase.global_index < arg.base_phrase.global_index
-                    and arg.base_phrase.sentence.sid
-                    != predicate.base_phrase.sentence.sid
+                    and arg.base_phrase.sentence.sid != predicate.base_phrase.sentence.sid
                 ):
                     continue
             filtered_args.append(arg)
@@ -323,9 +294,7 @@ class SubScorer:
 
     def _evaluate_bridging(self) -> pd.Series:
         """calculate bridging anaphora resolution scores"""
-        measures: dict[str, Measure] = OrderedDict(
-            (anal, Measure()) for anal in Scorer.DEPTYPE2ANALYSIS.values()
-        )
+        measures: dict[str, Measure] = OrderedDict((anal, Measure()) for anal in Scorer.DEPTYPE2ANALYSIS.values())
         global_index2anaphor_pred: dict[int, Predicate] = {
             pred.base_phrase.global_index: pred for pred in self.bridgings_pred
         }
@@ -351,15 +320,9 @@ class SubScorer:
                 antecedents_gold: list[BaseArgument] = self._filter_args(
                     anaphor_gold.pas.get_arguments("ノ", relax=False), anaphor_gold
                 )
-                antecedents_gold_relaxed: list[
-                    BaseArgument
-                ] = anaphor_gold.pas.get_arguments("ノ", relax=True)
-                antecedents_gold_relaxed += anaphor_gold.pas.get_arguments(
-                    "ノ？", relax=True
-                )
-                antecedents_gold_relaxed = self._filter_args(
-                    antecedents_gold_relaxed, anaphor_gold
-                )
+                antecedents_gold_relaxed: list[BaseArgument] = anaphor_gold.pas.get_arguments("ノ", relax=True)
+                antecedents_gold_relaxed += anaphor_gold.pas.get_arguments("ノ？", relax=True)
+                antecedents_gold_relaxed = self._filter_args(antecedents_gold_relaxed, anaphor_gold)
             else:
                 antecedents_gold = antecedents_gold_relaxed = []
 
@@ -370,9 +333,7 @@ class SubScorer:
                 antecedent_pred = antecedents_pred[0]
                 if antecedent_pred in antecedents_gold_relaxed:
                     # use dep_type of gold antecedent if possible
-                    antecedent_gold = antecedents_gold_relaxed[
-                        antecedents_gold_relaxed.index(antecedent_pred)
-                    ]
+                    antecedent_gold = antecedents_gold_relaxed[antecedents_gold_relaxed.index(antecedent_pred)]
                     analysis = Scorer.DEPTYPE2ANALYSIS[antecedent_gold.type]
                     if analysis == "overt":
                         analysis = "dep"
@@ -386,9 +347,7 @@ class SubScorer:
                 measures[analysis].denom_pred += 1
 
             # calculate recall
-            if antecedents_gold or (
-                self.comp_result.get(key, None) in Scorer.DEPTYPE2ANALYSIS.values()
-            ):
+            if antecedents_gold or (self.comp_result.get(key, None) in Scorer.DEPTYPE2ANALYSIS.values()):
                 antecedent_gold = None
                 for ant in antecedents_gold_relaxed:
                     if ant in antecedents_pred:
@@ -415,13 +374,9 @@ class SubScorer:
         measure = Measure()
         for global_index in range(len(self.document_pred.base_phrases)):
             src_mention_pred = self.document_pred.base_phrases[global_index]
-            tgt_mentions_pred = self.filter_mentions(
-                src_mention_pred.get_coreferents(), src_mention_pred
-            )
+            tgt_mentions_pred = self.filter_mentions(src_mention_pred.get_coreferents(), src_mention_pred)
             exophors_pred = {
-                e.exophora_referent.text
-                for e in src_mention_pred.entities
-                if e.exophora_referent is not None
+                e.exophora_referent.text for e in src_mention_pred.entities if e.exophora_referent is not None
             }
 
             src_mention_gold = self.document_gold.base_phrases[global_index]
@@ -434,23 +389,17 @@ class SubScorer:
                 src_mention_gold,
             )
             exophors_gold = {
-                e.exophora_referent.text
-                for e in src_mention_gold.entities
-                if e.exophora_referent is not None
+                e.exophora_referent.text for e in src_mention_gold.entities if e.exophora_referent is not None
             }
             exophors_gold_relaxed = {
-                e.exophora_referent.text
-                for e in src_mention_gold.entities_all
-                if e.exophora_referent is not None
+                e.exophora_referent.text for e in src_mention_gold.entities_all if e.exophora_referent is not None
             }
 
             key = (global_index, "=")
 
             # calculate precision
             if tgt_mentions_pred or exophors_pred:
-                if (tgt_mentions_pred & tgt_mentions_gold_relaxed) or (
-                    exophors_pred & exophors_gold_relaxed
-                ):
+                if (tgt_mentions_pred & tgt_mentions_gold_relaxed) or (exophors_pred & exophors_gold_relaxed):
                     self.comp_result[key] = "correct"
                     measure.correct += 1
                 else:
@@ -458,14 +407,8 @@ class SubScorer:
                 measure.denom_pred += 1
 
             # calculate recall
-            if (
-                tgt_mentions_gold
-                or exophors_gold
-                or (self.comp_result.get(key, None) == "correct")
-            ):
-                if (tgt_mentions_pred & tgt_mentions_gold_relaxed) or (
-                    exophors_pred & exophors_gold_relaxed
-                ):
+            if tgt_mentions_gold or exophors_gold or (self.comp_result.get(key, None) == "correct"):
+                if (tgt_mentions_pred & tgt_mentions_gold_relaxed) or (exophors_pred & exophors_gold_relaxed):
                     assert self.comp_result[key] == "correct"
                 else:
                     self.comp_result[key] = "wrong"
@@ -473,15 +416,9 @@ class SubScorer:
         return pd.Series([measure], index=["all"])
 
     @staticmethod
-    def filter_mentions(
-        tgt_mentions: set[BasePhrase], src_mention: BasePhrase
-    ) -> set[BasePhrase]:
+    def filter_mentions(tgt_mentions: set[BasePhrase], src_mention: BasePhrase) -> set[BasePhrase]:
         """filter out cataphors"""
-        return {
-            tgt_mention
-            for tgt_mention in tgt_mentions
-            if tgt_mention.global_index < src_mention.global_index
-        }
+        return {tgt_mention for tgt_mention in tgt_mentions if tgt_mention.global_index < src_mention.global_index}
 
 
 @dataclass(frozen=True)
@@ -518,8 +455,7 @@ class ScoreResult:
             df_all.at["all_case", "coreference"] = self.measure_coref["all"]
 
         return {
-            k1: {k2: v2 for k2, v2 in v1.items() if pd.notnull(v2)}
-            for k1, v1 in df_all.to_dict(orient="index").items()
+            k1: {k2: v2 for k2, v2 in v1.items() if pd.notnull(v2)} for k1, v1 in df_all.to_dict(orient="index").items()
         }
 
     def export_txt(self, destination: Union[str, Path, TextIO]) -> None:
@@ -530,19 +466,11 @@ class ScoreResult:
         """
         lines = []
         for key, ms in self.to_dict().items():
-            lines.append(
-                f"{key}格"
-                if self.measures_pas is not None and key in self.measures_pas.index
-                else key
-            )
+            lines.append(f"{key}格" if self.measures_pas is not None and key in self.measures_pas.index else key)
             for analysis, measure in ms.items():
                 lines.append(f"  {analysis}")
-                lines.append(
-                    f"    precision: {measure.precision:.4f} ({measure.correct}/{measure.denom_pred})"
-                )
-                lines.append(
-                    f"    recall   : {measure.recall:.4f} ({measure.correct}/{measure.denom_gold})"
-                )
+                lines.append(f"    precision: {measure.precision:.4f} ({measure.correct}/{measure.denom_pred})")
+                lines.append(f"    recall   : {measure.recall:.4f} ({measure.correct}/{measure.denom_gold})")
                 lines.append(f"    F        : {measure.f1:.4f}")
         text = "\n".join(lines) + "\n"
 
@@ -594,10 +522,7 @@ class ScoreResult:
         else:
             measures_pas = None
         if self.bridging:
-            assert (
-                self.measures_bridging is not None
-                and other.measures_bridging is not None
-            )
+            assert self.measures_bridging is not None and other.measures_bridging is not None
             measures_bridging = self.measures_bridging + other.measures_bridging
         else:
             measures_bridging = None
@@ -715,14 +640,8 @@ def main():
     )
     args = parser.parse_args()
 
-    documents_pred = [
-        Document.from_knp(path.read_text())
-        for path in Path(args.prediction_dir).glob("*.knp")
-    ]
-    documents_gold = [
-        Document.from_knp(path.read_text())
-        for path in Path(args.gold_dir).glob("*.knp")
-    ]
+    documents_pred = [Document.from_knp(path.read_text()) for path in Path(args.prediction_dir).glob("*.knp")]
+    documents_gold = [Document.from_knp(path.read_text()) for path in Path(args.gold_dir).glob("*.knp")]
 
     msg = (
         '"ノ" found in case string. If you want to perform bridging anaphora resolution, specify "--bridging" '

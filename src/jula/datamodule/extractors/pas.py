@@ -37,25 +37,16 @@ class PasExtractor(Extractor):
         arguments_set: list[dict[str, list[str]]] = [defaultdict(list) for _ in bp_list]
         for sentence in document.sentences:
             for anaphor in sentence.base_phrases:
-                is_target_phrase: bool = (
-                    self.is_target(anaphor)
-                    and self._kc_skip_sentence(sentence, document) is False
-                )
+                is_target_phrase: bool = self.is_target(anaphor) and self._kc_skip_sentence(sentence, document) is False
                 phrases[anaphor.global_index].is_target = is_target_phrase
                 if is_target_phrase is False:
                     continue
-                candidates: list[int] = [
-                    bp.global_index
-                    for bp in bp_list
-                    if self.is_candidate(bp, anaphor) is True
-                ]
+                candidates: list[int] = [bp.global_index for bp in bp_list if self.is_candidate(bp, anaphor) is True]
                 phrases[anaphor.global_index].candidates = candidates
                 # arguments = document.get_arguments(anaphor, relax=False)
                 for case in self.cases:
                     arguments = anaphor.pas.get_arguments(case, relax=False)
-                    arguments_set[anaphor.global_index][case] = self._get_args(
-                        arguments, candidates
-                    )
+                    arguments_set[anaphor.global_index][case] = self._get_args(arguments, candidates)
 
         return PasAnnotation(arguments_set)
 
@@ -76,9 +67,7 @@ class PasExtractor(Extractor):
         args: list[BaseArgument] = []
         for arg in orig_args:
             if isinstance(arg, SpecialArgument):
-                arg.exophora_referent = self._relax_exophora_referent(
-                    arg.exophora_referent
-                )
+                arg.exophora_referent = self._relax_exophora_referent(arg.exophora_referent)
                 if arg.exophora_referent in self.exophora_referents:
                     args.append(arg)
                 elif arg.exophora_referent == ExophoraReferent("[不明]"):

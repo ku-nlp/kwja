@@ -20,9 +20,7 @@ class DataModule(pl.LightningDataModule):
         self.num_workers: int = cfg.num_workers
 
         self.train_dataset: CustomConcatDataset = None
-        self.valid_datasets: dict[
-            str, Union[CharDataset, TypoDataset, WordDataset]
-        ] = {}
+        self.valid_datasets: dict[str, Union[CharDataset, TypoDataset, WordDataset]] = {}
         self.test_datasets: dict[str, Union[CharDataset, TypoDataset, WordDataset]] = {}
 
     def prepare_data(self):
@@ -31,10 +29,7 @@ class DataModule(pl.LightningDataModule):
     def setup(self, stage: Optional[str] = None) -> None:
         if stage in (TrainerFn.FITTING, TrainerFn.TUNING):
             self.train_dataset = CustomConcatDataset(
-                [
-                    hydra.utils.instantiate(config)
-                    for config in self.cfg.dataset.train.values()
-                ]
+                [hydra.utils.instantiate(config) for config in self.cfg.dataset.train.values()]
             )
         if stage in (
             TrainerFn.FITTING,
@@ -44,39 +39,26 @@ class DataModule(pl.LightningDataModule):
             TrainerFn.PREDICTING,
         ):
             self.valid_datasets = {
-                corpus: hydra.utils.instantiate(config)
-                for corpus, config in self.cfg.dataset.valid.items()
+                corpus: hydra.utils.instantiate(config) for corpus, config in self.cfg.dataset.valid.items()
             }
         if stage in (TrainerFn.TESTING, TrainerFn.PREDICTING):
             self.test_datasets = {
-                corpus: hydra.utils.instantiate(config)
-                for corpus, config in self.cfg.dataset.test.items()
+                corpus: hydra.utils.instantiate(config) for corpus, config in self.cfg.dataset.test.items()
             }
 
     def train_dataloader(self) -> DataLoader:
         return self._get_dataloader(dataset=self.train_dataset, shuffle=True)
 
     def val_dataloader(self) -> DataLoader:
-        return [
-            self._get_dataloader(dataset, shuffle=False)
-            for dataset in self.valid_datasets.values()
-        ]
+        return [self._get_dataloader(dataset, shuffle=False) for dataset in self.valid_datasets.values()]
 
     def test_dataloader(self) -> DataLoader:
-        return [
-            self._get_dataloader(dataset, shuffle=False)
-            for dataset in self.test_datasets.values()
-        ]
+        return [self._get_dataloader(dataset, shuffle=False) for dataset in self.test_datasets.values()]
 
     def predict_dataloader(self) -> DataLoader:
-        return [
-            self._get_dataloader(dataset, shuffle=False)
-            for dataset in self.test_datasets.values()
-        ]
+        return [self._get_dataloader(dataset, shuffle=False) for dataset in self.test_datasets.values()]
 
-    def _get_dataloader(
-        self, dataset: Union[CharDataset, TypoDataset, WordDataset], shuffle: bool
-    ) -> DataLoader:
+    def _get_dataloader(self, dataset: Union[CharDataset, TypoDataset, WordDataset], shuffle: bool) -> DataLoader:
         return DataLoader(
             dataset=dataset,
             batch_size=self.batch_size,

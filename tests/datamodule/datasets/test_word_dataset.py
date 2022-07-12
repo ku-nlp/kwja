@@ -115,9 +115,7 @@ def test_encode():
             """
         )
     )
-    encoding = dataset.encode(
-        document, dataset.cohesion_examples["000"], dataset.dependency_examples["000"]
-    )
+    encoding = dataset.encode(document, dataset.cohesion_examples["000"], dataset.dependency_examples["000"])
 
     mrph_types = [[IGNORE_INDEX] * 4 for _ in range(max_seq_length)]
     # 0: 風
@@ -193,9 +191,7 @@ def test_encode():
     word_features[8][WORD_FEATURES.index("基本句-区切")] = 1
     word_features[8][WORD_FEATURES.index("文節-区切")] = 1
 
-    base_phrase_head_indices = {
-        base_phrase.head.global_index for base_phrase in document.base_phrases
-    }
+    base_phrase_head_indices = {base_phrase.head.global_index for base_phrase in document.base_phrases}
     base_phrase_features = [
         [0] * len(BASE_PHRASE_FEATURES)
         if morpheme_global_index in base_phrase_head_indices
@@ -279,14 +275,8 @@ def test_pas():
     for phrase in phrases:
         arguments: dict[str, list[str]] = annotation.arguments_set[phrase.dtid]
         for case in dataset.cases:
-            arg_strings = [
-                arg[:-2] if arg[-2:] in ("%C", "%N", "%O") else arg
-                for arg in arguments[case]
-            ]
-            arg_strings = [
-                (s if s in dataset.special_to_index else str(phrases[int(s)].dmid))
-                for s in arg_strings
-            ]
+            arg_strings = [arg[:-2] if arg[-2:] in ("%C", "%N", "%O") else arg for arg in arguments[case]]
+            arg_strings = [(s if s in dataset.special_to_index else str(phrases[int(s)].dmid)) for s in arg_strings]
             assert set(arg_strings) == set(mrphs_exp[phrase.dmid]["arguments"][case])
         for dmid in phrase.dmids:
             mrph = mrphs[dmid]
@@ -295,7 +285,5 @@ def test_pas():
             if mrph.is_target or example.mrphs[Task.BRIDGING][dmid].is_target:
                 candidates = set(phrases[i].dmid for i in phrase.candidates)
                 bar_phrases = example.phrases[Task.BRIDGING]
-                candidates |= set(
-                    bar_phrases[i].dmid for i in bar_phrases[phrase.dtid].candidates
-                )
+                candidates |= set(bar_phrases[i].dmid for i in bar_phrases[phrase.dtid].candidates)
                 assert candidates == set(mrph_exp["arg_candidates"])

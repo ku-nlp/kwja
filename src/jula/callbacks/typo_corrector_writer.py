@@ -104,16 +104,12 @@ class TypoCorrectorWriter(BasePredictionWriter):
         for prediction in predictions:
             for batch_pred in prediction:
                 kdr_preds, kdr_labels = self.get_opn(
-                    pred_ids_list=torch.argmax(
-                        batch_pred["kdr_logits"], dim=-1
-                    ).tolist(),
+                    pred_ids_list=torch.argmax(batch_pred["kdr_logits"], dim=-1).tolist(),
                     label_ids_list=batch_pred["kdr_labels"].tolist(),
                     opn_prefix="R",
                 )
                 ins_preds, ins_labels = self.get_opn(
-                    pred_ids_list=torch.argmax(
-                        batch_pred["ins_logits"], dim=-1
-                    ).tolist(),
+                    pred_ids_list=torch.argmax(batch_pred["ins_logits"], dim=-1).tolist(),
                     label_ids_list=batch_pred["ins_labels"].tolist(),
                     opn_prefix="I",
                 )
