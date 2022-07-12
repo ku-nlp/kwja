@@ -66,6 +66,5 @@ class Extractor:
     @staticmethod
     def is_candidate(bp: BasePhrase, anaphor: BasePhrase) -> bool:
         return bp.global_index < anaphor.global_index or (
-            bp.global_index > anaphor.global_index
-            and bp.sentence.sid == anaphor.sentence.sid
+            bp.global_index > anaphor.global_index and bp.sentence.sid == anaphor.sentence.sid
         )

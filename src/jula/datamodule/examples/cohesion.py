@@ -5,12 +5,7 @@ from typing import Optional
 from rhoknp import Document
 from tokenizers import Encoding
 
-from jula.datamodule.extractors import (
-    Annotation,
-    BridgingExtractor,
-    CoreferenceExtractor,
-    PasExtractor,
-)
+from jula.datamodule.extractors import Annotation, BridgingExtractor, CoreferenceExtractor, PasExtractor
 from jula.datamodule.extractors.base import Extractor, Mrph, Phrase
 
 logger = logging.getLogger(__file__)
@@ -41,10 +36,7 @@ class CohesionExample:
 
     @property
     def mrphs(self) -> dict[Task, list[Mrph]]:
-        return {
-            task: sum((p.children for p in phrases), [])
-            for task, phrases in self.phrases.items()
-        }
+        return {task: sum((p.children for p in phrases), []) for task, phrases in self.phrases.items()}
 
     def load(
         self,
@@ -57,9 +49,7 @@ class CohesionExample:
             phrases = self._construct_phrases(document)
             extractor: Extractor = extractors[task]
             self.phrases[task] = phrases
-            self.annotations[task] = extractor.extract(
-                document, phrases
-            )  # extract gold
+            self.annotations[task] = extractor.extract(document, phrases)  # extract gold
 
     @staticmethod
     def _construct_phrases(document: Document) -> list[Phrase]:

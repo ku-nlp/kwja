@@ -16,9 +16,7 @@ class DependencyParsingMetric(Metric):
         self.add_state("preds", default=[], dist_reduce_fx="cat")
         self.add_state("type_preds", default=[], dist_reduce_fx="cat")
 
-    def update(
-        self, example_ids: torch.Tensor, preds: torch.Tensor, type_preds: torch.Tensor
-    ) -> None:
+    def update(self, example_ids: torch.Tensor, preds: torch.Tensor, type_preds: torch.Tensor) -> None:
         self.example_ids.append(example_ids)
         self.preds.append(preds)
         self.type_preds.append(type_preds)
@@ -31,19 +29,10 @@ class DependencyParsingMetric(Metric):
         )
         documents = [dataset.documents[example_id] for example_id in example_ids]
 
-        base_phrase_based_metrics = conll18_ud_eval(
-            *self._to_base_phrase_based_conll(documents, preds, type_preds)
-        )
-        morpheme_based_metrics = conll18_ud_eval(
-            *self._to_morpheme_based_conll(documents, preds, type_preds)
-        )
-        metrics = {
-            "base_phrase_" + key: value
-            for key, value in base_phrase_based_metrics.items()
-        }
-        metrics.update(
-            {"morpheme_" + key: value for key, value in morpheme_based_metrics.items()}
-        )
+        base_phrase_based_metrics = conll18_ud_eval(*self._to_base_phrase_based_conll(documents, preds, type_preds))
+        morpheme_based_metrics = conll18_ud_eval(*self._to_morpheme_based_conll(documents, preds, type_preds))
+        metrics = {"base_phrase_" + key: value for key, value in base_phrase_based_metrics.items()}
+        metrics.update({"morpheme_" + key: value for key, value in morpheme_based_metrics.items()})
         return metrics
 
     @staticmethod
@@ -62,9 +51,7 @@ class DependencyParsingMetric(Metric):
         gold_lines, system_lines = [], []
         for document, pred, type_pred in zip(documents, preds, type_preds):
             for sentence in document.sentences:
-                begin, end, morpheme_global_index2base_phrase_index = self._prefetch(
-                    sentence, len(pred)
-                )
+                begin, end, morpheme_global_index2base_phrase_index = self._prefetch(sentence, len(pred))
                 for base_phrase in sentence.base_phrases:
                     if base_phrase.parent_index >= 0:
                         gold_head = base_phrase.parent.index + 1
@@ -72,17 +59,11 @@ class DependencyParsingMetric(Metric):
                     else:
                         gold_head = 0
                         gold_deprel = "ROOT"
-                    gold_lines.append(
-                        self._to_conll_line(base_phrase, gold_head, gold_deprel)
-                    )
+                    gold_lines.append(self._to_conll_line(base_phrase, gold_head, gold_deprel))
 
-                    p, tp = map(
-                        lambda x: x[base_phrase.head.global_index], [pred, type_pred]
-                    )
+                    p, tp = map(lambda x: x[base_phrase.head.global_index], [pred, type_pred])
                     system_head = morpheme_global_index2base_phrase_index[p]
-                    system_deprel = (
-                        INDEX2DEPENDENCY_TYPE[tp] if system_head > 0 else "ROOT"
-                    )
+                    system_deprel = INDEX2DEPENDENCY_TYPE[tp] if system_head > 0 else "ROOT"
                     if 0 < system_head <= base_phrase.index:
                         system_head, system_deprel = self._find_another_governor(
                             base_phrase,
@@ -91,9 +72,7 @@ class DependencyParsingMetric(Metric):
                             type_pred,
                         )
 
-                    system_lines.append(
-                        self._to_conll_line(base_phrase, system_head, system_deprel)
-                    )
+                    system_lines.append(self._to_conll_line(base_phrase, system_head, system_deprel))
 
                 gold_lines.append("\n")
                 system_lines.append("\n")
@@ -108,9 +87,7 @@ class DependencyParsingMetric(Metric):
         gold_lines, system_lines = [], []
         for document, pred, type_pred in zip(documents, preds, type_preds):
             for sentence in document.sentences:
-                begin, end, morpheme_global_index2base_phrase_index = self._prefetch(
-                    sentence, len(pred)
-                )
+                begin, end, morpheme_global_index2base_phrase_index = self._prefetch(sentence, len(pred))
                 for morpheme in sentence.morphemes:
                     if morpheme.parent:
                         gold_head = morpheme.parent.index + 1
@@ -121,9 +98,7 @@ class DependencyParsingMetric(Metric):
                     else:
                         gold_head = 0
                         gold_deprel = "ROOT"
-                    gold_lines.append(
-                        self._to_conll_line(morpheme, gold_head, gold_deprel)
-                    )
+                    gold_lines.append(self._to_conll_line(morpheme, gold_head, gold_deprel))
 
                     p, tp = map(lambda x: x[morpheme.global_index], [pred, type_pred])
                     if begin <= p <= end:
@@ -132,21 +107,15 @@ class DependencyParsingMetric(Metric):
                     else:
                         system_head = 0
                         system_deprel = "ROOT"
-                    system_lines.append(
-                        self._to_conll_line(morpheme, system_head, system_deprel)
-                    )
+                    system_lines.append(self._to_conll_line(morpheme, system_head, system_deprel))
 
                 gold_lines.append("\n")
                 system_lines.append("\n")
         return gold_lines, system_lines
 
     @staticmethod
-    def _prefetch(
-        sentence: Sentence, max_seq_len: int
-    ) -> tuple[int, int, dict[int, int]]:
-        morpheme_global_indices = [
-            morpheme.global_index for morpheme in sentence.morphemes
-        ]
+    def _prefetch(sentence: Sentence, max_seq_len: int) -> tuple[int, int, dict[int, int]]:
+        morpheme_global_indices = [morpheme.global_index for morpheme in sentence.morphemes]
         begin, end = map(lambda x: x(morpheme_global_indices), [min, max])
         morpheme_global_index2base_phrase_index = {
             morpheme.global_index: base_phrase.index + 1
@@ -157,9 +126,7 @@ class DependencyParsingMetric(Metric):
         return begin, end, morpheme_global_index2base_phrase_index
 
     @staticmethod
-    def _to_conll_line(
-        unit: Union[BasePhrase, Morpheme], head: int, deprel: str
-    ) -> str:
+    def _to_conll_line(unit: Union[BasePhrase, Morpheme], head: int, deprel: str) -> str:
         id_ = unit.index + 1  # 0-origin -> 1-origin
         if isinstance(unit, BasePhrase):
             form = "".join(morpheme.surf for morpheme in unit.morphemes)
@@ -172,9 +139,7 @@ class DependencyParsingMetric(Metric):
         feats = "_"
         deps = "_"
         misc = "_"
-        return "\t".join(
-            map(str, [id_, form, lemma, upos, xpos, feats, head, deprel, deps, misc])
-        )
+        return "\t".join(map(str, [id_, form, lemma, upos, xpos, feats, head, deprel, deps, misc]))
 
     @staticmethod
     def _find_another_governor(

@@ -8,14 +8,8 @@ from jula.evaluators.cohesion_scorer import Measure, Scorer
 
 
 def test_scorer(fixture_data_dir: Path):
-    documents_pred = [
-        Document.from_knp(path.read_text())
-        for path in fixture_data_dir.glob("system/*.knp")
-    ]
-    documents_gold = [
-        Document.from_knp(path.read_text())
-        for path in fixture_data_dir.glob("gold/*.knp")
-    ]
+    documents_pred = [Document.from_knp(path.read_text()) for path in fixture_data_dir.glob("system/*.knp")]
+    documents_gold = [Document.from_knp(path.read_text()) for path in fixture_data_dir.glob("gold/*.knp")]
 
     with fixture_data_dir.joinpath("expected/cohesion_score.json").open() as f:
         expected_scores = json.load(f)
@@ -25,9 +19,7 @@ def test_scorer(fixture_data_dir: Path):
         documents_pred,
         documents_gold,
         target_cases=cases,
-        exophora_referents=[
-            ExophoraReferent(e) for e in ("著者", "読者", "不特定:人", "不特定:物")
-        ],
+        exophora_referents=[ExophoraReferent(e) for e in ("著者", "読者", "不特定:人", "不特定:物")],
         coreference=True,
         bridging=True,
         pas_target="all",

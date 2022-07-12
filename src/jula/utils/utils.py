@@ -23,9 +23,7 @@ ENE_TYPES = (
     "1.12",  # 色名
 )
 ENE_TYPE_BIES: tuple = ("PAD",) + tuple(
-    itertools.chain.from_iterable(
-        (f"B-{ene}", f"I-{ene}", f"E-{ene}") for ene in ENE_TYPES
-    )
+    itertools.chain.from_iterable((f"B-{ene}", f"I-{ene}", f"E-{ene}") for ene in ENE_TYPES)
 )
 
 SEG_TYPES = (
@@ -91,9 +89,7 @@ SUBPOS_TYPES = (
     "名詞性特殊接尾辞",
     "時相名詞",
 )
-INDEX2SUBPOS_TYPE = {
-    index: subpos_type for index, subpos_type in enumerate(SUBPOS_TYPES)
-}
+INDEX2SUBPOS_TYPE = {index: subpos_type for index, subpos_type in enumerate(SUBPOS_TYPES)}
 # 活用型
 CONJTYPE_TYPES = (
     "助動詞だろう型",
@@ -132,9 +128,7 @@ CONJTYPE_TYPES = (
     "イ形容詞イ段特殊",
     "子音動詞バ行",
 )
-INDEX2CONJTYPE_TYPE = {
-    index: conjtype_type for index, conjtype_type in enumerate(CONJTYPE_TYPES)
-}
+INDEX2CONJTYPE_TYPE = {index: conjtype_type for index, conjtype_type in enumerate(CONJTYPE_TYPES)}
 # 活用形
 CONJFORM_TYPES = (
     "ダ列基本条件形",
@@ -202,9 +196,7 @@ CONJFORM_TYPES = (
     "エ基本形",
     "デス列基本省略推量形",
 )
-INDEX2CONJFORM_TYPE = {
-    index: conjform_type for index, conjform_type in enumerate(CONJFORM_TYPES)
-}
+INDEX2CONJFORM_TYPE = {index: conjform_type for index, conjform_type in enumerate(CONJFORM_TYPES)}
 
 WORD_FEATURES = (
     "基本句-主辞",
@@ -250,9 +242,7 @@ DEPENDENCY_TYPES = (
     "A",
     "I",
 )
-INDEX2DEPENDENCY_TYPE = {
-    index: dependency_type for index, dependency_type in enumerate(DEPENDENCY_TYPES)
-}
+INDEX2DEPENDENCY_TYPE = {index: dependency_type for index, dependency_type in enumerate(DEPENDENCY_TYPES)}
 
 
 DISCOURSE_RELATIONS = (

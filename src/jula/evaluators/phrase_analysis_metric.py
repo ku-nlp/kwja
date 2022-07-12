@@ -16,9 +16,7 @@ class PhraseAnalysisMetric(Metric):
         self.add_state("example_ids", default=[], dist_reduce_fx="cat")
         self.add_state("word_feature_predictions", default=[], dist_reduce_fx="cat")
         self.add_state("word_features", default=[], dist_reduce_fx="cat")
-        self.add_state(
-            "base_phrase_feature_predictions", default=[], dist_reduce_fx="cat"
-        )
+        self.add_state("base_phrase_feature_predictions", default=[], dist_reduce_fx="cat")
         self.add_state("base_phrase_features", default=[], dist_reduce_fx="cat")
 
     def update(
@@ -38,12 +36,7 @@ class PhraseAnalysisMetric(Metric):
     def compute(self) -> dict[str, Union[torch.LongTensor, float]]:
         sorted_indices = self.unique(self.example_ids)
         # (num_base_phrase_features, b, seq_len)
-        (
-            word_feature_predictions,
-            word_features,
-            base_phrase_feature_predictions,
-            base_phrase_features,
-        ) = map(
+        (word_feature_predictions, word_features, base_phrase_feature_predictions, base_phrase_features,) = map(
             lambda x: x[sorted_indices].permute(2, 0, 1),
             [
                 self.word_feature_predictions,
@@ -53,14 +46,8 @@ class PhraseAnalysisMetric(Metric):
             ],
         )
 
-        metrics = self.compute_word_feature_metrics(
-            word_feature_predictions, word_features
-        )
-        metrics.update(
-            self.compute_base_phrase_feature_metrics(
-                base_phrase_feature_predictions, base_phrase_features
-            )
-        )
+        metrics = self.compute_word_feature_metrics(word_feature_predictions, word_features)
+        metrics.update(self.compute_base_phrase_feature_metrics(base_phrase_feature_predictions, base_phrase_features))
         return metrics
 
     @staticmethod
@@ -81,9 +68,7 @@ class PhraseAnalysisMetric(Metric):
             for j in range(seq_len):
                 # 評価対象外の label / prediction は含めない
                 if label[i, j] != IGNORE_INDEX:
-                    aligned_prediction[i].append(
-                        "B" if prediction[i][j] == 1 else io_tag
-                    )
+                    aligned_prediction[i].append("B" if prediction[i][j] == 1 else io_tag)
                     aligned_label[i].append("B" if label[i][j] == 1 else io_tag)
         return aligned_prediction, aligned_label
 
@@ -94,9 +79,7 @@ class PhraseAnalysisMetric(Metric):
     ) -> dict[str, float]:
         word_feature_metrics = {}
         aligned_predictions, aligned_labels = [], []
-        for i, (word_feature_prediction, word_feature_label) in enumerate(
-            zip(word_feature_predictions, word_features)
-        ):
+        for i, (word_feature_prediction, word_feature_label) in enumerate(zip(word_feature_predictions, word_features)):
             # prediction / label: (b, seq_len)
             aligned_prediction, aligned_label = self.align_predictions(
                 prediction=word_feature_prediction.detach().cpu().numpy(),
@@ -114,9 +97,7 @@ class PhraseAnalysisMetric(Metric):
             )
         else:
             sum_f1 = sum(value for key, value in word_feature_metrics.items())
-            word_feature_metrics["macro_word_feature_f1"] = sum_f1 / len(
-                word_feature_metrics
-            )
+            word_feature_metrics["macro_word_feature_f1"] = sum_f1 / len(word_feature_metrics)
             word_feature_metrics["micro_word_feature_f1"] = f1_score(
                 y_true=aligned_labels,
                 y_pred=aligned_predictions,
@@ -156,9 +137,7 @@ class PhraseAnalysisMetric(Metric):
                 )
         else:
             sum_f1 = sum(value for key, value in base_phrase_feature_metrics.items())
-            base_phrase_feature_metrics["macro_base_phrase_feature_f1"] = sum_f1 / len(
-                base_phrase_feature_metrics
-            )
+            base_phrase_feature_metrics["macro_base_phrase_feature_f1"] = sum_f1 / len(base_phrase_feature_metrics)
             base_phrase_feature_metrics["micro_base_phrase_feature_f1"] = f1_score(
                 y_true=aligned_labels,
                 y_pred=aligned_predictions,

@@ -49,9 +49,7 @@ def get_diffs(before: str, after: str) -> list[tuple[str, str]]:
                 diff_list.append((id2char[char_id], ""))
         if operation == "replace":
             assert be - bb == ae - ab, (before_split[bb:be], after_split[ab:ae])
-            for before_char_id, after_char_id in zip(
-                before_id_string[bb:be], after_id_string[ab:ae]
-            ):
+            for before_char_id, after_char_id in zip(before_id_string[bb:be], after_id_string[ab:ae]):
                 diff_list.append((id2char[before_char_id], id2char[after_char_id]))
     return diff_list
 
@@ -81,9 +79,7 @@ def calc_tp_fp_fn(pre_text: str, ref_post_text: str, pred_post_text: str):
 
 def main():
     parser = ArgumentParser()
-    parser.add_argument(
-        "-p", "--path", type=str, required=True, help="path to prediction file"
-    )
+    parser.add_argument("-p", "--path", type=str, required=True, help="path to prediction file")
     args = parser.parse_args()
 
     with Path(args.path).open() as f:
@@ -93,12 +89,8 @@ def main():
     for example_id, pred in preds.items():
         pre_text: str = pred["input_ids"].replace(" ", "")
         pre_text = pre_text.replace("...", "…")
-        ref_post_text: str = apply_ops(
-            pre_text=pre_text, kdrs=pred["kdr_labels"] + ["K"], inss=pred["ins_labels"]
-        )
-        pred_post_text: str = apply_ops(
-            pre_text=pre_text, kdrs=pred["kdr_preds"] + ["K"], inss=pred["ins_preds"]
-        )
+        ref_post_text: str = apply_ops(pre_text=pre_text, kdrs=pred["kdr_labels"] + ["K"], inss=pred["ins_labels"])
+        pred_post_text: str = apply_ops(pre_text=pre_text, kdrs=pred["kdr_preds"] + ["K"], inss=pred["ins_preds"])
         tp, fp, fn = calc_tp_fp_fn(
             pre_text=pre_text,
             ref_post_text=ref_post_text,

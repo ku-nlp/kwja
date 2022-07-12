@@ -27,9 +27,7 @@ class WordModule(LightningModule):
 
         self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             hparams.model.model_name_or_path,
-            **hydra.utils.instantiate(
-                hparams.dataset.tokenizer_kwargs, _convert_="partial"
-            ),
+            **hydra.utils.instantiate(hparams.dataset.tokenizer_kwargs, _convert_="partial"),
         )
 
         self.valid_corpora = list(hparams.dataset.valid.keys())
@@ -79,9 +77,7 @@ class WordModule(LightningModule):
         pooled_outputs = self.word_encoder(batch, PoolingStrategy.FIRST)
         word_analyzer_outputs = self.word_analyzer(pooled_outputs, batch)
         phrase_analyzer_outputs = self.phrase_analyzer(pooled_outputs, batch)
-        relation_analyzer_output = self.relation_analyzer(
-            pooled_outputs, batch, inference=inference
-        )
+        relation_analyzer_output = self.relation_analyzer(pooled_outputs, batch, inference=inference)
         return {
             "word_analyzer_outputs": word_analyzer_outputs,
             "phrase_analyzer_outputs": phrase_analyzer_outputs,
@@ -104,9 +100,7 @@ class WordModule(LightningModule):
             on_step=True,
             on_epoch=False,
         )
-        base_phrase_feature_loss = outputs["phrase_analyzer_outputs"][
-            "base_phrase_feature_loss"
-        ]
+        base_phrase_feature_loss = outputs["phrase_analyzer_outputs"]["base_phrase_feature_loss"]
         self.log(
             "train/base_phrase_feature_loss",
             base_phrase_feature_loss,
@@ -115,9 +109,7 @@ class WordModule(LightningModule):
         )
         dependency_loss = outputs["relation_analyzer_outputs"]["dependency_loss"]
         self.log("train/dependency_loss", dependency_loss, on_step=True, on_epoch=True)
-        dependency_type_loss = outputs["relation_analyzer_outputs"][
-            "dependency_type_loss"
-        ]
+        dependency_type_loss = outputs["relation_analyzer_outputs"]["dependency_type_loss"]
         self.log(
             "train/dependency_type_loss",
             dependency_type_loss,
@@ -140,27 +132,17 @@ class WordModule(LightningModule):
             + cohesion_loss
         )
 
-    def validation_step(
-        self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None
-    ) -> None:
+    def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> None:
         outputs: dict[str, torch.Tensor] = self(inference=True, **batch)
         corpus = self.valid_corpora[dataloader_idx or 0]
         word_analysis_metric_args = {
-            "pos_preds": torch.argmax(
-                outputs["word_analyzer_outputs"]["pos_logits"], dim=-1
-            ),
+            "pos_preds": torch.argmax(outputs["word_analyzer_outputs"]["pos_logits"], dim=-1),
             "pos_labels": batch["mrph_types"][:, :, 0],
-            "subpos_preds": torch.argmax(
-                outputs["word_analyzer_outputs"]["subpos_logits"], dim=-1
-            ),
+            "subpos_preds": torch.argmax(outputs["word_analyzer_outputs"]["subpos_logits"], dim=-1),
             "subpos_labels": batch["mrph_types"][:, :, 1],
-            "conjtype_preds": torch.argmax(
-                outputs["word_analyzer_outputs"]["conjtype_logits"], dim=-1
-            ),
+            "conjtype_preds": torch.argmax(outputs["word_analyzer_outputs"]["conjtype_logits"], dim=-1),
             "conjtype_labels": batch["mrph_types"][:, :, 2],
-            "conjform_preds": torch.argmax(
-                outputs["word_analyzer_outputs"]["conjform_logits"], dim=-1
-            ),
+            "conjform_preds": torch.argmax(outputs["word_analyzer_outputs"]["conjform_logits"], dim=-1),
             "conjform_labels": batch["mrph_types"][:, :, 3],
         }
         self.valid_word_analysis_metrics[corpus].update(**word_analysis_metric_args)
@@ -171,15 +153,9 @@ class WordModule(LightningModule):
 
         phrase_analysis_metric_args = {
             "example_ids": batch["example_ids"],
-            "word_feature_predictions": outputs["phrase_analyzer_outputs"][
-                "word_feature_logits"
-            ]
-            .ge(0.5)
-            .long(),
+            "word_feature_predictions": outputs["phrase_analyzer_outputs"]["word_feature_logits"].ge(0.5).long(),
             "word_features": batch["word_features"],
-            "base_phrase_feature_predictions": outputs["phrase_analyzer_outputs"][
-                "base_phrase_feature_logits"
-            ]
+            "base_phrase_feature_predictions": outputs["phrase_analyzer_outputs"]["base_phrase_feature_logits"]
             .ge(0.5)
             .long(),
             "base_phrase_features": batch["base_phrase_features"],
@@ -196,16 +172,10 @@ class WordModule(LightningModule):
 
         dependency_parsing_metric_args = {
             "example_ids": batch["example_ids"],
-            "preds": torch.argmax(
-                outputs["relation_analyzer_outputs"]["dependency_logits"], dim=2
-            ),
-            "type_preds": torch.argmax(
-                outputs["relation_analyzer_outputs"]["dependency_type_logits"], dim=2
-            ),
+            "preds": torch.argmax(outputs["relation_analyzer_outputs"]["dependency_logits"], dim=2),
+            "type_preds": torch.argmax(outputs["relation_analyzer_outputs"]["dependency_type_logits"], dim=2),
         }
-        self.valid_dependency_parsing_metrics[corpus].update(
-            **dependency_parsing_metric_args
-        )
+        self.valid_dependency_parsing_metrics[corpus].update(**dependency_parsing_metric_args)
         self.log(
             "valid/dependency_loss",
             outputs["relation_analyzer_outputs"]["dependency_loss"],
@@ -216,9 +186,7 @@ class WordModule(LightningModule):
             "output": outputs["relation_analyzer_outputs"]["cohesion_logits"],
             "dataset": self.trainer.val_dataloaders[dataloader_idx or 0].dataset,
         }
-        self.valid_cohesion_analysis_metrics[corpus].update(
-            **cohesion_analysis_metric_args
-        )
+        self.valid_cohesion_analysis_metrics[corpus].update(**cohesion_analysis_metric_args)
         self.log(
             "valid/cohesion_loss",
             outputs["relation_analyzer_outputs"]["cohesion_loss"],
@@ -230,9 +198,7 @@ class WordModule(LightningModule):
         for corpus, metric in self.valid_word_analysis_metrics.items():
             for name, value in metric.compute().items():
                 if name == "word_analysis_f1":
-                    f1_scores["word_analysis_f1"] += value / len(
-                        self.valid_word_analysis_metrics
-                    )
+                    f1_scores["word_analysis_f1"] += value / len(self.valid_word_analysis_metrics)
                 self.log(f"valid_{corpus}/{name}", value)
                 metric.reset()
         self.log(
@@ -272,27 +238,17 @@ class WordModule(LightningModule):
                     self.log(f"valid_{corpus}/{met}_{rel}", sub_val.f1)
             metric.reset()
 
-    def test_step(
-        self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None
-    ) -> None:
+    def test_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> None:
         outputs: dict[str, torch.Tensor] = self(inference=True, **batch)
         corpus = self.test_corpora[dataloader_idx or 0]
         word_analysis_metric_args = {
-            "pos_preds": torch.argmax(
-                outputs["word_analyzer_outputs"]["pos_logits"], dim=-1
-            ),
+            "pos_preds": torch.argmax(outputs["word_analyzer_outputs"]["pos_logits"], dim=-1),
             "pos_labels": batch["mrph_types"][:, :, 0],
-            "subpos_preds": torch.argmax(
-                outputs["word_analyzer_outputs"]["subpos_logits"], dim=-1
-            ),
+            "subpos_preds": torch.argmax(outputs["word_analyzer_outputs"]["subpos_logits"], dim=-1),
             "subpos_labels": batch["mrph_types"][:, :, 1],
-            "conjtype_preds": torch.argmax(
-                outputs["word_analyzer_outputs"]["conjtype_logits"], dim=-1
-            ),
+            "conjtype_preds": torch.argmax(outputs["word_analyzer_outputs"]["conjtype_logits"], dim=-1),
             "conjtype_labels": batch["mrph_types"][:, :, 2],
-            "conjform_preds": torch.argmax(
-                outputs["word_analyzer_outputs"]["conjform_logits"], dim=-1
-            ),
+            "conjform_preds": torch.argmax(outputs["word_analyzer_outputs"]["conjform_logits"], dim=-1),
             "conjform_labels": batch["mrph_types"][:, :, 3],
         }
         self.test_word_analysis_metrics[corpus].update(**word_analysis_metric_args)
@@ -303,15 +259,9 @@ class WordModule(LightningModule):
 
         phrase_analysis_metric_args = {
             "example_ids": batch["example_ids"],
-            "word_feature_predictions": outputs["phrase_analyzer_outputs"][
-                "word_feature_logits"
-            ]
-            .ge(0.5)
-            .long(),
+            "word_feature_predictions": outputs["phrase_analyzer_outputs"]["word_feature_logits"].ge(0.5).long(),
             "word_features": batch["word_features"],
-            "base_phrase_feature_predictions": outputs["phrase_analyzer_outputs"][
-                "base_phrase_feature_logits"
-            ]
+            "base_phrase_feature_predictions": outputs["phrase_analyzer_outputs"]["base_phrase_feature_logits"]
             .ge(0.5)
             .long(),
             "base_phrase_features": batch["base_phrase_features"],
@@ -328,16 +278,10 @@ class WordModule(LightningModule):
 
         dependency_parsing_metric_args = {
             "example_ids": batch["example_ids"],
-            "preds": torch.argmax(
-                outputs["relation_analyzer_outputs"]["dependency_logits"], dim=2
-            ),
-            "type_preds": torch.argmax(
-                outputs["relation_analyzer_outputs"]["dependency_type_logits"], dim=2
-            ),
+            "preds": torch.argmax(outputs["relation_analyzer_outputs"]["dependency_logits"], dim=2),
+            "type_preds": torch.argmax(outputs["relation_analyzer_outputs"]["dependency_type_logits"], dim=2),
         }
-        self.test_dependency_parsing_metrics[corpus].update(
-            **dependency_parsing_metric_args
-        )
+        self.test_dependency_parsing_metrics[corpus].update(**dependency_parsing_metric_args)
         self.log(
             "test/dependency_loss",
             outputs["relation_analyzer_outputs"]["dependency_loss"],
@@ -348,9 +292,7 @@ class WordModule(LightningModule):
             "output": outputs["relation_analyzer_outputs"]["cohesion_logits"],
             "dataset": self.trainer.test_dataloaders[dataloader_idx or 0].dataset,
         }
-        self.test_cohesion_analysis_metrics[corpus].update(
-            **cohesion_analysis_metric_args
-        )
+        self.test_cohesion_analysis_metrics[corpus].update(**cohesion_analysis_metric_args)
         self.log(
             "test/cohesion_loss",
             outputs["relation_analyzer_outputs"]["cohesion_loss"],
@@ -402,34 +344,18 @@ class WordModule(LightningModule):
                     self.log(f"test_{corpus}/{met}_{rel}", sub_val.f1)
             metric.reset()
 
-    def predict_step(
-        self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None
-    ) -> Any:
+    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Any:
         outputs: dict[str, torch.Tensor] = self(inference=True, **batch)
         return {
             "example_ids": batch["example_ids"],
             "word_analysis_pos_logits": outputs["word_analyzer_outputs"]["pos_logits"],
-            "word_analysis_subpos_logits": outputs["word_analyzer_outputs"][
-                "subpos_logits"
-            ],
-            "word_analysis_conjtype_logits": outputs["word_analyzer_outputs"][
-                "conjtype_logits"
-            ],
-            "word_analysis_conjform_logits": outputs["word_analyzer_outputs"][
-                "conjform_logits"
-            ],
-            "word_feature_logits": outputs["phrase_analyzer_outputs"][
-                "word_feature_logits"
-            ],
-            "base_phrase_feature_logits": outputs["phrase_analyzer_outputs"][
-                "base_phrase_feature_logits"
-            ],
-            "dependency_logits": outputs["relation_analyzer_outputs"][
-                "dependency_logits"
-            ],
-            "dependency_type_logits": outputs["relation_analyzer_outputs"][
-                "dependency_type_logits"
-            ],
+            "word_analysis_subpos_logits": outputs["word_analyzer_outputs"]["subpos_logits"],
+            "word_analysis_conjtype_logits": outputs["word_analyzer_outputs"]["conjtype_logits"],
+            "word_analysis_conjform_logits": outputs["word_analyzer_outputs"]["conjform_logits"],
+            "word_feature_logits": outputs["phrase_analyzer_outputs"]["word_feature_logits"],
+            "base_phrase_feature_logits": outputs["phrase_analyzer_outputs"]["base_phrase_feature_logits"],
+            "dependency_logits": outputs["relation_analyzer_outputs"]["dependency_logits"],
+            "dependency_type_logits": outputs["relation_analyzer_outputs"]["dependency_type_logits"],
         }
 
     def configure_optimizers(self):
@@ -438,18 +364,14 @@ class WordModule(LightningModule):
         optimizer_grouped_parameters = [
             {
                 "params": [
-                    p
-                    for n, p in self.named_parameters()
-                    if not any(nd in n for nd in no_decay) and p.requires_grad
+                    p for n, p in self.named_parameters() if not any(nd in n for nd in no_decay) and p.requires_grad
                 ],
                 "weight_decay": self.hparams.optimizer.weight_decay,
                 "name": "decay",
             },
             {
                 "params": [
-                    p
-                    for n, p in self.named_parameters()
-                    if any(nd in n for nd in no_decay) and p.requires_grad
+                    p for n, p in self.named_parameters() if any(nd in n for nd in no_decay) and p.requires_grad
                 ],
                 "weight_decay": 0.0,
                 "name": "no_decay",

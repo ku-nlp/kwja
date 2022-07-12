@@ -15,9 +15,7 @@ class SegmentedTextDataset(Dataset):
     ) -> None:
         self.texts = texts
         if tokenizer_kwargs:
-            tokenizer_kwargs = hydra.utils.instantiate(
-                tokenizer_kwargs, _convert_="partial"
-            )
+            tokenizer_kwargs = hydra.utils.instantiate(tokenizer_kwargs, _convert_="partial")
         else:
             tokenizer_kwargs = {}
         self.tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(
@@ -44,9 +42,7 @@ class SegmentedTextDataset(Dataset):
         )
         input_ids = encoding["input_ids"] + [self.tokenizer.vocab["[ROOT]"]]
         attention_mask = encoding["attention_mask"] + [1]
-        subword_map = [
-            [False] * self.max_seq_length for _ in range(self.max_seq_length)
-        ]
+        subword_map = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
         for token_id, word_id in enumerate(encoding.word_ids()):
             if word_id is not None:
                 subword_map[word_id][token_id] = True

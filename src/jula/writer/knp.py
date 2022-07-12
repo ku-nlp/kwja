@@ -31,9 +31,7 @@ class CohesionKNPWriter:
         )
         self.exophora_referents: list[ExophoraReferent] = dataset.exophora_referents
         self.specials: list[str] = dataset.special_tokens
-        self.documents: list[Document] = [
-            Document.from_knp(doc.to_knp()) for doc in dataset.documents
-        ]
+        self.documents: list[Document] = [Document.from_knp(doc.to_knp()) for doc in dataset.documents]
         self.kc: bool = False
 
     def write(
@@ -60,9 +58,7 @@ class CohesionKNPWriter:
         elif not (destination is None or isinstance(destination, io.TextIOBase)):
             logger.warning("invalid output destination")
 
-        did2prediction: dict[str, list] = {
-            self.documents[eid].doc_id: pred for eid, pred in predictions.items()
-        }
+        did2prediction: dict[str, list] = {self.documents[eid].doc_id: pred for eid, pred in predictions.items()}
         documents = []
         for document in self.documents:
             did = document.doc_id
@@ -116,9 +112,7 @@ class CohesionKNPWriter:
             elif 0 <= pred - len(bp_list) < len(self.specials):
                 # special
                 special_arg = self.specials[pred - len(bp_list)]
-                if special_arg in [
-                    str(e) for e in self.exophora_referents
-                ]:  # exclude [NULL] and [NA]
+                if special_arg in [str(e) for e in self.exophora_referents]:  # exclude [NULL] and [NA]
                     rels.append(
                         Rel(
                             type=relation,
@@ -138,9 +132,7 @@ class CohesionKNPWriter:
         knp_lines: list[str],
         document: Document,
     ) -> list[str]:
-        dtid2pas = {
-            pas.predicate.base_phrase.global_index: pas for pas in document.pas_list()
-        }
+        dtid2pas = {pas.predicate.base_phrase.global_index: pas for pas in document.pas_list()}
         dtid = 0
         output_knp_lines = []
         for line in knp_lines:
@@ -163,9 +155,7 @@ class CohesionKNPWriter:
         cfid: str,
         document: Document,
     ) -> str:
-        sid2index: dict[str, int] = {
-            sent.sid: i for i, sent in enumerate(document.sentences)
-        }
+        sid2index: dict[str, int] = {sent.sid: i for i, sent in enumerate(document.sentences)}
         case_elements = []
         for case in self.cases + ["ノ"] * (Task.BRIDGING in self.tasks):
             items = ["-"] * 6
@@ -176,9 +166,7 @@ class CohesionKNPWriter:
                 items[1] = str(arg.type)  # フラグ (C/N/O/D/E/U)
                 items[2] = str(arg)  # 見出し
                 if isinstance(arg, Argument):
-                    items[3] = str(
-                        sid2index[pas.sid] - sid2index[arg.base_phrase.sentence.sid]
-                    )  # N文前
+                    items[3] = str(sid2index[pas.sid] - sid2index[arg.base_phrase.sentence.sid])  # N文前
                     items[4] = str(arg.base_phrase.index)  # tag id
                     items[5] = str(list(arg.base_phrase.entities)[0].eid)  # Entity ID
                 else:

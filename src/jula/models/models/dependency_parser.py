@@ -36,9 +36,7 @@ class DependencyParser(nn.Module):
     ):  # (batch_size, max_seq_len, hidden_size)
         h_i = self.W_a(pooled_outputs)
         h_j = self.U_a(pooled_outputs)
-        dependency_logits = self.v_a(
-            torch.tanh(h_i.unsqueeze(1) + h_j.unsqueeze(2))
-        ).squeeze(-1)
+        dependency_logits = self.v_a(torch.tanh(h_i.unsqueeze(1) + h_j.unsqueeze(2))).squeeze(-1)
         if dependencies is not None:
             dependencies = torch.where(
                 dependencies != IGNORE_INDEX,
@@ -54,15 +52,9 @@ class DependencyParser(nn.Module):
         # governor_embeddings[0][1][0] == pooled_outputs[0][dependencies[0][1][0]]
         # governor_embeddings[1][0][0] == pooled_outputs[1][dependencies[1][0][0]]
         governor_embeddings = torch.gather(
-            pooled_outputs.unsqueeze(1).expand(
-                batch_size, max_seq_len, max_seq_len, hidden_size
-            ),
+            pooled_outputs.unsqueeze(1).expand(batch_size, max_seq_len, max_seq_len, hidden_size),
             dim=2,
-            index=dependencies.unsqueeze(2)
-            .unsqueeze(2)
-            .expand(batch_size, max_seq_len, 1, hidden_size),
+            index=dependencies.unsqueeze(2).unsqueeze(2).expand(batch_size, max_seq_len, 1, hidden_size),
         )  # (batch_size, max_seq_len, TopK, hidden_size)
-        dependency_type_logits = self.head(
-            torch.cat([pooled_outputs, governor_embeddings.squeeze(2)], dim=2)
-        )
+        dependency_type_logits = self.head(torch.cat([pooled_outputs, governor_embeddings.squeeze(2)], dim=2))
         return dependency_logits, dependency_type_logits

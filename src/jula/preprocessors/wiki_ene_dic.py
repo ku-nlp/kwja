@@ -83,9 +83,7 @@ class WikiDicPreprocessor:
                 for ene in entry["ENEs_normalized"]:
                     converted_entries[entry["title_normalized"]].add(ene)
             else:
-                converted_entries[entry["title_normalized"]] = set(
-                    entry["ENEs_normalized"]
-                )
+                converted_entries[entry["title_normalized"]] = set(entry["ENEs_normalized"])
 
         outputs: list[dict[str, Union[str, list[str]]]] = [
             {"title": k, "classes": list(v)} for k, v in converted_entries.items()
@@ -151,9 +149,7 @@ def main():
         input_json_path=args.input_json_path,
         output_dir=args.output_dir,
     )
-    entries = wikidic_preprocessor.get_filtered_entries(
-        save_filtered_results=args.save_filtered_results
-    )
+    entries = wikidic_preprocessor.get_filtered_entries(save_filtered_results=args.save_filtered_results)
     wikidic_preprocessor.build_db(entries=entries)
 
 

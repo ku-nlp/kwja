@@ -31,22 +31,13 @@ class CoreferenceExtractor(Extractor):
         arguments_set: list[list[str]] = [[] for _ in bp_list]
         for sentence in document.sentences:
             for anaphor in sentence.base_phrases:
-                is_target_phrase: bool = (
-                    self.is_target(anaphor)
-                    and self._kc_skip_sentence(sentence, document) is False
-                )
+                is_target_phrase: bool = self.is_target(anaphor) and self._kc_skip_sentence(sentence, document) is False
                 phrases[anaphor.global_index].is_target = is_target_phrase
                 if is_target_phrase is False:
                     continue
-                candidates: list[int] = [
-                    bp.global_index
-                    for bp in bp_list
-                    if self.is_candidate(bp, anaphor) is True
-                ]
+                candidates: list[int] = [bp.global_index for bp in bp_list if self.is_candidate(bp, anaphor) is True]
                 phrases[anaphor.global_index].candidates = candidates
-                arguments_set[anaphor.global_index] = self._get_mentions(
-                    anaphor, candidates
-                )
+                arguments_set[anaphor.global_index] = self._get_mentions(anaphor, candidates)
 
         return CoreferenceAnnotation(arguments_set)
 
@@ -60,22 +51,14 @@ class CoreferenceExtractor(Extractor):
 
         ment_strings: list[str] = []
         tgt_mentions = src_mention.get_coreferents(include_nonidentical=False)
-        exophora_referents = [
-            e.exophora_referent
-            for e in src_mention.entities
-            if e.exophora_referent is not None
-        ]
+        exophora_referents = [e.exophora_referent for e in src_mention.entities if e.exophora_referent is not None]
         for mention in tgt_mentions:
             if mention.global_index not in candidates:
-                logger.debug(
-                    f"mention: {mention} in {mention.sentence.sid} is not in candidates and ignored"
-                )
+                logger.debug(f"mention: {mention} in {mention.sentence.sid} is not in candidates and ignored")
                 continue
             ment_strings.append(str(mention.global_index))
         for exophora_referent in exophora_referents:
-            exophora_referent = self._relax_exophora_referent(
-                exophora_referent
-            )  # 不特定:人１ -> 不特定:人
+            exophora_referent = self._relax_exophora_referent(exophora_referent)  # 不特定:人１ -> 不特定:人
             if exophora_referent in self.exophora_referents:
                 ment_strings.append(str(exophora_referent))
         if ment_strings:
