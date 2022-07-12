@@ -322,7 +322,7 @@ class WordModule(LightningModule):
             for name, value in metric.compute().items():
                 if name in keys:
                     f1_scores[name] += value / len(self.test_phrase_analysis_metrics)
-                self.log(f"valid_{corpus}/{name}", value)
+                self.log(f"test_{corpus}/{name}", value)
             metric.reset()
         for key in sorted(keys):
             self.log(f"test/{key}", f1_scores[key])
