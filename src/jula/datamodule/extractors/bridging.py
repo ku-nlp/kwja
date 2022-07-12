@@ -67,7 +67,7 @@ class BridgingExtractor(Extractor):
                 arg.exophora_referent = self._relax_exophora_referent(arg.exophora_referent)
                 if arg.exophora_referent in self.exophora_referents:
                     args.append(arg)
-                elif arg.exophora_referent == ExophoraReferent("[不明]"):
+                elif arg.exophora_referent.text == "[不明]":
                     return []  # don't train uncertain argument
             else:
                 args.append(arg)
