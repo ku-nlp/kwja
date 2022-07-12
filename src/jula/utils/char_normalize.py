@@ -201,6 +201,7 @@ def get_normalization_opns(surf: str, normalized: str) -> List[str]:
                     costs.append(d[i - 1, j - 1] + 1)
                 if ci in CHOON_SET and i > 1 and dops[i - 1][j - 1] == "K":
                     # NOTE: "P" and "E" must follow "K"
+                    # jumanpp does not support いくぇー -> いくえい
                     p = surf[i - 2]
                     if p in PROLONGED_MAP and cj == PROLONGED_MAP[p]:
                         lops.append("P")
