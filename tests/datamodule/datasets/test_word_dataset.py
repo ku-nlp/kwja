@@ -26,7 +26,7 @@ data_dir = here.parent.parent / "data"
 
 word_dataset_kwargs = {
     "cases": ["ガ", "ヲ", "ニ", "ガ２"],
-    "bar_rels": ["ノ", "ノ？"],
+    "bar_rels": ["ノ"],
     "exophora_referents": ["著者", "読者", "不特定:人", "不特定:物"],
     "cohesion_tasks": ["pas_analysis", "bridging", "coreference"],
 }

@@ -30,7 +30,7 @@ class WordDataset(BaseDataset):
         self.special_tokens: list[str] = [str(e) for e in self.exophora_referents] + [
             "[NULL]",
             "[NA]",
-            "[ROOT]",
+            "[ROOT]",  # TODO: mask in cohesion analysis
         ]
         tokenizer_kwargs = {
             "additional_special_tokens": self.special_tokens,
