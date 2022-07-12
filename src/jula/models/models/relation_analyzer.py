@@ -6,7 +6,7 @@ from transformers import PretrainedConfig
 
 from jula.models.models.cohesion_analyzer import CohesionAnalyzer, cohesion_cross_entropy_loss
 from jula.models.models.dependency_parser import DependencyParser
-from jula.utils.utils import IGNORE_INDEX
+from jula.utils.constants import IGNORE_INDEX
 
 
 class RelationAnalyzer(nn.Module):

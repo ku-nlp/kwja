@@ -5,7 +5,7 @@ from seqeval.metrics import accuracy_score, f1_score
 from seqeval.scheme import IOB2
 from torchmetrics import Metric
 
-from jula.utils.utils import IGNORE_INDEX, INDEX2SEG_TYPE
+from jula.utils.constants import IGNORE_INDEX, INDEX2SEG_TYPE
 
 
 class WordSegmenterMetric(Metric):

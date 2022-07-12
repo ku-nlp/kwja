@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from transformers import PretrainedConfig
 
-from jula.utils.utils import DEPENDENCY_TYPE2INDEX, IGNORE_INDEX
+from jula.utils.constants import DEPENDENCY_TYPE2INDEX, IGNORE_INDEX
 
 
 class DependencyParser(nn.Module):

@@ -9,7 +9,7 @@ from jula.datamodule.datasets.base_dataset import BaseDataset
 from jula.datamodule.examples import CohesionExample, DependencyExample, Task
 from jula.datamodule.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
 from jula.datamodule.extractors.base import Phrase
-from jula.utils.utils import (
+from jula.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TYPES,
     CONJTYPE_TYPES,

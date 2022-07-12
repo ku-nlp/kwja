@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from transformers import PretrainedConfig
 
-from jula.utils.utils import BASE_PHRASE_FEATURES, IGNORE_INDEX, WORD_FEATURES
+from jula.utils.constants import BASE_PHRASE_FEATURES, IGNORE_INDEX, WORD_FEATURES
 
 
 class PhraseAnalyzer(nn.Module):

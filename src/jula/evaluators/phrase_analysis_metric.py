@@ -7,7 +7,7 @@ from seqeval.metrics import f1_score
 from seqeval.scheme import IOB2
 from torchmetrics import Metric
 
-from jula.utils.utils import BASE_PHRASE_FEATURES, IGNORE_INDEX, WORD_FEATURES
+from jula.utils.constants import BASE_PHRASE_FEATURES, IGNORE_INDEX, WORD_FEATURES
 
 
 class PhraseAnalysisMetric(Metric):

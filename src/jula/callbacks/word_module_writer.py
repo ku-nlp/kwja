@@ -11,7 +11,7 @@ from rhoknp import Morpheme
 from rhoknp.units.utils import DepType
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from jula.utils.utils import (
+from jula.utils.constants import (
     BASE_PHRASE_FEATURES,
     INDEX2CONJFORM_TYPE,
     INDEX2CONJTYPE_TYPE,

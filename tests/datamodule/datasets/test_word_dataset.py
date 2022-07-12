@@ -8,7 +8,7 @@ from rhoknp.units.utils import DepType
 from jula.datamodule.datasets.word_dataset import WordDataset
 from jula.datamodule.examples import Task
 from jula.datamodule.extractors import PasAnnotation
-from jula.utils.utils import (
+from jula.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TYPES,
     CONJTYPE_TYPES,
