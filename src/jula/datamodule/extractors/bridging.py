@@ -91,4 +91,4 @@ class BridgingExtractor(Extractor):
 
     @staticmethod
     def is_bridging_target(bp: BasePhrase) -> bool:
-        return bp.features.get("体言") is True and bp.features.get("非用言格解析") is not True
+        return bp.features.get("体言") is True and "非用言格解析" not in bp.features
