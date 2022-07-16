@@ -3,15 +3,16 @@ import textwrap
 from pathlib import Path
 
 from rhoknp import Document
+from rhoknp.units.utils import DepType
 
 from jula.datamodule.datasets.word_dataset import WordDataset
 from jula.datamodule.examples import Task
 from jula.datamodule.extractors import PasAnnotation
-from jula.utils.utils import (
+from jula.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TYPES,
     CONJTYPE_TYPES,
-    DEPENDENCY_TYPES,
+    DEPENDENCY_TYPE2INDEX,
     DISCOURSE_RELATIONS,
     IGNORE_INDEX,
     POS_TYPES,
@@ -25,7 +26,7 @@ data_dir = here.parent.parent / "data"
 
 word_dataset_kwargs = {
     "cases": ["ガ", "ヲ", "ニ", "ガ２"],
-    "bar_rels": ["ノ", "ノ？"],
+    "bar_rels": ["ノ"],
     "exophora_referents": ["著者", "読者", "不特定:人", "不特定:物"],
     "cohesion_tasks": ["pas_analysis", "bridging", "coreference"],
 }
@@ -114,7 +115,7 @@ def test_encode():
             """
         )
     )
-    encoding = dataset.encode(document, dataset.cohesion_examples["000"])
+    encoding = dataset.encode(document, dataset.cohesion_examples["000"], dataset.dependency_examples["000"])
 
     mrph_types = [[IGNORE_INDEX] * 4 for _ in range(max_seq_length)]
     # 0: 風
@@ -236,23 +237,23 @@ def test_encode():
 
     dependency_types = [IGNORE_INDEX for _ in range(max_seq_length)]
     # 0: 風 -> 2: 吹く
-    dependency_types[0] = DEPENDENCY_TYPES.index("D")
+    dependency_types[0] = DEPENDENCY_TYPE2INDEX[DepType.DEPENDENCY]
     # 1: が -> 0: 風
-    dependency_types[1] = DEPENDENCY_TYPES.index("D")
+    dependency_types[1] = DEPENDENCY_TYPE2INDEX[DepType.DEPENDENCY]
     # 2: 吹く -> ROOT ("D"として扱う)
-    dependency_types[2] = DEPENDENCY_TYPES.index("D")
+    dependency_types[2] = DEPENDENCY_TYPE2INDEX[DepType.DEPENDENCY]
     # 3: 。 -> 2: 吹く
-    dependency_types[3] = DEPENDENCY_TYPES.index("D")
+    dependency_types[3] = DEPENDENCY_TYPE2INDEX[DepType.DEPENDENCY]
     # 4: すると -> 7: 儲かる
-    dependency_types[4] = DEPENDENCY_TYPES.index("D")
+    dependency_types[4] = DEPENDENCY_TYPE2INDEX[DepType.DEPENDENCY]
     # 5: 桶屋 -> 7: 儲かる
-    dependency_types[5] = DEPENDENCY_TYPES.index("D")
+    dependency_types[5] = DEPENDENCY_TYPE2INDEX[DepType.DEPENDENCY]
     # 6: が -> 5: 桶屋
-    dependency_types[6] = DEPENDENCY_TYPES.index("D")
+    dependency_types[6] = DEPENDENCY_TYPE2INDEX[DepType.DEPENDENCY]
     # 7: 儲かる -> ROOT ("D"として扱う)
-    dependency_types[7] = DEPENDENCY_TYPES.index("D")
+    dependency_types[7] = DEPENDENCY_TYPE2INDEX[DepType.DEPENDENCY]
     # 8: 。 -> 7: 儲かる
-    dependency_types[8] = DEPENDENCY_TYPES.index("D")
+    dependency_types[8] = DEPENDENCY_TYPE2INDEX[DepType.DEPENDENCY]
     assert encoding["dependency_types"].tolist() == dependency_types
 
 

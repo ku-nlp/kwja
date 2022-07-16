@@ -7,7 +7,7 @@ from rhoknp.rel.pas import BaseArgument
 
 from .base import Extractor, Phrase
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -67,7 +67,7 @@ class BridgingExtractor(Extractor):
                 arg.exophora_referent = self._relax_exophora_referent(arg.exophora_referent)
                 if arg.exophora_referent in self.exophora_referents:
                     args.append(arg)
-                elif arg.exophora_referent == ExophoraReferent("[不明]"):
+                elif arg.exophora_referent.text == "[不明]":
                     return []  # don't train uncertain argument
             else:
                 args.append(arg)
@@ -91,4 +91,4 @@ class BridgingExtractor(Extractor):
 
     @staticmethod
     def is_bridging_target(bp: BasePhrase) -> bool:
-        return bp.features.get("体言") is True and bp.features.get("非用言格解析") is not True
+        return bp.features.get("体言") is True and "非用言格解析" not in bp.features

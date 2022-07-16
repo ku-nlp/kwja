@@ -1,5 +1,3 @@
-from typing import Optional
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -8,7 +6,7 @@ from transformers import PretrainedConfig
 
 from jula.models.models.cohesion_analyzer import CohesionAnalyzer, cohesion_cross_entropy_loss
 from jula.models.models.dependency_parser import DependencyParser
-from jula.utils.utils import IGNORE_INDEX
+from jula.utils.constants import IGNORE_INDEX
 
 
 class RelationAnalyzer(nn.Module):
@@ -16,7 +14,10 @@ class RelationAnalyzer(nn.Module):
         super().__init__()
         self.hparams = hparams
 
-        self.dependency_parser: DependencyParser = DependencyParser(pretrained_model_config=pretrained_model_config)
+        self.dependency_parser: DependencyParser = DependencyParser(
+            pretrained_model_config=pretrained_model_config,
+            k=hparams.k,
+        )
         self.cohesion_analyzer: CohesionAnalyzer = CohesionAnalyzer(
             pretrained_model_config=pretrained_model_config,
             num_rels=int("pas_analysis" in hparams.cohesion_tasks) * len(hparams.cases)
@@ -28,17 +29,17 @@ class RelationAnalyzer(nn.Module):
         self,
         pooled_outputs: torch.Tensor,
         batch: dict[str, torch.Tensor],
-        inference: Optional[bool] = False,
     ) -> dict[str, torch.Tensor]:
         output: dict[str, torch.Tensor] = dict()
-        # (batch_size, max_seq_len, max_seq_len)
+        # (b, seq, seq)
         dependency_logits, dependency_type_logits = self.dependency_parser(
-            pooled_outputs, dependencies=None if inference else batch["dependencies"]
+            pooled_outputs,
+            dependencies=batch["dependencies"] if batch["training"] else None,
         )
         dependency_logits = torch.where(
             batch["intra_mask"],
             dependency_logits,
-            torch.full_like(dependency_logits, -1e4),
+            torch.full_like(dependency_logits, -1024.0),
         )
         output.update(
             {
@@ -54,8 +55,9 @@ class RelationAnalyzer(nn.Module):
             )
             output.update({"dependency_loss": dependency_loss})
         if "dependency_types" in batch:
+            top1 = dependency_type_logits[:, :, 0, :]
             dependency_type_loss = F.cross_entropy(
-                input=dependency_type_logits.view(-1, dependency_type_logits.size(2)),
+                input=top1.view(-1, top1.size(2)),
                 target=batch["dependency_types"].view(-1),
                 ignore_index=IGNORE_INDEX,
             )

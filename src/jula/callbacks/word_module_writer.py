@@ -8,9 +8,10 @@ import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks import BasePredictionWriter
 from rhoknp import Morpheme
+from rhoknp.units.utils import DepType
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from jula.utils.utils import (
+from jula.utils.constants import (
     BASE_PHRASE_FEATURES,
     INDEX2CONJFORM_TYPE,
     INDEX2CONJTYPE_TYPE,
@@ -79,9 +80,13 @@ class WordModuleWriter(BasePredictionWriter):
                 batch_base_phrase_feature_predictions = (
                     prediction_step_output["base_phrase_feature_logits"].ge(0.5).long()
                 )
-                batch_dependency_predictions = torch.argmax(prediction_step_output["dependency_logits"], dim=2)
+                batch_dependency_predictions = torch.topk(
+                    prediction_step_output["dependency_logits"],
+                    pl_module.hparams.k,
+                    dim=2,
+                ).indices
                 batch_dependency_type_predictions = torch.argmax(
-                    prediction_step_output["dependency_type_logits"], dim=2
+                    prediction_step_output["dependency_type_logits"], dim=3
                 )
                 for (
                     example_id,
@@ -145,8 +150,8 @@ class WordModuleWriter(BasePredictionWriter):
 
     @staticmethod
     def convert_phrase_analysis_prediction(
-        word_feature_prediction,
-        base_phrase_feature_prediction,
+        word_feature_prediction: list[int],
+        base_phrase_feature_prediction: list[int],
         is_base_phrase_head: bool,
     ):
         word_features = "".join(
@@ -163,25 +168,24 @@ class WordModuleWriter(BasePredictionWriter):
             return f"{word_features}|{base_phrase_features}"
 
     @staticmethod
-    def convert_dependency_parsing_prediction(morpheme, dependency_prediction, dependency_type_prediction, seq_len):
+    def convert_dependency_parsing_prediction(
+        morpheme: Morpheme,
+        topk_heads: list[int],
+        topk_dependency_types: list[int],
+        sequence_len: int,
+    ):
+        head = topk_heads[0]
+        dependency_type = topk_dependency_types[0]
         offset = min(morpheme.global_index for morpheme in morpheme.sentence.morphemes)
-        if dependency_prediction == seq_len - 1:
+        if head == sequence_len - 1:
             system_head = -1
-            system_deprel = "D"
+            system_deprel = DepType.DEPENDENCY
         else:
-            system_head = dependency_prediction - offset
-            system_deprel = INDEX2DEPENDENCY_TYPE[dependency_type_prediction]
+            system_head = head - offset
+            system_deprel = INDEX2DEPENDENCY_TYPE[dependency_type]
+        return f"{system_head}{system_deprel.value}"
 
-        if morpheme == morpheme.base_phrase.head:
-            gold_head = morpheme.parent.index if morpheme.parent else -1
-            gold_deprel = morpheme.base_phrase.dep_type.value if morpheme.parent else "ROOT"
-            return f"{system_head}{system_deprel}|{gold_head}{gold_deprel}"
-        else:
-            gold_head = morpheme.base_phrase.head.index
-            gold_deprel = "D"
-            return f"{system_head}{system_deprel}|{gold_head}{gold_deprel}"
-
-    def convert_predictions(self, values, seq_len):
+    def convert_predictions(self, values, sequence_len: int):
         (
             morpheme,
             pos_pred,
@@ -207,6 +211,6 @@ class WordModuleWriter(BasePredictionWriter):
             morpheme == morpheme.base_phrase.head,
         )
         dependency_parsing_result = self.convert_dependency_parsing_prediction(
-            morpheme, dependency_prediction, dependency_type_prediction, seq_len
+            morpheme, dependency_prediction, dependency_type_prediction, sequence_len
         )
         return f"{id_}|{surf}|{word_analysis_result}|{phrase_analysis_result}|{dependency_parsing_result}"

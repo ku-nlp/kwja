@@ -752,7 +752,7 @@ rsa = ["oauthlib[signedtoken] (>=3.0.0)"]
 
 [[package]]
 name = "rhoknp"
-version = "0.1.1"
+version = "0.2.0"
 description = "Yet another Python binding for Juman++/KNP"
 category = "main"
 optional = false
@@ -763,7 +763,7 @@ develop = false
 type = "git"
 url = "https://github.com/ku-nlp/rhoknp.git"
 reference = "develop"
-resolved_reference = "b18316259d68e16637b5ddb492c81813a7672924"
+resolved_reference = "4220c9fc6f0984e01fb110d99e241780925e42eb"
 
 [[package]]
 name = "rich"

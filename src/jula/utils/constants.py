@@ -1,5 +1,7 @@
 import itertools
 
+from rhoknp.units.utils import DepType
+
 TYPO_OPN2TOKEN = {
     "K": "<k>",
     "D": "<d>",
@@ -236,13 +238,15 @@ BASE_PHRASE_FEATURES = (
 IGNORE_INDEX = -100
 
 
-DEPENDENCY_TYPES = (
-    "D",
-    "P",
-    "A",
-    "I",
-)
-INDEX2DEPENDENCY_TYPE = {index: dependency_type for index, dependency_type in enumerate(DEPENDENCY_TYPES)}
+DEPENDENCY_TYPE2INDEX: dict[DepType, int] = {
+    DepType.DEPENDENCY: 0,
+    DepType.PARALLEL: 1,
+    DepType.APPOSITION: 2,
+    DepType.IMPERFECT_PARALLEL: 3,
+}
+INDEX2DEPENDENCY_TYPE: dict[int, DepType] = {
+    index: dependency_type for dependency_type, index in DEPENDENCY_TYPE2INDEX.items()
+}
 
 
 DISCOURSE_RELATIONS = (

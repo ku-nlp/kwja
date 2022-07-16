@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from transformers import PretrainedConfig
 
-from jula.utils.utils import CONJFORM_TYPES, CONJTYPE_TYPES, IGNORE_INDEX, POS_TYPES, SUBPOS_TYPES
+from jula.utils.constants import CONJFORM_TYPES, CONJTYPE_TYPES, IGNORE_INDEX, POS_TYPES, SUBPOS_TYPES
 
 
 class WordAnalyzer(nn.Module):

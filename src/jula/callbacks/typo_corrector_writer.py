@@ -10,7 +10,7 @@ from pytorch_lightning.callbacks import BasePredictionWriter
 from transformers import AutoTokenizer, PreTrainedTokenizer
 
 from jula.evaluators.typo_corrector import TypoCorrectorMetric
-from jula.utils.utils import TOKEN2TYPO_OPN, TYPO_OPN2TOKEN
+from jula.utils.constants import TOKEN2TYPO_OPN, TYPO_OPN2TOKEN
 
 
 class TypoCorrectorWriter(BasePredictionWriter):

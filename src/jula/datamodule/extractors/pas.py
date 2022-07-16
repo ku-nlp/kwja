@@ -8,7 +8,7 @@ from rhoknp.rel.pas import BaseArgument
 
 from .base import Extractor, Phrase
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -70,7 +70,7 @@ class PasExtractor(Extractor):
                 arg.exophora_referent = self._relax_exophora_referent(arg.exophora_referent)
                 if arg.exophora_referent in self.exophora_referents:
                     args.append(arg)
-                elif arg.exophora_referent == ExophoraReferent("[不明]"):
+                elif arg.exophora_referent.text == "[不明]":
                     return []  # don't train uncertain argument
             else:
                 args.append(arg)
@@ -107,6 +107,6 @@ class PasExtractor(Extractor):
     def is_pas_target(bp: BasePhrase, verbal: bool, nominal: bool) -> bool:
         if verbal and "用言" in bp.features:
             return True
-        if nominal and bp.features.get("非用言格解析") is True:
+        if nominal and "非用言格解析" in bp.features:
             return True
         return False

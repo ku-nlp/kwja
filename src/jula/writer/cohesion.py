@@ -6,12 +6,12 @@ from typing import TextIO, Union
 from rhoknp import BasePhrase, Document
 from rhoknp.rel import ExophoraReferent
 from rhoknp.rel.pas import Argument, BaseArgument, Pas, SpecialArgument
-from rhoknp.units.utils import Rel
+from rhoknp.units.utils import Rel, Rels
 
 from jula.datamodule.datasets.word_dataset import WordDataset
 from jula.datamodule.examples import Task
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 
 class CohesionKNPWriter:
@@ -91,8 +91,8 @@ class CohesionKNPWriter:
         self,
         prediction: list[int],  # (rel)
         bp_list: list[BasePhrase],
-    ) -> list[Rel]:
-        rels: list[Rel] = []
+    ) -> Rels:
+        rels: Rels = []
         assert len(self.relations) == len(prediction)
         for relation, pred in zip(self.relations, prediction):
             if pred < 0:

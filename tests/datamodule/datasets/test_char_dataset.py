@@ -4,7 +4,7 @@ from pathlib import Path
 from rhoknp import Document
 
 from jula.datamodule.datasets.char_dataset import CharDataset
-from jula.utils.utils import ENE_TYPE_BIES, IGNORE_INDEX
+from jula.utils.constants import ENE_TYPE_BIES, IGNORE_INDEX
 
 here = Path(__file__).absolute().parent
 path = here.joinpath("knp_files")

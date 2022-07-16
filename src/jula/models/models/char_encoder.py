@@ -4,7 +4,7 @@ from omegaconf import DictConfig
 from transformers import AutoModel, PreTrainedTokenizer
 from transformers.models.roberta.modeling_roberta import create_position_ids_from_input_ids
 
-from jula.utils.utils import ENE_TYPE_BIES
+from jula.utils.constants import ENE_TYPE_BIES
 
 
 class CharEncoder(nn.Module):

@@ -8,7 +8,7 @@ from torch.utils.data import Dataset
 from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizer
 from transformers.utils import PaddingStrategy
 
-from jula.utils.utils import TYPO_DUMMY_TOKEN, TYPO_OPN2TOKEN
+from jula.utils.constants import TYPO_DUMMY_TOKEN, TYPO_OPN2TOKEN
 
 
 class TypoDataset(Dataset):
