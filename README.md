@@ -42,6 +42,12 @@ Options:
 - `--output-dir, -o`: path to directory to save. Default: `./data`
 - `--save-filtered-results, -s`: whether to create an intermediate file to save the filtering results.
 
+## Build datasets for training word module
+You must have access to KyotoCorpusFull
+```shell
+./scripts/build_datasets.sh -a /path/to/activate -w ./work_dir -s /path/to/scripts -j 2 -o /path/to/output
+```
+
 ## Training and evaluation
 You can train and test the models in the following command:
 ```shell
