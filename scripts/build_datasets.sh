@@ -41,4 +41,4 @@ kyoto idsplit \
   --train AnnotatedFKCCorpus/id/split_for_pas/train.id \
   --valid AnnotatedFKCCorpus/id/split_for_pas/dev.id \
   --test AnnotatedFKCCorpus/id/split_for_pas/test.id
-python "$SCRIPTS"/split_document.py kyoto/split "$OUT_DIR"/kyoto --max-token-length 375
+python "$SCRIPTS"/split_document.py kyoto/split "$OUT_DIR"/kyoto
