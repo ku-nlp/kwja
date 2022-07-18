@@ -35,9 +35,7 @@ def main(cfg: DictConfig):
     )
 
     if cfg.config_name in cfg.module.word:
-        model = WordModule.load_from_checkpoint(
-            checkpoint_path=cfg.checkpoint_path, hparams=cfg
-        )
+        model = WordModule.load_from_checkpoint(checkpoint_path=cfg.checkpoint_path, hparams=cfg)
     else:
         raise ValueError("invalid config name")
 

@@ -10,7 +10,7 @@ from pytorch_lightning.callbacks import BasePredictionWriter
 from transformers import AutoTokenizer, PreTrainedTokenizer
 
 from jula.evaluators.typo_corrector import TypoCorrectorMetric
-from jula.utils.utils import TOKEN2TYPO_OPN, TYPO_OPN2TOKEN
+from jula.utils.constants import TOKEN2TYPO_OPN, TYPO_OPN2TOKEN
 
 
 class TypoCorrectorWriter(BasePredictionWriter):
@@ -92,16 +92,12 @@ class TypoCorrectorWriter(BasePredictionWriter):
         for prediction in predictions:
             for batch_pred in prediction:
                 kdr_preds, kdr_labels = self.get_opn(
-                    pred_ids_list=torch.argmax(
-                        batch_pred["kdr_logits"], dim=-1
-                    ).tolist(),
+                    pred_ids_list=torch.argmax(batch_pred["kdr_logits"], dim=-1).tolist(),
                     label_ids_list=batch_pred["kdr_labels"].tolist(),
                     opn_prefix="R",
                 )
                 ins_preds, ins_labels = self.get_opn(
-                    pred_ids_list=torch.argmax(
-                        batch_pred["ins_logits"], dim=-1
-                    ).tolist(),
+                    pred_ids_list=torch.argmax(batch_pred["ins_logits"], dim=-1).tolist(),
                     label_ids_list=batch_pred["ins_labels"].tolist(),
                     opn_prefix="I",
                 )

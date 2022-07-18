@@ -6,7 +6,7 @@ import torch
 from pytorch_lightning.callbacks import BasePredictionWriter
 from transformers import AutoTokenizer, PreTrainedTokenizer
 
-from jula.utils.utils import INDEX2SEG_TYPE
+from jula.utils.constants import INDEX2SEG_TYPE
 
 
 class WordSegmenterWriter(BasePredictionWriter):
@@ -46,9 +46,7 @@ class WordSegmenterWriter(BasePredictionWriter):
             for batch_pred in prediction:
                 seg_preds = [
                     [INDEX2SEG_TYPE[id_] for id_ in ids]
-                    for ids in torch.argmax(batch_pred["word_segmenter_logits"], dim=-1)
-                    .cpu()
-                    .tolist()
+                    for ids in torch.argmax(batch_pred["word_segmenter_logits"], dim=-1).cpu().tolist()
                 ]  # (b, seq_len)
                 for item_index in range(len(batch_pred["input_ids"])):
                     result = ""

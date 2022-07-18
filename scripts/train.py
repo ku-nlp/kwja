@@ -1,3 +1,4 @@
+import logging
 from typing import Optional, Union
 
 import hydra
@@ -15,6 +16,7 @@ from jula.models.typo_module import TypoModule
 from jula.models.word_module import WordModule
 
 hf_logging.set_verbosity(hf_logging.ERROR)
+logging.getLogger("rhoknp").setLevel(logging.WARNING)
 
 
 @hydra.main(version_base=None, config_path="../configs", config_name="word_segmenter")
@@ -28,12 +30,8 @@ def main(cfg: DictConfig):
     cfg.seed = pl.seed_everything(seed=cfg.seed, workers=True)
 
     is_debug: bool = True if "fast_dev_run" in cfg.trainer else False
-    logger: Optional[LightningLoggerBase] = (
-        hydra.utils.instantiate(cfg.logger) if not is_debug else None
-    )
-    callbacks: list[Callback] = list(
-        map(hydra.utils.instantiate, cfg.get("callbacks", {}).values())
-    )
+    logger: Optional[LightningLoggerBase] = hydra.utils.instantiate(cfg.logger) if not is_debug else None
+    callbacks: list[Callback] = list(map(hydra.utils.instantiate, cfg.get("callbacks", {}).values()))
 
     trainer: pl.Trainer = hydra.utils.instantiate(
         cfg.trainer,
@@ -52,19 +50,15 @@ def main(cfg: DictConfig):
     elif cfg.config_name in cfg.module.word:
         model = WordModule(hparams=cfg)
     else:
-        raise ValueError("invalid config name")
+        raise ValueError(f"invalid config name: `{cfg.config_name}`")
 
     trainer.fit(model=model, datamodule=datamodule)
-    trainer.test(
-        model=model, datamodule=datamodule, ckpt_path="best" if not is_debug else None
-    )
+    trainer.test(model=model, datamodule=datamodule, ckpt_path="best" if not is_debug else None)
     if cfg.do_predict_after_train:
         trainer.predict(
             model=model,
             datamodule=datamodule,
-            ckpt_path=trainer.checkpoint_callback.best_model_path
-            if trainer.checkpoint_callback
-            else "best",
+            ckpt_path=trainer.checkpoint_callback.best_model_path if trainer.checkpoint_callback else "best",
         )
 
     wandb.finish()

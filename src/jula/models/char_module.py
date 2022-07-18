@@ -20,18 +20,14 @@ class CharModule(LightningModule):
 
         self.tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(
             hparams.model.model_name_or_path,
-            **hydra.utils.instantiate(
-                hparams.dataset.tokenizer_kwargs, _convert_="partial"
-            ),
+            **hydra.utils.instantiate(hparams.dataset.tokenizer_kwargs, _convert_="partial"),
         )
 
         self.valid_corpora = list(hparams.dataset.valid.keys())
         self.test_corpora = list(hparams.dataset.test.keys())
 
         self.char_encoder: CharEncoder = CharEncoder(hparams, self.tokenizer)
-        pretrained_model_config: PretrainedConfig = (
-            self.char_encoder.pretrained_model.config
-        )
+        pretrained_model_config: PretrainedConfig = self.char_encoder.pretrained_model.config
         self.word_segmenter: WordSegmenter = WordSegmenter(
             hparams=hparams,
             pretrained_model_config=pretrained_model_config,
@@ -56,19 +52,15 @@ class CharModule(LightningModule):
             "train/word_segmenter_loss",
             outputs["word_segmenter_outputs"]["loss"],
             on_step=True,
-            on_epoch=True,
+            on_epoch=False,
         )
         return outputs["word_segmenter_outputs"]["loss"]
 
-    def validation_step(
-        self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None
-    ) -> Any:
+    def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Any:
         outputs: dict[str, dict[str, torch.Tensor]] = self(**batch)
         corpus = self.valid_corpora[dataloader_idx or 0]
         word_segmenter_args = {
-            "seg_preds": torch.argmax(
-                outputs["word_segmenter_outputs"]["logits"], dim=-1
-            ),
+            "seg_preds": torch.argmax(outputs["word_segmenter_outputs"]["logits"], dim=-1),
             "seg_labels": batch["seg_labels"],
         }
         self.valid_word_segmenter_metrics[corpus].update(**word_segmenter_args)
@@ -94,15 +86,11 @@ class CharModule(LightningModule):
 
         self.log("valid/f1", mean(f1s))
 
-    def test_step(
-        self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None
-    ) -> Any:
+    def test_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Any:
         outputs: dict[str, dict[str, torch.Tensor]] = self(**batch)
         corpus = self.test_corpora[dataloader_idx or 0]
         word_segmenter_args = {
-            "seg_preds": torch.argmax(
-                outputs["word_segmenter_outputs"]["logits"], dim=-1
-            ),
+            "seg_preds": torch.argmax(outputs["word_segmenter_outputs"]["logits"], dim=-1),
             "seg_labels": batch["seg_labels"],
         }
         self.test_word_segmenter_metrics[corpus].update(**word_segmenter_args)
@@ -128,9 +116,7 @@ class CharModule(LightningModule):
 
         self.log("test/f1", mean(f1s))
 
-    def predict_step(
-        self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None
-    ) -> Any:
+    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Any:
         outputs: dict[str, dict[str, torch.Tensor]] = self(**batch)
         return {
             "input_ids": batch["input_ids"],
@@ -138,7 +124,41 @@ class CharModule(LightningModule):
         }
 
     def configure_optimizers(self):
+        # Split weights in two groups, one with weight decay and the other not.
+        no_decay = ("bias", "LayerNorm.weight")
+        optimizer_grouped_parameters = [
+            {
+                "params": [
+                    p for n, p in self.named_parameters() if not any(nd in n for nd in no_decay) and p.requires_grad
+                ],
+                "weight_decay": self.hparams.optimizer.weight_decay,
+                "name": "decay",
+            },
+            {
+                "params": [
+                    p for n, p in self.named_parameters() if any(nd in n for nd in no_decay) and p.requires_grad
+                ],
+                "weight_decay": 0.0,
+                "name": "no_decay",
+            },
+        ]
         optimizer = hydra.utils.instantiate(
-            self.hparams.optimizer, params=self.parameters(), _convert_="partial"
+            self.hparams.optimizer,
+            params=optimizer_grouped_parameters,
+            _convert_="partial",
         )
-        return [optimizer], []
+
+        warmup_steps = self.hparams.warmup_steps
+        lr_scheduler = hydra.utils.instantiate(
+            self.hparams.scheduler,
+            optimizer=optimizer,
+            num_warmup_steps=warmup_steps,
+        )
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": lr_scheduler,
+                "interval": "step",
+                "frequency": 1,
+            },
+        }

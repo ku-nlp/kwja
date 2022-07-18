@@ -4,13 +4,11 @@ import torch.nn.functional as F
 from omegaconf import DictConfig
 from transformers import PretrainedConfig
 
-from jula.utils.utils import IGNORE_INDEX, SEG_TYPES
+from jula.utils.constants import IGNORE_INDEX, SEG_TYPES
 
 
 class WordSegmenter(nn.Module):
-    def __init__(
-        self, hparams: DictConfig, pretrained_model_config: PretrainedConfig
-    ) -> None:
+    def __init__(self, hparams: DictConfig, pretrained_model_config: PretrainedConfig) -> None:
         super().__init__()
         self.hparams = hparams
 
@@ -23,9 +21,7 @@ class WordSegmenter(nn.Module):
             nn.Linear(self.hidden_size, self.num_labels),
         )
 
-    def forward(
-        self, encoder_output: torch.Tensor, inputs: dict[str, torch.Tensor]
-    ) -> dict[str, torch.Tensor]:
+    def forward(self, encoder_output: torch.Tensor, inputs: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         output: dict[str, torch.Tensor] = dict()
         logits = self.cls(encoder_output)  # (b, seq_len, seg_label_num)
         output["logits"] = logits

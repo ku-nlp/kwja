@@ -6,8 +6,9 @@ import hydra
 import torch
 from torch.utils.data import Dataset
 from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizer
+from transformers.utils import PaddingStrategy
 
-from jula.utils.utils import TYPO_DUMMY_TOKEN, TYPO_OPN2TOKEN
+from jula.utils.constants import TYPO_DUMMY_TOKEN, TYPO_OPN2TOKEN
 
 
 class TypoDataset(Dataset):
@@ -60,15 +61,13 @@ class TypoDataset(Dataset):
                 opn2id[str(line.strip())] = len(opn2id)
         return opn2id
 
-    def encode(
-        self, document: dict[str, Union[str, list[str]]]
-    ) -> dict[str, torch.Tensor]:
+    def encode(self, document: dict[str, Union[str, list[str]]]) -> dict[str, torch.Tensor]:
         if isinstance(document["pre_text"], list):
             raise ValueError('document["pre_text"] must be string')
         encoding: BatchEncoding = self.tokenizer(
             document["pre_text"] + TYPO_DUMMY_TOKEN,
             truncation=True,
-            padding="max_length",
+            padding=PaddingStrategy.MAX_LENGTH,
             max_length=self.max_seq_length,
         )
         input_ids = encoding["input_ids"]
@@ -82,14 +81,8 @@ class TypoDataset(Dataset):
                 kdr_label = self.opn2id.get(opn.removeprefix("R:"), self.unk_token_id)
             kdr_labels.append(kdr_label)
         kdr_labels.append(self.pad_token_id)
-        kdr_labels = (
-            [self.pad_token_id]
-            + kdr_labels[: self.max_seq_length - 2]
-            + [self.pad_token_id]
-        )
-        kdr_labels = kdr_labels + [self.pad_token_id] * (
-            self.max_seq_length - len(kdr_labels)
-        )
+        kdr_labels = [self.pad_token_id] + kdr_labels[: self.max_seq_length - 2] + [self.pad_token_id]
+        kdr_labels = kdr_labels + [self.pad_token_id] * (self.max_seq_length - len(kdr_labels))
 
         ins_labels: list[int] = []
         for opn in document["inss"]:
@@ -98,14 +91,8 @@ class TypoDataset(Dataset):
             else:
                 ins_label = self.opn2id.get(opn.removeprefix("I:"), self.unk_token_id)
             ins_labels.append(ins_label)
-        ins_labels = (
-            [self.pad_token_id]
-            + ins_labels[: self.max_seq_length - 2]
-            + [self.pad_token_id]
-        )
-        ins_labels = ins_labels + [self.pad_token_id] * (
-            self.max_seq_length - len(ins_labels)
-        )
+        ins_labels = [self.pad_token_id] + ins_labels[: self.max_seq_length - 2] + [self.pad_token_id]
+        ins_labels = ins_labels + [self.pad_token_id] * (self.max_seq_length - len(ins_labels))
 
         return {
             "input_ids": torch.tensor(input_ids, dtype=torch.long),
