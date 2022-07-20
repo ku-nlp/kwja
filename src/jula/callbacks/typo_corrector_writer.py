@@ -36,7 +36,7 @@ class TypoCorrectorWriter(BasePredictionWriter):
 
         self.tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(
             model_name_or_path,
-            **hydra.utils.instantiate(tokenizer_kwargs, _convert_="partial"),
+            **hydra.utils.instantiate(tokenizer_kwargs or {}, _convert_="partial"),
         )
         self.predicts: dict[int, Any] = dict()
         self.metrics: TypoCorrectorMetric = TypoCorrectorMetric()

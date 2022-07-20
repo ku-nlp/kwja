@@ -1,6 +1,7 @@
 import os
 from typing import Any, Optional, Sequence
 
+import hydra
 import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks import BasePredictionWriter
@@ -31,7 +32,7 @@ class WordSegmenterWriter(BasePredictionWriter):
 
         self.tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(
             model_name_or_path,
-            **(tokenizer_kwargs or {}),
+            **hydra.utils.instantiate(tokenizer_kwargs or {}, _convert_="partial"),
         )
 
     def write_on_epoch_end(

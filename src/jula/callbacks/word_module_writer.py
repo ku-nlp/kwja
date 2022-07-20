@@ -1,6 +1,4 @@
 import os
-
-# from collections import defaultdict
 from typing import Any, Optional, Sequence
 
 import hydra
@@ -42,7 +40,7 @@ class WordModuleWriter(BasePredictionWriter):
 
         self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             model_name_or_path,
-            **hydra.utils.instantiate(tokenizer_kwargs, _convert_="partial"),
+            **hydra.utils.instantiate(tokenizer_kwargs or {}, _convert_="partial"),
         )
         self.pad_token_id = self.tokenizer.pad_token_id
 
