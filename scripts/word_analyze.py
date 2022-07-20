@@ -1,3 +1,5 @@
+import sys
+
 import hydra
 import pytorch_lightning as pl
 from dotenv import load_dotenv
@@ -39,11 +41,9 @@ def main(cfg: DictConfig):
     else:
         raise ValueError("invalid config name")
 
-    inp = input()
-
     # TODO: Use hydra for configuration
     dataset = SegmentedTextDataset(
-        [sent for sent in inp.split("\n") if sent],
+        sys.stdin.readlines(),
         model_name_or_path=cfg.datamodule.model_name_or_path,
         max_seq_length=cfg.datamodule.max_seq_length,
         tokenizer_kwargs=cfg.datamodule.tokenizer_kwargs,
