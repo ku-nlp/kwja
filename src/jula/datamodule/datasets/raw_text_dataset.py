@@ -13,7 +13,7 @@ class RawTextDataset(Dataset):
         max_seq_length: int = 512,
         tokenizer_kwargs: dict = None,
     ) -> None:
-        self.texts = texts
+        self.texts = [text.strip() for text in texts]
         if tokenizer_kwargs:
             tokenizer_kwargs = hydra.utils.instantiate(tokenizer_kwargs, _convert_="partial")
         else:
