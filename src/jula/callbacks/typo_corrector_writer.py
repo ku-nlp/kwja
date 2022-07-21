@@ -86,7 +86,7 @@ class TypoCorrectorWriter(BasePredictionWriter):
         trainer: pl.Trainer,
         pl_module: pl.LightningModule,
         predictions: Sequence[Any],
-        batch_indices: Optional[Sequence[Any]],
+        batch_indices: Optional[Sequence[Any]] = None,
     ) -> None:
         example_id = 0
         for prediction in predictions:
