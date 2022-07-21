@@ -124,6 +124,13 @@ class WordModule(LightningModule):
             on_step=True,
             on_epoch=False,
         )
+        discourse_parsing_loss = outputs["relation_analyzer_outputs"]["discourse_parsing_loss"]
+        self.log(
+            "train/discourse_parsing_loss",
+            discourse_parsing_loss,
+            on_step=True,
+            on_epoch=False,
+        )
         return (
             word_analysis_loss
             + word_feature_loss
@@ -131,6 +138,7 @@ class WordModule(LightningModule):
             + dependency_loss
             + dependency_type_loss
             + cohesion_loss
+            + discourse_parsing_loss
         )
 
     def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> None:
@@ -200,6 +208,8 @@ class WordModule(LightningModule):
             "valid/cohesion_loss",
             outputs["relation_analyzer_outputs"]["cohesion_loss"],
         )
+
+        # TODO: evaluate discourse parsing
 
     def validation_epoch_end(self, validation_step_outputs) -> None:
         f1_scores: dict[str, float] = defaultdict(float)
@@ -315,6 +325,8 @@ class WordModule(LightningModule):
             outputs["relation_analyzer_outputs"]["cohesion_loss"],
         )
 
+        # TODO: evaluate discourse parsing
+
     def test_epoch_end(self, test_step_outputs) -> None:
         f1_scores: dict[str, float] = defaultdict(float)
 
@@ -374,6 +386,7 @@ class WordModule(LightningModule):
             "base_phrase_feature_logits": outputs["phrase_analyzer_outputs"]["base_phrase_feature_logits"],
             "dependency_logits": outputs["relation_analyzer_outputs"]["dependency_logits"],
             "dependency_type_logits": outputs["relation_analyzer_outputs"]["dependency_type_logits"],
+            "discourse_parsing_logits": outputs["relation_analyzer_outputs"]["discourse_parsing_logits"],
         }
 
     def configure_optimizers(self):

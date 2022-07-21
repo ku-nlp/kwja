@@ -79,17 +79,17 @@ class RelationAnalyzer(nn.Module):
             )
             output.update({"cohesion_loss": cohesion_loss})
 
-        discourse_relation_logits = self.discourse_parser(pooled_outputs)  # (b, seq, seq, rel)
+        discourse_parsing_logits = self.discourse_parser(pooled_outputs)  # (b, seq, seq, rel)
         output.update(
             {
-                "discourse_relation_logits": discourse_relation_logits,
+                "discourse_parsing_logits": discourse_parsing_logits,
             }
         )
         if "discourse_relations" in batch:
             discourse_relation_loss = F.cross_entropy(
-                input=discourse_relation_logits.view(-1, discourse_relation_logits.size(3)),
+                input=discourse_parsing_logits.view(-1, discourse_parsing_logits.size(3)),
                 target=batch["discourse_relations"].view(-1),
                 ignore_index=IGNORE_INDEX,
             )
-            output.update({"discourse_relation_loss": discourse_relation_loss})
+            output.update({"discourse_parsing_loss": discourse_relation_loss})
         return output
