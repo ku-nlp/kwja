@@ -16,7 +16,7 @@ class CharEncoder(nn.Module):
         self.pretrained_model.resize_token_embeddings(len(tokenizer))
         self.word_embed = self.pretrained_model.embeddings.word_embeddings
 
-        self.max_ene_num: int = self.hparams.dataset.max_ene_num
+        self.max_ene_num: int = self.hparams.dataset.get("max_ene_num", 0)
         if self.max_ene_num > 0:
             self.add_ene_embed_before_encoder: bool = hparams.add_ene_embed_before_encoder
             self.ene_embed: nn.Embedding = nn.Embedding(
