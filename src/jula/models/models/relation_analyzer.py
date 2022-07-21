@@ -6,6 +6,7 @@ from transformers import PretrainedConfig
 
 from jula.models.models.cohesion_analyzer import CohesionAnalyzer, cohesion_cross_entropy_loss
 from jula.models.models.dependency_parser import DependencyParser
+from jula.models.models.discourse_parser import DiscourseParser
 from jula.utils.constants import IGNORE_INDEX
 
 
@@ -14,16 +15,17 @@ class RelationAnalyzer(nn.Module):
         super().__init__()
         self.hparams = hparams
 
-        self.dependency_parser: DependencyParser = DependencyParser(
+        self.dependency_parser = DependencyParser(
             pretrained_model_config=pretrained_model_config,
             k=hparams.k,
         )
-        self.cohesion_analyzer: CohesionAnalyzer = CohesionAnalyzer(
+        self.cohesion_analyzer = CohesionAnalyzer(
             pretrained_model_config=pretrained_model_config,
             num_rels=int("pas_analysis" in hparams.cohesion_tasks) * len(hparams.cases)
             + int("coreference" in hparams.cohesion_tasks)
             + int("bridging" in hparams.cohesion_tasks),
         )
+        self.discourse_parser = DiscourseParser(pretrained_model_config=pretrained_model_config)
 
     def forward(
         self,
@@ -76,4 +78,18 @@ class RelationAnalyzer(nn.Module):
                 batch["cohesion_mask"],
             )
             output.update({"cohesion_loss": cohesion_loss})
+
+        discourse_relation_logits = self.discourse_parser(pooled_outputs)  # (b, seq, seq, rel)
+        output.update(
+            {
+                "discourse_relation_logits": discourse_relation_logits,
+            }
+        )
+        if "discourse_relations" in batch:
+            discourse_relation_loss = F.cross_entropy(
+                input=discourse_relation_logits.view(-1, discourse_relation_logits.size(3)),
+                target=batch["discourse_relations"].view(-1),
+                ignore_index=IGNORE_INDEX,
+            )
+            output.update({"discourse_relation_loss": discourse_relation_loss})
         return output
