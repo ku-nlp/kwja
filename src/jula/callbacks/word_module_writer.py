@@ -33,7 +33,7 @@ class WordModuleWriter(BasePredictionWriter):
         if self.use_stdout:
             self.output_path = ""
         else:
-            self.output_path = f"{output_dir}/{pred_filename}.json"
+            self.output_path = f"{output_dir}/{pred_filename}.knp"
             os.makedirs(output_dir, exist_ok=True)
             if os.path.isfile(self.output_path):
                 os.remove(self.output_path)
@@ -81,11 +81,12 @@ class WordModuleWriter(BasePredictionWriter):
                 ):
                     results.append(self.convert_predictions(*values))
 
+        out = "\n".join(results)
         if self.use_stdout:
-            print("\n".join(results))
+            print(out)
         else:
             with open(self.output_path, "w") as f:
-                f.write("\n".join(results))
+                f.write(out)
 
     @staticmethod
     def convert_predictions(
