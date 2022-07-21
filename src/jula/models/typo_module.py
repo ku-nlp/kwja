@@ -38,30 +38,21 @@ class TypoModule(LightningModule):
 
     def training_step(self, batch: Any, batch_idx: int) -> dict[str, Any]:
         outputs: dict[str, torch.Tensor] = self(**batch)
-        result: dict[str, Union[torch.Tensor, float]] = self.metrics.compute_metrics(
-            outputs=outputs,
-            batch=batch,
-        )
+        result: dict[str, Union[torch.Tensor, float]] = self.metrics.compute_metrics(outputs, batch)
         for name, value in result.items():
             self.log(f"train/{name}", value)
         return result
 
     def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> dict[str, Any]:
         outputs: dict[str, torch.Tensor] = self(**batch)
-        result: dict[str, Union[torch.Tensor, float]] = self.metrics.compute_metrics(
-            outputs=outputs,
-            batch=batch,
-        )
+        result: dict[str, Union[torch.Tensor, float]] = self.metrics.compute_metrics(outputs, batch)
         for name, value in result.items():
             self.log(f"valid/{name}", value)
         return result
 
     def test_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> dict[str, Any]:
         outputs: dict[str, torch.Tensor] = self(**batch)
-        result: dict[str, Union[torch.Tensor, float]] = self.metrics.compute_metrics(
-            outputs=outputs,
-            batch=batch,
-        )
+        result: dict[str, Union[torch.Tensor, float]] = self.metrics.compute_metrics(outputs, batch)
         for name, value in result.items():
             self.log(f"test/{name}", value)
         return result
