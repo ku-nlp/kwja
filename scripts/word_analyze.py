@@ -1,19 +1,17 @@
-from typing import Union
+import sys
 
 import hydra
 import pytorch_lightning as pl
-import transformers.utils.logging as hf_logging
 from dotenv import load_dotenv
 from omegaconf import DictConfig
 from pytorch_lightning.callbacks import Callback
 from torch.utils.data import DataLoader
 
+from jula.cli.utils import suppress_debug_info
 from jula.datamodule.datasets.segmented_text_dataset import SegmentedTextDataset
-from jula.models.char_module import CharModule
-from jula.models.typo_module import TypoModule
 from jula.models.word_module import WordModule
 
-hf_logging.set_verbosity(hf_logging.ERROR)
+suppress_debug_info()
 
 
 @hydra.main(version_base=None, config_path="../configs", config_name="word_module")
@@ -33,22 +31,19 @@ def main(cfg: DictConfig):
     trainer: pl.Trainer = hydra.utils.instantiate(
         cfg.trainer,
         logger=None,
+        enable_progress_bar=False,
         callbacks=callbacks,
         devices=cfg.devices,
     )
 
-    model: Union[TypoModule, CharModule, WordModule]
-    # add config name if you want
     if cfg.config_name in cfg.module.word:
         model = WordModule.load_from_checkpoint(checkpoint_path=cfg.checkpoint_path, hparams=cfg)
     else:
         raise ValueError("invalid config name")
 
-    inp = input()
-
     # TODO: Use hydra for configuration
     dataset = SegmentedTextDataset(
-        inp.split("\n"),
+        sys.stdin.readlines(),
         model_name_or_path=cfg.datamodule.model_name_or_path,
         max_seq_length=cfg.datamodule.max_seq_length,
         tokenizer_kwargs=cfg.datamodule.tokenizer_kwargs,
