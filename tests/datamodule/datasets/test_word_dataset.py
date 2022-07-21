@@ -13,7 +13,6 @@ from jula.utils.constants import (
     CONJFORM_TYPES,
     CONJTYPE_TYPES,
     DEPENDENCY_TYPE2INDEX,
-    DISCOURSE_RELATIONS,
     IGNORE_INDEX,
     POS_TYPES,
     SUBPOS_TYPES,
@@ -72,11 +71,7 @@ def test_getitem():
         assert item["dependencies"].shape == (max_seq_length,)
         assert item["intra_mask"].shape == (max_seq_length, max_seq_length)
         assert item["dependency_types"].shape == (max_seq_length,)
-        assert item["discourse_relations"].shape == (
-            max_seq_length,
-            max_seq_length,
-            len(DISCOURSE_RELATIONS),
-        )
+        assert item["discourse_relations"].shape == (max_seq_length, max_seq_length)
 
 
 def test_encode():

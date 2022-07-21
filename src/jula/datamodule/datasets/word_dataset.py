@@ -14,7 +14,6 @@ from jula.utils.constants import (
     CONJFORM_TYPES,
     CONJTYPE_TYPES,
     DEPENDENCY_TYPE2INDEX,
-    DISCOURSE_RELATIONS,
     IGNORE_INDEX,
     POS_TYPES,
     SUBPOS_TYPES,
@@ -180,11 +179,8 @@ class WordDataset(BaseDataset):
             for candidates in candidates_set
         ]  # False -> mask, True -> keep
 
-        # TODO: discourse relation analysis
-        discourse_relations = [
-            [[DISCOURSE_RELATIONS.index("談話関係なし")] * len(DISCOURSE_RELATIONS) for _ in range(self.max_seq_length)]
-            for _ in range(self.max_seq_length)
-        ]
+        discourse_relations = [[IGNORE_INDEX for _ in range(self.max_seq_length)] for _ in range(self.max_seq_length)]
+        # TODO: flag for discourse relations
 
         special_encoding: Encoding = self.tokenizer(
             self.special_tokens,
