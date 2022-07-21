@@ -23,6 +23,7 @@ from jula.utils.constants import (
 here = Path(__file__).absolute().parent
 path = here.joinpath("knp_files")
 data_dir = here.parent.parent / "data"
+reading_dir = here / "reading_files"
 
 word_dataset_kwargs = {
     "cases": ["ガ", "ヲ", "ニ", "ガ２"],
@@ -33,13 +34,14 @@ word_dataset_kwargs = {
 
 
 def test_init():
-    _ = WordDataset(str(path), **word_dataset_kwargs)
+    _ = WordDataset(str(path), reading_path=reading_dir, **word_dataset_kwargs)
 
 
 def test_getitem():
     max_seq_length = 512
     dataset = WordDataset(
         str(path),
+        reading_path=reading_dir,
         max_seq_length=max_seq_length,
         **word_dataset_kwargs,
     )
@@ -83,6 +85,7 @@ def test_encode():
     max_seq_length = 512
     dataset = WordDataset(
         str(path),
+        reading_path=reading_dir,
         max_seq_length=max_seq_length,
         **word_dataset_kwargs,
     )
@@ -261,6 +264,7 @@ def test_pas():
     max_seq_length = 512
     dataset = WordDataset(
         str(data_dir / "knp"),
+        reading_path=reading_dir,
         max_seq_length=max_seq_length,
         **word_dataset_kwargs,
     )

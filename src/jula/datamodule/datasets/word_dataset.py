@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import torch
 from rhoknp import Document
 from rhoknp.rel import ExophoraReferent
@@ -20,10 +22,21 @@ from jula.utils.constants import (
     SUBPOS_TYPES,
     WORD_FEATURES,
 )
+from jula.utils.kanjidic import KanjiDic
+from jula.utils.reading_aligner import ReadingAligner
 
 
 class WordDataset(BaseDataset):
-    def __init__(self, *args, **kwargs):
+    def __init__(
+        self,
+        path: str,
+        reading_path: str,
+        model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
+        max_seq_length: int = 512,
+        tokenizer_kwargs: dict = None,
+        ext: str = "knp",
+        **kwargs,
+    ):
         self.exophora_referents: list[ExophoraReferent] = [
             ExophoraReferent(s) for s in kwargs.pop("exophora_referents")
         ]
@@ -40,7 +53,11 @@ class WordDataset(BaseDataset):
         else:
             kwargs["tokenizer_kwargs"] = tokenizer_kwargs
 
-        super().__init__(*args, **kwargs)
+        super().__init__(path=path, **kwargs)
+
+        self.reading2id: dict[str, int] = self.get_reading2id(fpath=str(Path(reading_path) / "vocab.txt"))
+        kanjidic = KanjiDic(str(Path(reading_path) / "kanjidic"))
+        self.reading_aligner = ReadingAligner(self.tokenizer, kanjidic)
 
         self.cohesion_tasks: list[Task] = [Task(t) for t in kwargs["cohesion_tasks"]]
         self.cases: list[str] = list(kwargs["cases"])
@@ -208,6 +225,15 @@ class WordDataset(BaseDataset):
             "cohesion_target": torch.tensor(cohesion_target, dtype=torch.int),
             "cohesion_mask": torch.tensor(cohesion_mask, dtype=torch.bool),
         }
+
+    def get_reading2id(self, fpath: str) -> dict[str, int]:
+        reading2id = {
+            "[UNK]": 0,
+        }
+        with open(fpath, mode="r") as f:
+            for line in f:
+                reading2id[str(line.strip())] = len(reading2id)
+        return reading2id
 
     def dump_prediction(
         self,
