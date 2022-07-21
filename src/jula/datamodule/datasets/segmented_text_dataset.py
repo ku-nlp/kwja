@@ -58,5 +58,5 @@ class SegmentedTextDataset(Dataset):
             "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
             "subword_map": torch.tensor(subword_map, dtype=torch.bool),
             "intra_mask": torch.tensor(intra_mask, dtype=torch.bool),
-            "text": text,
+            "texts": text,
         }

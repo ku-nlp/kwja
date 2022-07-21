@@ -54,7 +54,7 @@ class WordModuleWriter(BasePredictionWriter):
         results = []
         for prediction in predictions:
             for batch_pred in prediction:
-                batch_texts = batch_pred["text"]
+                batch_texts = batch_pred["texts"]
                 batch_pos_preds = torch.argmax(batch_pred["word_analysis_pos_logits"], dim=-1)
                 batch_subpos_preds = torch.argmax(batch_pred["word_analysis_subpos_logits"], dim=-1)
                 batch_conjtype_preds = torch.argmax(batch_pred["word_analysis_conjtype_logits"], dim=-1)

@@ -30,7 +30,7 @@ def test_write_on_epoch_end():
     with tempfile.TemporaryDirectory() as tmp_dir:
         writer = WordModuleWriter(tmp_dir)
 
-        text = ["今日 は 晴れ だ"]
+        texts = ["今日 は 晴れ だ"]
 
         word_analysis_pos_logits = torch.zeros(1, 7, len(POS_TYPES), dtype=torch.float)
         word_analysis_pos_logits[0][0][POS_TYPES.index("名詞")] = 1.0
@@ -86,7 +86,7 @@ def test_write_on_epoch_end():
         predictions = [
             [
                 {
-                    "text": text,
+                    "texts": texts,
                     "word_analysis_pos_logits": word_analysis_pos_logits,
                     "word_analysis_subpos_logits": word_analysis_subpos_logits,
                     "word_analysis_conjtype_logits": word_analysis_conjtype_logits,
