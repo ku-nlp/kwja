@@ -49,7 +49,7 @@ class WordModuleWriter(BasePredictionWriter):
         trainer: pl.Trainer,
         pl_module: pl.LightningModule,
         predictions: Sequence[Any],
-        batch_indices: Optional[Sequence[Any]],
+        batch_indices: Optional[Sequence[Any]] = None,
     ) -> None:
         results = []
         for prediction in predictions:
@@ -63,7 +63,8 @@ class WordModuleWriter(BasePredictionWriter):
                 batch_base_phrase_feature_preds = batch_pred["base_phrase_feature_logits"].ge(0.5).long()
                 batch_dependency_preds = torch.topk(
                     batch_pred["dependency_logits"],
-                    pl_module.hparams.k,
+                    # pl_module.hparams.k,  # TODO: move to WordModuleWriter's config or argument
+                    k=1,
                     dim=2,
                 ).indices
                 batch_dependency_type_preds = torch.argmax(batch_pred["dependency_type_logits"], dim=3)
