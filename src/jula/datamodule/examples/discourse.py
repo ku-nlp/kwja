@@ -1,5 +1,7 @@
 from rhoknp import Document
 
+from jula.utils.constants import DISCOURSE_RELATION_MAP
+
 
 class DiscourseExample:
     """A single training/test example for discourse parsing."""
@@ -18,7 +20,7 @@ class DiscourseExample:
                 head_morpheme_id = head.end.morphemes[0].global_index
                 for discourse_relation in modifier.discourse_relations:
                     if discourse_relation.head == head:
-                        label = discourse_relation.label
+                        label = DISCOURSE_RELATION_MAP[discourse_relation.label]
                         self.discourse_relations[modifier_morpheme_id][head_morpheme_id] = label
                 if not self.discourse_relations[modifier_morpheme_id][head_morpheme_id]:
                     self.discourse_relations[modifier_morpheme_id][head_morpheme_id] = "談話関係なし"
