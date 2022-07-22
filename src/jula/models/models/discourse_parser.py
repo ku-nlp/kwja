@@ -10,6 +10,8 @@ class DiscourseParser(nn.Module):
         super().__init__()
         hidden_size = pretrained_model_config.hidden_size
 
+        self.dropout = nn.Dropout(0.0)
+
         self.l_src = nn.Linear(hidden_size, hidden_size)
         self.l_tgt = nn.Linear(hidden_size, hidden_size)
         self.out = nn.Linear(hidden_size, len(DISCOURSE_RELATIONS), bias=False)
