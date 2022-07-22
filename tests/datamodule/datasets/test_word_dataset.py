@@ -115,7 +115,12 @@ def test_encode():
             """
         )
     )
-    encoding = dataset.encode(document, dataset.cohesion_examples["000"], dataset.dependency_examples["000"])
+    encoding = dataset.encode(
+        document,
+        dataset.base_phrase_feature_examples["000"],
+        dataset.dependency_examples["000"],
+        dataset.cohesion_examples["000"],
+    )
 
     mrph_types = [[IGNORE_INDEX] * 4 for _ in range(max_seq_length)]
     # 0: 風

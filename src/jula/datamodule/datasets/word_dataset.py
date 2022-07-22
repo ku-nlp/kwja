@@ -6,7 +6,7 @@ from tokenizers import Encoding
 from transformers.utils import PaddingStrategy
 
 from jula.datamodule.datasets.base_dataset import BaseDataset
-from jula.datamodule.examples import CohesionExample, DependencyExample, Task
+from jula.datamodule.examples import BasePhraseFeatureExample, CohesionExample, DependencyExample, Task
 from jula.datamodule.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
 from jula.datamodule.extractors.base import Phrase
 from jula.utils.constants import (
@@ -54,17 +54,24 @@ class WordDataset(BaseDataset):
         self.special_to_index: dict[str, int] = {
             token: self.max_seq_length - len(self.special_tokens) + i for i, token in enumerate(self.special_tokens)
         }
-        self.cohesion_examples: dict[str, CohesionExample] = {}
+        self.base_phrase_feature_examples: dict[str, BasePhraseFeatureExample] = {}
         self.dependency_examples: dict[str, DependencyExample] = {}
+        self.cohesion_examples: dict[str, CohesionExample] = {}
         for example_id, document in enumerate(self.documents):
-            cohesion_example = self._load_cohesion_example(document)
-            cohesion_example.example_id = example_id
-            self.cohesion_examples[document.doc_id] = cohesion_example
+            base_phrase_feature_example = BasePhraseFeatureExample()
+            base_phrase_feature_example.load(document)
+            base_phrase_feature_example.example_id = example_id
+            self.base_phrase_feature_examples[document.doc_id] = base_phrase_feature_example
 
             dependency_example = DependencyExample()
             dependency_example.load(document)
             dependency_example.example_id = example_id
             self.dependency_examples[document.doc_id] = dependency_example
+
+            cohesion_example = CohesionExample()
+            cohesion_example.load(document, tasks=self.cohesion_tasks, extractors=self.extractors)
+            cohesion_example.example_id = example_id
+            self.cohesion_examples[document.doc_id] = cohesion_example
 
     @property
     def special_indices(self) -> list[int]:
@@ -74,22 +81,19 @@ class WordDataset(BaseDataset):
     def num_special_tokens(self) -> int:
         return len(self.special_tokens)
 
-    def _load_cohesion_example(self, document: Document) -> CohesionExample:
-        example = CohesionExample()
-        example.load(document, tasks=self.cohesion_tasks, extractors=self.extractors)
-        return example
-
     def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
         document = self.documents[index]
-        cohesion_example = self.cohesion_examples[document.doc_id]
+        base_phrase_feature_example = self.base_phrase_feature_examples[document.doc_id]
         dependency_example = self.dependency_examples[document.doc_id]
-        return self.encode(document, cohesion_example, dependency_example)
+        cohesion_example = self.cohesion_examples[document.doc_id]
+        return self.encode(document, base_phrase_feature_example, dependency_example, cohesion_example)
 
     def encode(
         self,
         document: Document,
-        cohesion_example: CohesionExample,
+        base_phrase_feature_example: BasePhraseFeatureExample,
         dependency_example: DependencyExample,
+        cohesion_example: CohesionExample,
     ) -> dict[str, torch.Tensor]:
         # TODO: deal with the case that the document is too long
         text = " ".join(morpheme.text for morpheme in document.morphemes)
@@ -126,18 +130,11 @@ class WordDataset(BaseDataset):
             end = phrase.morphemes[-1]
             word_features[end.global_index][WORD_FEATURES.index("文節-区切")] = 1
 
+        # base phrase feature tagging
         base_phrase_features = [[IGNORE_INDEX] * len(BASE_PHRASE_FEATURES) for _ in range(self.max_seq_length)]
-        for base_phrase in document.base_phrases:
+        for head_index, feature_set in zip(base_phrase_feature_example.heads, base_phrase_feature_example.features):
             for i, base_phrase_feature in enumerate(BASE_PHRASE_FEATURES):
-                if ":" in base_phrase_feature:
-                    key, value = base_phrase_feature.split(":")
-                else:
-                    key, value = base_phrase_feature, ""
-                head = base_phrase.head
-                if base_phrase.features.get(key, False) in (value, True):
-                    base_phrase_features[head.global_index][i] = 1
-                else:
-                    base_phrase_features[head.global_index][i] = 0
+                base_phrase_features[head_index][i] = int(base_phrase_feature in feature_set)
 
         # dependency parsing
         dependencies: list[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
