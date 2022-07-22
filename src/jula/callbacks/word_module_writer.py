@@ -1,5 +1,7 @@
 import os
-from typing import Any, Optional, Sequence
+import sys
+from pathlib import Path
+from typing import Any, Optional, Sequence, TextIO, Union
 
 import hydra
 import pytorch_lightning as pl
@@ -29,14 +31,14 @@ class WordModuleWriter(BasePredictionWriter):
     ) -> None:
         super().__init__(write_interval="epoch")
 
-        self.use_stdout = use_stdout
-        if self.use_stdout:
-            self.output_path = ""
+        self.destination: Union[Path, TextIO]
+        if use_stdout is True:
+            self.destination = sys.stdout
         else:
-            self.output_path = f"{output_dir}/{pred_filename}.knp"
-            os.makedirs(output_dir, exist_ok=True)
-            if os.path.isfile(self.output_path):
-                os.remove(self.output_path)
+            self.destination = Path(f"{output_dir}/{pred_filename}.knp")
+            self.destination.parent.mkdir(exist_ok=True)
+            if self.destination.exists():
+                os.remove(str(self.destination))
 
         self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             model_name_or_path,
@@ -68,6 +70,7 @@ class WordModuleWriter(BasePredictionWriter):
                     dim=2,
                 ).indices
                 batch_dependency_type_preds = torch.argmax(batch_pred["dependency_type_logits"], dim=3)
+                batch_cohesion_preds = torch.argmax(batch_pred["cohesion_logits"], dim=3)  # (b, rel, word)
                 for values in zip(
                     batch_texts,
                     batch_pos_preds.tolist(),
@@ -78,18 +81,19 @@ class WordModuleWriter(BasePredictionWriter):
                     batch_base_phrase_feature_preds.tolist(),
                     batch_dependency_preds.tolist(),
                     batch_dependency_type_preds.tolist(),
+                    batch_cohesion_preds.tolist(),
                 ):
-                    results.append(self.convert_predictions(*values))
+                    # single document
+                    results.append(self._convert_predictions(*values))
 
-        out = "\n".join(results)
-        if self.use_stdout:
-            print(out)
-        else:
-            with open(self.output_path, "w") as f:
-                f.write(out)
+        output_string = "\n".join(results)
+        if isinstance(self.destination, Path):
+            self.destination.write_text(output_string)
+        elif isinstance(self.destination, TextIO):
+            self.destination.write(output_string)
 
     @staticmethod
-    def convert_predictions(
+    def _convert_predictions(
         text: str,
         pos_preds: list[int],
         subpos_preds: list[int],
@@ -99,8 +103,11 @@ class WordModuleWriter(BasePredictionWriter):
         base_phrase_feature_preds: list[list[int]],
         dependency_preds: list[list[int]],
         dependency_type_preds: list[list[int]],
+        cohesion_preds: list[list[int]],
     ) -> str:
+        """Create KNP format text for a single example."""
         words = text.split()
+        _ = cohesion_preds
 
         sequence_len = len(base_phrase_feature_preds)
         base_phrase_start_indices = {0}
