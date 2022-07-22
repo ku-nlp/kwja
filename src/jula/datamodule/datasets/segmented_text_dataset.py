@@ -13,7 +13,7 @@ class SegmentedTextDataset(Dataset):
         max_seq_length: int = 512,
         tokenizer_kwargs: dict = None,
     ) -> None:
-        self.texts = texts
+        self.texts = [text.strip() for text in texts]
         if tokenizer_kwargs:
             tokenizer_kwargs = hydra.utils.instantiate(tokenizer_kwargs, _convert_="partial")
         else:
@@ -46,10 +46,17 @@ class SegmentedTextDataset(Dataset):
         for token_id, word_id in enumerate(encoding.word_ids()):
             if word_id is not None:
                 subword_map[word_id][token_id] = True
-        intra_mask = [[True] * self.max_seq_length for _ in range(self.max_seq_length)]
+        intra_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
+        num_morphemes = len(text.split(" "))
+        for i in range(0, num_morphemes):
+            for j in range(0, num_morphemes):
+                if i != j:
+                    intra_mask[i][j] = True
+            intra_mask[i][-1] = True
         return {
             "input_ids": torch.tensor(input_ids, dtype=torch.long),
             "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
             "subword_map": torch.tensor(subword_map, dtype=torch.bool),
             "intra_mask": torch.tensor(intra_mask, dtype=torch.bool),
+            "texts": text,
         }

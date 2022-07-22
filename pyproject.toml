@@ -33,6 +33,7 @@ ipadic = "^1.0.0"
 python-dotenv = "^0.20.0"
 pandas = "^1.4.2"
 dartsclone = "^0.10.2"
+kyoto-reader = "^2.5.2"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.1"

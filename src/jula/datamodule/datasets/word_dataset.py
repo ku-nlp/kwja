@@ -92,8 +92,10 @@ class WordDataset(BaseDataset):
         dependency_example: DependencyExample,
     ) -> dict[str, torch.Tensor]:
         # TODO: deal with the case that the document is too long
+        text = " ".join(morpheme.text for morpheme in document.morphemes)
+
         encoding: Encoding = self.tokenizer(
-            " ".join(morpheme.text for morpheme in document.morphemes),
+            text,
             truncation=True,
             padding=PaddingStrategy.MAX_LENGTH,
             max_length=self.max_seq_length - self.num_special_tokens,
@@ -207,6 +209,7 @@ class WordDataset(BaseDataset):
             "discourse_relations": torch.tensor(discourse_relations, dtype=torch.long),
             "cohesion_target": torch.tensor(cohesion_target, dtype=torch.int),
             "cohesion_mask": torch.tensor(cohesion_mask, dtype=torch.bool),
+            "texts": text,
         }
 
     def dump_prediction(

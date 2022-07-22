@@ -36,7 +36,7 @@ class TypoCorrectorWriter(BasePredictionWriter):
 
         self.tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(
             model_name_or_path,
-            **hydra.utils.instantiate(tokenizer_kwargs, _convert_="partial"),
+            **hydra.utils.instantiate(tokenizer_kwargs or {}, _convert_="partial"),
         )
         self.predicts: dict[int, Any] = dict()
         self.metrics: TypoCorrectorMetric = TypoCorrectorMetric()
@@ -81,24 +81,12 @@ class TypoCorrectorWriter(BasePredictionWriter):
             labels_list.append(labels)
         return preds_list, labels_list
 
-    def write_on_batch_end(
-        self,
-        trainer: pl.Trainer,
-        pl_module: pl.LightningModule,
-        prediction: Any,
-        batch_indices: Optional[Sequence[int]],
-        batch: Any,
-        batch_idx: int,
-        dataloader_idx: int,
-    ) -> None:
-        pass
-
     def write_on_epoch_end(
         self,
         trainer: pl.Trainer,
         pl_module: pl.LightningModule,
         predictions: Sequence[Any],
-        batch_indices: Optional[Sequence[Any]],
+        batch_indices: Optional[Sequence[Any]] = None,
     ) -> None:
         example_id = 0
         for prediction in predictions:
