@@ -1,3 +1,5 @@
+import logging
+
 import torch
 from rhoknp import Document
 from rhoknp.rel import ExophoraReferent
@@ -6,7 +8,7 @@ from tokenizers import Encoding
 from transformers.utils import PaddingStrategy
 
 from jula.datamodule.datasets.base_dataset import BaseDataset
-from jula.datamodule.examples import CohesionExample, DependencyExample, Task
+from jula.datamodule.examples import CohesionExample, DependencyExample, DiscourseExample, Task
 from jula.datamodule.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
 from jula.datamodule.extractors.base import Phrase
 from jula.utils.constants import (
@@ -14,11 +16,14 @@ from jula.utils.constants import (
     CONJFORM_TYPES,
     CONJTYPE_TYPES,
     DEPENDENCY_TYPE2INDEX,
+    DISCOURSE_RELATIONS,
     IGNORE_INDEX,
     POS_TYPES,
     SUBPOS_TYPES,
     WORD_FEATURES,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class WordDataset(BaseDataset):
@@ -55,6 +60,7 @@ class WordDataset(BaseDataset):
         }
         self.cohesion_examples: dict[str, CohesionExample] = {}
         self.dependency_examples: dict[str, DependencyExample] = {}
+        self.discourse_examples: dict[str, DiscourseExample] = {}
         for example_id, document in enumerate(self.documents):
             cohesion_example = self._load_cohesion_example(document)
             cohesion_example.example_id = example_id
@@ -64,6 +70,10 @@ class WordDataset(BaseDataset):
             dependency_example.load(document)
             dependency_example.example_id = example_id
             self.dependency_examples[document.doc_id] = dependency_example
+
+            discourse_example = self._load_discourse_example(document)
+            discourse_example.example_id = example_id
+            self.discourse_examples[document.doc_id] = discourse_example
 
     @property
     def special_indices(self) -> list[int]:
@@ -78,17 +88,38 @@ class WordDataset(BaseDataset):
         example.load(document, tasks=self.cohesion_tasks, extractors=self.extractors)
         return example
 
+    def _load_discourse_example(self, document: Document) -> DiscourseExample:
+        example = DiscourseExample()
+        if self.path.name == "train":
+            path = self.path / "disc_crowd" / f"{document.doc_id}.knp"
+        else:  # valid and test
+            path = self.path / "disc_gold" / f"{document.doc_id}.knp"
+        if path.exists():
+            try:
+                document_disc = Document.from_knp(path.read_text())
+            except AssertionError:
+                logger.warning(f"{path} is not a valid KNP file")
+                return example
+            if document != document_disc:
+                return example
+            example.load(document_disc)
+            return example
+        example.load(document)  # no discourse annotation
+        return example
+
     def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
         document = self.documents[index]
         cohesion_example = self.cohesion_examples[document.doc_id]
         dependency_example = self.dependency_examples[document.doc_id]
-        return self.encode(document, cohesion_example, dependency_example)
+        discourse_example = self.discourse_examples[document.doc_id]
+        return self.encode(document, cohesion_example, dependency_example, discourse_example)
 
     def encode(
         self,
         document: Document,
         cohesion_example: CohesionExample,
         dependency_example: DependencyExample,
+        discourse_example: DiscourseExample,
     ) -> dict[str, torch.Tensor]:
         # TODO: deal with the case that the document is too long
         text = " ".join(morpheme.text for morpheme in document.morphemes)
@@ -180,7 +211,11 @@ class WordDataset(BaseDataset):
         ]  # False -> mask, True -> keep
 
         discourse_relations = [[IGNORE_INDEX for _ in range(self.max_seq_length)] for _ in range(self.max_seq_length)]
-        # TODO: flag for discourse relations
+        for global_morpheme_index_i, relations in enumerate(discourse_example.discourse_relations):
+            for global_morpheme_index_j, relation in enumerate(relations):
+                if relation in DISCOURSE_RELATIONS:
+                    relation_index = DISCOURSE_RELATIONS.index(relation)
+                    discourse_relations[global_morpheme_index_i][global_morpheme_index_j] = relation_index
 
         special_encoding: Encoding = self.tokenizer(
             self.special_tokens,

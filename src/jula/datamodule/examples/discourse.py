@@ -20,6 +20,5 @@ class DiscourseExample:
                     if discourse_relation.head == head:
                         label = discourse_relation.label
                         self.discourse_relations[modifier_morpheme_id][head_morpheme_id] = label
-                else:
-                    if not self.discourse_relations[modifier_morpheme_id][head_morpheme_id]:
-                        self.discourse_relations[modifier_morpheme_id][head_morpheme_id] = "談話関係なし"
+                if not self.discourse_relations[modifier_morpheme_id][head_morpheme_id]:
+                    self.discourse_relations[modifier_morpheme_id][head_morpheme_id] = "談話関係なし"
