@@ -116,7 +116,7 @@ def test_encode():
         )
     )
     encoding = dataset.encode(
-        document,
+        " ".join(morpheme.text for morpheme in document.morphemes),
         dataset.word_feature_examples["000"],
         dataset.base_phrase_feature_examples["000"],
         dataset.dependency_examples["000"],
