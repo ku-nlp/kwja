@@ -10,6 +10,7 @@ from transformers import AutoTokenizer, PretrainedConfig, PreTrainedTokenizerBas
 
 from jula.evaluators.cohesion_analysis_metric import CohesionAnalysisMetric
 from jula.evaluators.dependency_parsing_metric import DependencyParsingMetric
+from jula.evaluators.discourse_parsing_metric import DiscourseParsingMetric
 from jula.evaluators.phrase_analysis_metric import PhraseAnalysisMetric
 from jula.evaluators.word_analyzer import WordAnalysisMetric
 from jula.models.models.phrase_analyzer import PhraseAnalyzer
@@ -65,6 +66,12 @@ class WordModule(LightningModule):
         }
         self.test_cohesion_analysis_metrics: dict[str, CohesionAnalysisMetric] = {
             corpus: CohesionAnalysisMetric() for corpus in self.test_corpora
+        }
+        self.valid_discourse_parsing_metrics: dict[str, DiscourseParsingMetric] = {
+            corpus: DiscourseParsingMetric() for corpus in self.valid_corpora
+        }
+        self.test_discourse_parsing_metrics: dict[str, DiscourseParsingMetric] = {
+            corpus: DiscourseParsingMetric() for corpus in self.test_corpora
         }
 
     def forward(self, **batch) -> dict[str, dict[str, torch.Tensor]]:
@@ -159,7 +166,14 @@ class WordModule(LightningModule):
         self.valid_cohesion_analysis_metrics[corpus].update(**cohesion_analysis_metric_args)
         self.log("valid/cohesion_loss", outputs["relation_analyzer_outputs"]["cohesion_loss"])
 
-        # TODO: evaluate discourse parsing
+        discourse_parsing_metric_args = {
+            "example_ids": batch["example_ids"],
+            "discourse_parsing_predictions": torch.argmax(
+                outputs["relation_analyzer_outputs"]["discourse_parsing_logits"],
+                dim=-1,
+            ),
+        }
+        self.valid_discourse_parsing_metrics[corpus].update(**discourse_parsing_metric_args)
         self.log("valid/discourse_parsing_loss", outputs["relation_analyzer_outputs"]["discourse_parsing_loss"])
 
     def validation_epoch_end(self, validation_step_outputs) -> None:
@@ -203,6 +217,13 @@ class WordModule(LightningModule):
             for rel, val in metric.compute(dataset).to_dict().items():
                 for met, sub_val in val.items():
                     self.log(f"valid_{corpus}/{met}_{rel}", sub_val.f1)
+            metric.reset()
+
+        for idx, corpus in enumerate(self.valid_corpora):
+            dataset = self.trainer.val_dataloaders[idx].dataset
+            metric = self.valid_discourse_parsing_metrics[corpus]
+            for name, value in metric.compute(dataset.documents).items():
+                self.log(f"valid_{corpus}/{name}", value)
             metric.reset()
 
     def test_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> None:
@@ -258,7 +279,14 @@ class WordModule(LightningModule):
         self.test_cohesion_analysis_metrics[corpus].update(**cohesion_analysis_metric_args)
         self.log("test/cohesion_loss", outputs["relation_analyzer_outputs"]["cohesion_loss"])
 
-        # TODO: evaluate discourse parsing
+        discourse_parsing_metric_args = {
+            "example_ids": batch["example_ids"],
+            "discourse_parsing_predictions": torch.argmax(
+                outputs["relation_analyzer_outputs"]["discourse_parsing_logits"],
+                dim=-1,
+            ),
+        }
+        self.test_discourse_parsing_metrics[corpus].update(**discourse_parsing_metric_args)
         self.log("test/discourse_parsing_loss", outputs["relation_analyzer_outputs"]["discourse_parsing_loss"])
 
     def test_epoch_end(self, test_step_outputs) -> None:
@@ -302,6 +330,13 @@ class WordModule(LightningModule):
             for rel, val in metric.compute(dataset).to_dict().items():
                 for met, sub_val in val.items():
                     self.log(f"test_{corpus}/{met}_{rel}", sub_val.f1)
+            metric.reset()
+
+        for idx, corpus in enumerate(self.valid_corpora):
+            dataset = self.trainer.test_dataloaders[idx].dataset
+            metric = self.test_discourse_parsing_metrics[corpus]
+            for name, value in metric.compute(dataset.documents).items():
+                self.log(f"test_{corpus}/{name}", value)
             metric.reset()
 
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Any:
@@ -353,9 +388,5 @@ class WordModule(LightningModule):
         )
         return {
             "optimizer": optimizer,
-            "lr_scheduler": {
-                "scheduler": lr_scheduler,
-                "interval": "step",
-                "frequency": 1,
-            },
+            "lr_scheduler": {"scheduler": lr_scheduler, "interval": "step", "frequency": 1},
         }
