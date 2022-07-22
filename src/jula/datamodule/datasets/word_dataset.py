@@ -1,5 +1,4 @@
 import torch
-from rhoknp import Document
 from rhoknp.rel import ExophoraReferent
 from scipy.special import softmax
 from tokenizers import Encoding
@@ -94,26 +93,25 @@ class WordDataset(BaseDataset):
         return len(self.special_tokens)
 
     def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
-        document = self.documents[index]
-        word_feature_example = self.word_feature_examples[document.doc_id]
-        base_phrase_feature_example = self.base_phrase_feature_examples[document.doc_id]
-        dependency_example = self.dependency_examples[document.doc_id]
-        cohesion_example = self.cohesion_examples[document.doc_id]
+        text = " ".join(morpheme.text for morpheme in self.documents[index].morphemes)
+        doc_id = self.document_ids[index]
+        word_feature_example = self.word_feature_examples[doc_id]
+        base_phrase_feature_example = self.base_phrase_feature_examples[doc_id]
+        dependency_example = self.dependency_examples[doc_id]
+        cohesion_example = self.cohesion_examples[doc_id]
         return self.encode(
-            document, word_feature_example, base_phrase_feature_example, dependency_example, cohesion_example
+            text, word_feature_example, base_phrase_feature_example, dependency_example, cohesion_example
         )
 
     def encode(
         self,
-        document: Document,
+        text: str,
         word_feature_example: WordFeatureExample,
         base_phrase_feature_example: BasePhraseFeatureExample,
         dependency_example: DependencyExample,
         cohesion_example: CohesionExample,
     ) -> dict[str, torch.Tensor]:
         # TODO: deal with the case that the document is too long
-        text = " ".join(morpheme.text for morpheme in document.morphemes)
-
         encoding: Encoding = self.tokenizer(
             text,
             truncation=True,
