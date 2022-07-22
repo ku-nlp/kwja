@@ -122,16 +122,14 @@ class WordDataset(BaseDataset):
         ).encodings[0]
 
         # NOTE: hereafter, indices are given at the word level
-        mrph_types: list[list[int]] = [[IGNORE_INDEX] * 4 for _ in range(self.max_seq_length)]
-        for morpheme in document.morphemes:
-            if morpheme.pos in POS_TYPES:
-                mrph_types[morpheme.global_index][0] = POS_TYPES.index(morpheme.pos)
-            if morpheme.subpos in SUBPOS_TYPES:
-                mrph_types[morpheme.global_index][1] = SUBPOS_TYPES.index(morpheme.subpos)
-            if morpheme.conjtype in CONJTYPE_TYPES:
-                mrph_types[morpheme.global_index][2] = CONJTYPE_TYPES.index(morpheme.conjtype)
-            if morpheme.conjtype in CONJTYPE_TYPES:
-                mrph_types[morpheme.global_index][3] = CONJFORM_TYPES.index(morpheme.conjform)
+
+        # morpheme type tagging
+        morpheme_type_set = (POS_TYPES, SUBPOS_TYPES, CONJTYPE_TYPES, CONJFORM_TYPES)
+        morpheme_types = [[IGNORE_INDEX] * len(morpheme_type_set) for _ in range(self.max_seq_length)]
+        for morpheme_index, mrph_types in enumerate(word_feature_example.types):
+            for i, (mrph_type, all_types) in enumerate(zip(mrph_types, morpheme_type_set)):
+                if mrph_type in all_types:
+                    morpheme_types[morpheme_index][i] = all_types.index(mrph_type)
 
         # word feature tagging
         word_features = [[IGNORE_INDEX] * len(WORD_FEATURES) for _ in range(self.max_seq_length)]
@@ -206,7 +204,7 @@ class WordDataset(BaseDataset):
             "input_ids": torch.tensor(merged_encoding.ids, dtype=torch.long),
             "attention_mask": torch.tensor(merged_encoding.attention_mask, dtype=torch.long),
             "subword_map": torch.tensor(self._gen_subword_map(encoding), dtype=torch.bool),
-            "mrph_types": torch.tensor(mrph_types, dtype=torch.long),
+            "mrph_types": torch.tensor(morpheme_types, dtype=torch.long),
             "word_features": torch.tensor(word_features, dtype=torch.long),
             "base_phrase_features": torch.tensor(base_phrase_features, dtype=torch.long),
             "dependencies": torch.tensor(dependencies, dtype=torch.long),
