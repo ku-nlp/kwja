@@ -117,6 +117,7 @@ def test_encode():
     )
     encoding = dataset.encode(
         document,
+        dataset.word_feature_examples["000"],
         dataset.base_phrase_feature_examples["000"],
         dataset.dependency_examples["000"],
         dataset.cohesion_examples["000"],

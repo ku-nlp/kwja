@@ -6,7 +6,13 @@ from tokenizers import Encoding
 from transformers.utils import PaddingStrategy
 
 from jula.datamodule.datasets.base_dataset import BaseDataset
-from jula.datamodule.examples import BasePhraseFeatureExample, CohesionExample, DependencyExample, Task
+from jula.datamodule.examples import (
+    BasePhraseFeatureExample,
+    CohesionExample,
+    DependencyExample,
+    Task,
+    WordFeatureExample,
+)
 from jula.datamodule.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
 from jula.datamodule.extractors.base import Phrase
 from jula.utils.constants import (
@@ -54,10 +60,16 @@ class WordDataset(BaseDataset):
         self.special_to_index: dict[str, int] = {
             token: self.max_seq_length - len(self.special_tokens) + i for i, token in enumerate(self.special_tokens)
         }
+        self.word_feature_examples: dict[str, WordFeatureExample] = {}
         self.base_phrase_feature_examples: dict[str, BasePhraseFeatureExample] = {}
         self.dependency_examples: dict[str, DependencyExample] = {}
         self.cohesion_examples: dict[str, CohesionExample] = {}
         for example_id, document in enumerate(self.documents):
+            word_feature_example = WordFeatureExample()
+            word_feature_example.load(document)
+            word_feature_example.example_id = example_id
+            self.word_feature_examples[document.doc_id] = word_feature_example
+
             base_phrase_feature_example = BasePhraseFeatureExample()
             base_phrase_feature_example.load(document)
             base_phrase_feature_example.example_id = example_id
@@ -83,14 +95,18 @@ class WordDataset(BaseDataset):
 
     def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
         document = self.documents[index]
+        word_feature_example = self.word_feature_examples[document.doc_id]
         base_phrase_feature_example = self.base_phrase_feature_examples[document.doc_id]
         dependency_example = self.dependency_examples[document.doc_id]
         cohesion_example = self.cohesion_examples[document.doc_id]
-        return self.encode(document, base_phrase_feature_example, dependency_example, cohesion_example)
+        return self.encode(
+            document, word_feature_example, base_phrase_feature_example, dependency_example, cohesion_example
+        )
 
     def encode(
         self,
         document: Document,
+        word_feature_example: WordFeatureExample,
         base_phrase_feature_example: BasePhraseFeatureExample,
         dependency_example: DependencyExample,
         cohesion_example: CohesionExample,
@@ -117,18 +133,11 @@ class WordDataset(BaseDataset):
             if morpheme.conjtype in CONJTYPE_TYPES:
                 mrph_types[morpheme.global_index][3] = CONJFORM_TYPES.index(morpheme.conjform)
 
-        word_features = [
-            [0] * len(WORD_FEATURES) if i < len(document.morphemes) else [IGNORE_INDEX] * len(WORD_FEATURES)
-            for i in range(self.max_seq_length)
-        ]
-        for base_phrase in document.base_phrases:
-            head = base_phrase.head
-            end = base_phrase.morphemes[-1]
-            word_features[head.global_index][WORD_FEATURES.index("基本句-主辞")] = 1
-            word_features[end.global_index][WORD_FEATURES.index("基本句-区切")] = 1
-        for phrase in document.phrases:
-            end = phrase.morphemes[-1]
-            word_features[end.global_index][WORD_FEATURES.index("文節-区切")] = 1
+        # word feature tagging
+        word_features = [[IGNORE_INDEX] * len(WORD_FEATURES) for _ in range(self.max_seq_length)]
+        for morpheme_index, feature_set in enumerate(word_feature_example.features):
+            for i, word_feature in enumerate(WORD_FEATURES):
+                word_features[morpheme_index][i] = int(word_feature in feature_set)
 
         # base phrase feature tagging
         base_phrase_features = [[IGNORE_INDEX] * len(BASE_PHRASE_FEATURES) for _ in range(self.max_seq_length)]
