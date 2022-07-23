@@ -221,7 +221,7 @@ class WordModuleWriter(BasePredictionWriter):
         prediction: list[int],  # (rel)
         morphemes: list[Morpheme],
     ) -> Rels:
-        rels: Rels = Rels([])
+        rels = Rels()
         assert len(self.relations) == len(prediction)
         for relation, morpheme_index in zip(self.relations, prediction):
             if morpheme_index < 0:

@@ -92,7 +92,7 @@ class CohesionKNPWriter:
         prediction: list[int],  # (rel)
         base_phrases: list[BasePhrase],
     ) -> Rels:
-        rels: Rels = Rels([])
+        rels = Rels()
         assert len(self.relations) == len(prediction)
         for relation, pred in zip(self.relations, prediction):
             if pred < 0:
