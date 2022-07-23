@@ -90,16 +90,16 @@ class CohesionKNPWriter:
     def _to_rels(
         self,
         prediction: list[int],  # (rel)
-        bp_list: list[BasePhrase],
+        base_phrases: list[BasePhrase],
     ) -> Rels:
         rels: Rels = Rels([])
         assert len(self.relations) == len(prediction)
         for relation, pred in zip(self.relations, prediction):
             if pred < 0:
                 continue  # non-target phrase
-            if 0 <= pred < len(bp_list):
+            if 0 <= pred < len(base_phrases):
                 # normal
-                prediction_bp: BasePhrase = bp_list[pred]
+                prediction_bp: BasePhrase = base_phrases[pred]
                 rels.append(
                     Rel(
                         type=relation,
@@ -109,9 +109,9 @@ class CohesionKNPWriter:
                         mode=None,
                     )
                 )
-            elif 0 <= pred - len(bp_list) < len(self.specials):
+            elif 0 <= pred - len(base_phrases) < len(self.specials):
                 # special
-                special_arg = self.specials[pred - len(bp_list)]
+                special_arg = self.specials[pred - len(base_phrases)]
                 if special_arg in [str(e) for e in self.exophora_referents]:  # exclude [NULL] and [NA]
                     rels.append(
                         Rel(
