@@ -28,7 +28,7 @@ def test_init():
 
 def test_write_on_epoch_end():
     with tempfile.TemporaryDirectory() as tmp_dir:
-        writer = WordModuleWriter(tmp_dir)
+        writer = WordModuleWriter(tmp_dir, max_seq_length=7)
 
         texts = ["今日 は 晴れ だ"]
 
@@ -71,7 +71,7 @@ def test_write_on_epoch_end():
         base_phrase_feature_logits[0][2][BASE_PHRASE_FEATURES.index("節-主辞")] = 1.0
         base_phrase_feature_logits[0][2][BASE_PHRASE_FEATURES.index("節-区切")] = 1.0
 
-        dependency_logits = torch.zeros(1, 4, 7, dtype=torch.float)
+        dependency_logits = torch.zeros(1, 4, 7, dtype=torch.float)  # (b, word, word)
         dependency_logits[0][0][2] = 1.0
         dependency_logits[0][1][1] = 1.0
         dependency_logits[0][2][6] = 1.0
@@ -82,6 +82,9 @@ def test_write_on_epoch_end():
         dependency_type_logits[0][1][0][DEPENDENCY_TYPE2INDEX[DepType.DEPENDENCY]] = 1.0
         dependency_type_logits[0][2][0][DEPENDENCY_TYPE2INDEX[DepType.DEPENDENCY]] = 1.0
         dependency_type_logits[0][3][0][DEPENDENCY_TYPE2INDEX[DepType.DEPENDENCY]] = 1.0
+
+        cohesion_logits = torch.zeros(1, 6, 7, 7, dtype=torch.float)  # (b, rel, word, word)
+        cohesion_logits[0][0][2][0] = 1.0  # 今日 ガ 晴れ
 
         predictions = [
             [
@@ -95,24 +98,21 @@ def test_write_on_epoch_end():
                     "base_phrase_feature_logits": base_phrase_feature_logits,
                     "dependency_logits": dependency_logits,
                     "dependency_type_logits": dependency_type_logits,
+                    "cohesion_logits": cohesion_logits,
                 }
             ]
         ]
         writer.write_on_epoch_end(..., ..., predictions)
-        with open(writer.output_path) as f:
-            assert (
-                f.read().strip()
-                == textwrap.dedent(
-                    """\
+        assert writer.destination.read_text() == textwrap.dedent(
+            """\
                 *
                 + 1D <体言>
-                今日 名詞 時相名詞 * * <基本句-主辞>
-                は 助詞 副助詞 * *
+                今日 今日 今日 名詞 0 時相名詞 0 * 0 * 0 <基本句-主辞>
+                は は は 助詞 0 副助詞 0 * 0 * 0
                 *
                 + -1D <用言:判><時制:非過去><節-主辞><節-区切>
-                晴れ 名詞 普通名詞 * * <基本句-主辞>
-                だ 判定詞 * 判定詞 基本形
+                晴れ 晴れ 晴れ 名詞 0 普通名詞 0 * 0 * 0 <基本句-主辞>
+                だ だ だ 判定詞 0 * 0 判定詞 0 基本形 0
                 EOS
                 """
-                ).strip()
-            )
+        )

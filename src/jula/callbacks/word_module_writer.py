@@ -7,6 +7,10 @@ import hydra
 import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks import BasePredictionWriter
+from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
+from rhoknp.rel import ExophoraReferent
+from rhoknp.units.morpheme import MorphemeAttributes
+from rhoknp.units.utils import Features, Rels, Semantics
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from jula.utils.constants import (
@@ -16,7 +20,6 @@ from jula.utils.constants import (
     INDEX2DEPENDENCY_TYPE,
     INDEX2POS_TYPE,
     INDEX2SUBPOS_TYPE,
-    WORD_FEATURES,
 )
 
 
@@ -27,6 +30,7 @@ class WordModuleWriter(BasePredictionWriter):
         pred_filename: str = "predict",
         model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
         tokenizer_kwargs: dict = None,
+        max_seq_length: int = 512,
         use_stdout: bool = False,
     ) -> None:
         super().__init__(write_interval="epoch")
@@ -45,6 +49,19 @@ class WordModuleWriter(BasePredictionWriter):
             **hydra.utils.instantiate(tokenizer_kwargs or {}, _convert_="partial"),
         )
         self.pad_token_id = self.tokenizer.pad_token_id
+        self.max_seq_length = max_seq_length
+        # cohesion analysis settings
+        # TODO: fix hard coding
+        self.relations = ["ガ", "ヲ", "ニ", "ガ２", "ノ", "="]
+        self.exophora_referents: list[ExophoraReferent] = [ExophoraReferent(s) for s in ("著者", "読者", "不特定:人", "不特定:物")]
+        self.special_tokens: list[str] = [str(e) for e in self.exophora_referents] + [
+            "[NULL]",
+            "[NA]",
+            "[ROOT]",
+        ]
+        self.special_to_index: dict[str, int] = {
+            token: self.max_seq_length - len(self.special_tokens) + i for i, token in enumerate(self.special_tokens)
+        }
 
     def write_on_epoch_end(
         self,
@@ -53,7 +70,7 @@ class WordModuleWriter(BasePredictionWriter):
         predictions: Sequence[Any],
         batch_indices: Optional[Sequence[Any]] = None,
     ) -> None:
-        results = []
+        documents: list[Document] = []
         for prediction in predictions:
             for batch_pred in prediction:
                 batch_texts = batch_pred["texts"]
@@ -71,7 +88,18 @@ class WordModuleWriter(BasePredictionWriter):
                 ).indices
                 batch_dependency_type_preds = torch.argmax(batch_pred["dependency_type_logits"], dim=3)
                 batch_cohesion_preds = torch.argmax(batch_pred["cohesion_logits"], dim=3)  # (b, rel, word)
-                for values in zip(
+                for (
+                    text,
+                    pos_preds,
+                    subpos_preds,
+                    conjtype_preds,
+                    conjform_preds,
+                    word_feature_preds,
+                    base_phrase_feature_preds,
+                    dependency_preds,
+                    dependency_type_preds,
+                    cohesion_preds,
+                ) in zip(
                     batch_texts,
                     batch_pos_preds.tolist(),
                     batch_subpos_preds.tolist(),
@@ -83,73 +111,97 @@ class WordModuleWriter(BasePredictionWriter):
                     batch_dependency_type_preds.tolist(),
                     batch_cohesion_preds.tolist(),
                 ):
-                    # single document
-                    results.append(self._convert_predictions(*values))
+                    morphemes = self._create_morphemes(
+                        text.split(),
+                        pos_preds,
+                        subpos_preds,
+                        conjtype_preds,
+                        conjform_preds,
+                    )
+                    document = self._chunk_morphemes(morphemes, word_feature_preds)
+                    self._add_base_phrase_features(document, base_phrase_feature_preds)
+                    self._add_dependency(document, dependency_preds, dependency_type_preds)
+                    # self._add_cohesion(document, cohesion_preds)
+                    documents.append(document)
 
-        output_string = "\n".join(results)
+        output_string = "".join(doc.to_knp() for doc in documents)
         if isinstance(self.destination, Path):
             self.destination.write_text(output_string)
         elif isinstance(self.destination, TextIO):
             self.destination.write(output_string)
 
     @staticmethod
-    def _convert_predictions(
-        text: str,
+    def _create_morphemes(
+        words: list[str],
         pos_preds: list[int],
         subpos_preds: list[int],
         conjtype_preds: list[int],
         conjform_preds: list[int],
-        word_feature_preds: list[list[int]],
-        base_phrase_feature_preds: list[list[int]],
-        dependency_preds: list[list[int]],
-        dependency_type_preds: list[list[int]],
-        cohesion_preds: list[list[int]],
-    ) -> str:
-        """Create KNP format text for a single example."""
-        words = text.split()
-        _ = cohesion_preds
+    ) -> list[Morpheme]:
+        morphemes = []
+        for word, pos_index, subpos_index, conjtype_index, conjform_index in zip(
+            words, pos_preds, subpos_preds, conjtype_preds, conjform_preds
+        ):
+            attributes = MorphemeAttributes(
+                surf=word,
+                reading=word,  # TODO
+                lemma=word,  # TODO
+                pos=INDEX2POS_TYPE[pos_index],
+                pos_id=0,  # TODO
+                subpos=INDEX2SUBPOS_TYPE[subpos_index],
+                subpos_id=0,  # TODO
+                conjtype=INDEX2CONJTYPE_TYPE[conjtype_index],
+                conjtype_id=0,  # TODO
+                conjform=INDEX2CONJFORM_TYPE[conjform_index],
+                conjform_id=0,  # TODO
+            )
+            morphemes.append(Morpheme(attributes, Semantics({}), Features()))
+        return morphemes
 
-        sequence_len = len(base_phrase_feature_preds)
-        base_phrase_start_indices = {0}
-        phrase_start_indices = {0}
-        morpheme_index2base_phrase_index = {sequence_len - 1: -1}
-        base_phrase_index2base_phrase_head = {}
-        base_phrase_index = 0
-        for i, word_feature_pred in enumerate(word_feature_preds[: len(words)]):
-            morpheme_index2base_phrase_index[i] = base_phrase_index
-            if word_feature_pred[WORD_FEATURES.index("基本句-主辞")] == 1:
-                base_phrase_index2base_phrase_head[base_phrase_index] = i
-            if word_feature_pred[WORD_FEATURES.index("基本句-区切")] == 1:
-                base_phrase_start_indices.add(i + 1)
-                base_phrase_index += 1
-            if word_feature_pred[WORD_FEATURES.index("文節-区切")] == 1:
-                phrase_start_indices.add(i + 1)
+    @staticmethod
+    def _chunk_morphemes(morphemes: list[Morpheme], word_feature_preds: list[list[int]]) -> Document:
+        phrases_buff = []
+        base_phrases_buff = []
+        morphemes_buff = []
+        assert len(morphemes) <= len(word_feature_preds)
+        for i, (morpheme, word_feature_pred) in enumerate(zip(morphemes, word_feature_preds)):
+            morphemes_buff.append(morpheme)
+            # follows WORD_FEATURES
+            is_base_phrase_head, is_base_phrase_end, is_phrase_end = map(bool, word_feature_pred)
+            if is_base_phrase_head is True:
+                morpheme.features["基本句-主辞"] = True
+            if is_base_phrase_end is True:
+                base_phrase = BasePhrase(None, None, Features(), Rels())
+                base_phrase.morphemes = morphemes_buff
+                morphemes_buff = []
+                base_phrases_buff.append(base_phrase)
+            if is_phrase_end is True:
+                phrase = Phrase(None, None, Features())
+                phrase.base_phrases = base_phrases_buff
+                base_phrases_buff = []
+                phrases_buff.append(phrase)
+        sentence = Sentence()
+        sentence.phrases = phrases_buff
+        # TODO: support document with multiple sentences
+        return Document.from_sentences([sentence])
 
-        results = []
-        for i, word in enumerate(words):
-            if i in phrase_start_indices:
-                results.append("*")
-            if i in base_phrase_start_indices:
-                base_phrase_index = morpheme_index2base_phrase_index[i]
-                base_phrase_head = base_phrase_index2base_phrase_head[base_phrase_index]
-                parent_index = morpheme_index2base_phrase_index[dependency_preds[base_phrase_head][0]]
-                dep_type = INDEX2DEPENDENCY_TYPE[dependency_type_preds[base_phrase_head][0]]
-                features = "".join(
-                    f"<{feature}>"
-                    for feature, pred in zip(BASE_PHRASE_FEATURES, base_phrase_feature_preds[i])
-                    if pred == 1
-                )
-                results.append(f"+ {parent_index}{dep_type.value} {features}")
+    @staticmethod
+    def _add_base_phrase_features(document: Document, base_phrase_feature_preds: list[list[int]]) -> None:
+        for base_phrase in document.base_phrases:
+            for feature, pred in zip(BASE_PHRASE_FEATURES, base_phrase_feature_preds[base_phrase.head.global_index]):
+                if pred == 1:
+                    k, *vs = feature.split(":")
+                    base_phrase.features[k] = ":".join(vs) or True
 
-            values = [
-                word,
-                INDEX2POS_TYPE[pos_preds[i]],
-                INDEX2SUBPOS_TYPE[subpos_preds[i]],
-                INDEX2CONJTYPE_TYPE[conjtype_preds[i]],
-                INDEX2CONJFORM_TYPE[conjform_preds[i]],
-            ]
-            if word_feature_preds[i][WORD_FEATURES.index("基本句-主辞")] == 1:
-                values.append("<基本句-主辞>")
-            results.append(" ".join(values))
-        results.append("EOS")
-        return "\n".join(results)
+    def _add_dependency(
+        self, document: Document, dependency_preds: list[list[int]], dependency_type_preds: list[list[int]]
+    ) -> None:
+        morphemes = document.morphemes
+        for base_phrase in document.base_phrases:
+            parent_morpheme_index = dependency_preds[base_phrase.head.global_index][0]
+            dependency_type_id = dependency_type_preds[base_phrase.head.global_index][0]
+            if 0 <= parent_morpheme_index < len(morphemes):
+                base_phrase.parent_index = morphemes[parent_morpheme_index].base_phrase.index
+            elif parent_morpheme_index == self.special_to_index["[ROOT]"]:
+                base_phrase.parent_index = -1
+            base_phrase.dep_type = INDEX2DEPENDENCY_TYPE[dependency_type_id]
