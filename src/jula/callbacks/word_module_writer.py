@@ -10,9 +10,10 @@ from pytorch_lightning.callbacks import BasePredictionWriter
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
 from rhoknp.rel import ExophoraReferent
 from rhoknp.units.morpheme import MorphemeAttributes
-from rhoknp.units.utils import Features, Rels, Semantics
+from rhoknp.units.utils import Features, Rel, Rels, Semantics
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
+import jula
 from jula.utils.constants import (
     BASE_PHRASE_FEATURES,
     INDEX2CONJFORM_TYPE,
@@ -62,6 +63,7 @@ class WordModuleWriter(BasePredictionWriter):
         self.special_to_index: dict[str, int] = {
             token: self.max_seq_length - len(self.special_tokens) + i for i, token in enumerate(self.special_tokens)
         }
+        self.index_to_special: dict[int, str] = {v: k for k, v in self.special_to_index.items()}
 
     def write_on_epoch_end(
         self,
@@ -121,7 +123,7 @@ class WordModuleWriter(BasePredictionWriter):
                     document = self._chunk_morphemes(morphemes, word_feature_preds)
                     self._add_base_phrase_features(document, base_phrase_feature_preds)
                     self._add_dependency(document, dependency_preds, dependency_type_preds)
-                    # self._add_cohesion(document, cohesion_preds)
+                    self._add_cohesion(document, cohesion_preds)
                     documents.append(document)
 
         output_string = "".join(doc.to_knp() for doc in documents)
@@ -181,6 +183,8 @@ class WordModuleWriter(BasePredictionWriter):
                 base_phrases_buff = []
                 phrases_buff.append(phrase)
         sentence = Sentence()
+        sentence.sid = "1"
+        sentence.misc_comment = f"jula:{jula.__version__}"
         sentence.phrases = phrases_buff
         # TODO: support document with multiple sentences
         return Document.from_sentences([sentence])
@@ -205,3 +209,48 @@ class WordModuleWriter(BasePredictionWriter):
             elif parent_morpheme_index == self.special_to_index["[ROOT]"]:
                 base_phrase.parent_index = -1
             base_phrase.dep_type = INDEX2DEPENDENCY_TYPE[dependency_type_id]
+
+    def _add_cohesion(self, document: Document, cohesion_preds: list[list[int]]) -> None:
+        for base_phrase in document.base_phrases:
+            base_phrase.rels = self._to_rels(
+                [preds[base_phrase.head.global_index] for preds in cohesion_preds], document.morphemes
+            )
+
+    def _to_rels(
+        self,
+        prediction: list[int],  # (rel)
+        morphemes: list[Morpheme],
+    ) -> Rels:
+        rels: Rels = Rels([])
+        assert len(self.relations) == len(prediction)
+        for relation, morpheme_index in zip(self.relations, prediction):
+            if morpheme_index < 0:
+                continue  # non-target phrase
+            if 0 <= morpheme_index < len(morphemes):
+                # normal
+                prediction_bp: BasePhrase = morphemes[morpheme_index].base_phrase
+                rels.append(
+                    Rel(
+                        type=relation,
+                        target=prediction_bp.head.text,
+                        sid=prediction_bp.sentence.sid,
+                        base_phrase_index=prediction_bp.index,
+                        mode=None,
+                    )
+                )
+            elif special_token := self.index_to_special.get(morpheme_index):
+                # exophora
+                if special_token in [str(e) for e in self.exophora_referents]:  # exclude [NULL], [NA], and [ROOT]
+                    rels.append(
+                        Rel(
+                            type=relation,
+                            target=special_token,
+                            sid=None,
+                            base_phrase_index=None,
+                            mode=None,
+                        )
+                    )
+            else:
+                raise ValueError(f"invalid morpheme index: {morpheme_index}")
+
+        return rels
