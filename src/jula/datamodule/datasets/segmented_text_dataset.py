@@ -1,7 +1,9 @@
 import hydra
 import torch
+from rhoknp.rel import ExophoraReferent
+from tokenizers import Encoding
 from torch.utils.data import Dataset
-from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizer
+from transformers import AutoTokenizer, PreTrainedTokenizer
 from transformers.utils import PaddingStrategy
 
 
@@ -14,6 +16,12 @@ class SegmentedTextDataset(Dataset):
         tokenizer_kwargs: dict = None,
     ) -> None:
         self.texts = [text.strip() for text in texts]
+        self.exophora_referents: list[ExophoraReferent] = [ExophoraReferent(s) for s in ["著者", "読者", "不特定:人", "不特定:物"]]
+        self.special_tokens: list[str] = [str(e) for e in self.exophora_referents] + [
+            "[NULL]",
+            "[NA]",
+            "[ROOT]",  # TODO: mask in cohesion analysis
+        ]
         if tokenizer_kwargs:
             tokenizer_kwargs = hydra.utils.instantiate(tokenizer_kwargs, _convert_="partial")
         else:
@@ -24,28 +32,24 @@ class SegmentedTextDataset(Dataset):
         )
         self.max_seq_length = max_seq_length
 
+    @property
+    def num_special_tokens(self) -> int:
+        return len(self.special_tokens)
+
     def __len__(self) -> int:
         return len(self.texts)
 
     def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
-        return {
-            "example_ids": torch.tensor(index, dtype=torch.long),
-            **self.encode(self.texts[index]),
-        }
+        return self.encode(self.texts[index], index)
 
-    def encode(self, text: str) -> dict[str, torch.Tensor]:
-        encoding: BatchEncoding = self.tokenizer(
+    def encode(self, text: str, example_id: int) -> dict[str, torch.Tensor]:
+        encoding: Encoding = self.tokenizer(
             text,
             truncation=True,
             padding=PaddingStrategy.MAX_LENGTH,
-            max_length=self.max_seq_length - 1,
-        )
-        input_ids = encoding["input_ids"] + [self.tokenizer.vocab["[ROOT]"]]
-        attention_mask = encoding["attention_mask"] + [1]
-        subword_map = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
-        for token_id, word_id in enumerate(encoding.word_ids()):
-            if word_id is not None:
-                subword_map[word_id][token_id] = True
+            max_length=self.max_seq_length - self.num_special_tokens,
+        ).encodings[0]
+
         intra_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
         num_morphemes = len(text.split(" "))
         for i in range(0, num_morphemes):
@@ -53,10 +57,28 @@ class SegmentedTextDataset(Dataset):
                 if i != j:
                     intra_mask[i][j] = True
             intra_mask[i][-1] = True
+
+        special_encoding: Encoding = self.tokenizer(
+            self.special_tokens,
+            is_split_into_words=True,
+            padding=PaddingStrategy.DO_NOT_PAD,
+            truncation=False,
+            add_special_tokens=False,
+        ).encodings[0]
+        merged_encoding: Encoding = Encoding.merge([encoding, special_encoding])
+
         return {
-            "input_ids": torch.tensor(input_ids, dtype=torch.long),
-            "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
-            "subword_map": torch.tensor(subword_map, dtype=torch.bool),
+            "example_ids": torch.tensor(example_id, dtype=torch.long),
+            "input_ids": torch.tensor(merged_encoding.ids, dtype=torch.long),
+            "attention_mask": torch.tensor(merged_encoding.attention_mask, dtype=torch.long),
+            "subword_map": torch.tensor(self._gen_subword_map(encoding), dtype=torch.bool),
             "intra_mask": torch.tensor(intra_mask, dtype=torch.bool),
             "texts": text,
         }
+
+    def _gen_subword_map(self, encoding: Encoding) -> list[list[bool]]:
+        subword_map = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
+        for token_id, word_id in enumerate(encoding.word_ids):
+            if word_id is not None:
+                subword_map[word_id][token_id] = True
+        return subword_map
