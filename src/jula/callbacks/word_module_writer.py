@@ -157,7 +157,7 @@ class WordModuleWriter(BasePredictionWriter):
                 conjform=INDEX2CONJFORM_TYPE[conjform_index],
                 conjform_id=0,  # TODO
             )
-            morphemes.append(Morpheme(attributes, Semantics({}), Features()))
+            morphemes.append(Morpheme(attributes, Semantics(), Features()))
         return morphemes
 
     @staticmethod
