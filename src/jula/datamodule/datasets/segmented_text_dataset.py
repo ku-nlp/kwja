@@ -33,8 +33,15 @@ class SegmentedTextDataset(Dataset):
             **tokenizer_kwargs,
         )
         self.max_seq_length = max_seq_length
+        self.special_to_index: dict[str, int] = {
+            token: self.max_seq_length - len(self.special_tokens) + i for i, token in enumerate(self.special_tokens)
+        }
         self.cohesion_tasks: list[Task] = [Task(t) for t in ["pas_analysis", "bridging", "coreference"]]
         self.rels = ["ガ", "ヲ", "ニ", "ガ２", "ノ", "="]
+
+    @property
+    def special_indices(self) -> list[int]:
+        return list(self.special_to_index.values())
 
     @property
     def num_special_tokens(self) -> int:
@@ -91,4 +98,6 @@ class SegmentedTextDataset(Dataset):
         for token_id, word_id in enumerate(encoding.word_ids):
             if word_id is not None:
                 subword_map[word_id][token_id] = True
+        for special_index in self.special_indices:
+            subword_map[special_index][special_index] = True
         return subword_map
