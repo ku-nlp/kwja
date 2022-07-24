@@ -201,7 +201,7 @@ class WordDataset(BaseDataset):
             "example_ids": torch.tensor(cohesion_example.example_id, dtype=torch.long),
             "input_ids": torch.tensor(merged_encoding.ids, dtype=torch.long),
             "attention_mask": torch.tensor(merged_encoding.attention_mask, dtype=torch.long),
-            "subword_map": torch.tensor(self._gen_subword_map(encoding), dtype=torch.bool),
+            "subword_map": torch.tensor(self._gen_subword_map(merged_encoding), dtype=torch.bool),
             "mrph_types": torch.tensor(morpheme_types, dtype=torch.long),
             "word_features": torch.tensor(word_features, dtype=torch.long),
             "base_phrase_features": torch.tensor(base_phrase_features, dtype=torch.long),
