@@ -78,7 +78,7 @@ class SegmentedTextDataset(Dataset):
             "example_ids": torch.tensor(example_id, dtype=torch.long),
             "input_ids": torch.tensor(merged_encoding.ids, dtype=torch.long),
             "attention_mask": torch.tensor(merged_encoding.attention_mask, dtype=torch.long),
-            "subword_map": torch.tensor(self._gen_subword_map(encoding), dtype=torch.bool),
+            "subword_map": torch.tensor(self._gen_subword_map(merged_encoding), dtype=torch.bool),
             "intra_mask": torch.tensor(intra_mask, dtype=torch.bool),
             "cohesion_mask": torch.tensor(cohesion_mask, dtype=torch.bool)
             .view(1, 1, -1)
