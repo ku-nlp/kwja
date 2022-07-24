@@ -77,6 +77,13 @@ class WordDataset(BaseDataset):
             token: self.max_seq_length - len(self.special_tokens) + i for i, token in enumerate(self.special_tokens)
         }
         self.examples: list[WordExampleSet] = self._load_examples(self.documents)
+        self.special_encoding: Encoding = self.tokenizer(
+            self.special_tokens,
+            is_split_into_words=True,
+            padding=PaddingStrategy.DO_NOT_PAD,
+            truncation=False,
+            add_special_tokens=False,
+        ).encodings[0]
 
     @property
     def special_indices(self) -> list[int]:
@@ -208,14 +215,7 @@ class WordDataset(BaseDataset):
             for _ in range(self.max_seq_length)
         ]
 
-        special_encoding: Encoding = self.tokenizer(
-            self.special_tokens,
-            is_split_into_words=True,
-            padding=PaddingStrategy.DO_NOT_PAD,
-            truncation=False,
-            add_special_tokens=False,
-        ).encodings[0]
-        merged_encoding: Encoding = Encoding.merge([example.encoding, special_encoding])
+        merged_encoding: Encoding = Encoding.merge([example.encoding, self.special_encoding])
 
         return {
             "example_ids": torch.tensor(example.example_id, dtype=torch.long),
