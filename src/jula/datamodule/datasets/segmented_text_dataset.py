@@ -6,6 +6,8 @@ from torch.utils.data import Dataset
 from transformers import AutoTokenizer, PreTrainedTokenizer
 from transformers.utils import PaddingStrategy
 
+from jula.datamodule.examples import Task
+
 
 class SegmentedTextDataset(Dataset):
     def __init__(
@@ -31,6 +33,8 @@ class SegmentedTextDataset(Dataset):
             **tokenizer_kwargs,
         )
         self.max_seq_length = max_seq_length
+        self.cohesion_tasks: list[Task] = [Task(t) for t in ["pas_analysis", "bridging", "coreference"]]
+        self.rels = ["ガ", "ヲ", "ニ", "ガ２", "ノ", "="]
 
     @property
     def num_special_tokens(self) -> int:
@@ -57,6 +61,9 @@ class SegmentedTextDataset(Dataset):
                 if i != j:
                     intra_mask[i][j] = True
             intra_mask[i][-1] = True
+        cohesion_mask = [True] * num_morphemes
+        cohesion_mask += [False] * (self.max_seq_length - num_morphemes - self.num_special_tokens)
+        cohesion_mask += [True] * self.num_special_tokens
 
         special_encoding: Encoding = self.tokenizer(
             self.special_tokens,
@@ -73,6 +80,9 @@ class SegmentedTextDataset(Dataset):
             "attention_mask": torch.tensor(merged_encoding.attention_mask, dtype=torch.long),
             "subword_map": torch.tensor(self._gen_subword_map(encoding), dtype=torch.bool),
             "intra_mask": torch.tensor(intra_mask, dtype=torch.bool),
+            "cohesion_mask": torch.tensor(cohesion_mask, dtype=torch.bool)
+            .view(1, 1, -1)
+            .expand(len(self.rels), self.max_seq_length, self.max_seq_length),
             "texts": text,
         }
 
