@@ -277,7 +277,7 @@ class WordDataset(BaseDataset):
             for mrph in filter(lambda m: m.is_target, phrase.children):
                 scores: list[int] = [0] * self.max_seq_length
                 for arg_string in arguments:
-                    # arg_string: 著者, 8%C, 15%O, 2, NULL, ...
+                    # arg_string: 著者, 8%C, 15%O, 2, [NULL], ...
                     if arg_string[-2:] in ("%C", "%N", "%O"):
                         # PAS only
                         # flag = arg_string[-1]
