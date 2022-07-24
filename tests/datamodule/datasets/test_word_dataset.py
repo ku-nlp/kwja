@@ -58,11 +58,13 @@ def test_getitem():
         assert "intra_mask" in item
         assert "dependency_types" in item
         assert "discourse_relations" in item
+        assert "cohesion_target" in item
+        assert "cohesion_mask" in item
         assert item["example_ids"] == i
         assert item["input_ids"].shape == (max_seq_length,)
         assert item["attention_mask"].shape == (max_seq_length,)
         assert item["subword_map"].shape == (max_seq_length, max_seq_length)
-        assert (item["subword_map"].sum(dim=1) != 0).sum() == len(document.morphemes)
+        assert (item["subword_map"].sum(dim=1) != 0).sum() == len(document.morphemes) + dataset.num_special_tokens
         assert item["mrph_types"].shape == (max_seq_length, 4)
         assert item["word_features"].shape == (max_seq_length, len(WORD_FEATURES))
         assert item["base_phrase_features"].shape == (
@@ -77,6 +79,8 @@ def test_getitem():
             max_seq_length,
             len(DISCOURSE_RELATIONS),
         )
+        assert item["cohesion_target"].shape == (6, max_seq_length, max_seq_length)
+        assert item["cohesion_mask"].shape == (6, max_seq_length, max_seq_length)
 
 
 def test_encode():

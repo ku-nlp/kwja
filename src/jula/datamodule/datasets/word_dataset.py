@@ -201,7 +201,7 @@ class WordDataset(BaseDataset):
             "example_ids": torch.tensor(cohesion_example.example_id, dtype=torch.long),
             "input_ids": torch.tensor(merged_encoding.ids, dtype=torch.long),
             "attention_mask": torch.tensor(merged_encoding.attention_mask, dtype=torch.long),
-            "subword_map": torch.tensor(self._gen_subword_map(encoding), dtype=torch.bool),
+            "subword_map": torch.tensor(self._gen_subword_map(merged_encoding), dtype=torch.bool),
             "mrph_types": torch.tensor(morpheme_types, dtype=torch.long),
             "word_features": torch.tensor(word_features, dtype=torch.long),
             "base_phrase_features": torch.tensor(base_phrase_features, dtype=torch.long),
@@ -261,6 +261,8 @@ class WordDataset(BaseDataset):
         for token_id, word_id in enumerate(encoding.word_ids):
             if word_id is not None:
                 subword_map[word_id][token_id] = True
+        for special_index in self.special_indices:
+            subword_map[special_index][special_index] = True
         return subword_map
 
     def _convert_annotation_to_feature(
@@ -277,7 +279,7 @@ class WordDataset(BaseDataset):
             for mrph in filter(lambda m: m.is_target, phrase.children):
                 scores: list[int] = [0] * self.max_seq_length
                 for arg_string in arguments:
-                    # arg_string: 著者, 8%C, 15%O, 2, NULL, ...
+                    # arg_string: 著者, 8%C, 15%O, 2, [NULL], ...
                     if arg_string[-2:] in ("%C", "%N", "%O"):
                         # PAS only
                         # flag = arg_string[-1]

@@ -66,7 +66,7 @@ class RelationAnalyzer(nn.Module):
         cohesion_logits = self.cohesion_analyzer(pooled_outputs)  # (b, rel, seq, seq)
         output.update(
             {
-                "cohesion_logits": cohesion_logits,
+                "cohesion_logits": cohesion_logits + (~batch["cohesion_mask"]).float() * -1024.0,
             }
         )
         if "cohesion_target" in batch and "cohesion_mask" in batch:
