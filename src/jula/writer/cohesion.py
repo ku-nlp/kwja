@@ -163,7 +163,7 @@ class CohesionKNPWriter:
             args = pas.get_arguments(case, relax=False)
             if args:
                 arg: BaseArgument = args[0]
-                items[1] = str(arg.type)  # フラグ (C/N/O/D/E/U)
+                items[1] = arg.type.value  # フラグ (C/N/O/D/E/U)
                 items[2] = str(arg)  # 見出し
                 if isinstance(arg, Argument):
                     items[3] = str(sid2index[pas.sid] - sid2index[arg.base_phrase.sentence.sid])  # N文前

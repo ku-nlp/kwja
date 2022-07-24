@@ -61,7 +61,7 @@ class PasExtractor(Extractor):
         case: {dmid}%N
         zero: {dmid}%O
         exophor: {exophor}
-        no arg: NULL
+        no arg: [NULL]
         """
         # filter out non-target exophors
         args: list[BaseArgument] = []
