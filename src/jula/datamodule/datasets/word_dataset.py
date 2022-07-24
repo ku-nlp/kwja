@@ -261,6 +261,8 @@ class WordDataset(BaseDataset):
         for token_id, word_id in enumerate(encoding.word_ids):
             if word_id is not None:
                 subword_map[word_id][token_id] = True
+        for special_index in self.special_indices:
+            subword_map[special_index][special_index] = True
         return subword_map
 
     def _convert_annotation_to_feature(
