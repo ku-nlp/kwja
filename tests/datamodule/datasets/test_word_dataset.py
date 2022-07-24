@@ -119,13 +119,7 @@ def test_encode():
             """
         )
     )
-    encoding = dataset.encode(
-        " ".join(morpheme.text for morpheme in document.morphemes),
-        dataset.word_feature_examples["000"],
-        dataset.base_phrase_feature_examples["000"],
-        dataset.dependency_examples["000"],
-        dataset.cohesion_examples["000"],
-    )
+    encoding = dataset.encode(dataset.examples[0])
 
     mrph_types = [[IGNORE_INDEX] * 4 for _ in range(max_seq_length)]
     # 0: 風
@@ -274,7 +268,7 @@ def test_pas():
         max_seq_length=max_seq_length,
         **word_dataset_kwargs,
     )
-    example = dataset.cohesion_examples["w201106-0000060560"]
+    example = [e for e in dataset.examples if e.doc_id == "w201106-0000060560"][0].cohesion_example
     example_expected = json.loads((data_dir / "expected/example/0.json").read_text())
     mrphs_exp = example_expected["mrphs"]
     annotation: PasAnnotation = example.annotations[Task.PAS_ANALYSIS]
