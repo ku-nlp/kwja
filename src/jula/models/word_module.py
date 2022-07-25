@@ -207,7 +207,8 @@ class WordModule(LightningModule):
         for idx, corpus in enumerate(self.valid_corpora):
             dataset = self.trainer.val_dataloaders[idx].dataset
             metric = self.valid_dependency_parsing_metrics[corpus]
-            for name, value in metric.compute(dataset.documents).items():
+            documents = [dataset.doc_id2document[example.doc_id] for example in dataset.examples]
+            for name, value in metric.compute(documents).items():
                 self.log(f"valid_{corpus}/{name}", value)
             metric.reset()
 
@@ -319,7 +320,8 @@ class WordModule(LightningModule):
         for idx, corpus in enumerate(self.test_corpora):
             dataset = self.trainer.test_dataloaders[idx].dataset
             metric = self.test_dependency_parsing_metrics[corpus]
-            for name, value in metric.compute(dataset.documents).items():
+            documents = [dataset.doc_id2document[example.doc_id] for example in dataset.examples]
+            for name, value in metric.compute(documents).items():
                 self.log(f"test_{corpus}/{name}", value)
             metric.reset()
 

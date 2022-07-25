@@ -6,6 +6,7 @@ from rhoknp import Document
 from rhoknp.rel import ExophoraReferent
 from scipy.special import softmax
 from tokenizers import Encoding
+from tqdm import tqdm
 from transformers.utils import PaddingStrategy
 
 from jula.datamodule.datasets.base_dataset import BaseDataset
@@ -80,6 +81,7 @@ class WordDataset(BaseDataset):
             token: self.max_seq_length - len(self.special_tokens) + i for i, token in enumerate(self.special_tokens)
         }
         self.examples: list[WordExampleSet] = self._load_examples(self.documents)
+        assert len(self.examples) != 0
         self.special_encoding: Encoding = self.tokenizer(
             self.special_tokens,
             is_split_into_words=True,
@@ -87,6 +89,9 @@ class WordDataset(BaseDataset):
             truncation=False,
             add_special_tokens=False,
         ).encodings[0]
+
+    def __len__(self) -> int:
+        return len(self.examples)
 
     @property
     def special_indices(self) -> list[int]:
@@ -99,7 +104,7 @@ class WordDataset(BaseDataset):
     def _load_examples(self, documents: list[Document]) -> list[WordExampleSet]:
         examples = []
         idx = 0
-        for document in documents:
+        for document in tqdm(documents, dynamic_ncols=True):
             words = [morpheme.text for morpheme in document.morphemes]
             encoding: Encoding = self.tokenizer(
                 words,
