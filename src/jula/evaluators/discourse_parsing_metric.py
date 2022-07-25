@@ -1,8 +1,10 @@
 from typing import Union
 
 import torch
-from rhoknp import Document
 from torchmetrics import Metric
+from torchmetrics.functional import f1_score
+
+from jula.utils.constants import DISCOURSE_RELATIONS, IGNORE_INDEX
 
 
 class DiscourseParsingMetric(Metric):
@@ -12,23 +14,41 @@ class DiscourseParsingMetric(Metric):
         super().__init__()
         # Metric state variables can either be torch.Tensor or an empty list which can be used to store torch.Tensors`.
         # i.e. Expected metric state to be either a Tensor or a list of Tensor
-        self.add_state("example_ids", default=list())  # list[torch.Tensor]
-        self.add_state("discourse_parsing_predictions", default=list())  # list[torch.Tensor]  # [(rel, phrase)]
+        self.add_state("predictions", default=list(), dist_reduce_fx="cat")  # list[torch.Tensor]
+        self.add_state("labels", default=list(), dist_reduce_fx="cat")  # list[torch.Tensor]
 
     def update(
         self,
-        example_ids: torch.Tensor,  # (b)
         discourse_parsing_predictions: torch.Tensor,  # (b, seq, seq)
+        discourse_parsing_labels: torch.Tensor,  # (b, seq, seq)
     ) -> None:
-        self.example_ids.append(example_ids)
-        self.discourse_parsing_predictions.append(discourse_parsing_predictions)
-
-    def compute(self, documents: list[Document]) -> dict[str, Union[torch.Tensor, float]]:
-        return {}
+        self.predictions.append(discourse_parsing_predictions)
+        self.labels.append(discourse_parsing_labels)
 
     @staticmethod
-    def unique(x: torch.Tensor, dim: int = None):
-        unique, inverse = torch.unique(x, sorted=True, return_inverse=True, dim=dim)
-        perm = torch.arange(inverse.size(0), dtype=inverse.dtype, device=inverse.device)
-        inverse, perm = inverse.flip([0]), perm.flip([0])
-        return inverse.new_empty(unique.size(0)).scatter_(0, inverse, perm)
+    def _filter_ignore_index(t: torch.Tensor, labels: torch.Tensor, ignore_index: int = IGNORE_INDEX) -> torch.Tensor:
+        return torch.masked_select(t, labels != ignore_index)
+
+    def compute(self) -> dict[str, Union[torch.Tensor, float]]:
+        predictions = self.predictions.view(-1)
+        labels = self.labels.view(-1)
+
+        predictions = self._filter_ignore_index(predictions, labels)
+        labels = self._filter_ignore_index(labels, labels)
+        if labels.numel() == 0:
+            discourse_parsing_f1 = 0.0
+        else:
+            discourse_parsing_f1 = f1_score(predictions, labels)
+
+        no_relation_index = DISCOURSE_RELATIONS.index("談話関係なし")
+        predictions = self._filter_ignore_index(predictions, labels, ignore_index=no_relation_index)
+        labels = self._filter_ignore_index(labels, labels, ignore_index=no_relation_index)
+        if labels.numel() == 0:
+            discourse_parsing_f1_no_relation_ignored = 0.0
+        else:
+            discourse_parsing_f1_no_relation_ignored = f1_score(predictions, labels)
+
+        return {
+            "discourse_parsing_f1": discourse_parsing_f1,
+            "discourse_parsing_f1_no_relation_ignored": discourse_parsing_f1_no_relation_ignored,
+        }

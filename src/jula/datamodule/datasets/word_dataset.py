@@ -124,7 +124,7 @@ class WordDataset(BaseDataset):
                 return example
             example.load(document_disc)
             return example
-        example.load(document)  # no discourse annotation
+        example.load(document, has_annotation=False)  # no discourse annotation
         return example
 
     def __getitem__(self, index: int) -> dict[str, torch.Tensor]:

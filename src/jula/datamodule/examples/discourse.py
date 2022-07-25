@@ -11,9 +11,11 @@ class DiscourseExample:
         self.doc_id: str = ""
         self.discourse_relations: list[list[str]] = []
 
-    def load(self, document: Document) -> None:
+    def load(self, document: Document, has_annotation: bool = True) -> None:
         self.doc_id = document.doc_id
         self.discourse_relations = [[""] * len(document.morphemes) for _ in range(len(document.morphemes))]
+        if not has_annotation:
+            return
         for modifier in document.clauses:
             modifier_morpheme_id = modifier.end.morphemes[0].global_index
             for head in document.clauses:

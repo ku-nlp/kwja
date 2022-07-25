@@ -167,11 +167,11 @@ class WordModule(LightningModule):
         self.log("valid/cohesion_loss", outputs["relation_analyzer_outputs"]["cohesion_loss"])
 
         discourse_parsing_metric_args = {
-            "example_ids": batch["example_ids"],
             "discourse_parsing_predictions": torch.argmax(
                 outputs["relation_analyzer_outputs"]["discourse_parsing_logits"],
                 dim=-1,
             ),
+            "discourse_parsing_labels": batch["discourse_relations"],
         }
         self.valid_discourse_parsing_metrics[corpus].update(**discourse_parsing_metric_args)
         self.log("valid/discourse_parsing_loss", outputs["relation_analyzer_outputs"]["discourse_parsing_loss"])
@@ -220,9 +220,8 @@ class WordModule(LightningModule):
             metric.reset()
 
         for idx, corpus in enumerate(self.valid_corpora):
-            dataset = self.trainer.val_dataloaders[idx].dataset
             metric = self.valid_discourse_parsing_metrics[corpus]
-            for name, value in metric.compute(dataset.documents).items():
+            for name, value in metric.compute().items():
                 self.log(f"valid_{corpus}/{name}", value)
             metric.reset()
 
@@ -280,11 +279,11 @@ class WordModule(LightningModule):
         self.log("test/cohesion_loss", outputs["relation_analyzer_outputs"]["cohesion_loss"])
 
         discourse_parsing_metric_args = {
-            "example_ids": batch["example_ids"],
             "discourse_parsing_predictions": torch.argmax(
                 outputs["relation_analyzer_outputs"]["discourse_parsing_logits"],
                 dim=-1,
             ),
+            "discourse_parsing_labels": batch["discourse_relations"],
         }
         self.test_discourse_parsing_metrics[corpus].update(**discourse_parsing_metric_args)
         self.log("test/discourse_parsing_loss", outputs["relation_analyzer_outputs"]["discourse_parsing_loss"])
@@ -333,9 +332,8 @@ class WordModule(LightningModule):
             metric.reset()
 
         for idx, corpus in enumerate(self.valid_corpora):
-            dataset = self.trainer.test_dataloaders[idx].dataset
             metric = self.test_discourse_parsing_metrics[corpus]
-            for name, value in metric.compute(dataset.documents).items():
+            for name, value in metric.compute().items():
                 self.log(f"test_{corpus}/{name}", value)
             metric.reset()
 
