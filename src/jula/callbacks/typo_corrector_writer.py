@@ -101,16 +101,18 @@ class TypoCorrectorWriter(BasePredictionWriter):
                     opn_ids_list=torch.argmax(batch_pred["ins_logits"][:, 1:], dim=-1).tolist(),
                     opn_prefix="I",
                 )
-                result = ""
+                result = []
                 for idx in range(len(batch_pred["kdr_logits"])):
                     seq_len: int = len(batch_pred["texts"][idx])
                     # the prediction of the dummy token (= "<dummy>") at the end of the input is used for insertion only.
-                    result += self.apply_opn(
-                        pre_text=batch_pred["texts"][idx],
-                        kdrs=kdr_preds[idx][:seq_len],
-                        inss=ins_preds[idx][: seq_len + 1],
+                    result.append(
+                        self.apply_opn(
+                            pre_text=batch_pred["texts"][idx],
+                            kdrs=kdr_preds[idx][:seq_len],
+                            inss=ins_preds[idx][: seq_len + 1],
+                        )
                     )
-                results.append(result.strip())
+                results.append("\n".join(result))
 
         out = "\n".join(results)
         if self.use_stdout:
