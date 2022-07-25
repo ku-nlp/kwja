@@ -284,3 +284,4 @@ DISCOURSE_RELATIONS = (
     "対比",
     "逆接",
 )
+INDEX2DISCOURSE_RELATION = {index: discourse_relation for index, discourse_relation in enumerate(DISCOURSE_RELATIONS)}

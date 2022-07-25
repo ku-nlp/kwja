@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 from pathlib import Path
@@ -19,9 +20,12 @@ from jula.utils.constants import (
     INDEX2CONJFORM_TYPE,
     INDEX2CONJTYPE_TYPE,
     INDEX2DEPENDENCY_TYPE,
+    INDEX2DISCOURSE_RELATION,
     INDEX2POS_TYPE,
     INDEX2SUBPOS_TYPE,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class WordModuleWriter(BasePredictionWriter):
@@ -90,6 +94,7 @@ class WordModuleWriter(BasePredictionWriter):
                 ).indices
                 batch_dependency_type_preds = torch.argmax(batch_pred["dependency_type_logits"], dim=3)
                 batch_cohesion_preds = torch.argmax(batch_pred["cohesion_logits"], dim=3)  # (b, rel, word)
+                batch_discourse_parsing_preds = torch.argmax(batch_pred["discourse_parsing_logits"], dim=3)
                 for (
                     text,
                     pos_preds,
@@ -101,6 +106,7 @@ class WordModuleWriter(BasePredictionWriter):
                     dependency_preds,
                     dependency_type_preds,
                     cohesion_preds,
+                    discourse_parsing_preds,
                 ) in zip(
                     batch_texts,
                     batch_pos_preds.tolist(),
@@ -112,6 +118,7 @@ class WordModuleWriter(BasePredictionWriter):
                     batch_dependency_preds.tolist(),
                     batch_dependency_type_preds.tolist(),
                     batch_cohesion_preds.tolist(),
+                    batch_discourse_parsing_preds.tolist(),
                 ):
                     morphemes = self._create_morphemes(
                         text.split(),
@@ -124,6 +131,8 @@ class WordModuleWriter(BasePredictionWriter):
                     self._add_base_phrase_features(document, base_phrase_feature_preds)
                     self._add_dependency(document, dependency_preds, dependency_type_preds)
                     self._add_cohesion(document, cohesion_preds)
+                    document = Document.from_knp(document.to_knp())  # reparse to get clauses
+                    self._add_discourse(document, discourse_parsing_preds)
                     documents.append(document)
 
         output_string = "".join(doc.to_knp() for doc in documents)
@@ -227,6 +236,23 @@ class WordModuleWriter(BasePredictionWriter):
             base_phrase.rels = self._to_rels(
                 [preds[base_phrase.head.global_index] for preds in cohesion_preds], document.morphemes
             )
+
+    def _add_discourse(self, document: Document, discourse_preds: list[list[int]]) -> None:
+        if document.need_clause_tag:
+            logger.warning("failed to output clause boundaries")
+            return
+        for modifier in document.clauses:
+            modifier_morpheme_index = modifier.end.morphemes[0].global_index
+            preds = []
+            for head in document.clauses:
+                head_sid = head.sentence.sid
+                head_morpheme_index = head.end.morphemes[0].global_index
+                head_base_phrase_index = head.end.index
+                pred = INDEX2DISCOURSE_RELATION[discourse_preds[modifier_morpheme_index][head_morpheme_index]]
+                if pred != "談話関係なし":
+                    preds.append(f"{head_sid}/{head_base_phrase_index}/{pred}")
+            if preds:
+                modifier.end.features["談話関係"] = ";".join(preds)
 
     def _to_rels(
         self,
