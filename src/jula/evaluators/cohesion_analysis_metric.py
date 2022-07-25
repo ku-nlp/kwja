@@ -27,7 +27,7 @@ class CohesionAnalysisMetric(Metric):
         assert len(output) == len(example_ids)
         for out, eid in zip(output, example_ids):
             self.example_ids.append(eid)
-            gold_example: CohesionExample = dataset.cohesion_examples[dataset.document_ids[eid.item()]]
+            gold_example: CohesionExample = dataset.examples[eid.item()].cohesion_example
             # (rel, phrase, 0 or phrase+special)
             preds: list[list[list[float]]] = dataset.dump_prediction(out.tolist(), gold_example)
             self.predictions.append(

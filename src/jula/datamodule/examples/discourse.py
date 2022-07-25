@@ -7,7 +7,6 @@ class DiscourseExample:
     """A single training/test example for discourse parsing."""
 
     def __init__(self) -> None:
-        self.example_id: int = -1
         self.doc_id: str = ""
         self.discourse_relations: list[list[str]] = []
 

@@ -4,8 +4,9 @@ from pathlib import Path
 
 from rhoknp import Document
 from rhoknp.units.utils import DepType
+from transformers.utils import PaddingStrategy
 
-from jula.datamodule.datasets.word_dataset import WordDataset
+from jula.datamodule.datasets.word_dataset import WordDataset, WordExampleSet
 from jula.datamodule.examples import (
     BasePhraseFeatureExample,
     CohesionExample,
@@ -111,7 +112,15 @@ def test_encode():
             """
         )
     )
-    text = " ".join(morpheme.text for morpheme in document.morphemes)
+    words = [morpheme.text for morpheme in document.morphemes]
+    text = " ".join(words)
+    encoding = dataset.tokenizer(
+        words,
+        is_split_into_words=True,
+        padding=PaddingStrategy.MAX_LENGTH,
+        truncation=False,
+        max_length=dataset.max_seq_length - dataset.num_special_tokens,
+    ).encodings[0]
     word_feature_example = WordFeatureExample()
     word_feature_example.load(document)
     base_phrase_feature_example = BasePhraseFeatureExample()
@@ -122,14 +131,18 @@ def test_encode():
     dependency_example.load(document)
     discourse_example = DiscourseExample()
     discourse_example.load(document)
-    encoding = dataset.encode(
-        text,
-        word_feature_example,
-        base_phrase_feature_example,
-        dependency_example,
-        cohesion_example,
-        discourse_example,
+    example = WordExampleSet(
+        example_id=0,
+        doc_id="",
+        text=text,
+        encoding=encoding,
+        word_feature_example=word_feature_example,
+        base_phrase_feature_example=base_phrase_feature_example,
+        dependency_example=dependency_example,
+        cohesion_example=cohesion_example,
+        discourse_example=discourse_example,
     )
+    encoding = dataset.encode(example)
 
     mrph_types = [[IGNORE_INDEX] * 4 for _ in range(max_seq_length)]
     # 0: 風
@@ -285,7 +298,7 @@ def test_pas():
         max_seq_length=max_seq_length,
         **word_dataset_kwargs,
     )
-    example = dataset.cohesion_examples["w201106-0000060560"]
+    example = [e for e in dataset.examples if e.doc_id == "w201106-0000060560"][0].cohesion_example
     example_expected = json.loads((data_dir / "expected/example/0.json").read_text())
     mrphs_exp = example_expected["mrphs"]
     annotation: PasAnnotation = example.annotations[Task.PAS_ANALYSIS]
