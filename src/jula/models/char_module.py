@@ -5,7 +5,7 @@ import hydra
 import torch
 from omegaconf import DictConfig
 from pytorch_lightning.core.lightning import LightningModule
-from transformers import AutoTokenizer, PretrainedConfig, PreTrainedTokenizer
+from transformers import AutoTokenizer, PretrainedConfig, PreTrainedTokenizerBase
 
 from jula.evaluators.word_segmenter import WordSegmenterMetric
 from jula.models.models.char_encoder import CharEncoder
@@ -18,7 +18,7 @@ class CharModule(LightningModule):
         self.hparams.update(hparams)
         self.save_hyperparameters()
 
-        self.tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(
+        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             hparams.model.model_name_or_path,
             **hydra.utils.instantiate(hparams.dataset.tokenizer_kwargs, _convert_="partial"),
         )

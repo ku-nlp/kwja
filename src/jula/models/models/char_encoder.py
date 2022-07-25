@@ -1,14 +1,14 @@
 import torch
 import torch.nn as nn
 from omegaconf import DictConfig
-from transformers import AutoModel, PreTrainedTokenizer
+from transformers import AutoModel, PreTrainedTokenizerBase
 from transformers.models.roberta.modeling_roberta import create_position_ids_from_input_ids
 
 from jula.utils.constants import ENE_TYPE_BIES
 
 
 class CharEncoder(nn.Module):
-    def __init__(self, hparams: DictConfig, tokenizer: PreTrainedTokenizer) -> None:
+    def __init__(self, hparams: DictConfig, tokenizer: PreTrainedTokenizerBase) -> None:
         super().__init__()
         self.hparams = hparams
 
