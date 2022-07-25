@@ -1,4 +1,5 @@
 import sys
+from functools import cached_property
 from pathlib import Path
 
 import hydra
@@ -20,9 +21,8 @@ class BaseDataset(Dataset):
         self.path = Path(path)
         assert self.path.is_dir()
 
-        self.documents = self.load_documents(self.path, ext)
-        assert len(self) != 0
-        self.document_ids: list[str] = [doc.doc_id for doc in self.documents]
+        self.doc_id2document = self.load_documents(self.path, ext)
+        assert len(self.documents) != 0
 
         if tokenizer_kwargs:
             tokenizer_kwargs = hydra.utils.instantiate(tokenizer_kwargs, _convert_="partial")
@@ -38,12 +38,17 @@ class BaseDataset(Dataset):
         return len(self.documents)
 
     @staticmethod
-    def load_documents(path: Path, ext: str = "knp") -> list[Document]:
-        documents = []
+    def load_documents(path: Path, ext: str = "knp") -> dict[str, Document]:
+        doc_id2document: dict[str, Document] = {}
         for file_path in sorted(path.glob(f"*.{ext}")):
             # TODO: fix document file
             try:
-                documents.append(Document.from_knp(file_path.read_text()))
+                document = Document.from_knp(file_path.read_text())
+                doc_id2document[document.doc_id] = document
             except AssertionError:
                 print(f"{file_path} is not a valid knp file.", file=sys.stderr)
-        return documents
+        return doc_id2document
+
+    @cached_property
+    def documents(self) -> list[Document]:
+        return list(self.doc_id2document.values())
