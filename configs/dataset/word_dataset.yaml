@@ -1,16 +1,16 @@
 defaults:
   - train:
-#    - word_kyoto.yaml
+    - word_kyoto.yaml
     - word_kwdlc.yaml
-#    - word_fuman.yaml
+    - word_fuman.yaml
   - valid:
-#    - word_kyoto.yaml
+    - word_kyoto.yaml
     - word_kwdlc.yaml
-#    - word_fuman.yaml
+    - word_fuman.yaml
   - test:
-#    - word_kyoto.yaml
+    - word_kyoto.yaml
     - word_kwdlc.yaml
-#    - word_fuman.yaml
+    - word_fuman.yaml
 
 tokenizer_kwargs:
   additional_special_tokens: ["著者", "読者", "不特定:人", "不特定:物", "[NULL]", "[NA]", "[ROOT]"]
