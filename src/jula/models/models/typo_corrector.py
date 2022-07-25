@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from omegaconf import DictConfig
-from transformers import PretrainedConfig, PreTrainedTokenizer
+from transformers import PretrainedConfig, PreTrainedTokenizerBase
 
 
 class TypoCorrector(nn.Module):
@@ -10,7 +10,7 @@ class TypoCorrector(nn.Module):
         self,
         hparams: DictConfig,
         pretrained_model_config: PretrainedConfig,
-        tokenizer: PreTrainedTokenizer,
+        tokenizer: PreTrainedTokenizerBase,
     ) -> None:
         super().__init__()
         self.hparams = hparams

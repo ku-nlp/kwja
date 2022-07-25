@@ -1,7 +1,7 @@
 import hydra
 import torch
 from torch.utils.data import Dataset
-from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizer
+from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
 
@@ -18,7 +18,7 @@ class SegmentedTextDataset(Dataset):
             tokenizer_kwargs = hydra.utils.instantiate(tokenizer_kwargs, _convert_="partial")
         else:
             tokenizer_kwargs = {}
-        self.tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(
+        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             model_name_or_path,
             **tokenizer_kwargs,
         )

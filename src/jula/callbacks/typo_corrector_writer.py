@@ -6,7 +6,7 @@ import hydra
 import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks import BasePredictionWriter
-from transformers import AutoTokenizer, PreTrainedTokenizer
+from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from jula.utils.constants import TOKEN2TYPO_OPN, TYPO_OPN2TOKEN
 
@@ -32,7 +32,7 @@ class TypoCorrectorWriter(BasePredictionWriter):
             if os.path.isfile(self.output_path):
                 os.remove(self.output_path)
 
-        self.tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(
+        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             model_name_or_path,
             **hydra.utils.instantiate(tokenizer_kwargs or {}, _convert_="partial"),
         )
