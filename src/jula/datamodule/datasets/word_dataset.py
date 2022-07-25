@@ -37,6 +37,7 @@ logger = logging.getLogger(__name__)
 class WordExampleSet:
     example_id: int
     doc_id: str
+    text: str  # space-delimited word sequence
     encoding: Encoding
     word_feature_example: WordFeatureExample
     base_phrase_feature_example: BasePhraseFeatureExample
@@ -97,8 +98,9 @@ class WordDataset(BaseDataset):
         examples = []
         idx = 0
         for document in documents:
+            words = [morpheme.text for morpheme in document.morphemes]
             encoding: Encoding = self.tokenizer(
-                [morpheme.text for morpheme in document.morphemes],
+                words,
                 is_split_into_words=True,
                 padding=PaddingStrategy.MAX_LENGTH,
                 truncation=False,
@@ -123,6 +125,7 @@ class WordDataset(BaseDataset):
                 WordExampleSet(
                     example_id=idx,
                     doc_id=document.doc_id,
+                    text=" ".join(words),
                     encoding=encoding,
                     word_feature_example=word_feature_example,
                     base_phrase_feature_example=base_phrase_feature_example,
@@ -231,7 +234,7 @@ class WordDataset(BaseDataset):
             "discourse_relations": torch.tensor(discourse_relations, dtype=torch.long),
             "cohesion_target": torch.tensor(cohesion_target, dtype=torch.int),
             "cohesion_mask": torch.tensor(cohesion_mask, dtype=torch.bool),
-            # "texts": text,
+            "texts": example.text,
         }
 
     def dump_prediction(
