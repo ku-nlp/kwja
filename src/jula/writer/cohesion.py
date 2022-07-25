@@ -9,7 +9,7 @@ from rhoknp.rel.pas import Argument, BaseArgument, Pas, SpecialArgument
 from rhoknp.units.utils import Rel, Rels
 
 from jula.datamodule.datasets.word_dataset import WordDataset
-from jula.datamodule.examples import Task
+from jula.datamodule.examples import CohesionExample, Task
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +32,7 @@ class CohesionKNPWriter:
         self.exophora_referents: list[ExophoraReferent] = dataset.exophora_referents
         self.specials: list[str] = dataset.special_tokens
         self.documents: list[Document] = [Document.from_knp(doc.to_knp()) for doc in dataset.documents]
+        self.examples: list[CohesionExample] = [e.cohesion_example for e in dataset.examples]
         self.kc: bool = False
 
     def write(
@@ -58,7 +59,7 @@ class CohesionKNPWriter:
         elif not (destination is None or isinstance(destination, io.TextIOBase)):
             logger.warning("invalid output destination")
 
-        did2prediction: dict[str, list] = {self.documents[eid].doc_id: pred for eid, pred in predictions.items()}
+        did2prediction: dict[str, list] = {self.examples[eid].doc_id: pred for eid, pred in predictions.items()}
         documents = []
         for document in self.documents:
             did = document.doc_id
