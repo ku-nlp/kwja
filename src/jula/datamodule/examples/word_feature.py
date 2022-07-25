@@ -5,7 +5,6 @@ class WordFeatureExample:
     """A single training/test example for word feature prediction."""
 
     def __init__(self) -> None:
-        self.example_id: int = -1
         self.doc_id: str = ""
         self.types: list[tuple[str, str, str, str]] = []  # 形態素タイプ (品詞, 品詞細分類, 活用型, 活用形)
         self.features: list[set[str]] = []  # 形態素素性
