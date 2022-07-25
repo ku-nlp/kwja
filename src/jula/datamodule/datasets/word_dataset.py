@@ -13,6 +13,7 @@ from jula.datamodule.examples import (
     BasePhraseFeatureExample,
     CohesionExample,
     DependencyExample,
+    DiscourseExample,
     Task,
     WordFeatureExample,
 )
@@ -43,6 +44,7 @@ class WordExampleSet:
     base_phrase_feature_example: BasePhraseFeatureExample
     dependency_example: DependencyExample
     cohesion_example: CohesionExample
+    discourse_example: DiscourseExample
 
 
 class WordDataset(BaseDataset):
@@ -121,6 +123,20 @@ class WordDataset(BaseDataset):
             cohesion_example = CohesionExample()
             cohesion_example.load(document, tasks=self.cohesion_tasks, extractors=self.extractors)
 
+            discourse_example = DiscourseExample()
+            discourse_example.load(document, has_annotation=False)
+            if self.path.name == "train":
+                path = self.path / "disc_crowd" / f"{document.doc_id}.knp"
+            else:
+                path = self.path / "disc_expert" / f"{document.doc_id}.knp"
+            if path.exists():
+                try:
+                    document_disc = Document.from_knp(path.read_text())
+                    if document == document_disc:
+                        discourse_example.load(document_disc)
+                except AssertionError:
+                    logger.warning(f"{path} is not a valid KNP file")
+
             examples.append(
                 WordExampleSet(
                     example_id=idx,
@@ -131,6 +147,7 @@ class WordDataset(BaseDataset):
                     base_phrase_feature_example=base_phrase_feature_example,
                     dependency_example=dependency_example,
                     cohesion_example=cohesion_example,
+                    discourse_example=discourse_example,
                 )
             )
             idx += 1
@@ -212,11 +229,13 @@ class WordDataset(BaseDataset):
             for candidates in candidates_set
         ]  # False -> mask, True -> keep
 
-        # TODO: discourse relation analysis
-        discourse_relations = [
-            [[DISCOURSE_RELATIONS.index("談話関係なし")] * len(DISCOURSE_RELATIONS) for _ in range(self.max_seq_length)]
-            for _ in range(self.max_seq_length)
-        ]
+        discourse_example = example.discourse_example
+        discourse_relations = [[IGNORE_INDEX for _ in range(self.max_seq_length)] for _ in range(self.max_seq_length)]
+        for global_morpheme_index_i, relations in enumerate(discourse_example.discourse_relations):
+            for global_morpheme_index_j, relation in enumerate(relations):
+                if relation in DISCOURSE_RELATIONS:
+                    relation_index = DISCOURSE_RELATIONS.index(relation)
+                    discourse_relations[global_morpheme_index_i][global_morpheme_index_j] = relation_index
 
         merged_encoding: Encoding = Encoding.merge([example.encoding, self.special_encoding])
 

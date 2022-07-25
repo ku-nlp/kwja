@@ -249,6 +249,32 @@ INDEX2DEPENDENCY_TYPE: dict[int, DepType] = {
 }
 
 
+DISCOURSE_RELATION_MAP = {
+    # Labels annotated by experts.
+    "その他根拠(逆方向)": "根拠",
+    "その他根拠(順方向)": "根拠",
+    "原因・理由(逆方向)": "原因・理由",
+    "原因・理由(順方向)": "原因・理由",
+    "対比(方向なし)": "対比",
+    "条件(逆方向)": "条件",
+    "条件(順方向)": "条件",
+    "目的(逆方向)": "目的",
+    "目的(順方向)": "目的",
+    "談話関係なし": "談話関係なし",
+    "逆接・譲歩(逆方向)": "逆接",
+    "逆接・譲歩(順方向)": "逆接",
+    # Labels annotated by crowd-workers.
+    "NIL": "談話関係なし",
+    "上記いずれの関係もない": "談話関係なし",
+    "原因・理由": "原因・理由",
+    "対比": "対比",
+    "条件": "条件",
+    "根拠": "根拠",
+    "目的": "目的",
+    "逆接": "逆接",
+}
+
+
 DISCOURSE_RELATIONS = (
     "談話関係なし",
     "原因・理由",
@@ -258,3 +284,4 @@ DISCOURSE_RELATIONS = (
     "対比",
     "逆接",
 )
+INDEX2DISCOURSE_RELATION = {index: discourse_relation for index, discourse_relation in enumerate(DISCOURSE_RELATIONS)}

@@ -4,9 +4,17 @@ from pathlib import Path
 
 from rhoknp import Document
 from rhoknp.units.utils import DepType
+from transformers.utils import PaddingStrategy
 
-from jula.datamodule.datasets.word_dataset import WordDataset
-from jula.datamodule.examples import Task
+from jula.datamodule.datasets.word_dataset import WordDataset, WordExampleSet
+from jula.datamodule.examples import (
+    BasePhraseFeatureExample,
+    CohesionExample,
+    DependencyExample,
+    DiscourseExample,
+    Task,
+    WordFeatureExample,
+)
 from jula.datamodule.extractors import PasAnnotation
 from jula.utils.constants import (
     BASE_PHRASE_FEATURES,
@@ -38,11 +46,7 @@ def test_init():
 
 def test_getitem():
     max_seq_length = 512
-    dataset = WordDataset(
-        str(path),
-        max_seq_length=max_seq_length,
-        **word_dataset_kwargs,
-    )
+    dataset = WordDataset(str(path), max_seq_length=max_seq_length, **word_dataset_kwargs)
     for i in range(len(dataset)):
         document = dataset.documents[i]
         item = dataset[i]
@@ -67,29 +71,18 @@ def test_getitem():
         assert (item["subword_map"].sum(dim=1) != 0).sum() == len(document.morphemes) + dataset.num_special_tokens
         assert item["mrph_types"].shape == (max_seq_length, 4)
         assert item["word_features"].shape == (max_seq_length, len(WORD_FEATURES))
-        assert item["base_phrase_features"].shape == (
-            max_seq_length,
-            len(BASE_PHRASE_FEATURES),
-        )
+        assert item["base_phrase_features"].shape == (max_seq_length, len(BASE_PHRASE_FEATURES))
         assert item["dependencies"].shape == (max_seq_length,)
         assert item["intra_mask"].shape == (max_seq_length, max_seq_length)
         assert item["dependency_types"].shape == (max_seq_length,)
-        assert item["discourse_relations"].shape == (
-            max_seq_length,
-            max_seq_length,
-            len(DISCOURSE_RELATIONS),
-        )
         assert item["cohesion_target"].shape == (6, max_seq_length, max_seq_length)
         assert item["cohesion_mask"].shape == (6, max_seq_length, max_seq_length)
+        assert item["discourse_relations"].shape == (max_seq_length, max_seq_length)
 
 
 def test_encode():
     max_seq_length = 512
-    dataset = WordDataset(
-        str(path),
-        max_seq_length=max_seq_length,
-        **word_dataset_kwargs,
-    )
+    dataset = WordDataset(str(path), max_seq_length=max_seq_length, **word_dataset_kwargs)
     document = Document.from_knp(
         textwrap.dedent(
             """\
@@ -99,7 +92,7 @@ def test_encode():
             風 かぜ 風 名詞 6 普通名詞 1 * 0 * 0 "代表表記:風/かぜ カテゴリ:抽象物 漢字読み:訓" <代表表記:風/かぜ><カテゴリ:抽象物><漢字読み:訓><正規化代表表記:風/かぜ><漢字><かな漢字><名詞相当語><文頭><自立><内容語><タグ単位始><文節始><文節主辞>
             が が が 助詞 9 格助詞 1 * 0 * 0 NIL <かな漢字><ひらがな><付属>
             * -1D <BGH:吹く/ふく><文末><補文ト><句点><用言:動><レベル:C><区切:5-5><ID:（文末）><係:文末><提題受:30><主節><格要素><連用要素><動態述語><正規化代表表記:吹く/ふく><主辞代表表記:吹く/ふく>
-            + -1D <BGH:吹く/ふく><文末><補文ト><句点><用言:動><レベル:C><区切:5-5><ID:（文末）><係:文末><提題受:30><主節><格要素><連用要素><動態述語><正規化代表表記:吹く/ふく><主辞代表表記:吹く/ふく><用言代表表記:吹く/ふく><節-区切><節-主辞><時制:非過去><主題格:一人称優位><格関係0:ガ:風><格解析結果:吹く/ふく:動1:ガ/C/風/0/0/000-1;ニ/U/-/-/-/-;ト/U/-/-/-/-;デ/U/-/-/-/-;カラ/U/-/-/-/-;時間/U/-/-/-/-><標準用言代表表記:吹く/ふく>
+            + -1D <BGH:吹く/ふく><文末><補文ト><句点><用言:動><レベル:C><区切:5-5><ID:（文末）><係:文末><提題受:30><主節><格要素><連用要素><動態述語><正規化代表表記:吹く/ふく><主辞代表表記:吹く/ふく><用言代表表記:吹く/ふく><節-区切><節-主辞><時制:非過去><主題格:一人称優位><格関係0:ガ:風><格解析結果:吹く/ふく:動1:ガ/C/風/0/0/000-1;ニ/U/-/-/-/-;ト/U/-/-/-/-;デ/U/-/-/-/-;カラ/U/-/-/-/-;時間/U/-/-/-/-><標準用言代表表記:吹く/ふく><談話関係:000-2/2/条件(順方向)>
             吹く ふく 吹く 動詞 2 * 0 子音動詞カ行 2 基本形 2 "代表表記:吹く/ふく 補文ト" <代表表記:吹く/ふく><補文ト><正規化代表表記:吹く/ふく><かな漢字><活用語><表現文末><自立><内容語><タグ単位始><文節始><文節主辞><用言表記先頭><用言表記末尾><用言意味表記末尾>
             。 。 。 特殊 1 句点 1 * 0 * 0 NIL <英記号><記号><文末><付属>
             EOS
@@ -119,7 +112,37 @@ def test_encode():
             """
         )
     )
-    encoding = dataset.encode(dataset.examples[0])
+    words = [morpheme.text for morpheme in document.morphemes]
+    text = " ".join(words)
+    encoding = dataset.tokenizer(
+        words,
+        is_split_into_words=True,
+        padding=PaddingStrategy.MAX_LENGTH,
+        truncation=False,
+        max_length=dataset.max_seq_length - dataset.num_special_tokens,
+    ).encodings[0]
+    word_feature_example = WordFeatureExample()
+    word_feature_example.load(document)
+    base_phrase_feature_example = BasePhraseFeatureExample()
+    base_phrase_feature_example.load(document)
+    cohesion_example = CohesionExample()
+    cohesion_example.load(document, dataset.cohesion_tasks, dataset.extractors)
+    dependency_example = DependencyExample()
+    dependency_example.load(document)
+    discourse_example = DiscourseExample()
+    discourse_example.load(document)
+    example = WordExampleSet(
+        example_id=0,
+        doc_id="",
+        text=text,
+        encoding=encoding,
+        word_feature_example=word_feature_example,
+        base_phrase_feature_example=base_phrase_feature_example,
+        dependency_example=dependency_example,
+        cohesion_example=cohesion_example,
+        discourse_example=discourse_example,
+    )
+    encoding = dataset.encode(example)
 
     mrph_types = [[IGNORE_INDEX] * 4 for _ in range(max_seq_length)]
     # 0: 風
@@ -259,6 +282,13 @@ def test_encode():
     # 8: 。 -> 7: 儲かる
     dependency_types[8] = DEPENDENCY_TYPE2INDEX[DepType.DEPENDENCY]
     assert encoding["dependency_types"].tolist() == dependency_types
+
+    discourse_relations = [[IGNORE_INDEX] * max_seq_length for _ in range(max_seq_length)]
+    discourse_relations[2][2] = DISCOURSE_RELATIONS.index("談話関係なし")
+    discourse_relations[2][7] = DISCOURSE_RELATIONS.index("条件")
+    discourse_relations[7][2] = DISCOURSE_RELATIONS.index("談話関係なし")
+    discourse_relations[7][7] = DISCOURSE_RELATIONS.index("談話関係なし")
+    assert encoding["discourse_relations"].tolist() == discourse_relations
 
 
 def test_pas():

@@ -40,7 +40,7 @@ class BaseDataset(Dataset):
     @staticmethod
     def load_documents(path: Path, ext: str = "knp") -> list[Document]:
         documents = []
-        for file_path in sorted(path.glob(f"**/*.{ext}")):
+        for file_path in sorted(path.glob(f"*.{ext}")):
             # TODO: fix document file
             try:
                 documents.append(Document.from_knp(file_path.read_text()))
