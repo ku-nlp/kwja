@@ -68,14 +68,11 @@ class TypoModule(LightningModule):
 
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Any:
         outputs: dict[str, torch.Tensor] = self(**batch)
-        predict_output = dict(input_ids=batch["input_ids"])
-        for key in batch:
-            if "labels" in key:
-                predict_output[key] = batch[key]
-        for key in outputs:
-            if "logits" in key:
-                predict_output[key] = outputs[key]
-        return predict_output
+        return {
+            "texts": batch["texts"],
+            "kdr_logits": outputs["kdr_logits"],
+            "ins_logits": outputs["ins_logits"],
+        }
 
     def configure_optimizers(self):
         # Split weights in two groups, one with weight decay and the other not.
