@@ -374,6 +374,7 @@ class WordModule(LightningModule):
             "base_phrase_feature_logits": outputs["phrase_analyzer_outputs"]["base_phrase_feature_logits"],
             "dependency_logits": outputs["relation_analyzer_outputs"]["dependency_logits"],
             "dependency_type_logits": outputs["relation_analyzer_outputs"]["dependency_type_logits"],
+            "cohesion_logits": outputs["relation_analyzer_outputs"]["cohesion_logits"],
         }
 
     def configure_optimizers(self):
