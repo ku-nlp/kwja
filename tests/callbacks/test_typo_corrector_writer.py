@@ -30,7 +30,7 @@ def test_write_on_epoch_end():
         )
 
         # tokenizer = writer.tokenizer
-        text = ["今日がも晴れ"]
+        texts = ["今日がも晴れ"]
 
         kdr_logits = torch.zeros(1, 9, len(writer.opn2id), dtype=torch.float)
         kdr_logits[0][0][writer.opn2id[TYPO_OPN2TOKEN["K"]]] = 1.0  # keep: [CLS]
@@ -57,7 +57,7 @@ def test_write_on_epoch_end():
         predictions = [
             [
                 {
-                    "texts": text,
+                    "texts": texts,
                     "kdr_logits": kdr_logits,
                     "ins_logits": ins_logits,
                 }
