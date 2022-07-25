@@ -6,12 +6,12 @@ from typing import TextIO, Union
 from rhoknp import BasePhrase, Document
 from rhoknp.rel import ExophoraReferent
 from rhoknp.rel.pas import Argument, BaseArgument, Pas, SpecialArgument
-from rhoknp.units.utils import Rel
+from rhoknp.units.utils import Rel, Rels
 
 from jula.datamodule.datasets.word_dataset import WordDataset
 from jula.datamodule.examples import Task
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 
 class CohesionKNPWriter:
@@ -90,16 +90,16 @@ class CohesionKNPWriter:
     def _to_rels(
         self,
         prediction: list[int],  # (rel)
-        bp_list: list[BasePhrase],
-    ) -> list[Rel]:
-        rels: list[Rel] = []
+        base_phrases: list[BasePhrase],
+    ) -> Rels:
+        rels = Rels()
         assert len(self.relations) == len(prediction)
         for relation, pred in zip(self.relations, prediction):
             if pred < 0:
                 continue  # non-target phrase
-            if 0 <= pred < len(bp_list):
+            if 0 <= pred < len(base_phrases):
                 # normal
-                prediction_bp: BasePhrase = bp_list[pred]
+                prediction_bp: BasePhrase = base_phrases[pred]
                 rels.append(
                     Rel(
                         type=relation,
@@ -109,9 +109,9 @@ class CohesionKNPWriter:
                         mode=None,
                     )
                 )
-            elif 0 <= pred - len(bp_list) < len(self.specials):
+            elif 0 <= pred - len(base_phrases) < len(self.specials):
                 # special
-                special_arg = self.specials[pred - len(bp_list)]
+                special_arg = self.specials[pred - len(base_phrases)]
                 if special_arg in [str(e) for e in self.exophora_referents]:  # exclude [NULL] and [NA]
                     rels.append(
                         Rel(
@@ -160,10 +160,10 @@ class CohesionKNPWriter:
         for case in self.cases + ["ノ"] * (Task.BRIDGING in self.tasks):
             items = ["-"] * 6
             items[0] = case
-            args = pas.arguments[case]
+            args = pas.get_arguments(case, relax=False)
             if args:
                 arg: BaseArgument = args[0]
-                items[1] = str(arg.type)  # フラグ (C/N/O/D/E/U)
+                items[1] = arg.type.value  # フラグ (C/N/O/D/E/U)
                 items[2] = str(arg)  # 見出し
                 if isinstance(arg, Argument):
                     items[3] = str(sid2index[pas.sid] - sid2index[arg.base_phrase.sentence.sid])  # N文前

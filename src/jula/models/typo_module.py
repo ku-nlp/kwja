@@ -4,7 +4,7 @@ import hydra
 import torch
 from omegaconf import DictConfig
 from pytorch_lightning.core.lightning import LightningModule
-from transformers import AutoTokenizer, PretrainedConfig, PreTrainedTokenizer
+from transformers import AutoTokenizer, PretrainedConfig, PreTrainedTokenizerBase
 
 from jula.evaluators.typo_corrector import TypoCorrectorMetric
 from jula.models.models.char_encoder import CharEncoder
@@ -17,7 +17,7 @@ class TypoModule(LightningModule):
         self.hparams.update(hparams)
         self.save_hyperparameters()
 
-        self.tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(
+        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             hparams.model.model_name_or_path,
             **hydra.utils.instantiate(hparams.dataset.tokenizer_kwargs, _convert_="partial"),
         )
@@ -38,44 +38,32 @@ class TypoModule(LightningModule):
 
     def training_step(self, batch: Any, batch_idx: int) -> dict[str, Any]:
         outputs: dict[str, torch.Tensor] = self(**batch)
-        result: dict[str, Union[torch.Tensor, float]] = self.metrics.compute_metrics(
-            outputs=outputs,
-            batch=batch,
-        )
+        result: dict[str, Union[torch.Tensor, float]] = self.metrics.compute_metrics(outputs, batch)
         for name, value in result.items():
             self.log(f"train/{name}", value)
         return result
 
     def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> dict[str, Any]:
         outputs: dict[str, torch.Tensor] = self(**batch)
-        result: dict[str, Union[torch.Tensor, float]] = self.metrics.compute_metrics(
-            outputs=outputs,
-            batch=batch,
-        )
+        result: dict[str, Union[torch.Tensor, float]] = self.metrics.compute_metrics(outputs, batch)
         for name, value in result.items():
             self.log(f"valid/{name}", value)
         return result
 
     def test_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> dict[str, Any]:
         outputs: dict[str, torch.Tensor] = self(**batch)
-        result: dict[str, Union[torch.Tensor, float]] = self.metrics.compute_metrics(
-            outputs=outputs,
-            batch=batch,
-        )
+        result: dict[str, Union[torch.Tensor, float]] = self.metrics.compute_metrics(outputs, batch)
         for name, value in result.items():
             self.log(f"test/{name}", value)
         return result
 
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Any:
         outputs: dict[str, torch.Tensor] = self(**batch)
-        predict_output = dict(input_ids=batch["input_ids"])
-        for key in batch:
-            if "labels" in key:
-                predict_output[key] = batch[key]
-        for key in outputs:
-            if "logits" in key:
-                predict_output[key] = outputs[key]
-        return predict_output
+        return {
+            "texts": batch["texts"],
+            "kdr_logits": outputs["kdr_logits"],
+            "ins_logits": outputs["ins_logits"],
+        }
 
     def configure_optimizers(self):
         # Split weights in two groups, one with weight decay and the other not.

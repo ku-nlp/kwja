@@ -1,12 +1,13 @@
 import os
 from typing import Any, Optional, Sequence
 
+import hydra
 import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks import BasePredictionWriter
-from transformers import AutoTokenizer, PreTrainedTokenizer
+from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from jula.evaluators.word_segmenter import WordSegmenterMetric
+from jula.utils.constants import INDEX2SEG_TYPE
 
 
 class WordSegmenterWriter(BasePredictionWriter):
@@ -24,56 +25,45 @@ class WordSegmenterWriter(BasePredictionWriter):
         if self.use_stdout:
             self.output_path = ""
         else:
-            self.output_path = f"{output_dir}/{pred_filename}.json"
+            self.output_path = f"{output_dir}/{pred_filename}.txt"
             os.makedirs(output_dir, exist_ok=True)
             if os.path.isfile(self.output_path):
                 os.remove(self.output_path)
 
-        self.tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(
+        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             model_name_or_path,
-            **tokenizer_kwargs,
+            **hydra.utils.instantiate(tokenizer_kwargs or {}, _convert_="partial"),
         )
-        self.metrics: WordSegmenterMetric = WordSegmenterMetric()
-
-    def write_on_batch_end(
-        self,
-        trainer: pl.Trainer,
-        pl_module: pl.LightningModule,
-        prediction: Any,
-        batch_indices: Optional[Sequence[int]],
-        batch: Any,
-        batch_idx: int,
-        dataloader_idx: int,
-    ) -> None:
-        pass
 
     def write_on_epoch_end(
         self,
         trainer: pl.Trainer,
         pl_module: pl.LightningModule,
         predictions: Sequence[Any],
-        batch_indices: Optional[Sequence[Any]],
+        batch_indices: Optional[Sequence[Any]] = None,
     ) -> None:
         results = []
         for prediction in predictions:
             for batch_pred in prediction:
-                seg_preds = [
-                    self.metrics.convert_ids_to_labels(ids)
-                    for ids in torch.argmax(batch_pred["logits"], dim=-1).cpu().tolist()
-                ]  # (b, seq_len)
-                for item_index in range(len(batch_pred["input_ids"])):
+                batch_size = len(batch_pred["input_ids"])
+                for i in range(batch_size):
+                    input_ids = batch_pred["input_ids"][i].cpu().tolist()  # (seq_len,)
+                    pred_logits = batch_pred["word_segmenter_logits"][i]  # (seq_len, len(INDEX2SEG_TYPE))
+                    pred_ids = torch.argmax(pred_logits, dim=1).cpu().tolist()  # (seq_len,)
+                    pred_types = [INDEX2SEG_TYPE[id_] for id_ in pred_ids]  # (seq_len,)
+                    assert len(input_ids) == len(pred_types)
                     result = ""
-                    for token_index in range(len(batch_pred["input_ids"][item_index])):
-                        token_id = batch_pred["input_ids"][item_index][token_index]
-                        if token_id in self.tokenizer.all_special_ids:
+                    for input_id, pred_type in zip(input_ids, pred_types):
+                        if input_id in self.tokenizer.all_special_ids:
                             continue
-                        seg_pred = seg_preds[item_index][token_index]
-                        if seg_pred == "B":
+                        if pred_type == "B":
                             result += " "
-                        result += self.tokenizer.decode(token_id)
+                        result += self.tokenizer.decode(input_id)
                     results.append(result.strip())
+
+        out = "\n".join(results)
         if self.use_stdout:
-            print("\n".join(results))
+            print(out)
         else:
             with open(self.output_path, "w") as f:
-                f.write("\n".join(results))
+                f.write(out)

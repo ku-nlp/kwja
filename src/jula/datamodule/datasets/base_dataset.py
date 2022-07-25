@@ -4,7 +4,7 @@ from pathlib import Path
 import hydra
 from rhoknp import Document
 from torch.utils.data import Dataset
-from transformers import AutoTokenizer, PreTrainedTokenizer
+from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 
 class BaseDataset(Dataset):
@@ -28,7 +28,7 @@ class BaseDataset(Dataset):
             tokenizer_kwargs = hydra.utils.instantiate(tokenizer_kwargs, _convert_="partial")
         else:
             tokenizer_kwargs = {}
-        self.tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(
+        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             model_name_or_path,
             **tokenizer_kwargs,
         )
@@ -40,7 +40,7 @@ class BaseDataset(Dataset):
     @staticmethod
     def load_documents(path: Path, ext: str = "knp") -> list[Document]:
         documents = []
-        for file_path in sorted(path.glob(f"**/*.{ext}")):
+        for file_path in sorted(path.glob(f"*.{ext}")):
             # TODO: fix document file
             try:
                 documents.append(Document.from_knp(file_path.read_text()))

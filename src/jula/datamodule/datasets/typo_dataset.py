@@ -5,10 +5,10 @@ from typing import Union
 import hydra
 import torch
 from torch.utils.data import Dataset
-from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizer
+from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
-from jula.utils.utils import TYPO_DUMMY_TOKEN, TYPO_OPN2TOKEN
+from jula.utils.constants import TYPO_DUMMY_TOKEN, TYPO_OPN2TOKEN
 
 
 class TypoDataset(Dataset):
@@ -27,7 +27,7 @@ class TypoDataset(Dataset):
         assert len(self) != 0
 
         tokenizer_kwargs = tokenizer_kwargs or {}
-        self.tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(
+        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             model_name_or_path,
             **hydra.utils.instantiate(tokenizer_kwargs, _convert_="partial"),
         )

@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from transformers import PretrainedConfig
 
-from jula.utils.utils import BASE_PHRASE_FEATURES, IGNORE_INDEX, WORD_FEATURES
+from jula.utils.constants import BASE_PHRASE_FEATURES, IGNORE_INDEX, WORD_FEATURES
 
 
 class PhraseAnalyzer(nn.Module):
@@ -45,10 +45,10 @@ class PhraseAnalyzer(nn.Module):
 
     def forward(self, pooled_outputs: torch.Tensor, batch: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         outputs: dict[str, torch.Tensor] = {}
-        # (b, seq_len, num_word_features)
+        # (b, seq, num_word_features)
         word_feature_logits = self.word_feature_head(pooled_outputs)
         outputs["word_feature_logits"] = word_feature_logits
-        # (b, seq_len, num_base_phrase_features)
+        # (b, seq, num_base_phrase_features)
         base_phrase_feature_logits = self.base_phrase_feature_head(pooled_outputs)
         outputs["base_phrase_feature_logits"] = base_phrase_feature_logits
         if "word_features" in batch:
@@ -71,11 +71,11 @@ class PhraseAnalyzer(nn.Module):
 
     @staticmethod
     def compute_loss(
-        input_: torch.FloatTensor,
-        target: torch.FloatTensor,
-        num_units: torch.LongTensor,
+        input_: torch.Tensor,
+        target: torch.Tensor,
+        num_units: torch.Tensor,
     ) -> torch.Tensor:
-        # (b, seq_len, num_features)
+        # (b, seq, num_features)
         losses = F.binary_cross_entropy(input=input_, target=target, reduction="none")
         # 各featureのlossの和
         losses = torch.sum(torch.sum(losses, dim=1), dim=1)  # (b, )

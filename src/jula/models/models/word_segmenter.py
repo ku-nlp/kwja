@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from omegaconf import DictConfig
 from transformers import PretrainedConfig
 
-from jula.utils.utils import IGNORE_INDEX, SEG_TYPES
+from jula.utils.constants import IGNORE_INDEX, SEG_TYPES
 
 
 class WordSegmenter(nn.Module):

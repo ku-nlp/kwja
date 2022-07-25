@@ -8,13 +8,13 @@ from pytorch_lightning.callbacks import Callback
 from torch.utils.data import DataLoader
 
 from jula.cli.utils import suppress_debug_info
-from jula.datamodule.datasets.segmented_text_dataset import SegmentedTextDataset
-from jula.models.word_module import WordModule
+from jula.datamodule.datasets.typo_text_dataset import TypoTextDataset
+from jula.models.typo_module import TypoModule
 
 suppress_debug_info()
 
 
-@hydra.main(version_base=None, config_path="../configs", config_name="word_module")
+@hydra.main(version_base=None, config_path="../configs", config_name="typo_corrector")
 def main(cfg: DictConfig):
     load_dotenv()
     if isinstance(cfg.devices, str):
@@ -36,13 +36,13 @@ def main(cfg: DictConfig):
         devices=cfg.devices,
     )
 
-    if cfg.config_name in cfg.module.word:
-        model = WordModule.load_from_checkpoint(checkpoint_path=cfg.checkpoint_path, hparams=cfg)
+    if cfg.config_name in cfg.module.typo:
+        model = TypoModule.load_from_checkpoint(checkpoint_path=cfg.checkpoint_path, hparams=cfg)
     else:
         raise ValueError("invalid config name")
 
     # TODO: Use hydra for configuration
-    dataset = SegmentedTextDataset(
+    dataset = TypoTextDataset(
         sys.stdin.readlines(),
         model_name_or_path=cfg.datamodule.model_name_or_path,
         max_seq_length=cfg.datamodule.max_seq_length,
