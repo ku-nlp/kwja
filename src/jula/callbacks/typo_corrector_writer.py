@@ -37,7 +37,7 @@ class TypoCorrectorWriter(BasePredictionWriter):
             **hydra.utils.instantiate(tokenizer_kwargs or {}, _convert_="partial"),
         )
 
-        _, self.id2opn = self.get_opn_dict(path=Path(extended_vocab_path))
+        self.opn2id, self.id2opn = self.get_opn_dict(path=Path(extended_vocab_path))
 
     def get_opn_dict(self, path: Path) -> tuple[dict[str, int], dict[int, str]]:
         opn2id: dict[str, int] = self.tokenizer.get_vocab()
