@@ -23,7 +23,6 @@ class BaseDataset(Dataset):
 
         self.doc_id2document = self.load_documents(self.path, ext)
         assert len(self.documents) != 0
-        self.document_ids: list[str] = [document.doc_id for document in self.documents]
 
         if tokenizer_kwargs:
             tokenizer_kwargs = hydra.utils.instantiate(tokenizer_kwargs, _convert_="partial")
