@@ -128,7 +128,7 @@ class WordDataset(BaseDataset):
             if self.path.name == "train":
                 path = self.path / "disc_crowd" / f"{document.doc_id}.knp"
             else:
-                path = self.path / "disc_gold" / f"{document.doc_id}.knp"
+                path = self.path / "disc_expert" / f"{document.doc_id}.knp"
             if path.exists():
                 try:
                     document_disc = Document.from_knp(path.read_text())
