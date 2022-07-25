@@ -86,10 +86,17 @@ class RelationAnalyzer(nn.Module):
             }
         )
         if "discourse_relations" in batch:
-            discourse_relation_loss = F.cross_entropy(
-                input=discourse_parsing_logits.view(-1, discourse_parsing_logits.size(3)),
-                target=batch["discourse_relations"].view(-1),
-                ignore_index=IGNORE_INDEX,
-            )
-            output.update({"discourse_parsing_loss": discourse_relation_loss})
+            num_labels = torch.masked_select(
+                batch["discourse_relations"],
+                batch["discourse_relations"] != IGNORE_INDEX,
+            ).numel()
+            if num_labels:
+                discourse_parsing_loss = F.cross_entropy(
+                    input=discourse_parsing_logits.view(-1, discourse_parsing_logits.size(3)),
+                    target=batch["discourse_relations"].view(-1),
+                    ignore_index=IGNORE_INDEX,
+                )
+            else:
+                discourse_parsing_loss = torch.tensor(0.0)
+            output.update({"discourse_parsing_loss": discourse_parsing_loss})
         return output
