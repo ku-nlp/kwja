@@ -8,7 +8,14 @@ from tokenizers import Encoding
 from transformers.utils import PaddingStrategy
 
 from jula.datamodule.datasets.base_dataset import BaseDataset
-from jula.datamodule.examples import CohesionExample, DependencyExample, DiscourseExample, Task
+from jula.datamodule.examples import (
+    BasePhraseFeatureExample,
+    CohesionExample,
+    DependencyExample,
+    DiscourseExample,
+    Task,
+    WordFeatureExample,
+)
 from jula.datamodule.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
 from jula.datamodule.extractors.base import Phrase
 from jula.utils.constants import (
@@ -58,13 +65,21 @@ class WordDataset(BaseDataset):
         self.special_to_index: dict[str, int] = {
             token: self.max_seq_length - len(self.special_tokens) + i for i, token in enumerate(self.special_tokens)
         }
-        self.cohesion_examples: dict[str, CohesionExample] = {}
+        self.word_feature_examples: dict[str, WordFeatureExample] = {}
+        self.base_phrase_feature_examples: dict[str, BasePhraseFeatureExample] = {}
         self.dependency_examples: dict[str, DependencyExample] = {}
         self.discourse_examples: dict[str, DiscourseExample] = {}
+        self.cohesion_examples: dict[str, CohesionExample] = {}
         for example_id, document in enumerate(self.documents):
-            cohesion_example = self._load_cohesion_example(document)
-            cohesion_example.example_id = example_id
-            self.cohesion_examples[document.doc_id] = cohesion_example
+            word_feature_example = WordFeatureExample()
+            word_feature_example.load(document)
+            word_feature_example.example_id = example_id
+            self.word_feature_examples[document.doc_id] = word_feature_example
+
+            base_phrase_feature_example = BasePhraseFeatureExample()
+            base_phrase_feature_example.load(document)
+            base_phrase_feature_example.example_id = example_id
+            self.base_phrase_feature_examples[document.doc_id] = base_phrase_feature_example
 
             dependency_example = DependencyExample()
             dependency_example.load(document)
@@ -74,6 +89,11 @@ class WordDataset(BaseDataset):
             discourse_example = self._load_discourse_example(document)
             discourse_example.example_id = example_id
             self.discourse_examples[document.doc_id] = discourse_example
+
+            cohesion_example = CohesionExample()
+            cohesion_example.load(document, tasks=self.cohesion_tasks, extractors=self.extractors)
+            cohesion_example.example_id = example_id
+            self.cohesion_examples[document.doc_id] = cohesion_example
 
     @property
     def special_indices(self) -> list[int]:
@@ -108,22 +128,32 @@ class WordDataset(BaseDataset):
         return example
 
     def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
-        document = self.documents[index]
-        cohesion_example = self.cohesion_examples[document.doc_id]
-        dependency_example = self.dependency_examples[document.doc_id]
-        discourse_example = self.discourse_examples[document.doc_id]
-        return self.encode(document, cohesion_example, dependency_example, discourse_example)
+        text = " ".join(morpheme.text for morpheme in self.documents[index].morphemes)
+        doc_id = self.document_ids[index]
+        word_feature_example = self.word_feature_examples[doc_id]
+        base_phrase_feature_example = self.base_phrase_feature_examples[doc_id]
+        dependency_example = self.dependency_examples[doc_id]
+        cohesion_example = self.cohesion_examples[doc_id]
+        discourse_example = self.discourse_examples[doc_id]
+        return self.encode(
+            text,
+            word_feature_example,
+            base_phrase_feature_example,
+            dependency_example,
+            cohesion_example,
+            discourse_example,
+        )
 
     def encode(
         self,
-        document: Document,
-        cohesion_example: CohesionExample,
+        text: str,
+        word_feature_example: WordFeatureExample,
+        base_phrase_feature_example: BasePhraseFeatureExample,
         dependency_example: DependencyExample,
+        cohesion_example: CohesionExample,
         discourse_example: DiscourseExample,
     ) -> dict[str, torch.Tensor]:
         # TODO: deal with the case that the document is too long
-        text = " ".join(morpheme.text for morpheme in document.morphemes)
-
         encoding: Encoding = self.tokenizer(
             text,
             truncation=True,
@@ -132,42 +162,26 @@ class WordDataset(BaseDataset):
         ).encodings[0]
 
         # NOTE: hereafter, indices are given at the word level
-        mrph_types: list[list[int]] = [[IGNORE_INDEX] * 4 for _ in range(self.max_seq_length)]
-        for morpheme in document.morphemes:
-            if morpheme.pos in POS_TYPES:
-                mrph_types[morpheme.global_index][0] = POS_TYPES.index(morpheme.pos)
-            if morpheme.subpos in SUBPOS_TYPES:
-                mrph_types[morpheme.global_index][1] = SUBPOS_TYPES.index(morpheme.subpos)
-            if morpheme.conjtype in CONJTYPE_TYPES:
-                mrph_types[morpheme.global_index][2] = CONJTYPE_TYPES.index(morpheme.conjtype)
-            if morpheme.conjtype in CONJTYPE_TYPES:
-                mrph_types[morpheme.global_index][3] = CONJFORM_TYPES.index(morpheme.conjform)
 
-        word_features = [
-            [0] * len(WORD_FEATURES) if i < len(document.morphemes) else [IGNORE_INDEX] * len(WORD_FEATURES)
-            for i in range(self.max_seq_length)
-        ]
-        for base_phrase in document.base_phrases:
-            head = base_phrase.head
-            end = base_phrase.morphemes[-1]
-            word_features[head.global_index][WORD_FEATURES.index("基本句-主辞")] = 1
-            word_features[end.global_index][WORD_FEATURES.index("基本句-区切")] = 1
-        for phrase in document.phrases:
-            end = phrase.morphemes[-1]
-            word_features[end.global_index][WORD_FEATURES.index("文節-区切")] = 1
+        # morpheme type tagging
+        morpheme_type_set = (POS_TYPES, SUBPOS_TYPES, CONJTYPE_TYPES, CONJFORM_TYPES)
+        morpheme_types = [[IGNORE_INDEX] * len(morpheme_type_set) for _ in range(self.max_seq_length)]
+        for morpheme_index, mrph_types in enumerate(word_feature_example.types):
+            for i, (mrph_type, all_types) in enumerate(zip(mrph_types, morpheme_type_set)):
+                if mrph_type in all_types:
+                    morpheme_types[morpheme_index][i] = all_types.index(mrph_type)
 
+        # word feature tagging
+        word_features = [[IGNORE_INDEX] * len(WORD_FEATURES) for _ in range(self.max_seq_length)]
+        for morpheme_index, feature_set in enumerate(word_feature_example.features):
+            for i, word_feature in enumerate(WORD_FEATURES):
+                word_features[morpheme_index][i] = int(word_feature in feature_set)
+
+        # base phrase feature tagging
         base_phrase_features = [[IGNORE_INDEX] * len(BASE_PHRASE_FEATURES) for _ in range(self.max_seq_length)]
-        for base_phrase in document.base_phrases:
+        for head_index, feature_set in zip(base_phrase_feature_example.heads, base_phrase_feature_example.features):
             for i, base_phrase_feature in enumerate(BASE_PHRASE_FEATURES):
-                if ":" in base_phrase_feature:
-                    key, value = base_phrase_feature.split(":")
-                else:
-                    key, value = base_phrase_feature, ""
-                head = base_phrase.head
-                if base_phrase.features.get(key, False) in (value, True):
-                    base_phrase_features[head.global_index][i] = 1
-                else:
-                    base_phrase_features[head.global_index][i] = 0
+                base_phrase_features[head_index][i] = int(base_phrase_feature in feature_set)
 
         # dependency parsing
         dependencies: list[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
@@ -230,8 +244,8 @@ class WordDataset(BaseDataset):
             "example_ids": torch.tensor(cohesion_example.example_id, dtype=torch.long),
             "input_ids": torch.tensor(merged_encoding.ids, dtype=torch.long),
             "attention_mask": torch.tensor(merged_encoding.attention_mask, dtype=torch.long),
-            "subword_map": torch.tensor(self._gen_subword_map(encoding), dtype=torch.bool),
-            "mrph_types": torch.tensor(mrph_types, dtype=torch.long),
+            "subword_map": torch.tensor(self._gen_subword_map(merged_encoding), dtype=torch.bool),
+            "mrph_types": torch.tensor(morpheme_types, dtype=torch.long),
             "word_features": torch.tensor(word_features, dtype=torch.long),
             "base_phrase_features": torch.tensor(base_phrase_features, dtype=torch.long),
             "dependencies": torch.tensor(dependencies, dtype=torch.long),
@@ -290,6 +304,8 @@ class WordDataset(BaseDataset):
         for token_id, word_id in enumerate(encoding.word_ids):
             if word_id is not None:
                 subword_map[word_id][token_id] = True
+        for special_index in self.special_indices:
+            subword_map[special_index][special_index] = True
         return subword_map
 
     def _convert_annotation_to_feature(
@@ -306,7 +322,7 @@ class WordDataset(BaseDataset):
             for mrph in filter(lambda m: m.is_target, phrase.children):
                 scores: list[int] = [0] * self.max_seq_length
                 for arg_string in arguments:
-                    # arg_string: 著者, 8%C, 15%O, 2, NULL, ...
+                    # arg_string: 著者, 8%C, 15%O, 2, [NULL], ...
                     if arg_string[-2:] in ("%C", "%N", "%O"):
                         # PAS only
                         # flag = arg_string[-1]

@@ -6,7 +6,14 @@ from rhoknp import Document
 from rhoknp.units.utils import DepType
 
 from jula.datamodule.datasets.word_dataset import WordDataset
-from jula.datamodule.examples import CohesionExample, DependencyExample, DiscourseExample, Task
+from jula.datamodule.examples import (
+    BasePhraseFeatureExample,
+    CohesionExample,
+    DependencyExample,
+    DiscourseExample,
+    Task,
+    WordFeatureExample,
+)
 from jula.datamodule.extractors import PasAnnotation
 from jula.utils.constants import (
     BASE_PHRASE_FEATURES,
@@ -54,17 +61,21 @@ def test_getitem():
         assert "intra_mask" in item
         assert "dependency_types" in item
         assert "discourse_relations" in item
+        assert "cohesion_target" in item
+        assert "cohesion_mask" in item
         assert item["example_ids"] == i
         assert item["input_ids"].shape == (max_seq_length,)
         assert item["attention_mask"].shape == (max_seq_length,)
         assert item["subword_map"].shape == (max_seq_length, max_seq_length)
-        assert (item["subword_map"].sum(dim=1) != 0).sum() == len(document.morphemes)
+        assert (item["subword_map"].sum(dim=1) != 0).sum() == len(document.morphemes) + dataset.num_special_tokens
         assert item["mrph_types"].shape == (max_seq_length, 4)
         assert item["word_features"].shape == (max_seq_length, len(WORD_FEATURES))
         assert item["base_phrase_features"].shape == (max_seq_length, len(BASE_PHRASE_FEATURES))
         assert item["dependencies"].shape == (max_seq_length,)
         assert item["intra_mask"].shape == (max_seq_length, max_seq_length)
         assert item["dependency_types"].shape == (max_seq_length,)
+        assert item["cohesion_target"].shape == (6, max_seq_length, max_seq_length)
+        assert item["cohesion_mask"].shape == (6, max_seq_length, max_seq_length)
         assert item["discourse_relations"].shape == (max_seq_length, max_seq_length)
 
 
@@ -100,13 +111,26 @@ def test_encode():
             """
         )
     )
+    text = " ".join(morpheme.text for morpheme in document.morphemes)
+    word_feature_example = WordFeatureExample()
+    word_feature_example.load(document)
+    base_phrase_feature_example = BasePhraseFeatureExample()
+    base_phrase_feature_example.load(document)
     cohesion_example = CohesionExample()
     cohesion_example.load(document, dataset.cohesion_tasks, dataset.extractors)
     dependency_example = DependencyExample()
     dependency_example.load(document)
     discourse_example = DiscourseExample()
     discourse_example.load(document)
-    encoding = dataset.encode(document, cohesion_example, dependency_example, discourse_example)
+    encoding = dataset.encode(
+        text,
+        word_feature_example,
+        base_phrase_feature_example,
+        dependency_example,
+        cohesion_example,
+        discourse_example,
+    )
+
     mrph_types = [[IGNORE_INDEX] * 4 for _ in range(max_seq_length)]
     # 0: 風
     mrph_types[0][0] = POS_TYPES.index("名詞")

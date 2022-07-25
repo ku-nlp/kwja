@@ -92,7 +92,7 @@ class CohesionKNPWriter:
         prediction: list[int],  # (rel)
         bp_list: list[BasePhrase],
     ) -> Rels:
-        rels: Rels = []
+        rels: Rels = Rels([])
         assert len(self.relations) == len(prediction)
         for relation, pred in zip(self.relations, prediction):
             if pred < 0:
@@ -160,10 +160,10 @@ class CohesionKNPWriter:
         for case in self.cases + ["ノ"] * (Task.BRIDGING in self.tasks):
             items = ["-"] * 6
             items[0] = case
-            args = pas.arguments[case]
+            args = pas.get_arguments(case, relax=False)
             if args:
                 arg: BaseArgument = args[0]
-                items[1] = str(arg.type)  # フラグ (C/N/O/D/E/U)
+                items[1] = arg.type.value  # フラグ (C/N/O/D/E/U)
                 items[2] = str(arg)  # 見出し
                 if isinstance(arg, Argument):
                     items[3] = str(sid2index[pas.sid] - sid2index[arg.base_phrase.sentence.sid])  # N文前
