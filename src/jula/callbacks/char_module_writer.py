@@ -10,7 +10,7 @@ from transformers import AutoTokenizer, PreTrainedTokenizerBase
 from jula.utils.constants import INDEX2SEG_TYPE
 
 
-class WordSegmenterWriter(BasePredictionWriter):
+class WordModuleWriter(BasePredictionWriter):
     def __init__(
         self,
         output_dir: str,

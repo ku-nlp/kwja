@@ -1,14 +1,12 @@
 typo: [
-  "typo_corrector",
-  "typo_corrector.debug",
+  "typo_module",
+  "typo_module.debug",
 ]
 char: [
-  "word_segmenter",
-  "word_segmenter.debug",
+  "char_module",
+  "char_module.debug",
 ]
 word: [
-  "word_analyzer",
-  "word_analyzer.debug",
   "word_module",
   "word_module.debug",
 ]

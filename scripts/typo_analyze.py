@@ -14,7 +14,7 @@ from jula.models.typo_module import TypoModule
 suppress_debug_info()
 
 
-@hydra.main(version_base=None, config_path="../configs", config_name="typo_corrector")
+@hydra.main(version_base=None, config_path="../configs", config_name="typo_module")
 def main(cfg: DictConfig):
     load_dotenv()
     if isinstance(cfg.devices, str):

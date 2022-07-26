@@ -1,6 +1,6 @@
 import pytest
 
-from jula.evaluators.word_segmenter import WordSegmenterMetric
+from jula.evaluators.word_segmentation_metric import WordSegmentationMetric
 
 # TODO: uncomment here
 # @pytest.mark.parametrize(
@@ -42,6 +42,6 @@ def test_filter_predictions(
     expected_filtered_preds: list[str],
     expected_filtered_labels: list[str],
 ):
-    filtered_preds, filtered_labels = WordSegmenterMetric.filter_predictions(preds, labels)
+    filtered_preds, filtered_labels = WordSegmentationMetric.filter_predictions(preds, labels)
     assert filtered_preds == expected_filtered_preds
     assert filtered_labels == expected_filtered_labels

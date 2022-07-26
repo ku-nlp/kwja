@@ -52,13 +52,13 @@ You must have access to KyotoCorpusFull
 You can train and test the models in the following command:
 ```shell
 # For training and evaluating word segmenter
-poetry run python scripts/train.py -cn word_segmenter devices=[0,1]
+poetry run python scripts/train.py -cn char_module devices=[0,1]
 ```
 
 If you only want to do evaluation after training, please use the following command:
 ```shell
 # For evaluating word segmenter
-poetry run python scripts/predict.py -cn word_segmenter devices=[0] checkpoint_path="/path/to/checkpoint"
+poetry run python scripts/predict.py -cn char_module devices=[0] checkpoint_path="/path/to/checkpoint"
 ```
 
 ## Debugging
@@ -67,12 +67,12 @@ You can do debugging on local and server environments:
 Local environment (using CPU):
 ```shell
 # For debugging word segmenter
-poetry run python scripts/train.py -cn word_segmenter.debug devices=1
+poetry run python scripts/train.py -cn char_module.debug devices=1
 ```
 Server environment (using GPU):
 ```shell
 # For debugging word segmenter
-poetry run python scripts/train.py -cn word_segmenter.debug devices=[0]
+poetry run python scripts/train.py -cn char_module.debug devices=[0]
 ```
 
 ## Unit tests

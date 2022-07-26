@@ -2,13 +2,13 @@ import tempfile
 
 import torch
 
-from jula.callbacks.typo_corrector_writer import TypoCorrectorWriter
+from jula.callbacks.typo_module_writer import TypoModuleWriter
 from jula.utils.constants import TYPO_OPN2TOKEN
 
 
 def test_init():
     with tempfile.TemporaryDirectory() as tmp_dir:
-        _ = TypoCorrectorWriter(
+        _ = TypoModuleWriter(
             tmp_dir,
             extended_vocab_path="tests/datamodule/datasets/typo_files/extended_vocab.txt",
             tokenizer_kwargs={
@@ -20,7 +20,7 @@ def test_init():
 
 def test_write_on_epoch_end():
     with tempfile.TemporaryDirectory() as tmp_dir:
-        writer = TypoCorrectorWriter(
+        writer = TypoModuleWriter(
             tmp_dir,
             extended_vocab_path="tests/datamodule/datasets/typo_files/extended_vocab.txt",
             tokenizer_kwargs={

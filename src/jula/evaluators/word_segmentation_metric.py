@@ -8,7 +8,7 @@ from torchmetrics import Metric
 from jula.utils.constants import IGNORE_INDEX, INDEX2SEG_TYPE
 
 
-class WordSegmenterMetric(Metric):
+class WordSegmentationMetric(Metric):
     def __init__(self) -> None:
         super().__init__()
         self.add_state("seg_preds", default=[], dist_reduce_fx="cat")

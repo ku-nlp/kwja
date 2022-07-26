@@ -11,7 +11,7 @@ from transformers import AutoTokenizer, PreTrainedTokenizerBase
 from jula.utils.constants import TOKEN2TYPO_OPN, TYPO_OPN2TOKEN
 
 
-class TypoCorrectorWriter(BasePredictionWriter):
+class TypoModuleWriter(BasePredictionWriter):
     def __init__(
         self,
         output_dir: str,
