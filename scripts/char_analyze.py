@@ -8,7 +8,7 @@ from pytorch_lightning.callbacks import Callback
 from torch.utils.data import DataLoader
 
 from jula.cli.utils import suppress_debug_info
-from jula.datamodule.datasets.raw_text_dataset import RawTextDataset
+from jula.datamodule.datasets.char_inference_dataset import CharInferenceDataset
 from jula.models.char_module import CharModule
 
 suppress_debug_info()
@@ -42,7 +42,7 @@ def main(cfg: DictConfig):
         raise ValueError("invalid config name")
 
     # TODO: Use hydra for configuration
-    dataset = RawTextDataset(
+    dataset = CharInferenceDataset(
         sys.stdin.readlines(),
         model_name_or_path=cfg.datamodule.model_name_or_path,
         max_seq_length=cfg.datamodule.max_seq_length,

@@ -1,18 +1,18 @@
-from jula.datamodule.datasets.raw_text_dataset import RawTextDataset
+from jula.datamodule.datasets.char_inference_dataset import CharInferenceDataset
 
 
 def test_init():
-    _ = RawTextDataset(["テスト", "テスト"])
+    _ = CharInferenceDataset(["テスト", "テスト"])
 
 
 def test_len():
-    dataset = RawTextDataset(["テスト", "テスト"])
+    dataset = CharInferenceDataset(["テスト", "テスト"])
     assert len(dataset) == 2
 
 
 def test_getitem():
     max_seq_length = 512
-    dataset = RawTextDataset(["テスト", "テスト"])
+    dataset = CharInferenceDataset(["テスト", "テスト"])
     for i in range(len(dataset)):
         item = dataset[i]
         assert isinstance(item, dict)

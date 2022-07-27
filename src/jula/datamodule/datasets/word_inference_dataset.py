@@ -9,7 +9,7 @@ from transformers.utils import PaddingStrategy
 from jula.datamodule.examples import Task
 
 
-class SegmentedTextDataset(Dataset):
+class WordInferenceDataset(Dataset):
     def __init__(
         self,
         texts: list[str],

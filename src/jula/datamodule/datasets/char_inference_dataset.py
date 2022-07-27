@@ -4,10 +4,8 @@ from torch.utils.data import Dataset
 from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
-from jula.utils.constants import TYPO_DUMMY_TOKEN
 
-
-class TypoTextDataset(Dataset):
+class CharInferenceDataset(Dataset):
     def __init__(
         self,
         texts: list[str],
@@ -34,7 +32,7 @@ class TypoTextDataset(Dataset):
 
     def encode(self, text: str) -> dict[str, torch.Tensor]:
         encoding: BatchEncoding = self.tokenizer(
-            text + TYPO_DUMMY_TOKEN,
+            text,
             truncation=True,
             padding=PaddingStrategy.MAX_LENGTH,
             max_length=self.max_seq_length,
@@ -44,5 +42,4 @@ class TypoTextDataset(Dataset):
         return {
             "input_ids": torch.tensor(input_ids, dtype=torch.long),
             "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
-            "texts": text,
         }

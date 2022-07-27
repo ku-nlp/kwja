@@ -8,7 +8,7 @@ from pytorch_lightning.callbacks import Callback
 from torch.utils.data import DataLoader
 
 from jula.cli.utils import suppress_debug_info
-from jula.datamodule.datasets.typo_text_dataset import TypoTextDataset
+from jula.datamodule.datasets.typo_inference_dataset import TypoInferenceDataset
 from jula.models.typo_module import TypoModule
 
 suppress_debug_info()
@@ -42,7 +42,7 @@ def main(cfg: DictConfig):
         raise ValueError("invalid config name")
 
     # TODO: Use hydra for configuration
-    dataset = TypoTextDataset(
+    dataset = TypoInferenceDataset(
         sys.stdin.readlines(),
         model_name_or_path=cfg.datamodule.model_name_or_path,
         max_seq_length=cfg.datamodule.max_seq_length,
