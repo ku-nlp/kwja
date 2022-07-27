@@ -81,7 +81,6 @@ class WordDataset(BaseDataset):
             token: self.max_seq_length - len(self.special_tokens) + i for i, token in enumerate(self.special_tokens)
         }
         self.examples: list[WordExampleSet] = self._load_examples(self.documents)
-        assert len(self.examples) != 0
         self.special_encoding: Encoding = self.tokenizer(
             self.special_tokens,
             is_split_into_words=True,
