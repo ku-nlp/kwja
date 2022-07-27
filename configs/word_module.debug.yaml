@@ -14,14 +14,13 @@ defaults:
 devices: ${oc.env:GPUS,0}
 do_predict_after_train: False
 
+# for dependency parser
+k: 4
+
 # for cohesion analysis
 cases: ["ガ", "ヲ", "ニ", "ガ２"]
-bar_rels: ["ノ", "ノ？"]
-exophora_referents:
-  - 著者
-  - 読者
-  - 不特定:人
-  - 不特定:物
+bar_rels: ["ノ"]
+exophora_referents: ["著者", "読者", "不特定:人", "不特定:物"]
 cohesion_tasks: [pas_analysis, bridging, coreference]  # pas_analysis, bridging, and/or coreference
 
 # set monitor and mode for early_stopping and model_checkpoint

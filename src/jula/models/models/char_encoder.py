@@ -1,14 +1,14 @@
 import torch
 import torch.nn as nn
 from omegaconf import DictConfig
-from transformers import AutoModel, PreTrainedTokenizer
+from transformers import AutoModel, PreTrainedTokenizerBase
 from transformers.models.roberta.modeling_roberta import create_position_ids_from_input_ids
 
-from jula.utils.utils import ENE_TYPE_BIES
+from jula.utils.constants import ENE_TYPE_BIES
 
 
 class CharEncoder(nn.Module):
-    def __init__(self, hparams: DictConfig, tokenizer: PreTrainedTokenizer) -> None:
+    def __init__(self, hparams: DictConfig, tokenizer: PreTrainedTokenizerBase) -> None:
         super().__init__()
         self.hparams = hparams
 
@@ -16,7 +16,7 @@ class CharEncoder(nn.Module):
         self.pretrained_model.resize_token_embeddings(len(tokenizer))
         self.word_embed = self.pretrained_model.embeddings.word_embeddings
 
-        self.max_ene_num: int = self.hparams.dataset.max_ene_num
+        self.max_ene_num: int = self.hparams.dataset.get("max_ene_num", 0)
         if self.max_ene_num > 0:
             self.add_ene_embed_before_encoder: bool = hparams.add_ene_embed_before_encoder
             self.ene_embed: nn.Embedding = nn.Embedding(

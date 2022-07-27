@@ -4,7 +4,7 @@ import torch
 from torchmetrics import Metric
 from torchmetrics.functional import f1_score
 
-from jula.utils.utils import IGNORE_INDEX
+from jula.utils.constants import IGNORE_INDEX
 
 
 class WordAnalysisMetric(Metric):

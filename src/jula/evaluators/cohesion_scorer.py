@@ -219,10 +219,8 @@ class SubScorer:
                     args_pred = predicate_pred.pas.get_arguments(case, relax=False)
                 else:
                     args_pred = []
-                assert len(args_pred) in (
-                    0,
-                    1,
-                )  # Our analyzer predicts one argument for one predicate
+                # Our analyzer predicts one argument for one predicate
+                assert len(args_pred) in (0, 1)
 
                 if global_index in global_index2predicate_gold:
                     predicate_gold = global_index2predicate_gold[global_index]

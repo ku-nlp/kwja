@@ -92,7 +92,7 @@
 from __future__ import division, print_function
 
 # import argparse  # FIX
-import io
+# import io        # FIX
 import sys
 import unicodedata
 import unittest
@@ -229,16 +229,16 @@ def load_conllu(lines: list[str]):  # FIX
 
     # Load the CoNLL-U file
     index, sentence_start = 0, None
-    line_count = 0
+    line_count = 0  # FIX
     while True:
-        # line = file.readline()
-        # if not line:
-        #     break
+        # line = file.readline()                 # FIX
+        # if not line:                           # FIX
+        #     break                              # FIX
         if line_count >= len(lines):  # FIX
-            break
+            break  # FIX
         line = lines[line_count].rstrip("\r\n")  # FIX
-        line_count += 1
-        # line = _decode(line.rstrip("\r\n"))
+        line_count += 1  # FIX
+        # line = _decode(line.rstrip("\r\n"))    # FIX
 
         # Handle sentence start boundaries
         if sentence_start is None:
@@ -252,8 +252,7 @@ def load_conllu(lines: list[str]):  # FIX
             # Add parent and children UDWord links and check there are no cycles
             def process_word(word):
                 if word.parent == "remapping":
-                    # raise UDError("There is a cycle in a sentence")
-                    pass  # FIX
+                    raise UDError("There is a cycle in a sentence")
                 if word.parent is None:
                     head = int(word.columns[HEAD])
                     if head < 0 or head > len(ud.words) - sentence_start:
@@ -274,8 +273,7 @@ def load_conllu(lines: list[str]):  # FIX
 
             # Check there is a single root node
             if len([word for word in ud.words[sentence_start:] if word.parent is None]) != 1:
-                # raise UDError("There are multiple roots in a sentence")
-                pass  # FIX
+                raise UDError("There are multiple roots in a sentence")
 
             # End the sentence
             ud.sentences[-1].end = index
@@ -311,9 +309,9 @@ def load_conllu(lines: list[str]):  # FIX
                 raise UDError("Cannot parse multi-word token ID '{}'".format(_encode(columns[ID])))
 
             for _ in range(start, end + 1):
-                # word_line = _decode(file.readline().rstrip("\r\n"))
+                # word_line = _decode(file.readline().rstrip("\r\n"))  # FIX
+                word_line = _decode(lines[line_count].rstrip("\r\n"))  # FIX
                 line_count += 1  # FIX
-                word_line = _decode(lines[line_count].rstrip("\r\n"))
                 word_columns = word_line.split("\t")
                 if len(word_columns) != 10:
                     raise UDError(
@@ -671,7 +669,12 @@ class TestAlignment(unittest.TestCase):
                 for part in parts[1:]:
                     num_words += 1
                     lines.append("{}\t{}\t_\t_\t_\t_\t{}\t_\t_\t_".format(num_words, part, int(num_words > 1)))
-        return load_conllu((io.StringIO if sys.version_info >= (3, 0) else io.BytesIO)("\n".join(lines + ["\n"])))
+        return load_conllu(lines + ["\n"])
+        # return load_conllu(
+        #     (io.StringIO if sys.version_info >= (3, 0) else io.BytesIO)(
+        #         "\n".join(lines + ["\n"])
+        #     )
+        # )
 
     def _test_exception(self, gold, system):
         self.assertRaises(UDError, evaluate, self._load_words(gold), self._load_words(system))

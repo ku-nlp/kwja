@@ -1,14 +1,12 @@
 import logging
 from enum import Enum
-from typing import Optional
 
 from rhoknp import Document
-from tokenizers import Encoding
 
 from jula.datamodule.extractors import Annotation, BridgingExtractor, CoreferenceExtractor, PasExtractor
 from jula.datamodule.extractors.base import Extractor, Mrph, Phrase
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 
 class Task(Enum):
@@ -25,14 +23,12 @@ TASK2EXTRACTOR = {
 
 
 class CohesionExample:
-    """A single training/test example for bridging anaphora resolution."""
+    """A single training/test example for cohesion analysis."""
 
     def __init__(self) -> None:
-        self.example_id: int = -1
         self.doc_id: str = ""
         self.annotations: dict[Task, Annotation] = {}
         self.phrases: dict[Task, list[Phrase]] = {}
-        self.encoding: Optional[Encoding] = None
 
     @property
     def mrphs(self) -> dict[Task, list[Mrph]]:
