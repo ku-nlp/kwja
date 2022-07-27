@@ -270,20 +270,20 @@ class WordDataset(BaseDataset):
         task_idx = 0
         if Task.PAS_ANALYSIS in self.cohesion_tasks:
             for _ in self.cases:
-                for i, p in enumerate(self._token2bp_level(result[task_idx], example.phrases[Task.PAS_ANALYSIS])):
+                for i, p in enumerate(self._word2bp_level(result[task_idx], example.phrases[Task.PAS_ANALYSIS])):
                     ret[i].append(p)
                 task_idx += 1
         if Task.BRIDGING in self.cohesion_tasks:
-            for i, p in enumerate(self._token2bp_level(result[task_idx], example.phrases[Task.BRIDGING])):
+            for i, p in enumerate(self._word2bp_level(result[task_idx], example.phrases[Task.BRIDGING])):
                 ret[i].append(p)
             task_idx += 1
         if Task.COREFERENCE in self.cohesion_tasks:
-            for i, p in enumerate(self._token2bp_level(result[task_idx], example.phrases[Task.COREFERENCE])):
+            for i, p in enumerate(self._word2bp_level(result[task_idx], example.phrases[Task.COREFERENCE])):
                 ret[i].append(p)
             task_idx += 1
         return ret
 
-    def _token2bp_level(
+    def _word2bp_level(
         self,
         word_level_output: list[list[float]],
         phrases: list[Phrase],
