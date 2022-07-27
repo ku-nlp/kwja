@@ -322,19 +322,20 @@ class WordDataset(BaseDataset):
         for phrase in phrases:
             arguments: list[str] = annotation[phrase.dtid]
             candidates: list[int] = phrase.candidates  # phrase level
-            for mrph in filter(lambda m: m.is_target, phrase.children):
+            for mrph in phrase.children:
                 scores: list[int] = [0] * self.max_seq_length
-                for arg_string in arguments:
-                    # arg_string: 著者, 8%C, 15%O, 2, [NULL], ...
-                    if arg_string[-2:] in ("%C", "%N", "%O"):
-                        # PAS only
-                        # flag = arg_string[-1]
-                        arg_string = arg_string[:-2]
-                    if arg_string in self.special_to_index:
-                        word_index = self.special_to_index[arg_string]
-                    else:
-                        word_index = phrases[int(arg_string)].dmid
-                    scores[word_index] = 1
+                if mrph.is_target:
+                    for arg_string in arguments:
+                        # arg_string: 著者, 8%C, 15%O, 2, [NULL], ...
+                        if arg_string[-2:] in ("%C", "%N", "%O"):
+                            # PAS only
+                            # flag = arg_string[-1]
+                            arg_string = arg_string[:-2]
+                        if arg_string in self.special_to_index:
+                            word_index = self.special_to_index[arg_string]
+                        else:
+                            word_index = phrases[int(arg_string)].dmid
+                        scores[word_index] = 1
 
                 word_level_candidates: list[int] = []
                 for candidate in candidates:
