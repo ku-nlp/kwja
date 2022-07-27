@@ -6,7 +6,7 @@ from rhoknp import BasePhrase, Document, Morpheme
 from rhoknp.units.utils import DepType
 from torchmetrics import Metric
 
-from jula.evaluators.my_conll18_ud_eval import main as conll18_ud_eval
+from jula.evaluators.conll18_ud_eval import main as conll18_ud_eval
 from jula.utils.constants import INDEX2DEPENDENCY_TYPE
 
 

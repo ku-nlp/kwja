@@ -12,7 +12,7 @@ from jula.evaluators.cohesion_analysis_metric import CohesionAnalysisMetric
 from jula.evaluators.dependency_parsing_metric import DependencyParsingMetric
 from jula.evaluators.discourse_parsing_metric import DiscourseParsingMetric
 from jula.evaluators.phrase_analysis_metric import PhraseAnalysisMetric
-from jula.evaluators.word_analyzer import WordAnalysisMetric
+from jula.evaluators.word_analysis_metric import WordAnalysisMetric
 from jula.models.models.phrase_analyzer import PhraseAnalyzer
 from jula.models.models.pooling import PoolingStrategy
 from jula.models.models.relation_analyzer import RelationAnalyzer

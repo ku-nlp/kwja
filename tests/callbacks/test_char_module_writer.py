@@ -2,17 +2,17 @@ import tempfile
 
 import torch
 
-from jula.callbacks.word_segmenter_writer import WordSegmenterWriter
+from jula.callbacks.char_module_writer import WordModuleWriter
 
 
 def test_init():
     with tempfile.TemporaryDirectory() as tmp_dir:
-        _ = WordSegmenterWriter(tmp_dir)
+        _ = WordModuleWriter(tmp_dir)
 
 
 def test_write_on_epoch_end():
     with tempfile.TemporaryDirectory() as tmp_dir:
-        writer = WordSegmenterWriter(tmp_dir)
+        writer = WordModuleWriter(tmp_dir)
 
         tokenizer = writer.tokenizer
         input_ids = tokenizer("今日は晴れ", return_tensors="pt")["input_ids"]

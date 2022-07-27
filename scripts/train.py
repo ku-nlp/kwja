@@ -19,7 +19,7 @@ hf_logging.set_verbosity(hf_logging.ERROR)
 logging.getLogger("rhoknp").setLevel(logging.WARNING)
 
 
-@hydra.main(version_base=None, config_path="../configs", config_name="word_segmenter")
+@hydra.main(version_base=None, config_path="../configs")
 def main(cfg: DictConfig):
     load_dotenv()
     if isinstance(cfg.devices, str):

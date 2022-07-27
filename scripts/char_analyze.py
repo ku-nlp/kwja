@@ -14,7 +14,7 @@ from jula.models.char_module import CharModule
 suppress_debug_info()
 
 
-@hydra.main(version_base=None, config_path="../configs", config_name="word_segmenter")
+@hydra.main(version_base=None, config_path="../configs", config_name="char_module")
 def main(cfg: DictConfig):
     load_dotenv()
     if isinstance(cfg.devices, str):
