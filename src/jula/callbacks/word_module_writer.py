@@ -289,6 +289,6 @@ class WordModuleWriter(BasePredictionWriter):
                         )
                     )
             else:
-                raise ValueError(f"invalid morpheme index: {morpheme_index}")
+                raise ValueError(f"invalid morpheme index: {morpheme_index} in {morphemes[0].document.doc_id}")
 
         return rels

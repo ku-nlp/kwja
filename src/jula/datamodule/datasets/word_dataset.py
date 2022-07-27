@@ -81,7 +81,6 @@ class WordDataset(BaseDataset):
             token: self.max_seq_length - len(self.special_tokens) + i for i, token in enumerate(self.special_tokens)
         }
         self.examples: list[WordExampleSet] = self._load_examples(self.documents)
-        assert len(self.examples) != 0
         self.special_encoding: Encoding = self.tokenizer(
             self.special_tokens,
             is_split_into_words=True,
@@ -271,20 +270,20 @@ class WordDataset(BaseDataset):
         task_idx = 0
         if Task.PAS_ANALYSIS in self.cohesion_tasks:
             for _ in self.cases:
-                for i, p in enumerate(self._token2bp_level(result[task_idx], example.phrases[Task.PAS_ANALYSIS])):
+                for i, p in enumerate(self._word2bp_level(result[task_idx], example.phrases[Task.PAS_ANALYSIS])):
                     ret[i].append(p)
                 task_idx += 1
         if Task.BRIDGING in self.cohesion_tasks:
-            for i, p in enumerate(self._token2bp_level(result[task_idx], example.phrases[Task.BRIDGING])):
+            for i, p in enumerate(self._word2bp_level(result[task_idx], example.phrases[Task.BRIDGING])):
                 ret[i].append(p)
             task_idx += 1
         if Task.COREFERENCE in self.cohesion_tasks:
-            for i, p in enumerate(self._token2bp_level(result[task_idx], example.phrases[Task.COREFERENCE])):
+            for i, p in enumerate(self._word2bp_level(result[task_idx], example.phrases[Task.COREFERENCE])):
                 ret[i].append(p)
             task_idx += 1
         return ret
 
-    def _token2bp_level(
+    def _word2bp_level(
         self,
         word_level_output: list[list[float]],
         phrases: list[Phrase],
@@ -323,19 +322,20 @@ class WordDataset(BaseDataset):
         for phrase in phrases:
             arguments: list[str] = annotation[phrase.dtid]
             candidates: list[int] = phrase.candidates  # phrase level
-            for mrph in filter(lambda m: m.is_target, phrase.children):
+            for mrph in phrase.children:
                 scores: list[int] = [0] * self.max_seq_length
-                for arg_string in arguments:
-                    # arg_string: 著者, 8%C, 15%O, 2, [NULL], ...
-                    if arg_string[-2:] in ("%C", "%N", "%O"):
-                        # PAS only
-                        # flag = arg_string[-1]
-                        arg_string = arg_string[:-2]
-                    if arg_string in self.special_to_index:
-                        word_index = self.special_to_index[arg_string]
-                    else:
-                        word_index = phrases[int(arg_string)].dmid
-                    scores[word_index] = 1
+                if mrph.is_target:
+                    for arg_string in arguments:
+                        # arg_string: 著者, 8%C, 15%O, 2, [NULL], ...
+                        if arg_string[-2:] in ("%C", "%N", "%O"):
+                            # PAS only
+                            # flag = arg_string[-1]
+                            arg_string = arg_string[:-2]
+                        if arg_string in self.special_to_index:
+                            word_index = self.special_to_index[arg_string]
+                        else:
+                            word_index = phrases[int(arg_string)].dmid
+                        scores[word_index] = 1
 
                 word_level_candidates: list[int] = []
                 for candidate in candidates:
