@@ -21,5 +21,7 @@ mode: min
 # batch size
 batch_size: 4
 accumulate_grad_batches: 16
+# option
+confidence_threshold: 0.9   # valid only for inference
 # scheduler options
 warmup_steps: 100

@@ -1,6 +1,8 @@
 import os
+import sys
+from io import TextIOWrapper
 from pathlib import Path
-from typing import Any, Optional, Sequence
+from typing import Any, Optional, Sequence, Union
 
 import hydra
 import pytorch_lightning as pl
@@ -8,7 +10,7 @@ import torch
 from pytorch_lightning.callbacks import BasePredictionWriter
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from jula.utils.constants import TOKEN2TYPO_OPN, TYPO_OPN2TOKEN
+from jula.utils.constants import TOKEN2TYPO_OPN
 
 
 class TypoModuleWriter(BasePredictionWriter):
@@ -16,6 +18,7 @@ class TypoModuleWriter(BasePredictionWriter):
         self,
         output_dir: str,
         extended_vocab_path: str,
+        confidence_threshold: float = 0.0,
         pred_filename: str = "predict",
         model_name_or_path: str = "cl-tohoku/bert-base-japanese-char",
         tokenizer_kwargs: dict = None,
@@ -24,13 +27,17 @@ class TypoModuleWriter(BasePredictionWriter):
         super().__init__(write_interval="epoch")
 
         self.use_stdout = use_stdout
-        if self.use_stdout:
-            self.output_path = ""
+
+        self.destination = Union[Path, TextIOWrapper]
+        if use_stdout is True:
+            self.destination = sys.stdout
         else:
-            self.output_path = f"{output_dir}/{pred_filename}.txt"
-            os.makedirs(output_dir, exist_ok=True)
-            if os.path.isfile(self.output_path):
-                os.remove(self.output_path)
+            self.destination = Path(f"{output_dir}/{pred_filename}.txt")
+            self.destination.parent.mkdir(exist_ok=True)
+            if self.destination.exists():
+                os.remove(str(self.destination))
+
+        self.confidence_threshold = confidence_threshold
 
         self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             model_name_or_path,
@@ -54,10 +61,8 @@ class TypoModuleWriter(BasePredictionWriter):
         for opn_ids in opn_ids_list:
             opns: list[str] = []
             for opn_id in opn_ids:
-                if self.id2opn[opn_id] in TYPO_OPN2TOKEN.values():
-                    opns.append(TOKEN2TYPO_OPN[self.id2opn[opn_id]])
-                else:
-                    opns.append(f"{opn_prefix}:{self.id2opn[opn_id]}")
+                opn: str = self.id2opn[opn_id]
+                opns.append(TOKEN2TYPO_OPN.get(opn, f"{opn_prefix}:{opn}"))
             opns_list.append(opns)
         return opns_list
 
@@ -82,6 +87,22 @@ class TypoModuleWriter(BasePredictionWriter):
             post_text += inss[-1].removeprefix("I:")
         return post_text
 
+    def get_opn_ids_list(self, logits: torch.Tensor, opn_prefix: str):
+        # Do not edit if the operation probability (replace, delete, and insert) is less than "confidence_threshold"
+        opn_ids_list: list[list[int]] = []
+        values_list, indices_list = torch.max(logits, dim=-1)
+        for values, indices in zip(values_list.tolist(), indices_list.tolist()):
+            opn_ids: list[int] = []
+            for value, index in zip(values, indices):
+                if opn_prefix == "R" and value < self.confidence_threshold:
+                    opn_ids.append(self.opn2id["<k>"])
+                elif opn_prefix == "I" and value < self.confidence_threshold:
+                    opn_ids.append(self.opn2id["<_>"])
+                else:
+                    opn_ids.append(index)
+                opn_ids_list.append(opn_ids)
+        return opn_ids_list
+
     def write_on_epoch_end(
         self,
         trainer: pl.Trainer,
@@ -94,11 +115,17 @@ class TypoModuleWriter(BasePredictionWriter):
             for batch_pred in prediction:
                 # the prediction of the first token (= [CLS]) is excluded.
                 kdr_preds: list[list[str]] = self.convert_id2opn(
-                    opn_ids_list=torch.argmax(batch_pred["kdr_logits"][:, 1:], dim=-1).tolist(),
+                    opn_ids_list=self.get_opn_ids_list(
+                        logits=torch.softmax(batch_pred["kdr_logits"][:, 1:, :], dim=-1),
+                        opn_prefix="R",
+                    ),
                     opn_prefix="R",
                 )
                 ins_preds: list[list[str]] = self.convert_id2opn(
-                    opn_ids_list=torch.argmax(batch_pred["ins_logits"][:, 1:], dim=-1).tolist(),
+                    opn_ids_list=self.get_opn_ids_list(
+                        logits=torch.softmax(batch_pred["ins_logits"][:, 1:, :], dim=-1),
+                        opn_prefix="I",
+                    ),
                     opn_prefix="I",
                 )
                 result = []
@@ -114,9 +141,8 @@ class TypoModuleWriter(BasePredictionWriter):
                     )
                 results.append("\n".join(result))
 
-        out = "\n".join(results)
-        if self.use_stdout:
-            print(out)
-        else:
-            with open(self.output_path, "w") as f:
-                f.write(out)
+        output_string: str = "\n".join(results) + "\n"
+        if isinstance(self.destination, Path):
+            self.destination.write_text(output_string)
+        elif isinstance(self.destination, TextIOWrapper):
+            self.destination.write(output_string)
