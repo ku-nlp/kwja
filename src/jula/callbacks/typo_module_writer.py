@@ -1,8 +1,8 @@
 import os
 import sys
-from io import TextIOWrapper
+from io import TextIOBase
 from pathlib import Path
-from typing import Any, Optional, Sequence, Union
+from typing import Any, Optional, Sequence, TextIO, Union
 
 import hydra
 import pytorch_lightning as pl
@@ -28,7 +28,7 @@ class TypoModuleWriter(BasePredictionWriter):
 
         self.use_stdout = use_stdout
 
-        self.destination = Union[Path, TextIOWrapper]
+        self.destination = Union[Path, TextIO]
         if use_stdout is True:
             self.destination = sys.stdout
         else:
@@ -144,5 +144,5 @@ class TypoModuleWriter(BasePredictionWriter):
         output_string: str = "\n".join(results) + "\n"
         if isinstance(self.destination, Path):
             self.destination.write_text(output_string)
-        elif isinstance(self.destination, TextIOWrapper):
+        elif isinstance(self.destination, TextIOBase):
             self.destination.write(output_string)
