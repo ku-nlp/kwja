@@ -1,5 +1,8 @@
 import os
-from typing import Any, Optional, Sequence
+import sys
+from io import TextIOBase
+from pathlib import Path
+from typing import Any, Optional, Sequence, TextIO, Union
 
 import hydra
 import pytorch_lightning as pl
@@ -10,7 +13,7 @@ from transformers import AutoTokenizer, PreTrainedTokenizerBase
 from jula.utils.constants import INDEX2SEG_TYPE
 
 
-class WordModuleWriter(BasePredictionWriter):
+class CharModuleWriter(BasePredictionWriter):
     def __init__(
         self,
         output_dir: str,
@@ -21,14 +24,14 @@ class WordModuleWriter(BasePredictionWriter):
     ) -> None:
         super().__init__(write_interval="epoch")
 
-        self.use_stdout = use_stdout
-        if self.use_stdout:
-            self.output_path = ""
+        self.destination = Union[Path, TextIO]
+        if use_stdout is True:
+            self.destination = sys.stdout
         else:
-            self.output_path = f"{output_dir}/{pred_filename}.txt"
-            os.makedirs(output_dir, exist_ok=True)
-            if os.path.isfile(self.output_path):
-                os.remove(self.output_path)
+            self.destination = Path(f"{output_dir}/{pred_filename}.txt")
+            self.destination.parent.mkdir(exist_ok=True)
+            if self.destination.exists():
+                os.remove(str(self.destination))
 
         self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             model_name_or_path,
@@ -61,9 +64,8 @@ class WordModuleWriter(BasePredictionWriter):
                         result += self.tokenizer.decode(input_id)
                     results.append(result.strip())
 
-        out = "\n".join(results)
-        if self.use_stdout:
-            print(out)
-        else:
-            with open(self.output_path, "w") as f:
-                f.write(out)
+        output_string: str = "\n".join(results) + "\n"
+        if isinstance(self.destination, Path):
+            self.destination.write_text(output_string)
+        elif isinstance(self.destination, TextIOBase):
+            self.destination.write(output_string)

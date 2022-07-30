@@ -26,8 +26,6 @@ class TypoModuleWriter(BasePredictionWriter):
     ) -> None:
         super().__init__(write_interval="epoch")
 
-        self.use_stdout = use_stdout
-
         self.destination = Union[Path, TextIO]
         if use_stdout is True:
             self.destination = sys.stdout
