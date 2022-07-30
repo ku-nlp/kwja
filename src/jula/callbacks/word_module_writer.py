@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+from io import TextIOBase
 from pathlib import Path
 from typing import Any, Optional, Sequence, TextIO, Union
 
@@ -138,7 +139,7 @@ class WordModuleWriter(BasePredictionWriter):
         output_string = "".join(doc.to_knp() for doc in documents)
         if isinstance(self.destination, Path):
             self.destination.write_text(output_string)
-        elif isinstance(self.destination, TextIO):
+        elif isinstance(self.destination, TextIOBase):
             self.destination.write(output_string)
 
     @staticmethod
