@@ -188,7 +188,6 @@ def main():
         "-i",
         "--input-dir",
         type=str,
-        default="./data/jwtd_v2.0",
         help="path to input directory",
     )
     parser.add_argument(
