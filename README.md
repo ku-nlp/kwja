@@ -42,6 +42,16 @@ Options:
 - `--output-dir, -o`: path to directory to save. Default: `./data`
 - `--save-filtered-results, -s`: whether to create an intermediate file to save the filtering results.
 
+## Build dataset for training typo module
+You must preprocess Japanese Wikipedia Typo Dataset.
+```shell
+poetry run python src/jula/preprocessors/preprocess_typo.py
+  --input-dir "/path/to/unzipped_typo_dataset_dir"
+```
+Options:
+- `--output-dir, -o`: path to directory to save. Default: `./data`
+- `--num-valid-samples, -n`: number of validation data. Default: `1000`
+
 ## Build datasets for training word module
 You must have access to KyotoCorpusFull
 ```shell
