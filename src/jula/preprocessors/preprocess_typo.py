@@ -3,11 +3,11 @@ import logging
 import random
 import re
 from argparse import ArgumentParser
-from collections import Counter
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple
 
 from Levenshtein import opcodes
 
@@ -191,11 +191,14 @@ def main():
         help="path to input directory",
     )
     parser.add_argument(
-        "--num-valid-samples",
-        "--n",
+        "-n",
+        "--num-valid-samples-per-category",
         type=int,
         default=1000,
-        help="number of validation data. validation data is randomly extracted from train.jsonl, training data is the rest.",
+        help="number of validation data. The evaluation data is extracted from the train.jsonl "
+        "by the number of num-valid-samples-per-category for each of the 8 error categories."
+        "Therefore, the actual number of evaluation data is 8 times the number specified here."
+        "The training data is the rest.",
     )
     parser.add_argument(
         "-o",
@@ -208,16 +211,16 @@ def main():
 
     preprocessor: TypoPreprocessor = TypoPreprocessor()
     for filename in ["test", "train"]:
-        save_objs: list[dict[str, Union[str, list[str]]]] = []
+        category2obj = defaultdict(list[str])
+        other_objs: list[str] = []
         with Path(f"{args.input_dir}/{filename}.jsonl").open("r") as f:
             for line in f:
                 example: dict = json.loads(line)
+                diffs = [diff for diff in example["diffs"] if diff["category"] != "not-typo"]
                 blocks: Optional[list[Block]] = preprocessor.decompose(
                     pre_text=example["pre_text"],
                     post_text=example["post_text"],
-                    typo_diffs=[
-                        TypoDiff(pre_str=diff["pre_str"], post_str=diff["post_str"]) for diff in example["diffs"]
-                    ],
+                    typo_diffs=[TypoDiff(pre_str=diff["pre_str"], post_str=diff["post_str"]) for diff in diffs],
                 )
                 if blocks is None:
                     continue
@@ -228,22 +231,30 @@ def main():
                     "kdrs": kdr_opns,
                     "inss": ins_opns,
                 }
-                save_objs.append(json.dumps(obj, ensure_ascii=False))
+                if len(diffs) == 1 and filename == "train":
+                    category2obj[diffs[0]["category"]].append(json.dumps(obj, ensure_ascii=False))
+                else:
+                    other_objs.append(json.dumps(obj, ensure_ascii=False))
 
         if filename == "test":
             test_dir: Path = Path(f"{args.output_dir}/{filename}")
             test_dir.mkdir(exist_ok=True)
             with test_dir.joinpath(f"{filename}.jsonl").open("w") as f:
-                f.write("\n".join(save_objs) + "\n")
+                f.write("\n".join(other_objs) + "\n")
         else:
-            random.shuffle(save_objs)
-            valid_save_objs: list[dict[str, Union[str, list[str]]]] = save_objs[: args.num_valid_samples]
+            valid_save_objs: list[str] = []
+            train_save_objs: list[str] = other_objs
+            for category, objs in category2obj.items():
+                random_objs = random.sample(objs, len(objs))
+                valid_save_objs.extend(random_objs[: args.num_valid_samples_per_category])
+                train_save_objs.extend(random_objs[args.num_valid_samples_per_category :])
+
             valid_dir: Path = Path(f"{args.output_dir}/valid")
             valid_dir.mkdir(exist_ok=True)
             with valid_dir.joinpath("valid.jsonl").open("w") as f:
                 f.write("\n".join(valid_save_objs) + "\n")
 
-            train_save_objs: list[dict[str, Union[str, list[str]]]] = save_objs[args.num_valid_samples :]
+            random.shuffle(train_save_objs)
             train_dir: Path = Path(f"{args.output_dir}/train")
             train_dir.mkdir(exist_ok=True)
             with train_dir.joinpath("train.jsonl").open("w") as f:
