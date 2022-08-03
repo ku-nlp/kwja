@@ -129,11 +129,16 @@ class WordDataset(BaseDataset):
 
             discourse_example = DiscourseExample()
             discourse_example.load(document, has_annotation=False)
-            if self.path.name == "train":
-                path = self.path / "disc_crowd" / f"{document.doc_id}.knp"
-            else:
-                path = self.path / "disc_expert" / f"{document.doc_id}.knp"
+            path = self.path / "disc_expert" / f"{document.doc_id}.knp"
             if path.exists():
+                try:
+                    document_disc = Document.from_knp(path.read_text())
+                    if document == document_disc:
+                        discourse_example.load(document_disc)
+                except AssertionError:
+                    logger.warning(f"{path} is not a valid KNP file")
+            elif self.path.name == "train":
+                path = self.path / "disc_crowd" / f"{document.doc_id}.knp"
                 try:
                     document_disc = Document.from_knp(path.read_text())
                     if document == document_disc:
@@ -318,7 +323,6 @@ class WordDataset(BaseDataset):
     ) -> tuple[list[list[int]], list[list[int]]]:
         scores_set: list[list[int]] = [[0] * self.max_seq_length for _ in range(self.max_seq_length)]
         candidates_set: list[list[int]] = [[] for _ in range(self.max_seq_length)]
-
         for phrase in phrases:
             arguments: list[str] = annotation[phrase.dtid]
             candidates: list[int] = phrase.candidates  # phrase level
