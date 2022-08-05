@@ -139,12 +139,13 @@ class WordDataset(BaseDataset):
                     logger.warning(f"{path} is not a valid KNP file")
             elif self.path.name == "train":
                 path = self.path / "disc_crowd" / f"{document.doc_id}.knp"
-                try:
-                    document_disc = Document.from_knp(path.read_text())
-                    if document == document_disc:
-                        discourse_example.load(document_disc)
-                except AssertionError:
-                    logger.warning(f"{path} is not a valid KNP file")
+                if path.exists():
+                    try:
+                        document_disc = Document.from_knp(path.read_text())
+                        if document == document_disc:
+                            discourse_example.load(document_disc)
+                    except AssertionError:
+                        logger.warning(f"{path} is not a valid KNP file")
 
             examples.append(
                 WordExampleSet(
