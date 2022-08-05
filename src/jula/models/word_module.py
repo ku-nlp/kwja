@@ -1,4 +1,3 @@
-from collections import defaultdict
 from statistics import mean
 from typing import Any, Optional
 
@@ -177,39 +176,21 @@ class WordModule(LightningModule):
         self.log("valid/discourse_parsing_loss", outputs["relation_analyzer_outputs"]["discourse_parsing_loss"])
 
     def validation_epoch_end(self, validation_step_outputs) -> None:
-        f1_scores: dict[str, float] = defaultdict(float)
+        log_metrics: dict[str, dict[str, float]] = {corpus: {} for corpus in self.valid_corpora}
 
         for corpus, metric in self.valid_word_analysis_metrics.items():
-            for name, value in metric.compute().items():
-                if name == "word_analysis_f1":
-                    f1_scores["word_analysis_f1"] += value / len(self.valid_word_analysis_metrics)
-                self.log(f"valid_{corpus}/{name}", value)
-                metric.reset()
-        self.log("valid/word_analysis_f1", f1_scores["word_analysis_f1"])
-
-        keys = {
-            "macro_word_feature_f1",
-            "micro_word_feature_f1",
-            "macro_base_phrase_feature_f1",
-            "micro_base_phrase_feature_f1",
-        }
-        for corpus, metric in self.valid_phrase_analysis_metrics.items():
-            for name, value in metric.compute().items():
-                if name in keys:
-                    f1_scores[name] += value / len(self.valid_phrase_analysis_metrics)
-                self.log(f"valid_{corpus}/{name}", value)
+            log_metrics[corpus].update(metric.compute())
             metric.reset()
-        for key in sorted(keys):
-            self.log(f"valid/{key}", f1_scores[key])
 
-        self.log("valid/f1", mean(f1_scores.values()))
+        for corpus, metric in self.valid_phrase_analysis_metrics.items():
+            log_metrics[corpus].update(metric.compute())
+            metric.reset()
 
         for idx, corpus in enumerate(self.valid_corpora):
             dataset = self.trainer.val_dataloaders[idx].dataset
             metric = self.valid_dependency_parsing_metrics[corpus]
             documents = [dataset.doc_id2document[example.doc_id] for example in dataset.examples]
-            for name, value in metric.compute(documents).items():
-                self.log(f"valid_{corpus}/{name}", value)
+            log_metrics[corpus].update(metric.compute(documents))
             metric.reset()
 
         for idx, corpus in enumerate(self.valid_corpora):
@@ -217,14 +198,28 @@ class WordModule(LightningModule):
             metric = self.valid_cohesion_analysis_metrics[corpus]
             for rel, val in metric.compute(dataset).to_dict().items():
                 for met, sub_val in val.items():
-                    self.log(f"valid_{corpus}/{met}_{rel}", sub_val.f1)
+                    log_metrics[corpus][f"{met}_{rel}"] = sub_val.f1
             metric.reset()
 
         for idx, corpus in enumerate(self.valid_corpora):
             metric = self.valid_discourse_parsing_metrics[corpus]
             for name, value in metric.compute().items():
-                self.log(f"valid_{corpus}/{name}", value)
+                log_metrics[corpus][name] = value
             metric.reset()
+
+        keys = {
+            "word_analysis_f1",
+            "macro_word_feature_f1",
+            "macro_base_phrase_feature_f1",
+            "base_phrase_LAS_f1",
+            "all_all_case",
+            "discourse_parsing_f1_no_relation_ignored",
+        }
+        for corpus, metrics in log_metrics.items():
+            metrics["aggregated_word_metrics"] = mean(metrics[key] for key in keys)
+
+        for corpus, metrics in log_metrics.items():
+            self.log_dict({f"valid_{corpus}/{name}": value for name, value in metrics.items()})
 
     def test_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> None:
         batch["training"] = False
@@ -290,54 +285,50 @@ class WordModule(LightningModule):
         self.log("test/discourse_parsing_loss", outputs["relation_analyzer_outputs"]["discourse_parsing_loss"])
 
     def test_epoch_end(self, test_step_outputs) -> None:
-        f1_scores: dict[str, float] = defaultdict(float)
+        log_metrics: dict[str, dict[str, float]] = {corpus: {} for corpus in self.test_corpora}
 
         for corpus, metric in self.test_word_analysis_metrics.items():
-            for name, value in metric.compute().items():
-                if name == "word_analysis_f1":
-                    f1_scores[name] += value / len(self.test_word_analysis_metrics)
-                self.log(f"test_{corpus}/{name}", value)
-                metric.reset()
-        self.log("test/word_analysis_f1", f1_scores["word_analysis_f1"])
-
-        keys = {
-            "macro_word_feature_f1",
-            "micro_word_feature_f1",
-            "macro_base_phrase_feature_f1",
-            "micro_base_phrase_feature_f1",
-        }
-        for corpus, metric in self.test_phrase_analysis_metrics.items():
-            for name, value in metric.compute().items():
-                if name in keys:
-                    f1_scores[name] += value / len(self.test_phrase_analysis_metrics)
-                self.log(f"test_{corpus}/{name}", value)
+            log_metrics[corpus].update(metric.compute())
             metric.reset()
-        for key in sorted(keys):
-            self.log(f"test/{key}", f1_scores[key])
 
-        self.log("test/f1", mean(f1_scores.values()))
+        for corpus, metric in self.test_phrase_analysis_metrics.items():
+            log_metrics[corpus].update(metric.compute())
+            metric.reset()
 
         for idx, corpus in enumerate(self.test_corpora):
-            dataset = self.trainer.test_dataloaders[idx].dataset
+            dataset = self.trainer.val_dataloaders[idx].dataset
             metric = self.test_dependency_parsing_metrics[corpus]
             documents = [dataset.doc_id2document[example.doc_id] for example in dataset.examples]
-            for name, value in metric.compute(documents).items():
-                self.log(f"test_{corpus}/{name}", value)
+            log_metrics[corpus].update(metric.compute(documents))
             metric.reset()
 
         for idx, corpus in enumerate(self.test_corpora):
-            dataset = self.trainer.test_dataloaders[idx].dataset
+            dataset = self.trainer.val_dataloaders[idx].dataset
             metric = self.test_cohesion_analysis_metrics[corpus]
             for rel, val in metric.compute(dataset).to_dict().items():
                 for met, sub_val in val.items():
-                    self.log(f"test_{corpus}/{met}_{rel}", sub_val.f1)
+                    log_metrics[corpus][f"{met}_{rel}"] = sub_val.f1
             metric.reset()
 
-        for idx, corpus in enumerate(self.valid_corpora):
+        for idx, corpus in enumerate(self.test_corpora):
             metric = self.test_discourse_parsing_metrics[corpus]
             for name, value in metric.compute().items():
-                self.log(f"test_{corpus}/{name}", value)
+                log_metrics[corpus][name] = value
             metric.reset()
+
+        keys = {
+            "word_analysis_f1",
+            "macro_word_feature_f1",
+            "macro_base_phrase_feature_f1",
+            "base_phrase_LAS_f1",
+            "all_all_case",
+            "discourse_parsing_f1_no_relation_ignored",
+        }
+        for corpus, metrics in log_metrics.items():
+            metrics["aggregated_word_metrics"] = mean(metrics[key] for key in keys)
+
+        for corpus, metrics in log_metrics.items():
+            self.log_dict({f"test_{corpus}/{name}": value for name, value in metrics.items()})
 
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Any:
         batch["training"] = False
