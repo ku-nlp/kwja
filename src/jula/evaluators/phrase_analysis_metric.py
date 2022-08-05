@@ -7,7 +7,7 @@ from seqeval.metrics import f1_score
 from seqeval.scheme import IOB2
 from torchmetrics import Metric
 
-from jula.utils.constants import BASE_PHRASE_FEATURES, IGNORE_INDEX, WORD_FEATURES
+from jula.utils.constants import BASE_PHRASE_FEATURES, IGNORE_INDEX, SUB_WORD_FEATURES, WORD_FEATURES
 
 
 class PhraseAnalysisMetric(Metric):
@@ -80,11 +80,16 @@ class PhraseAnalysisMetric(Metric):
         word_feature_metrics = {}
         aligned_predictions, aligned_labels = [], []
         for i, (word_feature_prediction, word_feature_label) in enumerate(zip(word_feature_predictions, word_features)):
+            if i < len(WORD_FEATURES) - len(SUB_WORD_FEATURES):
+                io_tag: Literal["I", "O"] = "I"
+            else:
+                io_tag = "O"
+
             # prediction / label: (b, seq)
             aligned_prediction, aligned_label = self.align_predictions(
                 prediction=word_feature_prediction.detach().cpu().numpy(),
                 label=word_feature_label.detach().cpu().numpy(),
-                io_tag="I",
+                io_tag=io_tag,
             )
             aligned_predictions += aligned_prediction
             aligned_labels += aligned_label

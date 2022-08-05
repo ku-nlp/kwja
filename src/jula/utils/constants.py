@@ -200,13 +200,57 @@ CONJFORM_TYPES = (
 )
 INDEX2CONJFORM_TYPE = {index: conjform_type for index, conjform_type in enumerate(CONJFORM_TYPES)}
 
-WORD_FEATURES = (
-    "基本句-主辞",
-    "基本句-区切",
-    "文節-区切",
+SUB_WORD_FEATURES = (
+    "用言表記先頭",
+    "用言表記末尾",
 )
+WORD_FEATURES = ("基本句-主辞", "基本句-区切", "文節-区切", *SUB_WORD_FEATURES)
 
-
+SUB_BASE_PHRASE_FEATURES = (
+    # c.f. https://github.com/ku-nlp/knp/blob/master/doc/knp_feature.pdf
+    "SM-主体",
+    "レベル:A",
+    "レベル:A-",
+    "レベル:B",
+    "レベル:B+",
+    "レベル:B-",
+    "レベル:C",
+    "係:ノ格",
+    "修飾",
+    "状態述語",
+    "動態述語",
+    "可能表現",
+    "敬語:尊敬表現",
+    "敬語:謙譲表現",
+    "敬語:丁寧表現",
+    "時間",
+    "節-区切:補文",
+    "節-区切:連体修飾",
+    # c.f. https://github.com/ ku-nlp/KWDLC/blob/master/doc/clause_feature_manual.pdf
+    "節-機能-原因・理由",
+    "節-機能疑-原因・理由",
+    "節-前向き機能-原因・理由",
+    "節-前向き機能-原因・理由-逆",
+    "節-機能-目的",
+    "節-機能疑-目的",
+    "節-前向き機能-目的",
+    "節-機能-条件",
+    "節-機能疑-条件",
+    "節-前向き機能-条件",
+    "節-前向き機能-否定条件",
+    "節-前向き機能-対比",
+    "節-機能-逆接",
+    "節-機能疑-逆接",
+    "節-前向き機能-逆接",
+    "節-機能-条件-逆条件",
+    "節-機能疑-条件-逆条件",
+    "節-機能-逆接",
+    "節-機能疑-逆接",
+    "節-前向き機能-逆接",
+    "節-機能-時間経過-前",
+    "節-機能-時間経過-後",
+    "節-機能-時間経過-同時",
+)
 BASE_PHRASE_FEATURES = (
     # type
     "用言:動",
@@ -234,6 +278,7 @@ BASE_PHRASE_FEATURES = (
     # clause
     "節-主辞",
     "節-区切",
+    *SUB_BASE_PHRASE_FEATURES,
 )
 IGNORE_INDEX = -100
 

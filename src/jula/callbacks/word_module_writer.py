@@ -179,9 +179,19 @@ class WordModuleWriter(BasePredictionWriter):
         for i, (morpheme, word_feature_pred) in enumerate(zip(morphemes, word_feature_preds)):
             morphemes_buff.append(morpheme)
             # follows WORD_FEATURES
-            base_phrase_head_prob, base_phrase_end_prob, phrase_end_prob = word_feature_pred
+            (
+                base_phrase_head_prob,
+                base_phrase_end_prob,
+                phrase_end_prob,
+                declinable_word_surf_head,
+                declinable_word_surf_end,
+            ) = word_feature_pred
             if base_phrase_head_prob >= 0.5:
                 morpheme.features["基本句-主辞"] = True
+            if declinable_word_surf_head >= 0.5:
+                morpheme.features["用言表記先頭"] = True
+            if declinable_word_surf_end >= 0.5:
+                morpheme.features["用言表記末尾"] = True
             # even if base_phrase_end_prob is low, if phrase_end_prob is high enough, create chunk here
             if base_phrase_end_prob >= 0.5 or base_phrase_end_prob + phrase_end_prob >= 1.0:
                 base_phrase = BasePhrase(None, None, FeatureDict(), RelTagList(), NETagList())
@@ -194,6 +204,7 @@ class WordModuleWriter(BasePredictionWriter):
                 phrase.base_phrases = base_phrases_buff
                 base_phrases_buff = []
                 phrases_buff.append(phrase)
+
         # clear buffers
         if morphemes_buff:
             base_phrase = BasePhrase(None, None, FeatureDict(), RelTagList(), NETagList())
