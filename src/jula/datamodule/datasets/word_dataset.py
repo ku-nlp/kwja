@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 import torch
 from rhoknp import Document
-from rhoknp.rel import ExophoraReferent
+from rhoknp.cohesion import ExophoraReferent
 from scipy.special import softmax
 from tokenizers import Encoding
 from tqdm import tqdm

@@ -3,7 +3,7 @@ import textwrap
 from pathlib import Path
 
 import torch
-from rhoknp.units.utils import DepType
+from rhoknp.props import DepType
 
 import jula
 from jula.callbacks.word_module_writer import WordModuleWriter

@@ -2,8 +2,7 @@ import logging
 from dataclasses import dataclass
 
 from rhoknp import BasePhrase, Document
-from rhoknp.rel import Argument, ExophoraReferent, SpecialArgument
-from rhoknp.rel.pas import BaseArgument
+from rhoknp.cohesion import Argument, EndophoraArgument, ExophoraArgument, ExophoraReferent
 
 from .base import Extractor, Phrase
 
@@ -40,7 +39,7 @@ class BridgingExtractor(Extractor):
                     continue
                 candidates: list[int] = [bp.global_index for bp in bp_list if self.is_candidate(bp, anaphor) is True]
                 phrases[anaphor.global_index].candidates = candidates
-                arguments: list[BaseArgument] = []
+                arguments: list[Argument] = []
                 for rel in self.rels:
                     arguments += anaphor.pas.get_arguments(rel, relax=False)
                 arguments_set[anaphor.global_index] = self._get_args(arguments, candidates)
@@ -49,7 +48,7 @@ class BridgingExtractor(Extractor):
 
     def _get_args(
         self,
-        orig_args: list[BaseArgument],
+        orig_args: list[Argument],
         candidates: list[int],
     ) -> list[str]:
         """Get string representations of orig_args.
@@ -61,9 +60,9 @@ class BridgingExtractor(Extractor):
         no arg: [NULL]
         """
         # filter out non-target exophors
-        args: list[BaseArgument] = []
+        args: list[Argument] = []
         for arg in orig_args:
-            if isinstance(arg, SpecialArgument):
+            if isinstance(arg, ExophoraArgument):
                 arg.exophora_referent = self._relax_exophora_referent(arg.exophora_referent)
                 if arg.exophora_referent in self.exophora_referents:
                     args.append(arg)
@@ -75,7 +74,7 @@ class BridgingExtractor(Extractor):
             return ["[NULL]"]
         arg_strings: list[str] = []
         for arg in args:
-            if isinstance(arg, Argument):
+            if isinstance(arg, EndophoraArgument):
                 if arg.base_phrase.global_index not in candidates:
                     logger.debug(f"argument: {arg} is not in candidates and ignored")
                     continue

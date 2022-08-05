@@ -3,7 +3,7 @@ import textwrap
 from pathlib import Path
 
 from rhoknp import Document
-from rhoknp.units.utils import DepType
+from rhoknp.props import DepType
 from transformers.utils import PaddingStrategy
 
 from jula.datamodule.datasets.word_dataset import WordDataset, WordExampleSet

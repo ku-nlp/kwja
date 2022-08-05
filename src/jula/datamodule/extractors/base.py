@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from rhoknp import BasePhrase, Document, Sentence
-from rhoknp.rel import ExophoraReferent, ExophoraReferentType
+from rhoknp.cohesion import ExophoraReferent, ExophoraReferentType
 
 
 @dataclass(frozen=True)
