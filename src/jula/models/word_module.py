@@ -207,16 +207,8 @@ class WordModule(LightningModule):
                 log_metrics[corpus][name] = value
             metric.reset()
 
-        keys = {
-            "word_analysis_f1",
-            "macro_word_feature_f1",
-            "macro_base_phrase_feature_f1",
-            "base_phrase_LAS_f1",
-            "all_all_case",
-            "discourse_parsing_f1_no_relation_ignored",
-        }
         for corpus, metrics in log_metrics.items():
-            metrics["aggregated_word_metrics"] = mean(metrics[key] for key in keys)
+            metrics["aggregated_word_metrics"] = mean(metrics[key] for key in self.hparams.aggregating_metrics)
 
         for corpus, metrics in log_metrics.items():
             self.log_dict({f"valid_{corpus}/{name}": value for name, value in metrics.items()})
@@ -320,16 +312,8 @@ class WordModule(LightningModule):
                 log_metrics[corpus][name] = value
             metric.reset()
 
-        keys = {
-            "word_analysis_f1",
-            "macro_word_feature_f1",
-            "macro_base_phrase_feature_f1",
-            "base_phrase_LAS_f1",
-            "all_all_case",
-            "discourse_parsing_f1_no_relation_ignored",
-        }
         for corpus, metrics in log_metrics.items():
-            metrics["aggregated_word_metrics"] = mean(metrics[key] for key in keys)
+            metrics["aggregated_word_metrics"] = mean(metrics[key] for key in self.hparams.aggregating_metrics)
 
         for corpus, metrics in log_metrics.items():
             self.log_dict({f"test_{corpus}/{name}": value for name, value in metrics.items()})
