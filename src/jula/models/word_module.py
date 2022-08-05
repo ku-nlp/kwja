@@ -220,6 +220,10 @@ class WordModule(LightningModule):
 
         for corpus, metrics in log_metrics.items():
             self.log_dict({f"valid_{corpus}/{name}": value for name, value in metrics.items()})
+        self.log(
+            "valid/aggregated_word_metrics",
+            mean(metrics["aggregated_word_metrics"] for metrics in log_metrics.values()),
+        )
 
     def test_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> None:
         batch["training"] = False
@@ -329,6 +333,10 @@ class WordModule(LightningModule):
 
         for corpus, metrics in log_metrics.items():
             self.log_dict({f"test_{corpus}/{name}": value for name, value in metrics.items()})
+        self.log(
+            "test/aggregated_word_metrics",
+            mean(metrics["aggregated_word_metrics"] for metrics in log_metrics.values()),
+        )
 
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Any:
         batch["training"] = False
