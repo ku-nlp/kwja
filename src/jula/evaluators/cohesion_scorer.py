@@ -11,8 +11,7 @@ from typing import Any, Optional, TextIO, Union
 
 import pandas as pd
 from rhoknp import BasePhrase, Document
-from rhoknp.rel import ExophoraReferent
-from rhoknp.rel.pas import Argument, ArgumentType, BaseArgument, Predicate, SpecialArgument
+from rhoknp.cohesion import Argument, ArgumentType, EndophoraArgument, ExophoraArgument, ExophoraReferent, Predicate
 
 from jula.datamodule.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
 
@@ -270,16 +269,16 @@ class SubScorer:
                     measures.at[case, analysis].denom_gold += 1
         return measures
 
-    def _filter_args(self, args: list[BaseArgument], predicate: Predicate) -> list[BaseArgument]:
+    def _filter_args(self, args: list[Argument], predicate: Predicate) -> list[Argument]:
         filtered_args = []
         for arg in args:
-            if isinstance(arg, SpecialArgument):
+            if isinstance(arg, ExophoraArgument):
                 if arg.exophora_referent not in self.exophora_referents:  # filter out non-target exophors
                     continue
                 arg.exophora_referent.index = None  # 「不特定:人１」なども「不特定:人」として扱う
             else:
-                assert isinstance(arg, Argument)
-                # filter out self-anaphora and cataphoras
+                assert isinstance(arg, EndophoraArgument)
+                # filter out self-anaphora and cataphora
                 if predicate.base_phrase == arg.base_phrase:
                     continue
                 if (
@@ -303,7 +302,7 @@ class SubScorer:
         for global_index in range(len(self.document_pred.base_phrases)):
             if global_index in global_index2anaphor_pred:
                 anaphor_pred = global_index2anaphor_pred[global_index]
-                antecedents_pred: list[BaseArgument] = self._filter_args(
+                antecedents_pred: list[Argument] = self._filter_args(
                     anaphor_pred.pas.get_arguments("ノ", relax=False), anaphor_pred
                 )
             else:
@@ -315,10 +314,10 @@ class SubScorer:
 
             if global_index in global_index2anaphor_gold:
                 anaphor_gold: Predicate = global_index2anaphor_gold[global_index]
-                antecedents_gold: list[BaseArgument] = self._filter_args(
+                antecedents_gold: list[Argument] = self._filter_args(
                     anaphor_gold.pas.get_arguments("ノ", relax=False), anaphor_gold
                 )
-                antecedents_gold_relaxed: list[BaseArgument] = anaphor_gold.pas.get_arguments("ノ", relax=True)
+                antecedents_gold_relaxed: list[Argument] = anaphor_gold.pas.get_arguments("ノ", relax=True)
                 antecedents_gold_relaxed += anaphor_gold.pas.get_arguments("ノ？", relax=True)
                 antecedents_gold_relaxed = self._filter_args(antecedents_gold_relaxed, anaphor_gold)
             else:

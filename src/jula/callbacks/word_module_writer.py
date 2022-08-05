@@ -10,9 +10,9 @@ import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks import BasePredictionWriter
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
-from rhoknp.rel import ExophoraReferent
+from rhoknp.cohesion import ExophoraReferent, RelTag, RelTagList
+from rhoknp.props import FeatureDict, NETagList, SemanticsDict
 from rhoknp.units.morpheme import MorphemeAttributes
-from rhoknp.units.utils import Features, Rel, Rels, Semantics
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 import jula
@@ -167,7 +167,7 @@ class WordModuleWriter(BasePredictionWriter):
                 conjform=INDEX2CONJFORM_TYPE[conjform_index],
                 conjform_id=0,  # TODO
             )
-            morphemes.append(Morpheme(attributes, Semantics(), Features()))
+            morphemes.append(Morpheme(attributes, SemanticsDict(), FeatureDict()))
         return morphemes
 
     @staticmethod
@@ -184,23 +184,23 @@ class WordModuleWriter(BasePredictionWriter):
                 morpheme.features["基本句-主辞"] = True
             # even if base_phrase_end_prob is low, if phrase_end_prob is high enough, create chunk here
             if base_phrase_end_prob >= 0.5 or base_phrase_end_prob + phrase_end_prob >= 1.0:
-                base_phrase = BasePhrase(None, None, Features(), Rels())
+                base_phrase = BasePhrase(None, None, FeatureDict(), RelTagList(), NETagList())
                 base_phrase.morphemes = morphemes_buff
                 morphemes_buff = []
                 base_phrases_buff.append(base_phrase)
             # even if phrase_end_prob is high, if base_phrase_end_prob is not high enough, do not create chunk here
             if phrase_end_prob >= 0.5 and base_phrase_end_prob + phrase_end_prob >= 1.0:
-                phrase = Phrase(None, None, Features())
+                phrase = Phrase(None, None, FeatureDict())
                 phrase.base_phrases = base_phrases_buff
                 base_phrases_buff = []
                 phrases_buff.append(phrase)
         # clear buffers
         if morphemes_buff:
-            base_phrase = BasePhrase(None, None, Features(), Rels())
+            base_phrase = BasePhrase(None, None, FeatureDict(), RelTagList(), NETagList())
             base_phrase.morphemes = morphemes_buff
             base_phrases_buff.append(base_phrase)
         if base_phrases_buff:
-            phrase = Phrase(None, None, Features())
+            phrase = Phrase(None, None, FeatureDict())
             phrase.base_phrases = base_phrases_buff
             phrases_buff.append(phrase)
 
@@ -259,8 +259,8 @@ class WordModuleWriter(BasePredictionWriter):
         self,
         prediction: list[int],  # (rel)
         morphemes: list[Morpheme],
-    ) -> Rels:
-        rels = Rels()
+    ) -> RelTagList:
+        rels = RelTagList()
         assert len(self.relations) == len(prediction)
         for relation, morpheme_index in zip(self.relations, prediction):
             if morpheme_index < 0:
@@ -269,7 +269,7 @@ class WordModuleWriter(BasePredictionWriter):
                 # normal
                 prediction_bp: BasePhrase = morphemes[morpheme_index].base_phrase
                 rels.append(
-                    Rel(
+                    RelTag(
                         type=relation,
                         target=prediction_bp.head.text,
                         sid=prediction_bp.sentence.sid,
@@ -281,7 +281,7 @@ class WordModuleWriter(BasePredictionWriter):
                 # exophora
                 if special_token in [str(e) for e in self.exophora_referents]:  # exclude [NULL], [NA], and [ROOT]
                     rels.append(
-                        Rel(
+                        RelTag(
                             type=relation,
                             target=special_token,
                             sid=None,

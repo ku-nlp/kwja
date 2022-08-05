@@ -1,5 +1,5 @@
 from rhoknp import Document
-from rhoknp.units.utils import DepType
+from rhoknp.props import DepType
 
 
 class DependencyExample:

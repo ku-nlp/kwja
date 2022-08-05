@@ -1,6 +1,6 @@
 import itertools
 
-from rhoknp.units.utils import DepType
+from rhoknp.props import DepType
 
 TYPO_OPN2TOKEN = {
     "K": "<k>",
