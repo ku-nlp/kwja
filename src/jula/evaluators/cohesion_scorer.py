@@ -434,7 +434,7 @@ class ScoreResult:
             df_pas: pd.DataFrame = self.measures_pas.copy()
             df_pas["zero"] = df_pas["zero_endophora"] + df_pas["zero_exophora"]
             df_pas["dep_zero"] = df_pas["zero"] + df_pas["dep"]
-            df_pas["all"] = df_pas["dep_zero"] + df_pas["overt"]
+            df_pas["pas"] = df_pas["dep_zero"] + df_pas["overt"]
             df_all = pd.concat([df_pas, df_all])
             df_all.loc["all_case"] = df_pas.sum(axis=0)
 
@@ -444,8 +444,8 @@ class ScoreResult:
             df_bar["zero"] = df_bar["zero_endophora"] + df_bar["zero_exophora"]
             df_bar["dep_zero"] = df_bar["zero"] + df_bar["dep"]
             assert df_bar["overt"] == Measure()  # No overt in BAR
-            df_bar["all"] = df_bar["dep_zero"]
-            df_all.at["all_case", "bridging"] = df_bar["all"]
+            df_bar["pas"] = df_bar["dep_zero"]
+            df_all.at["all_case", "bridging"] = df_bar["pas"]
 
         if self.coreference:
             assert self.measure_coref is not None
