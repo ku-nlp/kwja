@@ -8,7 +8,7 @@ from pytorch_lightning.callbacks import Callback
 from torch.utils.data import DataLoader
 
 from jula.cli.utils import suppress_debug_info
-from jula.datamodule.datasets.segmented_text_dataset import SegmentedTextDataset
+from jula.datamodule.datasets.word_inference_dataset import WordInferenceDataset
 from jula.models.word_module import WordModule
 
 suppress_debug_info()
@@ -42,7 +42,7 @@ def main(cfg: DictConfig):
         raise ValueError("invalid config name")
 
     # TODO: Use hydra for configuration
-    dataset = SegmentedTextDataset(
+    dataset = WordInferenceDataset(
         sys.stdin.readlines(),
         model_name_or_path=cfg.datamodule.model_name_or_path,
         max_seq_length=cfg.datamodule.max_seq_length,

@@ -4,9 +4,7 @@ from pathlib import Path
 from typing import TextIO, Union
 
 from rhoknp import BasePhrase, Document
-from rhoknp.rel import ExophoraReferent
-from rhoknp.rel.pas import Argument, BaseArgument, Pas, SpecialArgument
-from rhoknp.units.utils import Rel, Rels
+from rhoknp.cohesion import Argument, EndophoraArgument, ExophoraArgument, ExophoraReferent, Pas, RelTag, RelTagList
 
 from jula.datamodule.datasets.word_dataset import WordDataset
 from jula.datamodule.examples import CohesionExample, Task
@@ -92,8 +90,8 @@ class CohesionKNPWriter:
         self,
         prediction: list[int],  # (rel)
         base_phrases: list[BasePhrase],
-    ) -> Rels:
-        rels = Rels()
+    ) -> RelTagList:
+        rels = RelTagList()
         assert len(self.relations) == len(prediction)
         for relation, pred in zip(self.relations, prediction):
             if pred < 0:
@@ -102,7 +100,7 @@ class CohesionKNPWriter:
                 # normal
                 prediction_bp: BasePhrase = base_phrases[pred]
                 rels.append(
-                    Rel(
+                    RelTag(
                         type=relation,
                         target=prediction_bp.head.text,
                         sid=prediction_bp.sentence.sid,
@@ -115,7 +113,7 @@ class CohesionKNPWriter:
                 special_arg = self.specials[pred - len(base_phrases)]
                 if special_arg in [str(e) for e in self.exophora_referents]:  # exclude [NULL] and [NA]
                     rels.append(
-                        Rel(
+                        RelTag(
                             type=relation,
                             target=special_arg,
                             sid=None,
@@ -163,15 +161,15 @@ class CohesionKNPWriter:
             items[0] = case
             args = pas.get_arguments(case, relax=False)
             if args:
-                arg: BaseArgument = args[0]
+                arg: Argument = args[0]
                 items[1] = arg.type.value  # フラグ (C/N/O/D/E/U)
                 items[2] = str(arg)  # 見出し
-                if isinstance(arg, Argument):
+                if isinstance(arg, EndophoraArgument):
                     items[3] = str(sid2index[pas.sid] - sid2index[arg.base_phrase.sentence.sid])  # N文前
                     items[4] = str(arg.base_phrase.index)  # tag id
                     items[5] = str(list(arg.base_phrase.entities)[0].eid)  # Entity ID
                 else:
-                    assert isinstance(arg, SpecialArgument)
+                    assert isinstance(arg, ExophoraArgument)
                     items[3] = str(-1)
                     items[4] = str(-1)
                     items[5] = str(arg.eid)  # Entity ID

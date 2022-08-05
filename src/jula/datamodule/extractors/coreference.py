@@ -2,7 +2,7 @@ import logging
 from dataclasses import dataclass
 
 from rhoknp import BasePhrase, Document
-from rhoknp.rel import ExophoraReferent
+from rhoknp.cohesion import ExophoraReferent
 
 from .base import Extractor, Phrase
 

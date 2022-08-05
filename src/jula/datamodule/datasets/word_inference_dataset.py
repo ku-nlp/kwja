@@ -1,6 +1,6 @@
 import hydra
 import torch
-from rhoknp.rel import ExophoraReferent
+from rhoknp.cohesion import ExophoraReferent
 from tokenizers import Encoding
 from torch.utils.data import Dataset
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
@@ -9,7 +9,7 @@ from transformers.utils import PaddingStrategy
 from jula.datamodule.examples import Task
 
 
-class SegmentedTextDataset(Dataset):
+class WordInferenceDataset(Dataset):
     def __init__(
         self,
         texts: list[str],

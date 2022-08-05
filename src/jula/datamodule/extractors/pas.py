@@ -3,8 +3,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 
 from rhoknp import BasePhrase, Document
-from rhoknp.rel import Argument, ArgumentType, ExophoraReferent, SpecialArgument
-from rhoknp.rel.pas import BaseArgument
+from rhoknp.cohesion import Argument, ArgumentType, EndophoraArgument, ExophoraArgument, ExophoraReferent
 
 from .base import Extractor, Phrase
 
@@ -52,7 +51,7 @@ class PasExtractor(Extractor):
 
     def _get_args(
         self,
-        orig_args: list[BaseArgument],
+        orig_args: list[Argument],
         candidates: list[int],
     ) -> list[str]:
         """Get string representations of orig_args.
@@ -64,9 +63,9 @@ class PasExtractor(Extractor):
         no arg: [NULL]
         """
         # filter out non-target exophors
-        args: list[BaseArgument] = []
+        args: list[Argument] = []
         for arg in orig_args:
-            if isinstance(arg, SpecialArgument):
+            if isinstance(arg, ExophoraArgument):
                 arg.exophora_referent = self._relax_exophora_referent(arg.exophora_referent)
                 if arg.exophora_referent in self.exophora_referents:
                     args.append(arg)
@@ -78,7 +77,7 @@ class PasExtractor(Extractor):
             return ["[NULL]"]
         arg_strings: list[str] = []
         for arg in args:
-            if isinstance(arg, Argument):
+            if isinstance(arg, EndophoraArgument):
                 if arg.base_phrase.global_index not in candidates:
                     logger.debug(f"argument: {arg} is not in candidates and ignored")
                     continue

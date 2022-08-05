@@ -52,6 +52,7 @@ target-version = ["py39", "py310"]
 
 [tool.isort]
 line_length = 120
+profile = "black"
 
 [tool.mypy]
 python_version = 3.9

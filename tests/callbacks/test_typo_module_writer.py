@@ -2,15 +2,16 @@ import tempfile
 
 import torch
 
-from jula.callbacks.typo_corrector_writer import TypoCorrectorWriter
+from jula.callbacks.typo_module_writer import TypoModuleWriter
 from jula.utils.constants import TYPO_OPN2TOKEN
 
 
 def test_init():
     with tempfile.TemporaryDirectory() as tmp_dir:
-        _ = TypoCorrectorWriter(
+        _ = TypoModuleWriter(
             tmp_dir,
             extended_vocab_path="tests/datamodule/datasets/typo_files/extended_vocab.txt",
+            confidence_threshold=0.9,
             tokenizer_kwargs={
                 "do_word_tokenize": False,
                 "additional_special_tokens": ["<k>", "<d>", "<_>", "<dummy>"],
@@ -20,9 +21,10 @@ def test_init():
 
 def test_write_on_epoch_end():
     with tempfile.TemporaryDirectory() as tmp_dir:
-        writer = TypoCorrectorWriter(
+        writer = TypoModuleWriter(
             tmp_dir,
             extended_vocab_path="tests/datamodule/datasets/typo_files/extended_vocab.txt",
+            confidence_threshold=0.9,
             tokenizer_kwargs={
                 "do_word_tokenize": False,
                 "additional_special_tokens": ["<k>", "<d>", "<_>", "<dummy>"],
@@ -32,7 +34,7 @@ def test_write_on_epoch_end():
         # tokenizer = writer.tokenizer
         texts = ["今日がも晴れ"]
 
-        kdr_logits = torch.zeros(1, 9, len(writer.opn2id), dtype=torch.float)
+        kdr_logits = torch.full((1, 9, len(writer.opn2id)), float("-inf"), dtype=torch.float)
         kdr_logits[0][0][writer.opn2id[TYPO_OPN2TOKEN["K"]]] = 1.0  # keep: [CLS]
         kdr_logits[0][1][writer.opn2id[TYPO_OPN2TOKEN["K"]]] = 1.0  # keep: 今
         kdr_logits[0][2][writer.opn2id[TYPO_OPN2TOKEN["K"]]] = 1.0  # keep: 日
@@ -43,7 +45,7 @@ def test_write_on_epoch_end():
         kdr_logits[0][7][writer.opn2id[TYPO_OPN2TOKEN["K"]]] = 1.0  # insert: <dummy> -> だ
         kdr_logits[0][8][writer.opn2id[TYPO_OPN2TOKEN["K"]]] = 1.0  # keep: [SEP]
 
-        ins_logits = torch.zeros(1, 9, len(writer.opn2id), dtype=torch.float)
+        ins_logits = torch.full((1, 9, len(writer.opn2id)), float("-inf"), dtype=torch.float)
         ins_logits[0][0][writer.opn2id[TYPO_OPN2TOKEN["_"]]] = 1.0  # keep: [CLS]
         ins_logits[0][1][writer.opn2id[TYPO_OPN2TOKEN["_"]]] = 1.0  # keep: 今
         ins_logits[0][2][writer.opn2id[TYPO_OPN2TOKEN["_"]]] = 1.0  # keep: 日
@@ -64,5 +66,5 @@ def test_write_on_epoch_end():
             ]
         ]
         writer.write_on_epoch_end(..., ..., predictions)
-        with open(writer.output_path) as f:
+        with open(writer.destination) as f:
             assert f.read().strip() == "今日は晴れだ"

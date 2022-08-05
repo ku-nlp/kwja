@@ -198,7 +198,7 @@ python-versions = ">=3.7"
 
 [[package]]
 name = "fsspec"
-version = "2022.5.0"
+version = "2022.7.1"
 description = "File-system specification"
 category = "main"
 optional = false
@@ -787,7 +787,7 @@ rsa = ["oauthlib[signedtoken] (>=3.0.0)"]
 
 [[package]]
 name = "rhoknp"
-version = "0.2.0"
+version = "0.3.0"
 description = "Yet another Python binding for Juman++/KNP"
 category = "main"
 optional = false
@@ -798,7 +798,7 @@ develop = false
 type = "git"
 url = "https://github.com/ku-nlp/rhoknp.git"
 reference = "develop"
-resolved_reference = "92e37582b87349f71f309e775a5e35e3bf9a8db0"
+resolved_reference = "d88ef744d5692328ae1c3fcf2133e16487a789c6"
 
 [[package]]
 name = "rich"
@@ -1482,8 +1482,8 @@ frozenlist = [
     {file = "frozenlist-1.3.0.tar.gz", hash = "sha256:ce6f2ba0edb7b0c1d8976565298ad2deba6f8064d2bebb6ffce2ca896eb35b0b"},
 ]
 fsspec = [
-    {file = "fsspec-2022.5.0-py3-none-any.whl", hash = "sha256:2c198c50eb541a80bbd03540b07602c4a957366f3fb416a1f270d34bd4ff0926"},
-    {file = "fsspec-2022.5.0.tar.gz", hash = "sha256:7a5459c75c44e760fbe6a3ccb1f37e81e023cde7da8ba20401258d877ec483b4"},
+    {file = "fsspec-2022.7.1-py3-none-any.whl", hash = "sha256:36c5a8e7c4fc20cf32ef6934ac0a122accc8a593ddc8478d30c3ca4dbbd95500"},
+    {file = "fsspec-2022.7.1.tar.gz", hash = "sha256:7f9fb19d811b027b97c4636c6073eb53bc4cbee2d3c4b33fa88b9f26906fd7d7"},
 ]
 fugashi = [
     {file = "fugashi-1.1.2-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:284f2bf161d32886ba2053d69d30d2f85c456df0ff4627100ded23a9411d2bab"},
