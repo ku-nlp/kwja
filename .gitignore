@@ -114,3 +114,6 @@ configs/base.yaml
 
 # dotenv
 .env
+
+# weights and biases
+wandb/

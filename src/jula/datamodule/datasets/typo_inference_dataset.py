@@ -14,6 +14,7 @@ class TypoInferenceDataset(Dataset):
         model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
         max_seq_length: int = 512,
         tokenizer_kwargs: dict = None,
+        **_,  # accept `extended_vocab_path` as a keyword argument
     ) -> None:
         self.texts = [text.strip() for text in texts]
         if tokenizer_kwargs:

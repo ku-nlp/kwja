@@ -1,20 +1,26 @@
 from jula.datamodule.datasets.word_inference_dataset import WordInferenceDataset
 
-tokenizer_kwargs = {"additional_special_tokens": ["著者", "読者", "不特定:人", "不特定:物", "[NULL]", "[NA]", "[ROOT]"]}
+word_dataset_kwargs = {
+    "tokenizer_kwargs": {"additional_special_tokens": ["著者", "読者", "不特定:人", "不特定:物", "[NULL]", "[NA]", "[ROOT]"]},
+    "cases": ["ガ", "ヲ", "ニ", "ガ２"],
+    "bar_rels": ["ノ"],
+    "exophora_referents": ["著者", "読者", "不特定:人", "不特定:物"],
+    "cohesion_tasks": ["pas_analysis", "bridging", "coreference"],
+}
 
 
 def test_init():
-    _ = WordInferenceDataset(["テスト", "テスト"], tokenizer_kwargs=tokenizer_kwargs)
+    _ = WordInferenceDataset(["テスト", "テスト"], **word_dataset_kwargs)
 
 
 def test_len():
-    dataset = WordInferenceDataset(["テスト", "テスト"], tokenizer_kwargs=tokenizer_kwargs)
+    dataset = WordInferenceDataset(["テスト", "テスト"], **word_dataset_kwargs)
     assert len(dataset) == 2
 
 
 def test_getitem():
     max_seq_length = 512
-    dataset = WordInferenceDataset(["テスト", "テスト"], tokenizer_kwargs=tokenizer_kwargs)
+    dataset = WordInferenceDataset(["テスト", "テスト"], **word_dataset_kwargs)
     for i in range(len(dataset)):
         item = dataset[i]
         assert isinstance(item, dict)

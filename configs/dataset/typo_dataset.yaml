@@ -5,6 +5,8 @@ defaults:
     - jwtd.yaml
   - test:
     - jwtd.yaml
+  - predict:
+      - typo_inference.yaml
 
 extended_vocab_path: ${oc.env:DATA_DIR}/typo_correction/multi_char_vocab.txt
 extended_vocab_size: 342

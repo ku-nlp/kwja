@@ -4,7 +4,7 @@ import hydra
 import pytorch_lightning as pl
 from omegaconf import DictConfig
 from pytorch_lightning.trainer.states import TrainerFn
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 
 from jula.datamodule.datasets.char_dataset import CharDataset
 from jula.datamodule.datasets.custom_concat_dataset import CustomConcatDataset
@@ -22,6 +22,7 @@ class DataModule(pl.LightningDataModule):
         self.train_dataset: CustomConcatDataset = None
         self.valid_datasets: dict[str, Union[CharDataset, TypoDataset, WordDataset]] = {}
         self.test_datasets: dict[str, Union[CharDataset, TypoDataset, WordDataset]] = {}
+        self.predict_dataset: Union[CharDataset, TypoDataset, WordDataset] = None
 
     def prepare_data(self):
         pass
@@ -45,20 +46,22 @@ class DataModule(pl.LightningDataModule):
             self.test_datasets = {
                 corpus: hydra.utils.instantiate(config) for corpus, config in self.cfg.dataset.test.items()
             }
+        if stage in (TrainerFn.PREDICTING,):
+            self.predict_dataset = hydra.utils.instantiate(self.cfg.dataset.predict)
 
     def train_dataloader(self) -> DataLoader:
         return self._get_dataloader(dataset=self.train_dataset, shuffle=True)
 
-    def val_dataloader(self) -> DataLoader:
+    def val_dataloader(self) -> list[DataLoader]:
         return [self._get_dataloader(dataset, shuffle=False) for dataset in self.valid_datasets.values()]
 
-    def test_dataloader(self) -> DataLoader:
+    def test_dataloader(self) -> list[DataLoader]:
         return [self._get_dataloader(dataset, shuffle=False) for dataset in self.test_datasets.values()]
 
     def predict_dataloader(self) -> DataLoader:
-        return [self._get_dataloader(dataset, shuffle=False) for dataset in self.test_datasets.values()]
+        return self._get_dataloader(self.predict_dataset, shuffle=False)
 
-    def _get_dataloader(self, dataset: Union[CharDataset, TypoDataset, WordDataset], shuffle: bool) -> DataLoader:
+    def _get_dataloader(self, dataset: Dataset, shuffle: bool) -> DataLoader:
         return DataLoader(
             dataset=dataset,
             batch_size=self.batch_size,
