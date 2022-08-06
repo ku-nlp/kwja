@@ -85,7 +85,9 @@ class TypoModuleWriter(BasePredictionWriter):
             post_text += inss[-1].removeprefix("I:")
         return post_text
 
-    def get_opn_ids_list(self, batch_values: torch.Tensor, batch_indices: torch.Tensor, opn_prefix: str):
+    def get_opn_ids_list(
+        self, batch_values: torch.Tensor, batch_indices: torch.Tensor, opn_prefix: str
+    ) -> list[list[int]]:
         # Do not edit if the operation probability (replace, delete, and insert) is less than "confidence_threshold"
         opn_ids_list: list[list[int]] = []
         for values, indices in zip(batch_values.tolist(), batch_indices.tolist()):
@@ -97,7 +99,7 @@ class TypoModuleWriter(BasePredictionWriter):
                     opn_ids.append(self.opn2id["<_>"])
                 else:
                     opn_ids.append(index)
-                opn_ids_list.append(opn_ids)
+            opn_ids_list.append(opn_ids)
         return opn_ids_list
 
     def write_on_epoch_end(

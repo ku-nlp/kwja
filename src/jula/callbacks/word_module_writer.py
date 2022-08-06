@@ -10,7 +10,7 @@ import torch
 from pytorch_lightning.callbacks import BasePredictionWriter
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
 from rhoknp.cohesion import ExophoraReferent, RelTag, RelTagList
-from rhoknp.props import FeatureDict, NETagList, SemanticsDict
+from rhoknp.props import DepType, FeatureDict, NETagList, SemanticsDict
 from rhoknp.units.morpheme import MorphemeAttributes
 
 import jula
@@ -24,6 +24,7 @@ from jula.utils.constants import (
     INDEX2POS_TYPE,
     INDEX2SUBPOS_TYPE,
 )
+from jula.utils.dependency_parsing import DependencyManager
 
 logger = logging.getLogger(__name__)
 
@@ -67,8 +68,7 @@ class WordModuleWriter(BasePredictionWriter):
                 batch_base_phrase_feature_preds = batch_pred["base_phrase_feature_logits"].ge(0.5).long()
                 batch_dependency_preds = torch.topk(
                     batch_pred["dependency_logits"],
-                    # pl_module.hparams.k,  # TODO: move to WordModuleWriter's config or argument
-                    k=1,
+                    k=4,  # TODO
                     dim=2,
                 ).indices
                 batch_dependency_type_preds = torch.argmax(batch_pred["dependency_type_logits"], dim=3)
@@ -216,21 +216,71 @@ class WordModuleWriter(BasePredictionWriter):
                     base_phrase.features[k] = ":".join(vs) or True
 
     @staticmethod
+    def resolve_dependency(base_phrase: BasePhrase, dependency_manager: DependencyManager) -> None:
+        src = base_phrase.index
+        num_base_phrases = len(base_phrase.sentence.base_phrases)
+        for dst in range(src + 1, num_base_phrases):
+            dependency_manager.add_edge(src, dst)
+            if dependency_manager.has_cycle():
+                dependency_manager.remove_edge(src, dst)
+            else:
+                base_phrase.parent_index = dst
+                base_phrase.dep_type = DepType.DEPENDENCY
+
+        for dst in range(src - 1, -1, -1):
+            dependency_manager.add_edge(src, dst)
+            if dependency_manager.has_cycle():
+                dependency_manager.remove_edge(src, dst)
+            else:
+                base_phrase.parent_index = dst
+                base_phrase.dep_type = DepType.DEPENDENCY
+
+        raise RuntimeError("couldn't resolve dependency")
+
     def _add_dependency(
+        self,
         document: Document,
         dependency_preds: list[list[int]],
         dependency_type_preds: list[list[int]],
         special_to_index: dict[str, int],
     ) -> None:
-        morphemes = document.morphemes
-        for base_phrase in document.base_phrases:
-            parent_morpheme_index = dependency_preds[base_phrase.head.global_index][0]
-            dependency_type_id = dependency_type_preds[base_phrase.head.global_index][0]
-            if 0 <= parent_morpheme_index < len(morphemes):
-                base_phrase.parent_index = morphemes[parent_morpheme_index].base_phrase.index
-            elif parent_morpheme_index == special_to_index["[ROOT]"]:
-                base_phrase.parent_index = -1
-            base_phrase.dep_type = INDEX2DEPENDENCY_TYPE[dependency_type_id]
+        for sentence in document.sentences:
+            base_phrases = sentence.base_phrases
+            morpheme_global_index2base_phrase_index = {
+                morpheme.global_index: base_phrase.index
+                for base_phrase in base_phrases
+                for morpheme in base_phrase.morphemes
+            }
+            morpheme_global_index2base_phrase_index[special_to_index["[ROOT]"]] = -1
+            dependency_manager = DependencyManager()
+            for base_phrase in base_phrases:
+                for parent_morpheme_global_index, dependency_type_id in zip(
+                    dependency_preds[base_phrase.head.global_index],
+                    dependency_type_preds[base_phrase.head.global_index],
+                ):
+                    parent_index = morpheme_global_index2base_phrase_index[parent_morpheme_global_index]
+                    dependency_manager.add_edge(base_phrase.index, parent_index)
+                    if dependency_manager.has_cycle() or (parent_index == -1 and dependency_manager.root):
+                        dependency_manager.remove_edge(base_phrase.index, parent_index)
+                    else:
+                        base_phrase.parent_index = parent_index
+                        base_phrase.dep_type = INDEX2DEPENDENCY_TYPE[dependency_type_id]
+                        break
+                else:
+                    if base_phrase == base_phrases[-1] and not dependency_manager.root:
+                        base_phrase.parent_index = -1
+                        base_phrase.dep_type = DepType.DEPENDENCY
+                    else:
+                        self.resolve_dependency(base_phrase, dependency_manager)
+
+                if base_phrase.parent_index == -1:
+                    base_phrase.phrase.parent_index = -1
+                    base_phrase.phrase.dep_type = DepType.DEPENDENCY
+                    dependency_manager.root = True
+                # base_phrase.phrase.parent_index is None and
+                elif base_phrase.phrase != base_phrases[base_phrase.parent_index].phrase:
+                    base_phrase.phrase.parent_index = base_phrases[base_phrase.parent_index].phrase.index
+                    base_phrase.phrase.dep_type = base_phrase.dep_type
 
     def _add_cohesion(
         self,
