@@ -4,7 +4,7 @@ import hydra
 import pytorch_lightning as pl
 from omegaconf import DictConfig
 from pytorch_lightning.trainer.states import TrainerFn
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 
 from jula.datamodule.datasets.char_dataset import CharDataset
 from jula.datamodule.datasets.custom_concat_dataset import CustomConcatDataset
@@ -52,16 +52,16 @@ class DataModule(pl.LightningDataModule):
     def train_dataloader(self) -> DataLoader:
         return self._get_dataloader(dataset=self.train_dataset, shuffle=True)
 
-    def val_dataloader(self) -> DataLoader:
+    def val_dataloader(self) -> list[DataLoader]:
         return [self._get_dataloader(dataset, shuffle=False) for dataset in self.valid_datasets.values()]
 
-    def test_dataloader(self) -> DataLoader:
+    def test_dataloader(self) -> list[DataLoader]:
         return [self._get_dataloader(dataset, shuffle=False) for dataset in self.test_datasets.values()]
 
     def predict_dataloader(self) -> DataLoader:
         return self._get_dataloader(self.predict_dataset, shuffle=False)
 
-    def _get_dataloader(self, dataset: Union[CharDataset, TypoDataset, WordDataset], shuffle: bool) -> DataLoader:
+    def _get_dataloader(self, dataset: Dataset, shuffle: bool) -> DataLoader:
         return DataLoader(
             dataset=dataset,
             batch_size=self.batch_size,
