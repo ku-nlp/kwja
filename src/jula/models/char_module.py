@@ -5,6 +5,7 @@ import hydra
 import torch
 from omegaconf import DictConfig
 from pytorch_lightning.core.lightning import LightningModule
+from pytorch_lightning.utilities.types import STEP_OUTPUT
 from transformers import AutoTokenizer, PretrainedConfig, PreTrainedTokenizerBase
 
 from jula.evaluators.word_segmentation_metric import WordSegmentationMetric
@@ -43,7 +44,7 @@ class CharModule(LightningModule):
         word_segmenter_outputs = self.word_segmenter(encoder_output, kwargs)
         return {"word_segmenter_outputs": word_segmenter_outputs}
 
-    def training_step(self, batch: Any, batch_idx: int) -> dict[str, Any]:
+    def training_step(self, batch: Any, batch_idx: int) -> STEP_OUTPUT:
         outputs: dict[str, dict[str, torch.Tensor]] = self(**batch)
         self.log(
             "train/word_segmenter_loss",
