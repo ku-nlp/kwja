@@ -5,7 +5,6 @@ from io import TextIOBase
 from pathlib import Path
 from typing import Any, Optional, Sequence, TextIO, Union
 
-import hydra
 import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks import BasePredictionWriter
@@ -13,7 +12,6 @@ from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
 from rhoknp.cohesion import ExophoraReferent, RelTag, RelTagList
 from rhoknp.props import FeatureDict, NETagList, SemanticsDict
 from rhoknp.units.morpheme import MorphemeAttributes
-from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 import jula
 from jula.utils.constants import (
@@ -34,8 +32,6 @@ class WordModuleWriter(BasePredictionWriter):
         self,
         output_dir: str,
         pred_filename: str = "predict",
-        model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
-        tokenizer_kwargs: dict = None,
         max_seq_length: int = 512,
         use_stdout: bool = False,
     ) -> None:
@@ -50,11 +46,6 @@ class WordModuleWriter(BasePredictionWriter):
             if self.destination.exists():
                 os.remove(str(self.destination))
 
-        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-            model_name_or_path,
-            **hydra.utils.instantiate(tokenizer_kwargs or {}, _convert_="partial"),
-        )
-        self.pad_token_id = self.tokenizer.pad_token_id
         self.max_seq_length = max_seq_length
         # cohesion analysis settings
         # TODO: fix hard coding

@@ -20,12 +20,7 @@ from jula.utils.constants import (
 
 def test_init():
     with tempfile.TemporaryDirectory() as tmp_dir:
-        _ = WordModuleWriter(
-            tmp_dir,
-            tokenizer_kwargs={
-                "additional_special_tokens": ["著者", "読者", "不特定:人", "不特定:物", "[NULL]", "[NA]", "[ROOT]"],
-            },
-        )
+        _ = WordModuleWriter(tmp_dir)
 
 
 def test_write_on_epoch_end():
