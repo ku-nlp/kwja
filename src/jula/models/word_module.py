@@ -299,7 +299,7 @@ class WordModule(LightningModule):
             metric.reset()
 
         for idx, corpus in enumerate(self.test_corpora):
-            dataset = self.trainer.val_dataloaders[idx].dataset
+            dataset = self.trainer.test_dataloaders[idx].dataset
             metric = self.test_cohesion_analysis_metrics[corpus]
             for rel, val in metric.compute(dataset).to_dict().items():
                 for met, sub_val in val.items():
