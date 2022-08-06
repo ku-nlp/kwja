@@ -60,6 +60,8 @@ def test_write_on_epoch_end():
     word_feature_logits[0][1][WORD_FEATURES.index("基本句-区切")] = 1.0
     word_feature_logits[0][1][WORD_FEATURES.index("文節-区切")] = 1.0
     word_feature_logits[0][2][WORD_FEATURES.index("基本句-主辞")] = 1.0
+    word_feature_logits[0][2][WORD_FEATURES.index("用言表記先頭")] = 1.0
+    word_feature_logits[0][2][WORD_FEATURES.index("用言表記末尾")] = 1.0
     word_feature_logits[0][3][WORD_FEATURES.index("基本句-区切")] = 1.0
     word_feature_logits[0][3][WORD_FEATURES.index("文節-区切")] = 1.0
 
@@ -69,6 +71,8 @@ def test_write_on_epoch_end():
     base_phrase_feature_logits[0][2][BASE_PHRASE_FEATURES.index("時制:非過去")] = 1.0
     base_phrase_feature_logits[0][2][BASE_PHRASE_FEATURES.index("節-主辞")] = 1.0
     base_phrase_feature_logits[0][2][BASE_PHRASE_FEATURES.index("節-区切")] = 1.0
+    base_phrase_feature_logits[0][2][BASE_PHRASE_FEATURES.index("レベル:C")] = 1.0
+    base_phrase_feature_logits[0][2][BASE_PHRASE_FEATURES.index("状態述語")] = 1.0
 
     dependency_logits = torch.zeros(1, 4, 11, dtype=torch.float)  # (b, word, word)
     dependency_logits[0][0][2] = 1.0
@@ -122,8 +126,8 @@ def test_write_on_epoch_end():
             今日 今日 今日 名詞 0 時相名詞 0 * 0 * 0 <基本句-主辞>
             は は は 助詞 0 副助詞 0 * 0 * 0
             *
-            + -1D <rel type="ガ" target="今日" sid="1" id="0"/><用言:判><時制:非過去><節-主辞><節-区切><談話関係:1/1/原因・理由>
-            晴れ 晴れ 晴れ 名詞 0 普通名詞 0 * 0 * 0 <基本句-主辞>
+            + -1D <rel type="ガ" target="今日" sid="1" id="0"/><用言:判><時制:非過去><節-主辞><節-区切><レベル:C><状態述語><談話関係:1/1/原因・理由>
+            晴れ 晴れ 晴れ 名詞 0 普通名詞 0 * 0 * 0 <基本句-主辞><用言表記先頭><用言表記末尾>
             だ だ だ 判定詞 0 * 0 判定詞 0 基本形 0
             EOS
             """

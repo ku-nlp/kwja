@@ -38,7 +38,7 @@ class DiscourseParsingMetric(Metric):
         if labels.numel() == 0:
             discourse_parsing_f1 = 0.0
         else:
-            discourse_parsing_f1 = f1_score(predictions, labels)
+            discourse_parsing_f1 = f1_score(predictions, labels).item()
 
         no_relation_index = DISCOURSE_RELATIONS.index("談話関係なし")
         predictions = self._filter_ignore_index(predictions, labels, ignore_index=no_relation_index)
@@ -46,7 +46,7 @@ class DiscourseParsingMetric(Metric):
         if labels.numel() == 0:
             discourse_parsing_f1_no_relation_ignored = 0.0
         else:
-            discourse_parsing_f1_no_relation_ignored = f1_score(predictions, labels)
+            discourse_parsing_f1_no_relation_ignored = f1_score(predictions, labels).item()
 
         return {
             "discourse_parsing_f1": discourse_parsing_f1,

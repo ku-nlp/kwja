@@ -200,6 +200,8 @@ def test_encode():
     word_features[1][WORD_FEATURES.index("文節-区切")] = 1
     # 2: 吹く
     word_features[2][WORD_FEATURES.index("基本句-主辞")] = 1
+    word_features[2][WORD_FEATURES.index("用言表記先頭")] = 1
+    word_features[2][WORD_FEATURES.index("用言表記末尾")] = 1
     # 3: 。
     word_features[3][WORD_FEATURES.index("基本句-区切")] = 1
     word_features[3][WORD_FEATURES.index("文節-区切")] = 1
@@ -214,6 +216,8 @@ def test_encode():
     word_features[6][WORD_FEATURES.index("文節-区切")] = 1
     # 7: 儲かる
     word_features[7][WORD_FEATURES.index("基本句-主辞")] = 1
+    word_features[2][WORD_FEATURES.index("用言表記先頭")] = 1
+    word_features[2][WORD_FEATURES.index("用言表記末尾")] = 1
     # 8: 。
     word_features[8][WORD_FEATURES.index("基本句-区切")] = 1
     word_features[8][WORD_FEATURES.index("文節-区切")] = 1
@@ -232,6 +236,11 @@ def test_encode():
     base_phrase_features[2][BASE_PHRASE_FEATURES.index("節-区切")] = 1
     base_phrase_features[2][BASE_PHRASE_FEATURES.index("節-主辞")] = 1
     base_phrase_features[2][BASE_PHRASE_FEATURES.index("時制:非過去")] = 1
+    base_phrase_features[2][BASE_PHRASE_FEATURES.index("レベル:C")] = 1
+    base_phrase_features[2][BASE_PHRASE_FEATURES.index("動態述語")] = 1
+    # 4: すると
+    base_phrase_features[4][BASE_PHRASE_FEATURES.index("修飾")] = 1
+    base_phrase_features[4][BASE_PHRASE_FEATURES.index("節-前向き機能-条件")] = 1
     # 5: 桶屋
     base_phrase_features[5][BASE_PHRASE_FEATURES.index("体言")] = 1
     # 7: 儲かる
@@ -239,6 +248,8 @@ def test_encode():
     base_phrase_features[7][BASE_PHRASE_FEATURES.index("節-区切")] = 1
     base_phrase_features[7][BASE_PHRASE_FEATURES.index("節-主辞")] = 1
     base_phrase_features[7][BASE_PHRASE_FEATURES.index("時制:非過去")] = 1
+    base_phrase_features[7][BASE_PHRASE_FEATURES.index("レベル:C")] = 1
+    base_phrase_features[7][BASE_PHRASE_FEATURES.index("動態述語")] = 1
     assert encoding["base_phrase_features"].tolist() == base_phrase_features
 
     dependencies = [IGNORE_INDEX for _ in range(max_seq_length)]
