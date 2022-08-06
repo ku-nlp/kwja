@@ -57,7 +57,7 @@ class CohesionAnalysisMetric(Metric):
             exophora_referents=dataset.exophora_referents,
             coreference=(Task.COREFERENCE in dataset.cohesion_tasks),
             bridging=(Task.BRIDGING in dataset.cohesion_tasks),
-            pas_target=targets2label[tuple(dataset.pas_targets)],
+            pas_target=targets2label[tuple(dataset.extractors[Task.PAS_ANALYSIS].pas_targets)],
         )
         score_result: ScoreResult = scorer.run()
 

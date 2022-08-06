@@ -2,4 +2,3 @@ prediction_writer:
   _target_: jula.callbacks.word_module_writer.WordModuleWriter
   output_dir: ${run_dir}
   pred_filename: "predict"
-  max_seq_length: ${model.max_seq_length}

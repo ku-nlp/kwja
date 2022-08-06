@@ -70,16 +70,21 @@ class WordDataset(BaseDataset):
 
         self.cohesion_tasks: list[Task] = [Task(t) for t in kwargs["cohesion_tasks"]]
         self.cases: list[str] = list(kwargs["cases"])
-        self.pas_targets: list[str] = ["pred", "noun"]
         self.bar_rels = list(kwargs["bar_rels"])
+        self.cohesion_rel_types = (
+            self.cases * (Task.PAS_ANALYSIS in self.cohesion_tasks)
+            + self.bar_rels * (Task.BRIDGING in self.cohesion_tasks)
+            + ["="] * (Task.COREFERENCE in self.cohesion_tasks)
+        )
         self.extractors = {
-            Task.PAS_ANALYSIS: PasExtractor(self.cases, self.pas_targets, self.exophora_referents, kc=False),
+            Task.PAS_ANALYSIS: PasExtractor(self.cases, self.exophora_referents, kc=False),
             Task.COREFERENCE: CoreferenceExtractor(self.exophora_referents, kc=False),
             Task.BRIDGING: BridgingExtractor(self.bar_rels, self.exophora_referents, kc=False),
         }
         self.special_to_index: dict[str, int] = {
             token: self.max_seq_length - len(self.special_tokens) + i for i, token in enumerate(self.special_tokens)
         }
+        self.index_to_special: dict[int, str] = {v: k for k, v in self.special_to_index.items()}
         self.examples: list[WordExampleSet] = self._load_examples(self.documents)
         self.special_encoding: Encoding = self.tokenizer(
             self.special_tokens,

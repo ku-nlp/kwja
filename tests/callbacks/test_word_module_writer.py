@@ -3,10 +3,13 @@ import textwrap
 from pathlib import Path
 
 import torch
+from omegaconf import ListConfig
 from rhoknp.props import DepType
+from torch.utils.data import DataLoader
 
 import jula
 from jula.callbacks.word_module_writer import WordModuleWriter
+from jula.datamodule.datasets.word_inference_dataset import WordInferenceDataset
 from jula.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TYPES,
@@ -21,6 +24,11 @@ from jula.utils.constants import (
 def test_init():
     with tempfile.TemporaryDirectory() as tmp_dir:
         _ = WordModuleWriter(tmp_dir)
+
+
+class MockTrainer:
+    def __init__(self, predict_dataloaders):
+        self.predict_dataloaders = predict_dataloaders
 
 
 def test_write_on_epoch_end():
@@ -94,6 +102,7 @@ def test_write_on_epoch_end():
         [
             {
                 "texts": texts,
+                "dataloader_idx": 0,
                 "word_analysis_pos_logits": word_analysis_pos_logits,
                 "word_analysis_subpos_logits": word_analysis_subpos_logits,
                 "word_analysis_conjtype_logits": word_analysis_conjtype_logits,
@@ -111,8 +120,19 @@ def test_write_on_epoch_end():
     pred_filename = "test"
     with tempfile.TemporaryDirectory() as tmp_dir:
         # max_seq_length = 4 (今日, は, 晴れ, だ) + 7 (著者, 読者, 不特定:人, 不特定:物, [NULL], [NA], [ROOT])
-        writer = WordModuleWriter(tmp_dir, pred_filename=pred_filename, max_seq_length=11)
-        writer.write_on_epoch_end(..., ..., predictions)
+        writer = WordModuleWriter(tmp_dir, pred_filename=pred_filename)
+        dataset = WordInferenceDataset(
+            texts=texts,
+            model_name_or_path="nlp-waseda/roberta-base-japanese",
+            max_seq_length=11,
+            tokenizer_kwargs={"additional_special_tokens": ["著者", "読者", "不特定:人", "不特定:物", "[NULL]", "[NA]", "[ROOT]"]},
+            cases=ListConfig(["ガ", "ヲ", "ニ", "ガ２"]),
+            bar_rels=ListConfig(["ノ"]),
+            exophora_referents=ListConfig(["著者", "読者", "不特定:人", "不特定:物"]),
+            cohesion_tasks=ListConfig(["pas_analysis", "bridging", "coreference"]),
+        )
+        trainer = MockTrainer([DataLoader(dataset)])
+        writer.write_on_epoch_end(trainer, ..., predictions)
         expected_knp = textwrap.dedent(
             f"""\
             # S-ID:1 jula:{jula.__version__}

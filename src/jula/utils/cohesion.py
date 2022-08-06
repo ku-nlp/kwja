@@ -22,11 +22,7 @@ class CohesionKNPWriter:
     def __init__(self, dataset: WordDataset) -> None:
         self.cases: list[str] = dataset.cases
         self.tasks: list[Task] = dataset.cohesion_tasks
-        self.relations: list[str] = (
-            self.cases * (Task.PAS_ANALYSIS in self.tasks)
-            + ["ノ"] * (Task.BRIDGING in self.tasks)
-            + ["="] * (Task.COREFERENCE in self.tasks)
-        )
+        self.rel_types: list[str] = dataset.cohesion_rel_types
         self.exophora_referents: list[ExophoraReferent] = dataset.exophora_referents
         self.specials: list[str] = dataset.special_tokens
         self.documents: list[Document] = [Document.from_knp(doc.to_knp()) for doc in dataset.documents]
@@ -92,8 +88,8 @@ class CohesionKNPWriter:
         base_phrases: list[BasePhrase],
     ) -> RelTagList:
         rels = RelTagList()
-        assert len(self.relations) == len(prediction)
-        for relation, pred in zip(self.relations, prediction):
+        assert len(self.rel_types) == len(prediction)
+        for relation, pred in zip(self.rel_types, prediction):
             if pred < 0:
                 continue  # non-target phrase
             if 0 <= pred < len(base_phrases):

@@ -41,10 +41,11 @@ class WordInferenceDataset(Dataset):
         self.special_to_index: dict[str, int] = {
             token: self.max_seq_length - len(self.special_tokens) + i for i, token in enumerate(self.special_tokens)
         }
+        self.index_to_special: dict[int, str] = {v: k for k, v in self.special_to_index.items()}
         self.cohesion_tasks = [Task(t) for t in cohesion_tasks]
         self.cases = list(cases)
         self.bar_rels = list(bar_rels)
-        self.rels = (
+        self.cohesion_rel_types = (
             self.cases * (Task.PAS_ANALYSIS in self.cohesion_tasks)
             + self.bar_rels * (Task.BRIDGING in self.cohesion_tasks)
             + ["="] * (Task.COREFERENCE in self.cohesion_tasks)
@@ -100,7 +101,7 @@ class WordInferenceDataset(Dataset):
             "intra_mask": torch.tensor(intra_mask, dtype=torch.bool),
             "cohesion_mask": torch.tensor(cohesion_mask, dtype=torch.bool)
             .view(1, 1, -1)
-            .expand(len(self.rels), self.max_seq_length, self.max_seq_length),
+            .expand(len(self.cohesion_rel_types), self.max_seq_length, self.max_seq_length),
             "texts": text,
         }
 

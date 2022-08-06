@@ -19,11 +19,10 @@ class PasExtractor(Extractor):
     def __init__(
         self,
         cases: list[str],
-        pas_targets: list[str],
         exophors: list[ExophoraReferent],
         kc: bool = False,
     ) -> None:
-        self.pas_targets = pas_targets
+        self.pas_targets = ["pred", "noun"]
         super().__init__(exophors, kc)
         self.cases = cases
 
