@@ -11,6 +11,8 @@ defaults:
     - char_kyoto.yaml
     - char_kwdlc.yaml
     - char_fuman.yaml
+  - predict:
+      - char_inference.yaml
 
 wiki_ene_dic_path: ${oc.env:DATA_DIR}/wiki_ene_dic
 max_ene_num: 0
