@@ -295,3 +295,15 @@ class WordModuleWriter(BasePredictionWriter):
                 raise ValueError(f"invalid morpheme index: {morpheme_index} in {morphemes[0].document.doc_id}")
 
         return rels
+
+    def write_on_batch_end(
+        self,
+        trainer: "pl.Trainer",
+        pl_module: "pl.LightningModule",
+        prediction: Any,
+        batch_indices: Optional[Sequence[int]],
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int,
+    ) -> None:
+        pass

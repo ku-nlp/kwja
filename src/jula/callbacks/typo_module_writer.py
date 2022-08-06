@@ -144,3 +144,15 @@ class TypoModuleWriter(BasePredictionWriter):
             self.destination.write_text(output_string)
         elif isinstance(self.destination, TextIOBase):
             self.destination.write(output_string)
+
+    def write_on_batch_end(
+        self,
+        trainer: "pl.Trainer",
+        pl_module: "pl.LightningModule",
+        prediction: Any,
+        batch_indices: Optional[Sequence[int]],
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int,
+    ) -> None:
+        pass
