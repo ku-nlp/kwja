@@ -163,7 +163,7 @@ class WordModuleWriter(BasePredictionWriter):
         assert len(morphemes) <= len(word_feature_preds)
         for i, (morpheme, word_feature_pred) in enumerate(zip(morphemes, word_feature_preds)):
             morphemes_buff.append(morpheme)
-            # follows WORD_FEATURES
+            # follows jula.utils.constants.WORD_FEATURES
             (
                 base_phrase_head_prob,
                 base_phrase_end_prob,
@@ -361,8 +361,8 @@ class WordModuleWriter(BasePredictionWriter):
 
     def write_on_batch_end(
         self,
-        trainer: "pl.Trainer",
-        pl_module: "pl.LightningModule",
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
         prediction: Any,
         batch_indices: Optional[Sequence[int]],
         batch: Any,
