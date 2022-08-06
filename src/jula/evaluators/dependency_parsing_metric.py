@@ -193,10 +193,10 @@ class DependencyParsingMetric(Metric):
             if src == self.get_number_of_units(unit) and not dependency_manager.root:
                 system_head, system_deprel = 0, DepType.DEPENDENCY
             else:
-                system_head, system_deprel = self.resolve_dependency(unit, dependency_manager)
+                system_head, system_deprel = self._resolve_dependency(unit, dependency_manager)
         return system_head, system_deprel
 
-    def resolve_dependency(
+    def _resolve_dependency(
         self, unit: Union[BasePhrase, Morpheme], dependency_manager: DependencyManager
     ) -> tuple[int, DepType]:
         src = unit.index + 1

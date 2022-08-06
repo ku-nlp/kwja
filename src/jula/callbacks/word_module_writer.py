@@ -216,7 +216,7 @@ class WordModuleWriter(BasePredictionWriter):
                     base_phrase.features[k] = ":".join(vs) or True
 
     @staticmethod
-    def resolve_dependency(base_phrase: BasePhrase, dependency_manager: DependencyManager) -> None:
+    def _resolve_dependency(base_phrase: BasePhrase, dependency_manager: DependencyManager) -> None:
         src = base_phrase.index
         num_base_phrases = len(base_phrase.sentence.base_phrases)
         for dst in range(src + 1, num_base_phrases):
@@ -271,7 +271,7 @@ class WordModuleWriter(BasePredictionWriter):
                         base_phrase.parent_index = -1
                         base_phrase.dep_type = DepType.DEPENDENCY
                     else:
-                        self.resolve_dependency(base_phrase, dependency_manager)
+                        self._resolve_dependency(base_phrase, dependency_manager)
 
                 if base_phrase.parent_index == -1:
                     base_phrase.phrase.parent_index = -1
