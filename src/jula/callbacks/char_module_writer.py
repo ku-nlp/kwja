@@ -4,12 +4,11 @@ from io import TextIOBase
 from pathlib import Path
 from typing import Any, Optional, Sequence, TextIO, Union
 
-import hydra
 import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks import BasePredictionWriter
-from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
+from jula.datamodule.datasets.char_dataset import CharDataset
 from jula.utils.constants import INDEX2SEG_TYPE
 
 
@@ -18,8 +17,6 @@ class CharModuleWriter(BasePredictionWriter):
         self,
         output_dir: str,
         pred_filename: str = "predict",
-        model_name_or_path: str = "cl-tohoku/bert-base-japanese-char",
-        tokenizer_kwargs: dict = None,
         use_stdout: bool = False,
     ) -> None:
         super().__init__(write_interval="epoch")
@@ -33,11 +30,6 @@ class CharModuleWriter(BasePredictionWriter):
             if self.destination.exists():
                 os.remove(str(self.destination))
 
-        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-            model_name_or_path,
-            **hydra.utils.instantiate(tokenizer_kwargs or {}, _convert_="partial"),
-        )
-
     def write_on_epoch_end(
         self,
         trainer: pl.Trainer,
@@ -46,8 +38,10 @@ class CharModuleWriter(BasePredictionWriter):
         batch_indices: Optional[Sequence[Any]] = None,
     ) -> None:
         results = []
+        dataloaders = trainer.predict_dataloaders
         for prediction in predictions:
             for batch_pred in prediction:
+                dataset: CharDataset = dataloaders[batch_pred["dataloader_idx"]].dataset
                 batch_size = len(batch_pred["input_ids"])
                 for i in range(batch_size):
                     input_ids = batch_pred["input_ids"][i].cpu().tolist()  # (seq_len,)
@@ -57,11 +51,11 @@ class CharModuleWriter(BasePredictionWriter):
                     assert len(input_ids) == len(pred_types)
                     result = ""
                     for input_id, pred_type in zip(input_ids, pred_types):
-                        if input_id in self.tokenizer.all_special_ids:
+                        if input_id in dataset.tokenizer.all_special_ids:
                             continue
                         if pred_type == "B":
                             result += " "
-                        result += self.tokenizer.decode(input_id)
+                        result += dataset.tokenizer.decode(input_id)
                     results.append(result.strip())
 
         output_string: str = "\n".join(results) + "\n"
