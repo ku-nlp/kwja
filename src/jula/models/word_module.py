@@ -292,7 +292,7 @@ class WordModule(LightningModule):
             metric.reset()
 
         for idx, corpus in enumerate(self.test_corpora):
-            dataset = self.trainer.val_dataloaders[idx].dataset
+            dataset = self.trainer.test_dataloaders[idx].dataset
             metric = self.test_dependency_parsing_metrics[corpus]
             documents = [dataset.doc_id2document[example.doc_id] for example in dataset.examples]
             log_metrics[corpus].update(metric.compute(documents))
