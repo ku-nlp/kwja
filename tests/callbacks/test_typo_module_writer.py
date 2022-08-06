@@ -56,12 +56,18 @@ def test_write_on_epoch_end():
         ins_logits[0][7][writer.opn2id["だ"]] = 1.0  # insert: <dummy> -> だ
         ins_logits[0][8][writer.opn2id[TYPO_OPN2TOKEN["_"]]] = 1.0  # keep: [SEP]
 
+        kdr_probs = torch.softmax(kdr_logits[:, 1:, :], dim=-1)
+        kdr_values, kdr_indices = torch.max(kdr_probs, dim=-1)
+        ins_probs = torch.softmax(ins_logits[:, 1:, :], dim=-1)
+        ins_values, ins_indices = torch.max(ins_probs, dim=-1)
         predictions = [
             [
                 {
                     "texts": texts,
-                    "kdr_logits": kdr_logits,
-                    "ins_logits": ins_logits,
+                    "kdr_values": kdr_values,
+                    "kdr_indices": kdr_indices,
+                    "ins_values": ins_values,
+                    "ins_indices": ins_indices,
                 }
             ]
         ]

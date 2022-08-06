@@ -59,10 +59,17 @@ class TypoModule(LightningModule):
 
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Any:
         outputs: dict[str, torch.Tensor] = self(**batch)
+        # the prediction of the first token (= [CLS]) is excluded.
+        kdr_probs = torch.softmax(outputs["kdr_logits"][:, 1:, :], dim=-1)  # (b, seq_len - 1, kdr_label_num)
+        kdr_values, kdr_indices = torch.max(kdr_probs, dim=-1)
+        ins_probs = torch.softmax(outputs["ins_logits"][:, 1:, :], dim=-1)  # (b, seq_len - 1, ins_label_num)
+        ins_values, ins_indices = torch.max(ins_probs, dim=-1)
         return {
             "texts": batch["texts"],
-            "kdr_logits": outputs["kdr_logits"],
-            "ins_logits": outputs["ins_logits"],
+            "kdr_values": kdr_values,
+            "kdr_indices": kdr_indices,
+            "ins_values": ins_values,
+            "ins_indices": ins_indices,
         }
 
     def configure_optimizers(self):
