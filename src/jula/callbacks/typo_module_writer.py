@@ -85,11 +85,10 @@ class TypoModuleWriter(BasePredictionWriter):
             post_text += inss[-1].removeprefix("I:")
         return post_text
 
-    def get_opn_ids_list(self, logits: torch.Tensor, opn_prefix: str):
+    def get_opn_ids_list(self, batch_values: torch.Tensor, batch_indices: torch.Tensor, opn_prefix: str):
         # Do not edit if the operation probability (replace, delete, and insert) is less than "confidence_threshold"
         opn_ids_list: list[list[int]] = []
-        values_list, indices_list = torch.max(logits, dim=-1)
-        for values, indices in zip(values_list.tolist(), indices_list.tolist()):
+        for values, indices in zip(batch_values.tolist(), batch_indices.tolist()):
             opn_ids: list[int] = []
             for value, index in zip(values, indices):
                 if opn_prefix == "R" and value < self.confidence_threshold:
@@ -111,23 +110,24 @@ class TypoModuleWriter(BasePredictionWriter):
         results = []
         for prediction in predictions:
             for batch_pred in prediction:
-                # the prediction of the first token (= [CLS]) is excluded.
                 kdr_preds: list[list[str]] = self.convert_id2opn(
                     opn_ids_list=self.get_opn_ids_list(
-                        logits=torch.softmax(batch_pred["kdr_logits"][:, 1:, :], dim=-1),
+                        batch_values=batch_pred["kdr_values"],
+                        batch_indices=batch_pred["kdr_indices"],
                         opn_prefix="R",
                     ),
                     opn_prefix="R",
                 )
                 ins_preds: list[list[str]] = self.convert_id2opn(
                     opn_ids_list=self.get_opn_ids_list(
-                        logits=torch.softmax(batch_pred["ins_logits"][:, 1:, :], dim=-1),
+                        batch_values=batch_pred["ins_values"],
+                        batch_indices=batch_pred["ins_indices"],
                         opn_prefix="I",
                     ),
                     opn_prefix="I",
                 )
                 result = []
-                for idx in range(len(batch_pred["kdr_logits"])):
+                for idx in range(len(batch_pred["kdr_values"])):
                     seq_len: int = len(batch_pred["texts"][idx])
                     # the prediction of the dummy token (= "<dummy>") at the end of the input is used for insertion only.
                     result.append(

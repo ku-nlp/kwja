@@ -99,4 +99,5 @@ class TypoDataset(Dataset):
             "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
             "kdr_labels": torch.tensor(kdr_labels, dtype=torch.long),
             "ins_labels": torch.tensor(ins_labels, dtype=torch.long),
+            "texts": document["pre_text"],
         }
