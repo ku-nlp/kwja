@@ -207,7 +207,7 @@ SUB_WORD_FEATURES = (
 WORD_FEATURES = ("基本句-主辞", "基本句-区切", "文節-区切", *SUB_WORD_FEATURES)
 
 SUB_BASE_PHRASE_FEATURES = (
-    # c.f. https://github.com/ku-nlp/knp/blob/master/doc/knp_feature.pdf
+    # cf. https://github.com/ku-nlp/knp/blob/master/doc/knp_feature.pdf
     "SM-主体",
     "レベル:A",
     "レベル:A-",
@@ -226,7 +226,7 @@ SUB_BASE_PHRASE_FEATURES = (
     "時間",
     "節-区切:補文",
     "節-区切:連体修飾",
-    # c.f. https://github.com/ ku-nlp/KWDLC/blob/master/doc/clause_feature_manual.pdf
+    # cf. https://github.com/ ku-nlp/KWDLC/blob/master/doc/clause_feature_manual.pdf
     "節-機能-原因・理由",
     "節-機能疑-原因・理由",
     "節-前向き機能-原因・理由",
