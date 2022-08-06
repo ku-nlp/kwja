@@ -5,10 +5,10 @@ import pytorch_lightning as pl
 from dotenv import load_dotenv
 from omegaconf import DictConfig
 from pytorch_lightning.callbacks import Callback
-from torch.utils.data import DataLoader
+from pytorch_lightning.trainer.states import TrainerFn
 
 from jula.cli.utils import suppress_debug_info
-from jula.datamodule.datasets.word_inference_dataset import WordInferenceDataset
+from jula.datamodule.datamodule import DataModule
 from jula.models.word_module import WordModule
 
 suppress_debug_info()
@@ -41,20 +41,11 @@ def main(cfg: DictConfig):
     else:
         raise ValueError("invalid config name")
 
-    # TODO: Use hydra for configuration
-    dataset = WordInferenceDataset(
-        sys.stdin.readlines(),
-        model_name_or_path=cfg.datamodule.model_name_or_path,
-        max_seq_length=cfg.datamodule.max_seq_length,
-        tokenizer_kwargs=cfg.datamodule.tokenizer_kwargs,
-    )
-    dataloader = DataLoader(
-        dataset,
-        batch_size=cfg.batch_size,
-        shuffle=False,
-        pin_memory=True,
-    )
-    trainer.predict(model=model, dataloaders=dataloader)
+    cfg.dataset.predict.texts = sys.stdin.readlines()
+    datamodule = DataModule(cfg=cfg)
+    datamodule.setup(stage=TrainerFn.PREDICTING)
+
+    trainer.predict(model=model, dataloaders=datamodule.predict_dataloader())
 
 
 if __name__ == "__main__":

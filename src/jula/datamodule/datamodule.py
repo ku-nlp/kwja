@@ -22,6 +22,7 @@ class DataModule(pl.LightningDataModule):
         self.train_dataset: CustomConcatDataset = None
         self.valid_datasets: dict[str, Union[CharDataset, TypoDataset, WordDataset]] = {}
         self.test_datasets: dict[str, Union[CharDataset, TypoDataset, WordDataset]] = {}
+        self.predict_dataset: Union[CharDataset, TypoDataset, WordDataset] = None
 
     def prepare_data(self):
         pass
@@ -45,6 +46,8 @@ class DataModule(pl.LightningDataModule):
             self.test_datasets = {
                 corpus: hydra.utils.instantiate(config) for corpus, config in self.cfg.dataset.test.items()
             }
+        if stage in (TrainerFn.PREDICTING,):
+            self.predict_dataset = hydra.utils.instantiate(self.cfg.dataset.predict)
 
     def train_dataloader(self) -> DataLoader:
         return self._get_dataloader(dataset=self.train_dataset, shuffle=True)
@@ -56,7 +59,7 @@ class DataModule(pl.LightningDataModule):
         return [self._get_dataloader(dataset, shuffle=False) for dataset in self.test_datasets.values()]
 
     def predict_dataloader(self) -> DataLoader:
-        return [self._get_dataloader(dataset, shuffle=False) for dataset in self.test_datasets.values()]
+        return self._get_dataloader(self.predict_dataset, shuffle=False)
 
     def _get_dataloader(self, dataset: Union[CharDataset, TypoDataset, WordDataset], shuffle: bool) -> DataLoader:
         return DataLoader(

@@ -48,7 +48,8 @@ def main(cfg: DictConfig):
         raise ValueError("invalid config name")
 
     datamodule: DataModule = DataModule(cfg=cfg)
-    trainer.predict(model=model, datamodule=datamodule)
+    dataloader = datamodule.test_dataloader()  # or val_dataloader()
+    trainer.predict(model=model, dataloaders=dataloader)
 
 
 if __name__ == "__main__":

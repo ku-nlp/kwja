@@ -1,5 +1,6 @@
 import hydra
 import torch
+from omegaconf import ListConfig
 from rhoknp.cohesion import ExophoraReferent
 from tokenizers import Encoding
 from torch.utils.data import Dataset
@@ -13,12 +14,16 @@ class WordInferenceDataset(Dataset):
     def __init__(
         self,
         texts: list[str],
+        cases: ListConfig[str],
+        bar_rels: ListConfig[str],
+        exophora_referents: ListConfig[str],
+        cohesion_tasks: ListConfig[str],
         model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
         max_seq_length: int = 512,
         tokenizer_kwargs: dict = None,
     ) -> None:
         self.texts = [text.strip() for text in texts]
-        self.exophora_referents: list[ExophoraReferent] = [ExophoraReferent(s) for s in ["著者", "読者", "不特定:人", "不特定:物"]]
+        self.exophora_referents = [ExophoraReferent(s) for s in exophora_referents]
         self.special_tokens: list[str] = [str(e) for e in self.exophora_referents] + [
             "[NULL]",
             "[NA]",
@@ -36,8 +41,14 @@ class WordInferenceDataset(Dataset):
         self.special_to_index: dict[str, int] = {
             token: self.max_seq_length - len(self.special_tokens) + i for i, token in enumerate(self.special_tokens)
         }
-        self.cohesion_tasks: list[Task] = [Task(t) for t in ["pas_analysis", "bridging", "coreference"]]
-        self.rels = ["ガ", "ヲ", "ニ", "ガ２", "ノ", "="]
+        self.cohesion_tasks = [Task(t) for t in cohesion_tasks]
+        self.cases = list(cases)
+        self.bar_rels = list(bar_rels)
+        self.rels = (
+            self.cases * (Task.PAS_ANALYSIS in self.cohesion_tasks)
+            + self.bar_rels * (Task.BRIDGING in self.cohesion_tasks)
+            + ["="] * (Task.COREFERENCE in self.cohesion_tasks)
+        )
 
     @property
     def special_indices(self) -> list[int]:
