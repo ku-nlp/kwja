@@ -13,11 +13,19 @@ from jula.utils.constants import ENE_TYPE_BIES, IGNORE_INDEX, SEG_TYPES
 class CharDataset(BaseDataset):
     def __init__(
         self,
+        path: str,
+        max_seq_length: int,
         wiki_ene_dic_path: str,
         max_ene_num: int = 0,
-        **kwargs,
+        model_name_or_path: str = "cl-tohoku/bert-base-japanese-char",
+        tokenizer_kwargs: dict = None,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(
+            path,
+            model_name_or_path,
+            max_seq_length,
+            tokenizer_kwargs,
+        )
 
         self.max_ene_num = max_ene_num
         self.darts = dartsclone.DoubleArray()

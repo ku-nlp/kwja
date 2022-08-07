@@ -1,4 +1,3 @@
-import hydra
 import torch
 from omegaconf import ListConfig
 from rhoknp.cohesion import ExophoraReferent
@@ -18,24 +17,18 @@ class WordInferenceDataset(Dataset):
         bar_rels: ListConfig[str],
         exophora_referents: ListConfig[str],
         cohesion_tasks: ListConfig[str],
+        special_tokens: ListConfig[str],
         model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
         max_seq_length: int = 512,
         tokenizer_kwargs: dict = None,
     ) -> None:
         self.texts = [text.strip() for text in texts]
         self.exophora_referents = [ExophoraReferent(s) for s in exophora_referents]
-        self.special_tokens: list[str] = [str(e) for e in self.exophora_referents] + [
-            "[NULL]",
-            "[NA]",
-            "[ROOT]",  # TODO: mask in cohesion analysis
-        ]
-        if tokenizer_kwargs:
-            tokenizer_kwargs = hydra.utils.instantiate(tokenizer_kwargs, _convert_="partial")
-        else:
-            tokenizer_kwargs = {}
+        # TODO: ignore [ROOT] in cohesion analysis
+        self.special_tokens: list[str] = list(special_tokens)
         self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             model_name_or_path,
-            **tokenizer_kwargs,
+            **(tokenizer_kwargs or {}),
         )
         self.max_seq_length = max_seq_length
         self.special_to_index: dict[str, int] = {

@@ -4,7 +4,7 @@ import hydra
 import pytorch_lightning as pl
 import transformers.utils.logging as hf_logging
 from dotenv import load_dotenv
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning.callbacks import Callback
 
 from jula.datamodule.datamodule import DataModule
@@ -13,6 +13,7 @@ from jula.models.typo_module import TypoModule
 from jula.models.word_module import WordModule
 
 hf_logging.set_verbosity(hf_logging.ERROR)
+OmegaConf.register_new_resolver("concat", lambda x, y: x + y)
 
 
 @hydra.main(version_base=None, config_path="../configs")

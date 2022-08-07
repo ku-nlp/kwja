@@ -3,7 +3,7 @@ import sys
 import hydra
 import pytorch_lightning as pl
 from dotenv import load_dotenv
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.trainer.states import TrainerFn
 
@@ -12,6 +12,7 @@ from jula.datamodule.datamodule import DataModule
 from jula.models.word_module import WordModule
 
 suppress_debug_info()
+OmegaConf.register_new_resolver("concat", lambda x, y: x + y)
 
 
 @hydra.main(version_base=None, config_path="../configs", config_name="word_module")

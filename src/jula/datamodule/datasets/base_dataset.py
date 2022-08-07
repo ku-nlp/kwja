@@ -2,7 +2,6 @@ import sys
 from functools import cached_property
 from pathlib import Path
 
-import hydra
 from rhoknp import Document
 from torch.utils.data import Dataset
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
@@ -12,7 +11,7 @@ class BaseDataset(Dataset):
     def __init__(
         self,
         path: str,
-        model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
+        model_name_or_path: str,
         max_seq_length: int = 512,
         tokenizer_kwargs: dict = None,
         ext: str = "knp",
@@ -24,13 +23,9 @@ class BaseDataset(Dataset):
         self.doc_id2document = self.load_documents(self.path, ext)
         assert len(self.documents) != 0
 
-        if tokenizer_kwargs:
-            tokenizer_kwargs = hydra.utils.instantiate(tokenizer_kwargs, _convert_="partial")
-        else:
-            tokenizer_kwargs = {}
         self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             model_name_or_path,
-            **tokenizer_kwargs,
+            **(tokenizer_kwargs or {}),
         )
         self.max_seq_length = max_seq_length
 

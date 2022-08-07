@@ -4,7 +4,6 @@ from io import TextIOBase
 from pathlib import Path
 from typing import Any, Optional, Sequence, TextIO, Union
 
-import hydra
 import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks import BasePredictionWriter
@@ -39,7 +38,7 @@ class TypoModuleWriter(BasePredictionWriter):
 
         self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             model_name_or_path,
-            **hydra.utils.instantiate(tokenizer_kwargs or {}, _convert_="partial"),
+            **(tokenizer_kwargs or {}),
         )
 
         self.opn2id, self.id2opn = self.get_opn_dict(path=Path(extended_vocab_path))

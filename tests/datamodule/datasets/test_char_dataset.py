@@ -12,7 +12,7 @@ wiki_ene_dic_path = here.joinpath("wiki_ene_dic")
 
 
 def test_init():
-    _ = CharDataset(path=str(path), wiki_ene_dic_path=str(wiki_ene_dic_path))
+    _ = CharDataset(path=str(path), wiki_ene_dic_path=str(wiki_ene_dic_path), max_seq_length=512)
 
 
 def test_getitem():

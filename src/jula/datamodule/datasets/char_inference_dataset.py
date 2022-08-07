@@ -1,4 +1,3 @@
-import hydra
 import torch
 from torch.utils.data import Dataset
 from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizerBase
@@ -15,13 +14,9 @@ class CharInferenceDataset(Dataset):
         **_,  # accept `wiki_ene_dic_path` as a keyword argument
     ) -> None:
         self.texts = [text.strip() for text in texts]
-        if tokenizer_kwargs:
-            tokenizer_kwargs = hydra.utils.instantiate(tokenizer_kwargs, _convert_="partial")
-        else:
-            tokenizer_kwargs = {}
         self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             model_name_or_path,
-            **tokenizer_kwargs,
+            **(tokenizer_kwargs or {}),
         )
         self.max_seq_length = max_seq_length
 

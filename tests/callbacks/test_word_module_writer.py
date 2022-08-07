@@ -130,6 +130,7 @@ def test_write_on_epoch_end():
             bar_rels=ListConfig(["ノ"]),
             exophora_referents=ListConfig(["著者", "読者", "不特定:人", "不特定:物"]),
             cohesion_tasks=ListConfig(["pas_analysis", "bridging", "coreference"]),
+            special_tokens=ListConfig(["著者", "読者", "不特定:人", "不特定:物", "[NULL]", "[NA]", "[ROOT]"]),
         )
         trainer = MockTrainer([DataLoader(dataset)])
         writer.write_on_epoch_end(trainer, ..., predictions)

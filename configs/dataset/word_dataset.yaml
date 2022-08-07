@@ -14,5 +14,7 @@ defaults:
   - predict:
     - word_inference.yaml
 
+special_tokens: ${concat:${exophora_referents},["[NULL]", "[NA]", "[ROOT]"]}
 tokenizer_kwargs:
-  additional_special_tokens: ["著者", "読者", "不特定:人", "不特定:物", "[NULL]", "[NA]", "[ROOT]"]
+  additional_special_tokens: ${dataset.special_tokens}
+  _convert_: all

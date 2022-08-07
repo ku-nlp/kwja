@@ -2,6 +2,7 @@ import logging
 from dataclasses import dataclass
 
 import torch
+from omegaconf import ListConfig
 from rhoknp import Document
 from rhoknp.cohesion import ExophoraReferent
 from scipy.special import softmax
@@ -49,28 +50,30 @@ class WordExampleSet:
 
 
 class WordDataset(BaseDataset):
-    def __init__(self, *args, **kwargs):
-        self.exophora_referents: list[ExophoraReferent] = [
-            ExophoraReferent(s) for s in kwargs.pop("exophora_referents")
-        ]
-        self.special_tokens: list[str] = [str(e) for e in self.exophora_referents] + [
-            "[NULL]",
-            "[NA]",
-            "[ROOT]",  # TODO: mask in cohesion analysis
-        ]
-        tokenizer_kwargs = {
-            "additional_special_tokens": self.special_tokens,
-        }
-        if "tokenizer_kwargs" in kwargs:
-            kwargs["tokenizer_kwargs"].update(tokenizer_kwargs)
-        else:
-            kwargs["tokenizer_kwargs"] = tokenizer_kwargs
-
-        super().__init__(*args, **kwargs)
-
-        self.cohesion_tasks: list[Task] = [Task(t) for t in kwargs["cohesion_tasks"]]
-        self.cases: list[str] = list(kwargs["cases"])
-        self.bar_rels = list(kwargs["bar_rels"])
+    def __init__(
+        self,
+        path: str,
+        cases: ListConfig[str],
+        bar_rels: ListConfig[str],
+        exophora_referents: ListConfig[str],
+        cohesion_tasks: ListConfig[str],
+        special_tokens: ListConfig[str],
+        model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
+        max_seq_length: int = 512,
+        tokenizer_kwargs: dict = None,
+    ) -> None:
+        super().__init__(
+            path,
+            model_name_or_path,
+            max_seq_length,
+            tokenizer_kwargs,
+        )
+        self.exophora_referents = [ExophoraReferent(s) for s in exophora_referents]
+        # TODO: ignore [ROOT] in cohesion analysis
+        self.special_tokens: list[str] = list(special_tokens)
+        self.cohesion_tasks: list[Task] = [Task(t) for t in cohesion_tasks]
+        self.cases: list[str] = list(cases)
+        self.bar_rels: list[str] = list(bar_rels)
         self.cohesion_rel_types = (
             self.cases * (Task.PAS_ANALYSIS in self.cohesion_tasks)
             + self.bar_rels * (Task.BRIDGING in self.cohesion_tasks)

@@ -37,6 +37,8 @@ word_dataset_kwargs = {
     "bar_rels": ["ノ"],
     "exophora_referents": ["著者", "読者", "不特定:人", "不特定:物"],
     "cohesion_tasks": ["pas_analysis", "bridging", "coreference"],
+    "special_tokens": ["著者", "読者", "不特定:人", "不特定:物", "[NULL]", "[NA]", "[ROOT]"],
+    "tokenizer_kwargs": {"additional_special_tokens": ["著者", "読者", "不特定:人", "不特定:物", "[NULL]", "[NA]", "[ROOT]"]},
 }
 
 
