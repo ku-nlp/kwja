@@ -4,12 +4,12 @@ from typing import Optional, Union
 import hydra
 import pytorch_lightning as pl
 import transformers.utils.logging as hf_logging
+import wandb
 from dotenv import load_dotenv
 from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.loggers import LightningLoggerBase
 
-import wandb
 from jula.datamodule.datamodule import DataModule
 from jula.models.char_module import CharModule
 from jula.models.typo_module import TypoModule
