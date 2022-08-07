@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from transformers import PretrainedConfig
 
-from jula.utils.constants import CONJFORM_TYPES, CONJTYPE_TYPES, IGNORE_INDEX, NE_TAGS, POS_TYPES, SUBPOS_TYPES
+from jula.utils.constants import CONJFORM_TYPES, CONJTYPE_TYPES, IGNORE_INDEX, POS_TYPES, SUBPOS_TYPES
 
 
 class WordAnalyzer(nn.Module):
@@ -23,9 +23,6 @@ class WordAnalyzer(nn.Module):
         self.subpos_cls = nn.Linear(hidden_size, self.num_subpos_labels)
         self.conjtype_cls = nn.Linear(hidden_size, self.num_conjtype_labels)
         self.conjform_cls = nn.Linear(hidden_size, self.num_conjform_labels)
-
-        self.num_ne_tags: int = len(NE_TAGS)
-        self.ne_cls = nn.Linear(hidden_size, self.num_ne_tags)
 
     def forward(self, encoder_output: torch.Tensor, inputs: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         output: dict[str, torch.Tensor] = dict()
@@ -62,13 +59,4 @@ class WordAnalyzer(nn.Module):
             output["loss"] = (
                 output["pos_loss"] + output["subpos_loss"] + output["conjtype_loss"] + output["conjform_loss"]
             ) / 4
-
-        ne_logits = self.ne_cls(base_output)  # (b, seq_len, num_ner_tags)
-        output["ne_logits"] = ne_logits
-        if "ne_tags" in inputs:
-            output["ner_loss"] = F.cross_entropy(
-                input=ne_logits.reshape(-1, self.num_ne_tags),
-                target=inputs["ne_tags"].view(-1),
-                ignore_index=IGNORE_INDEX,
-            )
         return output
