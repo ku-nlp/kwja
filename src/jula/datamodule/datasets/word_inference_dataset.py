@@ -50,6 +50,13 @@ class WordInferenceDataset(Dataset):
             + self.bar_rels * (Task.BRIDGING in self.cohesion_tasks)
             + ["="] * (Task.COREFERENCE in self.cohesion_tasks)
         )
+        self.special_encoding: Encoding = self.tokenizer(
+            self.special_tokens,
+            is_split_into_words=True,
+            padding=PaddingStrategy.DO_NOT_PAD,
+            truncation=False,
+            add_special_tokens=False,
+        ).encodings[0]
 
     @property
     def special_indices(self) -> list[int]:
@@ -84,14 +91,7 @@ class WordInferenceDataset(Dataset):
         cohesion_mask += [False] * (self.max_seq_length - num_morphemes - self.num_special_tokens)
         cohesion_mask += [True] * self.num_special_tokens
 
-        special_encoding: Encoding = self.tokenizer(
-            self.special_tokens,
-            is_split_into_words=True,
-            padding=PaddingStrategy.DO_NOT_PAD,
-            truncation=False,
-            add_special_tokens=False,
-        ).encodings[0]
-        merged_encoding: Encoding = Encoding.merge([encoding, special_encoding])
+        merged_encoding: Encoding = Encoding.merge([encoding, self.special_encoding])
 
         return {
             "example_ids": torch.tensor(example_id, dtype=torch.long),
