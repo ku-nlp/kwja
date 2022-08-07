@@ -58,6 +58,7 @@ class WordDataset(BaseDataset):
         exophora_referents: ListConfig[str],
         cohesion_tasks: ListConfig[str],
         special_tokens: ListConfig[str],
+        restrict_cohesion_target: bool,
         model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
         max_seq_length: int = 512,
         tokenizer_kwargs: dict = None,
@@ -79,9 +80,11 @@ class WordDataset(BaseDataset):
             + ["="] * (Task.COREFERENCE in self.cohesion_tasks)
         )
         self.extractors = {
-            Task.PAS_ANALYSIS: PasExtractor(self.cases, self.exophora_referents, kc=False),
-            Task.COREFERENCE: CoreferenceExtractor(self.exophora_referents, kc=False),
-            Task.BRIDGING: BridgingExtractor(self.bar_rels, self.exophora_referents, kc=False),
+            Task.PAS_ANALYSIS: PasExtractor(self.cases, self.exophora_referents, restrict_cohesion_target, kc=False),
+            Task.COREFERENCE: CoreferenceExtractor(self.exophora_referents, restrict_cohesion_target, kc=False),
+            Task.BRIDGING: BridgingExtractor(
+                self.bar_rels, self.exophora_referents, restrict_cohesion_target, kc=False
+            ),
         }
         self.special_to_index: dict[str, int] = {
             token: self.max_seq_length - len(self.special_tokens) + i for i, token in enumerate(self.special_tokens)

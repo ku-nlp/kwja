@@ -20,10 +20,11 @@ class PasExtractor(Extractor):
         self,
         cases: list[str],
         exophors: list[ExophoraReferent],
+        restrict_target: bool,
         kc: bool = False,
     ) -> None:
         self.pas_targets = ["pred", "noun"]
-        super().__init__(exophors, kc)
+        super().__init__(exophors, restrict_target=restrict_target, kc=kc)
         self.cases = cases
 
     def extract(
@@ -41,7 +42,6 @@ class PasExtractor(Extractor):
                     continue
                 candidates: list[int] = [bp.global_index for bp in bp_list if self.is_candidate(bp, anaphor) is True]
                 phrases[anaphor.global_index].candidates = candidates
-                # arguments = document.get_arguments(anaphor, relax=False)
                 for case in self.cases:
                     arguments = anaphor.pas.get_arguments(case, relax=False)
                     arguments_set[anaphor.global_index][case] = self._get_args(arguments, candidates)
@@ -95,7 +95,7 @@ class PasExtractor(Extractor):
         return arg_strings
 
     def is_target(self, bp: BasePhrase) -> bool:
-        return self.is_pas_target(
+        return self.restrict_target is False or self.is_pas_target(
             bp,
             verbal=("pred" in self.pas_targets),
             nominal=("noun" in self.pas_targets),

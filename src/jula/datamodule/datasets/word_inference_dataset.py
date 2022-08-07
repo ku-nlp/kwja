@@ -21,6 +21,7 @@ class WordInferenceDataset(Dataset):
         model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
         max_seq_length: int = 512,
         tokenizer_kwargs: dict = None,
+        **_,
     ) -> None:
         self.texts = [text.strip() for text in texts]
         self.exophora_referents = [ExophoraReferent(s) for s in exophora_referents]

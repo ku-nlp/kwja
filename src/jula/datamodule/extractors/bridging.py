@@ -19,9 +19,10 @@ class BridgingExtractor(Extractor):
         self,
         bar_rels: list[str],
         exophors: list[ExophoraReferent],
+        restrict_target: bool,
         kc: bool = False,
     ) -> None:
-        super().__init__(exophors, kc)
+        super().__init__(exophors, restrict_target=restrict_target, kc=kc)
         self.rels = bar_rels
 
     def extract(
@@ -86,7 +87,7 @@ class BridgingExtractor(Extractor):
         return arg_strings
 
     def is_target(self, bp: BasePhrase) -> bool:
-        return self.is_bridging_target(bp)
+        return self.restrict_target is False or self.is_bridging_target(bp)
 
     @staticmethod
     def is_bridging_target(bp: BasePhrase) -> bool:

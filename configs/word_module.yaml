@@ -23,6 +23,7 @@ cases: ["ガ", "ヲ", "ニ", "ガ２"]
 bar_rels: ["ノ"]
 exophora_referents: ["著者", "読者", "不特定:人", "不特定:物"]
 cohesion_tasks: [pas_analysis, bridging, coreference]  # pas_analysis, bridging, and/or coreference
+restrict_cohesion_target: True
 
 # set monitor and mode for early_stopping and model_checkpoint
 monitor: valid/aggregated_word_metrics

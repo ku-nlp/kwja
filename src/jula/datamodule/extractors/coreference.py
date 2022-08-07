@@ -18,9 +18,10 @@ class CoreferenceExtractor(Extractor):
     def __init__(
         self,
         exophors: list[ExophoraReferent],
+        restrict_target: bool,
         kc: bool = False,
     ) -> None:
-        super().__init__(exophors, kc)
+        super().__init__(exophors, restrict_target=restrict_target, kc=kc)
 
     def extract(
         self,
@@ -67,7 +68,7 @@ class CoreferenceExtractor(Extractor):
             return ["[NA]"]
 
     def is_target(self, bp: BasePhrase) -> bool:
-        return self.is_coreference_target(bp)
+        return self.restrict_target is False or self.is_coreference_target(bp)
 
     @staticmethod
     def is_coreference_target(bp: BasePhrase) -> bool:

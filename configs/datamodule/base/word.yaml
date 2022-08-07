@@ -3,6 +3,7 @@ model_name_or_path: ${model.model_name_or_path}
 max_seq_length: ${model.max_seq_length}
 tokenizer_kwargs: ${dataset.tokenizer_kwargs}
 special_tokens: ${dataset.special_tokens}
+restrict_cohesion_target: ${restrict_cohesion_target}
 cases: ${cases}
 bar_rels: ${bar_rels}
 exophora_referents: ${exophora_referents}
