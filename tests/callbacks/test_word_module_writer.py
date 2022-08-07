@@ -121,16 +121,18 @@ def test_write_on_epoch_end():
     with tempfile.TemporaryDirectory() as tmp_dir:
         # max_seq_length = 4 (今日, は, 晴れ, だ) + 7 (著者, 読者, 不特定:人, 不特定:物, [NULL], [NA], [ROOT])
         writer = WordModuleWriter(tmp_dir, pred_filename=pred_filename)
+        exophora_referents = ["著者", "読者", "不特定:人", "不特定:物"]
+        special_tokens = exophora_referents + ["[NULL]", "[NA]", "[ROOT]"]
         dataset = WordInferenceDataset(
             texts=texts,
             model_name_or_path="nlp-waseda/roberta-base-japanese",
             max_seq_length=11,
-            tokenizer_kwargs={"additional_special_tokens": ["著者", "読者", "不特定:人", "不特定:物", "[NULL]", "[NA]", "[ROOT]"]},
+            tokenizer_kwargs={"additional_special_tokens": special_tokens},
             cases=ListConfig(["ガ", "ヲ", "ニ", "ガ２"]),
             bar_rels=ListConfig(["ノ"]),
-            exophora_referents=ListConfig(["著者", "読者", "不特定:人", "不特定:物"]),
+            exophora_referents=ListConfig(exophora_referents),
             cohesion_tasks=ListConfig(["pas_analysis", "bridging", "coreference"]),
-            special_tokens=ListConfig(["著者", "読者", "不特定:人", "不特定:物", "[NULL]", "[NA]", "[ROOT]"]),
+            special_tokens=ListConfig(special_tokens),
         )
         trainer = MockTrainer([DataLoader(dataset)])
         writer.write_on_epoch_end(trainer, ..., predictions)
