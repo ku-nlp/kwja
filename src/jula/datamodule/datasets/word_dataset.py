@@ -27,6 +27,7 @@ from jula.utils.constants import (
     DEPENDENCY_TYPE2INDEX,
     DISCOURSE_RELATIONS,
     IGNORE_INDEX,
+    NE_TAGS,
     POS_TYPES,
     SUBPOS_TYPES,
     WORD_FEATURES,
@@ -189,6 +190,16 @@ class WordDataset(BaseDataset):
                 if mrph_type in all_types:
                     morpheme_types[morpheme_index][i] = all_types.index(mrph_type)
 
+        ne_tags = [
+            NE_TAGS.index("O") if idx < len(word_feature_example.features) else IGNORE_INDEX
+            for idx in range(self.max_seq_length)
+        ]
+        for named_entity in word_feature_example.named_entities:
+            category = named_entity.category.value
+            for i, morpheme in enumerate(named_entity.morphemes):
+                bi = "B" if i == 0 else "I"
+                ne_tags[morpheme.global_index] = NE_TAGS.index(f"{bi}-{category}")
+
         # word feature tagging
         word_features = [[IGNORE_INDEX] * len(WORD_FEATURES) for _ in range(self.max_seq_length)]
         for morpheme_index, feature_set in enumerate(word_feature_example.features):
@@ -260,6 +271,7 @@ class WordDataset(BaseDataset):
             "attention_mask": torch.tensor(merged_encoding.attention_mask, dtype=torch.long),
             "subword_map": torch.tensor(self._gen_subword_map(merged_encoding), dtype=torch.bool),
             "mrph_types": torch.tensor(morpheme_types, dtype=torch.long),
+            "ne_tags": torch.tensor(ne_tags, dtype=torch.long),
             "word_features": torch.tensor(word_features, dtype=torch.long),
             "base_phrase_features": torch.tensor(base_phrase_features, dtype=torch.long),
             "dependencies": torch.tensor(dependencies, dtype=torch.long),
