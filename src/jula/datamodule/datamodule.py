@@ -7,9 +7,12 @@ from pytorch_lightning.trainer.states import TrainerFn
 from torch.utils.data import DataLoader, Dataset
 
 from jula.datamodule.datasets.char_dataset import CharDataset
+from jula.datamodule.datasets.char_inference_dataset import CharInferenceDataset
 from jula.datamodule.datasets.custom_concat_dataset import CustomConcatDataset
 from jula.datamodule.datasets.typo_dataset import TypoDataset
+from jula.datamodule.datasets.typo_inference_dataset import TypoInferenceDataset
 from jula.datamodule.datasets.word_dataset import WordDataset
+from jula.datamodule.datasets.word_inference_dataset import WordInferenceDataset
 
 
 class DataModule(pl.LightningDataModule):
@@ -19,10 +22,14 @@ class DataModule(pl.LightningDataModule):
         self.batch_size: int = cfg.batch_size
         self.num_workers: int = cfg.num_workers
 
-        self.train_dataset: CustomConcatDataset = None
+        self.train_dataset: Optional[CustomConcatDataset] = None
         self.valid_datasets: dict[str, Union[CharDataset, TypoDataset, WordDataset]] = {}
         self.test_datasets: dict[str, Union[CharDataset, TypoDataset, WordDataset]] = {}
-        self.predict_dataset: Union[CharDataset, TypoDataset, WordDataset] = None
+        self.predict_dataset: Optional[
+            Union[
+                CharDataset, TypoDataset, WordDataset, CharInferenceDataset, TypoInferenceDataset, WordInferenceDataset
+            ]
+        ] = None
 
     def prepare_data(self):
         pass
