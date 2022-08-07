@@ -69,7 +69,6 @@ class WordDataset(BaseDataset):
             tokenizer_kwargs,
         )
         self.exophora_referents = [ExophoraReferent(s) for s in exophora_referents]
-        # TODO: ignore [ROOT] in cohesion analysis
         self.special_tokens: list[str] = list(special_tokens)
         self.cohesion_tasks: list[Task] = [Task(t) for t in cohesion_tasks]
         self.cases: list[str] = list(cases)
@@ -103,6 +102,10 @@ class WordDataset(BaseDataset):
     @property
     def special_indices(self) -> list[int]:
         return list(self.special_to_index.values())
+
+    @property
+    def cohesion_special_indices(self) -> list[int]:
+        return [index for special, index in self.special_to_index.items() if special != "[ROOT]"]
 
     @property
     def num_special_tokens(self) -> int:
@@ -353,7 +356,7 @@ class WordDataset(BaseDataset):
                 word_level_candidates: list[int] = []
                 for candidate in candidates:
                     word_level_candidates.append(phrases[candidate].dmid)
-                word_level_candidates += self.special_indices
+                word_level_candidates += self.cohesion_special_indices
 
                 # use the head subword as the representative of the source word
                 scores_set[mrph.dmid] = scores

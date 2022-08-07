@@ -24,7 +24,6 @@ class WordInferenceDataset(Dataset):
     ) -> None:
         self.texts = [text.strip() for text in texts]
         self.exophora_referents = [ExophoraReferent(s) for s in exophora_referents]
-        # TODO: ignore [ROOT] in cohesion analysis
         self.special_tokens: list[str] = list(special_tokens)
         self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             model_name_or_path,
@@ -56,6 +55,10 @@ class WordInferenceDataset(Dataset):
         return list(self.special_to_index.values())
 
     @property
+    def cohesion_special_indices(self) -> list[int]:
+        return [index for special, index in self.special_to_index.items() if special != "[ROOT]"]
+
+    @property
     def num_special_tokens(self) -> int:
         return len(self.special_tokens)
 
@@ -80,9 +83,9 @@ class WordInferenceDataset(Dataset):
                 if i != j:
                     intra_mask[i][j] = True
             intra_mask[i][-1] = True
-        cohesion_mask = [True] * num_morphemes
-        cohesion_mask += [False] * (self.max_seq_length - num_morphemes - self.num_special_tokens)
-        cohesion_mask += [True] * self.num_special_tokens
+        cohesion_mask = [True] * num_morphemes + [False] * (self.max_seq_length - num_morphemes)
+        for special_index in self.cohesion_special_indices:
+            cohesion_mask[special_index] = True
 
         merged_encoding: Encoding = Encoding.merge([encoding, self.special_encoding])
 
