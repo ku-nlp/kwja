@@ -41,6 +41,7 @@ word_dataset_kwargs = {
     "exophora_referents": ListConfig(exophora_referents),
     "cohesion_tasks": ListConfig(["pas_analysis", "bridging", "coreference"]),
     "special_tokens": ListConfig(special_tokens),
+    "restrict_cohesion_target": True,
     "tokenizer_kwargs": {"additional_special_tokens": special_tokens},
 }
 
