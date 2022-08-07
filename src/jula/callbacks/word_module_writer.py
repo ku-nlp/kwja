@@ -10,7 +10,7 @@ import torch
 from pytorch_lightning.callbacks import BasePredictionWriter
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
 from rhoknp.cohesion import ExophoraReferent, RelTag, RelTagList
-from rhoknp.props import DepType, FeatureDict, NETag, NETagList, SemanticsDict
+from rhoknp.props import DepType, FeatureDict, NamedEntity, NamedEntityCategory, NETagList, SemanticsDict
 from rhoknp.units.morpheme import MorphemeAttributes
 
 import jula
@@ -223,6 +223,7 @@ class WordModuleWriter(BasePredictionWriter):
 
     @staticmethod
     def _add_named_entities(document: Document, ne_tag_preds: list[int]) -> None:
+        category_map = {category.value: category for category in NamedEntityCategory}
         for sentence in document.sentences:
             morphemes = sentence.morphemes
             category = ""
@@ -237,8 +238,8 @@ class WordModuleWriter(BasePredictionWriter):
                     morphemes_buff.append(morpheme)
                 else:
                     if morphemes_buff:
-                        ne_tag = NETag(category=category, name="".join(morpheme.surf for morpheme in morphemes_buff))
-                        morphemes[morpheme.index - 1].base_phrase.ne_tags = NETagList([ne_tag])
+                        named_entity = NamedEntity(category=category_map[category], morphemes=morphemes_buff)
+                        sentence.named_entities.append(named_entity)
                     category = ""
                     morphemes_buff = []
 
