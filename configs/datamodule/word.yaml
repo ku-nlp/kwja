@@ -13,3 +13,6 @@ defaults:
     - word_fuman.yaml
   - predict:
     - word_inference.yaml
+
+batch_size: ${batch_size}
+num_workers: ${num_workers}

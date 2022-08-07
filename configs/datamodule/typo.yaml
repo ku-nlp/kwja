@@ -7,3 +7,6 @@ defaults:
     - jwtd.yaml
   - predict:
     - typo_inference.yaml
+
+batch_size: ${batch_size}
+num_workers: ${num_workers}

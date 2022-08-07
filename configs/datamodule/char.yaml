@@ -13,3 +13,6 @@ defaults:
     - char_fuman.yaml
   - predict:
     - char_inference.yaml
+
+batch_size: ${batch_size}
+num_workers: ${num_workers}

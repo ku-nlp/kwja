@@ -41,7 +41,7 @@ def main(cfg: DictConfig):
         devices=cfg.devices,
     )
 
-    datamodule: DataModule = DataModule(cfg=cfg)
+    datamodule = DataModule(cfg=cfg.datamodule)
 
     model: Union[TypoModule, CharModule, WordModule]
     if cfg.config_name in cfg.module.typo:

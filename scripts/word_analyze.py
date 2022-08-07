@@ -43,7 +43,7 @@ def main(cfg: DictConfig):
         raise ValueError("invalid config name")
 
     cfg.datamodule.predict.texts = sys.stdin.readlines()
-    datamodule = DataModule(cfg=cfg)
+    datamodule = DataModule(cfg=cfg.datamodule)
     datamodule.setup(stage=TrainerFn.PREDICTING)
 
     trainer.predict(model=model, dataloaders=datamodule.predict_dataloader())
