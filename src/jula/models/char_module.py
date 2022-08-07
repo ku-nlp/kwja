@@ -24,7 +24,7 @@ class CharModule(LightningModule):
 
         tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             hparams.model.model_name_or_path,
-            **hydra.utils.instantiate(hparams.dataset.tokenizer_kwargs, _convert_="partial"),
+            **hydra.utils.instantiate(hparams.dataset.tokenizer_kwargs),
         )
         self.char_encoder: CharEncoder = CharEncoder(hparams, vocab_size=len(tokenizer.get_vocab()))
 

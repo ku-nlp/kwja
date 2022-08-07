@@ -30,7 +30,7 @@ class WordModule(LightningModule):
 
         tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             hparams.model.model_name_or_path,
-            **hydra.utils.instantiate(hparams.dataset.tokenizer_kwargs, _convert_="partial"),
+            **hydra.utils.instantiate(hparams.dataset.tokenizer_kwargs),
         )
         self.word_encoder: WordEncoder = WordEncoder(hparams, vocab_size=len(tokenizer.get_vocab()))
 
