@@ -4,11 +4,10 @@ import hydra
 import pytorch_lightning as pl
 from omegaconf import DictConfig
 from pytorch_lightning.trainer.states import TrainerFn
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import ConcatDataset, DataLoader, Dataset
 
 from jula.datamodule.datasets.char_dataset import CharDataset
 from jula.datamodule.datasets.char_inference_dataset import CharInferenceDataset
-from jula.datamodule.datasets.custom_concat_dataset import CustomConcatDataset
 from jula.datamodule.datasets.typo_dataset import TypoDataset
 from jula.datamodule.datasets.typo_inference_dataset import TypoInferenceDataset
 from jula.datamodule.datasets.word_dataset import WordDataset
@@ -22,7 +21,7 @@ class DataModule(pl.LightningDataModule):
         self.batch_size: int = cfg.batch_size
         self.num_workers: int = cfg.num_workers
 
-        self.train_dataset: Optional[CustomConcatDataset] = None
+        self.train_dataset: Optional[ConcatDataset] = None
         self.valid_datasets: dict[str, Union[CharDataset, TypoDataset, WordDataset]] = {}
         self.test_datasets: dict[str, Union[CharDataset, TypoDataset, WordDataset]] = {}
         self.predict_dataset: Optional[
@@ -36,9 +35,7 @@ class DataModule(pl.LightningDataModule):
 
     def setup(self, stage: Optional[str] = None) -> None:
         if stage in (TrainerFn.FITTING, TrainerFn.TUNING):
-            self.train_dataset = CustomConcatDataset(
-                [hydra.utils.instantiate(config) for config in self.cfg.train.values()]
-            )
+            self.train_dataset = ConcatDataset(hydra.utils.instantiate(config) for config in self.cfg.train.values())
         if stage in (
             TrainerFn.FITTING,
             TrainerFn.TUNING,
