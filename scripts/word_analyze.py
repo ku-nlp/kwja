@@ -24,10 +24,7 @@ def main(cfg: DictConfig):
         except ValueError:
             cfg.devices = None
 
-    callbacks: list[Callback] = []
-    for k, v in cfg.get("callbacks", {}).items():
-        if k == "prediction_writer":
-            callbacks.append(hydra.utils.instantiate(v, use_stdout=True))
+    callbacks: list[Callback] = [hydra.utils.instantiate(cfg.callbacks.prediction_writer, use_stdout=True)]
 
     trainer: pl.Trainer = hydra.utils.instantiate(
         cfg.trainer,
