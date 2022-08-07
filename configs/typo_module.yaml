@@ -2,7 +2,7 @@ defaults:
   - base
   - callbacks: [early_stopping, model_checkpoint, model_summary, typo_module_writer, progress_bar]
   - datamodule: typo
-  - dataset: typo_dataset
+  - dataset: typo
   - logger: wandb
   - model: char_roberta_large
   - module: default

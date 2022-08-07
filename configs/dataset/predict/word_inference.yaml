@@ -1,6 +1,0 @@
-defaults:
-  - /datamodule/word@
-  - _self_
-
-_target_: jula.datamodule.datasets.word_inference_dataset.WordInferenceDataset
-texts: []

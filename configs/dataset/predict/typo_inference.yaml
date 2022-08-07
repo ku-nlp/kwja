@@ -1,6 +1,0 @@
-defaults:
-  - /datamodule/typo@
-  - _self_
-
-_target_: jula.datamodule.datasets.typo_inference_dataset.TypoInferenceDataset
-texts: []

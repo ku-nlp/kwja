@@ -1,5 +1,0 @@
-defaults:
-  - /datamodule/word@fuman
-
-fuman:
-  path: ${oc.env:DATA_DIR}/fuman/train

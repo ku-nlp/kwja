@@ -1,6 +1,0 @@
-defaults:
-  - /datamodule/char@
-  - _self_
-
-_target_: jula.datamodule.datasets.char_inference_dataset.CharInferenceDataset
-texts: []

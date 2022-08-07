@@ -2,7 +2,7 @@ defaults:
   - base
   - callbacks: [early_stopping, model_checkpoint, model_summary, word_module_writer, progress_bar]
   - datamodule: word
-  - dataset: word_dataset
+  - dataset: word
   - logger: wandb
   - model: word_roberta_base
   - module: default

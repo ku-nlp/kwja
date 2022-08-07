@@ -1,0 +1,9 @@
+_target_: jula.datamodule.datasets.word_dataset.WordDataset
+model_name_or_path: ${model.model_name_or_path}
+max_seq_length: ${model.max_seq_length}
+tokenizer_kwargs: ${dataset.tokenizer_kwargs}
+special_tokens: ${dataset.special_tokens}
+cases: ${cases}
+bar_rels: ${bar_rels}
+exophora_referents: ${exophora_referents}
+cohesion_tasks: ${cohesion_tasks}

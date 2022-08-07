@@ -41,7 +41,7 @@ def main(cfg: DictConfig):
     else:
         raise ValueError("invalid config name")
 
-    cfg.dataset.predict.texts = sys.stdin.readlines()
+    cfg.datamodule.predict.texts = sys.stdin.readlines()
     datamodule = DataModule(cfg=cfg)
     datamodule.setup(stage=TrainerFn.PREDICTING)
 

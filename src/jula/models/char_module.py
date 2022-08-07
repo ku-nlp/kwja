@@ -19,8 +19,8 @@ class CharModule(LightningModule):
         self.hparams.update(hparams)
         self.save_hyperparameters()
 
-        self.valid_corpora = list(hparams.dataset.valid.keys())
-        self.test_corpora = list(hparams.dataset.test.keys())
+        self.valid_corpora = list(hparams.datamodule.valid.keys())
+        self.test_corpora = list(hparams.datamodule.test.keys())
 
         tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             hparams.model.model_name_or_path,
