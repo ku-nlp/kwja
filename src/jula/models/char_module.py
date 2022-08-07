@@ -19,15 +19,14 @@ class CharModule(LightningModule):
         self.hparams.update(hparams)
         self.save_hyperparameters()
 
-        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-            hparams.model.model_name_or_path,
-            **hydra.utils.instantiate(hparams.dataset.tokenizer_kwargs, _convert_="partial"),
-        )
-
         self.valid_corpora = list(hparams.dataset.valid.keys())
         self.test_corpora = list(hparams.dataset.test.keys())
 
-        self.char_encoder: CharEncoder = CharEncoder(hparams, self.tokenizer)
+        tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
+            hparams.model.model_name_or_path,
+            **hydra.utils.instantiate(hparams.dataset.tokenizer_kwargs, _convert_="partial"),
+        )
+        self.char_encoder: CharEncoder = CharEncoder(hparams, vocab_size=len(tokenizer.get_vocab()))
 
         pretrained_model_config: PretrainedConfig = self.char_encoder.pretrained_model.config
 
