@@ -29,4 +29,4 @@ class ReadingPredictorMetric(Metric):
         predictions = predictions[~unk_indexes]
         labels = labels[~unk_indexes]
         acc_unk = accuracy_score(labels.cpu().numpy(), predictions.cpu().numpy())
-        return {"reading_predictor_accuracy": acc - acc_unk}
+        return {"reading_predictor_accuracy": acc * (1 - acc_unk)}
