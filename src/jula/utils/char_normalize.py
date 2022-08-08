@@ -4,6 +4,8 @@ import numpy as np
 from jinf import Jinf
 from rhoknp import Morpheme
 
+from jula.utils.constants import IGNORE_CHARNORM_TYPE
+
 logger = logging.getLogger(__name__)
 
 # KATAKANA-HIRAGANA PROLONGED SOUND MARK (0x30fc)
@@ -150,18 +152,22 @@ class MorphemeNormalizer:
         self.jinf = Jinf()
 
     def get_normalization_opns(self, morpheme: Morpheme) -> list[str]:
-        if morpheme.conjtype == "*":
-            normalized = morpheme.surf
-        else:
-            normalized = self.jinf(morpheme.lemma, morpheme.conjtype, "基本形", morpheme.conjform)
-        return get_normalization_opns(morpheme.surf, normalized)
+        try:
+            if morpheme.conjtype == "*":
+                normalized = morpheme.surf
+            else:
+                normalized = self.jinf(morpheme.lemma, morpheme.conjtype, "基本形", morpheme.conjform)
+            return get_normalization_opns(morpheme.surf, normalized)
+        except ValueError:
+            logger.warning(f"failed to get normalized form of {morpheme.surf}")
+            return [IGNORE_CHARNORM_TYPE] * len(morpheme.surf)  # '_' is ignored during training
 
 
 def get_normalization_opns(surf: str, normalized: str) -> list[str]:
     surf_len = len(surf) + 1
     normalized_len = len(normalized) + 1
     if surf_len < normalized_len:
-        raise ValueError
+        raise ValueError(f"failed to construct normalization labels to convert {surf} to {normalized}")
     d = np.inf * np.ones((surf_len, normalized_len), dtype=np.int32)
     dops: list[list[str]] = []
     for i in range(surf_len):
@@ -207,11 +213,7 @@ def get_normalization_opns(surf: str, normalized: str) -> list[str]:
                 d[i, j] = costs[idx]
                 dops[i][j] = lops[idx]
     if np.isinf(d[-1, -1]):
-        logger.warning(
-            f"failed to get normalization labels to convert {surf} to {normalized}; "
-            f"return KEEP as normalization labels"
-        )
-        return ["K"] * len(surf)
+        raise ValueError(f"failed to construct normalization labels to convert {surf} to {normalized}")
     # backtracking
     i, j = surf_len - 1, normalized_len - 1
     ops = []

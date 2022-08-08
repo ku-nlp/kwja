@@ -402,7 +402,7 @@ python-versions = "*"
 
 [[package]]
 name = "jinf"
-version = "1.0.3"
+version = "1.0.4"
 description = "A Japanese inflection converter."
 category = "main"
 optional = false
@@ -416,7 +416,7 @@ pyknp = ["pyknp[pyknp] (>=0.6,<1.0)"]
 type = "git"
 url = "https://github.com/hkiyomaru/jinf.git"
 reference = "main"
-resolved_reference = "f9a56aa8c470ad8dc082e582f55c86f54fa533b3"
+resolved_reference = "9dea8c3d25dc68a57c61acf84d412a941e76efaf"
 
 [[package]]
 name = "joblib"

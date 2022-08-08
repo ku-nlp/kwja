@@ -8,7 +8,7 @@ from transformers.utils import PaddingStrategy
 
 from jula.datamodule.datasets.base_dataset import BaseDataset
 from jula.utils.char_normalize import MorphemeNormalizer
-from jula.utils.constants import CHARNORM_TYPES, ENE_TYPE_BIES, IGNORE_INDEX, SEG_TYPES
+from jula.utils.constants import CHARNORM_TYPES, ENE_TYPE_BIES, IGNORE_CHARNORM_TYPE, IGNORE_INDEX, SEG_TYPES
 
 
 class CharDataset(BaseDataset):
@@ -55,7 +55,10 @@ class CharDataset(BaseDataset):
         charnorm_labels: list[int] = []
         for morpheme in document.morphemes:
             for opn in self.normalizer.get_normalization_opns(morpheme):
-                charnorm_labels.append(CHARNORM_TYPES.index(opn))
+                if opn == IGNORE_CHARNORM_TYPE:
+                    charnorm_labels.append(IGNORE_INDEX)
+                else:
+                    charnorm_labels.append(CHARNORM_TYPES.index(opn))
         charnorm_labels = [IGNORE_INDEX] + charnorm_labels[: self.max_seq_length - 2] + [IGNORE_INDEX]
         charnorm_labels += [IGNORE_INDEX] * (self.max_seq_length - len(charnorm_labels))
 

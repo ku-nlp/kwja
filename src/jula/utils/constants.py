@@ -34,6 +34,7 @@ SEG_TYPES = ("B", "I")
 INDEX2SEG_TYPE = {index: seg_type for index, seg_type in enumerate(SEG_TYPES)}
 
 CHARNORM_TYPES = ("K", "D", "V", "S", "P", "E")
+IGNORE_CHARNORM_TYPE = "_"
 INDEX2CHARNORM_TYPE = {index: charnorm_type for index, charnorm_type in enumerate(CHARNORM_TYPES)}
 
 # 品詞
