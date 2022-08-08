@@ -74,7 +74,7 @@ class WordModule(LightningModule):
 
     def forward(self, **batch) -> dict[str, dict[str, torch.Tensor]]:
         # (batch_size, seq_len, hidden_size)
-        pooled_outputs = self.word_encoder(batch, PoolingStrategy.FIRST)
+        hast_hidden_states, pooled_outputs = self.word_encoder(batch, PoolingStrategy.FIRST)
         word_analyzer_outputs = self.word_analyzer(pooled_outputs, batch)
         phrase_analyzer_outputs = self.phrase_analyzer(pooled_outputs, batch)
         relation_analyzer_output = self.relation_analyzer(pooled_outputs, batch)
