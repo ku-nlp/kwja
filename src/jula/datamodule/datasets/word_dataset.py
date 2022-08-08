@@ -17,6 +17,7 @@ from jula.datamodule.examples import (
     CohesionExample,
     DependencyExample,
     DiscourseExample,
+    ReadingExample,
     Task,
     WordFeatureExample,
 )
@@ -45,6 +46,7 @@ class WordExampleSet:
     doc_id: str
     text: str  # space-delimited word sequence
     encoding: Encoding
+    reading_example: ReadingExample
     word_feature_example: WordFeatureExample
     base_phrase_feature_example: BasePhraseFeatureExample
     dependency_example: DependencyExample
@@ -131,6 +133,9 @@ class WordDataset(BaseDataset):
             if len(encoding.ids) > self.max_seq_length - self.num_special_tokens:
                 continue
 
+            reading_example = ReadingExample()
+            reading_example.load(document, aligner=self.reading_aligner)
+
             word_feature_example = WordFeatureExample()
             word_feature_example.load(document)
 
@@ -162,6 +167,7 @@ class WordDataset(BaseDataset):
                     doc_id=document.doc_id,
                     text=" ".join(words),
                     encoding=encoding,
+                    reading_example=reading_example,
                     word_feature_example=word_feature_example,
                     base_phrase_feature_example=base_phrase_feature_example,
                     dependency_example=dependency_example,
@@ -182,6 +188,24 @@ class WordDataset(BaseDataset):
         return self.encode(self.examples[index])
 
     def encode(self, example: WordExampleSet) -> dict[str, torch.Tensor]:
+        merged_encoding: Encoding = Encoding.merge([example.encoding, self.special_encoding])
+
+        # reading prediction
+        reading_example = example.reading_example
+        non_special_token_indexes = [
+            token_index
+            for token_index, word_id in enumerate(merged_encoding.word_ids)
+            if word_id is not None and token_index not in self.index_to_special
+        ]
+        reading_ids = [IGNORE_INDEX] * self.max_seq_length
+        for index, non_special_token_index in enumerate(non_special_token_indexes):
+            reading = reading_example.readings[index]
+            decoded_token = self.tokenizer.decode(merged_encoding.ids[non_special_token_index])
+            if reading == decoded_token:
+                reading_ids[non_special_token_index] = self.reading2id["[ID]"]
+            else:
+                reading_ids[non_special_token_index] = self.reading2id.get(reading, self.reading2id["[UNK]"])
+
         # NOTE: hereafter, indices are given at the word level
 
         # morpheme type tagging
@@ -256,14 +280,13 @@ class WordDataset(BaseDataset):
                     relation_index = DISCOURSE_RELATIONS.index(relation)
                     discourse_relations[global_morpheme_index_i][global_morpheme_index_j] = relation_index
 
-        merged_encoding: Encoding = Encoding.merge([example.encoding, self.special_encoding])
-
         return {
             "example_ids": torch.tensor(example.example_id, dtype=torch.long),
             "input_ids": torch.tensor(merged_encoding.ids, dtype=torch.long),
             "attention_mask": torch.tensor(merged_encoding.attention_mask, dtype=torch.long),
             "subword_map": torch.tensor(self._gen_subword_map(merged_encoding), dtype=torch.bool),
             "mrph_types": torch.tensor(morpheme_types, dtype=torch.long),
+            "reading_ids": torch.tensor(reading_ids, dtype=torch.long),
             "word_features": torch.tensor(word_features, dtype=torch.long),
             "base_phrase_features": torch.tensor(base_phrase_features, dtype=torch.long),
             "dependencies": torch.tensor(dependencies, dtype=torch.long),
@@ -277,7 +300,7 @@ class WordDataset(BaseDataset):
 
     @staticmethod
     def get_reading2id(path: str) -> dict[str, int]:
-        reading2id = {"[UNK]": 0}
+        reading2id = {"[UNK]": 0, "[ID]": 1}
         with open(path, "r") as f:
             for line in f:
                 reading2id[str(line.strip())] = len(reading2id)

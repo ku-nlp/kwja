@@ -1,10 +1,12 @@
-import sys
+import logging
 from functools import cached_property
 from pathlib import Path
 
 from rhoknp import Document
 from torch.utils.data import Dataset
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
+
+logger = logging.getLogger(__name__)
 
 
 class BaseDataset(Dataset):
@@ -41,7 +43,7 @@ class BaseDataset(Dataset):
                 document = Document.from_knp(file_path.read_text())
                 doc_id2document[document.doc_id] = document
             except AssertionError:
-                print(f"{file_path} is not a valid knp file.", file=sys.stderr)
+                logger.error(f"{file_path} is not a valid knp file.")
         return doc_id2document
 
     @cached_property

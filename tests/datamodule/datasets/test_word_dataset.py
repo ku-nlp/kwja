@@ -13,6 +13,7 @@ from jula.datamodule.examples import (
     CohesionExample,
     DependencyExample,
     DiscourseExample,
+    ReadingExample,
     Task,
     WordFeatureExample,
 )
@@ -64,6 +65,7 @@ def test_getitem():
         assert "input_ids" in item
         assert "attention_mask" in item
         assert "subword_map" in item
+        assert "reading_ids" in item
         assert "mrph_types" in item
         assert "word_features" in item
         assert "base_phrase_features" in item
@@ -78,6 +80,7 @@ def test_getitem():
         assert item["attention_mask"].shape == (max_seq_length,)
         assert item["subword_map"].shape == (max_seq_length, max_seq_length)
         assert (item["subword_map"].sum(dim=1) != 0).sum() == len(document.morphemes) + dataset.num_special_tokens
+        assert item["reading_ids"].shape == (max_seq_length,)
         assert item["mrph_types"].shape == (max_seq_length, 4)
         assert item["word_features"].shape == (max_seq_length, len(WORD_FEATURES))
         assert item["base_phrase_features"].shape == (max_seq_length, len(BASE_PHRASE_FEATURES))
@@ -130,6 +133,8 @@ def test_encode():
         truncation=False,
         max_length=dataset.max_seq_length - dataset.num_special_tokens,
     ).encodings[0]
+    reading_example = ReadingExample()
+    reading_example.load(document, dataset.reading_aligner)
     word_feature_example = WordFeatureExample()
     word_feature_example.load(document)
     base_phrase_feature_example = BasePhraseFeatureExample()
@@ -145,6 +150,7 @@ def test_encode():
         doc_id="",
         text=text,
         encoding=encoding,
+        reading_example=reading_example,
         word_feature_example=word_feature_example,
         base_phrase_feature_example=base_phrase_feature_example,
         dependency_example=dependency_example,
@@ -152,6 +158,24 @@ def test_encode():
         discourse_example=discourse_example,
     )
     encoding = dataset.encode(example)
+
+    reading_ids = [IGNORE_INDEX for _ in range(max_seq_length)]
+    # reading_ids[0]: CLS
+    reading_ids[1] = dataset.reading2id["かぜ"]  # 風
+    reading_ids[2] = dataset.reading2id["[ID]"]  # が
+    reading_ids[3] = dataset.reading2id["ふく"]  # 吹く
+    reading_ids[4] = dataset.reading2id["[ID]"]  # 。
+    reading_ids[5] = dataset.reading2id["[ID]"]  # する
+    reading_ids[6] = dataset.reading2id["[ID]"]  # と
+    reading_ids[7] = dataset.reading2id["[ID]"]  # _
+    reading_ids[8] = dataset.reading2id["おけ"]  # 桶
+    reading_ids[9] = dataset.reading2id["や"]  # 屋
+    reading_ids[10] = dataset.reading2id["[ID]"]  # が
+    reading_ids[11] = dataset.reading2id["[ID]"]  # _
+    reading_ids[12] = dataset.reading2id["もう"]  # 儲
+    reading_ids[13] = dataset.reading2id["[ID]"]  # か
+    reading_ids[14] = dataset.reading2id["[ID]"]  # る
+    reading_ids[15] = dataset.reading2id["[ID]"]  # 。
 
     mrph_types = [[IGNORE_INDEX] * 4 for _ in range(max_seq_length)]
     # 0: 風

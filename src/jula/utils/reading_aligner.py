@@ -155,20 +155,16 @@ class ReadingAligner:
     DELIMITER = "▁"
     kana_re = re.compile("^[\u3041-\u30FF]+$")
 
-    def __init__(
-        self,
-        tokenizer: PreTrainedTokenizerBase,
-        kanjidic: KanjiDic,
-    ):
+    def __init__(self, tokenizer: PreTrainedTokenizerBase, kanji_dic: KanjiDic) -> None:
         self.tokenizer = tokenizer
-        self.kanjidic = kanjidic
+        self.kanji_dic = kanji_dic
 
     def align(self, sequence: Union[Sentence, Document]) -> list[tuple[str, str]]:
-        rawinput = " ".join([morpheme.surf for morpheme in sequence.morphemes])
+        inp = " ".join([morpheme.surf for morpheme in sequence.morphemes])
         reading_list = []
 
         # assumption: morphemes are never combined
-        subword_list = self.tokenizer.tokenize(rawinput)
+        subword_list = self.tokenizer.tokenize(inp)
         subwords_per_morpheme = []
         for subword in subword_list:
             if subword[0] == self.DELIMITER:
@@ -235,11 +231,11 @@ class ReadingAligner:
         for i in range(len(surf)):
             ci = surf[i]
             kanji_reading_list = []
-            if ci in self.kanjidic.entries:
-                kanji_reading_list = self._extend_kanji_reading_list(self.kanjidic.entries[ci]["reading"])
+            if ci in self.kanji_dic.entries:
+                kanji_reading_list = self._extend_kanji_reading_list(self.kanji_dic.entries[ci]["reading"])
             elif i > 0 and ci == "々":
-                if surf[i - 1] in self.kanjidic.entries:
-                    kanji_reading_list = self._extend_kanji_reading_list(self.kanjidic.entries[surf[i - 1]]["reading"])
+                if surf[i - 1] in self.kanji_dic.entries:
+                    kanji_reading_list = self._extend_kanji_reading_list(self.kanji_dic.entries[surf[i - 1]]["reading"])
             for j in range(len(reading)):
                 cj = reading[j]
                 if jaconv.kata2hira(ci) == cj:
