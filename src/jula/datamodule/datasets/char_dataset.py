@@ -7,8 +7,8 @@ from transformers import BatchEncoding
 from transformers.utils import PaddingStrategy
 
 from jula.datamodule.datasets.base_dataset import BaseDataset
-from jula.utils.char_normalize import MorphemeNormalizer
-from jula.utils.constants import CHARNORM_TYPES, ENE_TYPE_BIES, IGNORE_CHARNORM_TYPE, IGNORE_INDEX, SEG_TYPES
+from jula.utils.constants import ENE_TYPE_BIES, IGNORE_INDEX, IGNORE_WORD_NORM_TYPE, SEG_TYPES, WORD_NORM_TYPES
+from jula.utils.word_normalize import MorphemeNormalizer
 
 
 class CharDataset(BaseDataset):
@@ -52,15 +52,15 @@ class CharDataset(BaseDataset):
         seg_labels = [IGNORE_INDEX] + seg_labels[: self.max_seq_length - 2] + [IGNORE_INDEX]
         seg_labels += [IGNORE_INDEX] * (self.max_seq_length - len(seg_labels))
 
-        charnorm_labels: list[int] = []
+        word_norm_labels: list[int] = []
         for morpheme in document.morphemes:
             for opn in self.normalizer.get_normalization_opns(morpheme):
-                if opn == IGNORE_CHARNORM_TYPE:
-                    charnorm_labels.append(IGNORE_INDEX)
+                if opn == IGNORE_WORD_NORM_TYPE:
+                    word_norm_labels.append(IGNORE_INDEX)
                 else:
-                    charnorm_labels.append(CHARNORM_TYPES.index(opn))
-        charnorm_labels = [IGNORE_INDEX] + charnorm_labels[: self.max_seq_length - 2] + [IGNORE_INDEX]
-        charnorm_labels += [IGNORE_INDEX] * (self.max_seq_length - len(charnorm_labels))
+                    word_norm_labels.append(WORD_NORM_TYPES.index(opn))
+        word_norm_labels = [IGNORE_INDEX] + word_norm_labels[: self.max_seq_length - 2] + [IGNORE_INDEX]
+        word_norm_labels += [IGNORE_INDEX] * (self.max_seq_length - len(word_norm_labels))
 
         raw_ene_ids: list[list[int]] = self.get_ene_ids(document.text)
         ene_ids: list[list[int]] = []
@@ -74,7 +74,7 @@ class CharDataset(BaseDataset):
             "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
             "ene_ids": torch.tensor(ene_ids, dtype=torch.long),
             "seg_labels": torch.tensor(seg_labels, dtype=torch.long),
-            "charnorm_labels": torch.tensor(charnorm_labels, dtype=torch.long),
+            "word_norm_labels": torch.tensor(word_norm_labels, dtype=torch.long),
         }
 
     def get_ene_ids(self, text: str) -> list[list[int]]:

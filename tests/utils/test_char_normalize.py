@@ -1,7 +1,7 @@
 import pytest
 from rhoknp import Morpheme
 
-from jula.utils.char_normalize import MorphemeNormalizer, get_normalization_opns, get_normalized
+from jula.utils.word_normalize import MorphemeNormalizer, get_normalization_opns, get_normalized
 
 wellformed_list = [
     ("なぁ", ["K", "S"], "なあ"),

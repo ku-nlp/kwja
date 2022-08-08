@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from omegaconf import DictConfig
 from transformers import PretrainedConfig
 
-from jula.utils.constants import CHARNORM_TYPES, IGNORE_INDEX
+from jula.utils.constants import IGNORE_INDEX, WORD_NORM_TYPES
 
 
 class WordNormalizer(nn.Module):
@@ -13,7 +13,7 @@ class WordNormalizer(nn.Module):
         self.hparams = hparams
 
         self.hidden_size: int = pretrained_model_config.hidden_size
-        self.num_labels: int = len(CHARNORM_TYPES)
+        self.num_labels: int = len(WORD_NORM_TYPES)
         self.cls = nn.Sequential(
             nn.Linear(self.hidden_size, self.hidden_size),
             nn.ReLU(),
@@ -23,13 +23,13 @@ class WordNormalizer(nn.Module):
 
     def forward(self, encoder_output: torch.Tensor, inputs: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         output: dict[str, torch.Tensor] = dict()
-        logits = self.cls(encoder_output)  # (b, seq_len, charnorm_label_num)
+        logits = self.cls(encoder_output)  # (b, seq_len, word_norm_label_num)
         output["logits"] = logits
-        if "charnorm_labels" in inputs:
-            charnorm_loss = F.cross_entropy(
+        if "word_norm_labels" in inputs:
+            word_norm_loss = F.cross_entropy(
                 input=logits.reshape(-1, self.num_labels),
-                target=inputs["charnorm_labels"].view(-1),
+                target=inputs["word_norm_labels"].view(-1),
                 ignore_index=IGNORE_INDEX,
             )
-            output["loss"] = charnorm_loss
+            output["loss"] = word_norm_loss
         return output

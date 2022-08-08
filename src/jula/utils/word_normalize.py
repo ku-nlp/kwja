@@ -4,7 +4,7 @@ import numpy as np
 from jinf import Jinf
 from rhoknp import Morpheme
 
-from jula.utils.constants import IGNORE_CHARNORM_TYPE
+from jula.utils.constants import IGNORE_WORD_NORM_TYPE
 
 logger = logging.getLogger(__name__)
 
@@ -160,7 +160,7 @@ class MorphemeNormalizer:
             return get_normalization_opns(morpheme.surf, normalized)
         except ValueError as e:
             logger.info(f"failed to get normalized form of {morpheme.surf}: {e}")
-            return [IGNORE_CHARNORM_TYPE] * len(morpheme.surf)
+            return [IGNORE_WORD_NORM_TYPE] * len(morpheme.surf)
 
 
 def get_normalization_opns(surf: str, normalized: str) -> list[str]:

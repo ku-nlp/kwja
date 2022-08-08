@@ -101,4 +101,4 @@ def test_encode():
     # 8: 。
     assert encoding["ene_ids"].tolist() == ene_ids
 
-    assert len(list(filter(lambda x: x == 0, encoding["charnorm_labels"]))) == 16
+    assert len(list(filter(lambda x: x == 0, encoding["word_norm_labels"]))) == 16

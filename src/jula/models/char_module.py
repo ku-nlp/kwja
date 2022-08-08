@@ -74,8 +74,8 @@ class CharModule(LightningModule):
         self.valid_word_segmenter_metrics[corpus].update(**word_segmenter_args)
         self.log("valid/word_segmenter_loss", outputs["word_segmenter_outputs"]["loss"])
         word_normalizer_args = {
-            "charnorm_preds": torch.argmax(outputs["word_normalizer_outputs"]["logits"], dim=-1),
-            "charnorm_labels": batch["charnorm_labels"],
+            "word_norm_preds": torch.argmax(outputs["word_normalizer_outputs"]["logits"], dim=-1),
+            "word_norm_labels": batch["word_norm_labels"],
         }
         self.valid_word_normalizer_metrics[corpus].update(**word_normalizer_args)
         self.log("valid/word_normalizer_loss", outputs["word_normalizer_outputs"]["loss"])
@@ -112,8 +112,8 @@ class CharModule(LightningModule):
         self.test_word_segmenter_metrics[corpus].update(**word_segmenter_args)
         self.log("test/word_segmenter_loss", outputs["word_segmenter_outputs"]["loss"])
         word_normalizer_args = {
-            "charnorm_preds": torch.argmax(outputs["word_normalizer_outputs"]["logits"], dim=-1),
-            "charnorm_labels": batch["charnorm_labels"],
+            "word_norm_preds": torch.argmax(outputs["word_normalizer_outputs"]["logits"], dim=-1),
+            "word_norm_labels": batch["word_norm_labels"],
         }
         self.test_word_normalizer_metrics[corpus].update(**word_normalizer_args)
         self.log("test/word_normalizer_loss", outputs["word_normalizer_outputs"]["loss"])
