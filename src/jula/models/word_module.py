@@ -80,10 +80,12 @@ class WordModule(LightningModule):
     def forward(self, **batch) -> dict[str, dict[str, torch.Tensor]]:
         # (batch_size, seq_len, hidden_size)
         hast_hidden_states, pooled_outputs = self.word_encoder(batch, PoolingStrategy.FIRST)
+        reading_predictor_outputs = self.reading_predictor(hast_hidden_states, batch)
         word_analyzer_outputs = self.word_analyzer(pooled_outputs, batch)
         phrase_analyzer_outputs = self.phrase_analyzer(pooled_outputs, batch)
         relation_analyzer_output = self.relation_analyzer(pooled_outputs, batch)
         return {
+            "reading_predictor_outputs": reading_predictor_outputs,
             "word_analyzer_outputs": word_analyzer_outputs,
             "phrase_analyzer_outputs": phrase_analyzer_outputs,
             "relation_analyzer_outputs": relation_analyzer_output,
@@ -92,6 +94,8 @@ class WordModule(LightningModule):
     def training_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
         batch["training"] = True
         outputs: dict[str, torch.Tensor] = self(**batch)
+        reading_predictor_loss = outputs["reading_predictor_outputs"]["loss"]
+        self.log("train/reading_predictor_loss", reading_predictor_loss)
         word_analysis_loss = outputs["word_analyzer_outputs"]["loss"]
         self.log("train/word_analysis_loss", word_analysis_loss)
         word_feature_loss = outputs["phrase_analyzer_outputs"]["word_feature_loss"]
@@ -107,7 +111,8 @@ class WordModule(LightningModule):
         discourse_parsing_loss = outputs["relation_analyzer_outputs"]["discourse_parsing_loss"]
         self.log("train/discourse_parsing_loss", discourse_parsing_loss)
         return (
-            word_analysis_loss
+            reading_predictor_loss
+            + word_analysis_loss
             + word_feature_loss
             + base_phrase_feature_loss
             + dependency_loss

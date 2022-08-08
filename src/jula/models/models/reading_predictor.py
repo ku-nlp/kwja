@@ -40,5 +40,5 @@ class ReadingPredictor(nn.Module):
                 target=batch["reading_ids"].view(-1),
                 ignore_index=IGNORE_INDEX,
             )
-            outputs["reading_predictor_loss"] = loss
+            outputs["loss"] = loss
         return outputs
