@@ -1,22 +1,24 @@
+import sys
 from typing import Union
 
 import hydra
 import pytorch_lightning as pl
-import transformers.utils.logging as hf_logging
 from dotenv import load_dotenv
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning.callbacks import Callback
-from torch.utils.data import DataLoader
+from pytorch_lightning.trainer.states import TrainerFn
 
-from jula.datamodule.datasets.raw_text_dataset import RawTextDataset
+from jula.cli.utils import suppress_debug_info
+from jula.datamodule.datamodule import DataModule
 from jula.models.char_module import CharModule
 from jula.models.typo_module import TypoModule
 from jula.models.word_module import WordModule
 
-hf_logging.set_verbosity(hf_logging.ERROR)
+suppress_debug_info()
+OmegaConf.register_new_resolver("concat", lambda x, y: x + y)
 
 
-@hydra.main(version_base=None, config_path="../configs", config_name="word_segmenter")
+@hydra.main(version_base=None, config_path="../configs")
 def main(cfg: DictConfig):
     load_dotenv()
     if isinstance(cfg.devices, str):
@@ -25,20 +27,17 @@ def main(cfg: DictConfig):
         except ValueError:
             cfg.devices = None
 
-    callbacks: list[Callback] = []
-    for k, v in cfg.get("callbacks", {}).items():
-        if k == "prediction_writer":
-            callbacks.append(hydra.utils.instantiate(v, use_stdout=True))
+    callbacks: list[Callback] = [hydra.utils.instantiate(cfg.callbacks.prediction_writer, use_stdout=True)]
 
     trainer: pl.Trainer = hydra.utils.instantiate(
         cfg.trainer,
         logger=None,
+        enable_progress_bar=False,
         callbacks=callbacks,
         devices=cfg.devices,
     )
 
     model: Union[TypoModule, CharModule, WordModule]
-    # add config name if you want
     if cfg.config_name in cfg.module.typo:
         model = TypoModule.load_from_checkpoint(checkpoint_path=cfg.checkpoint_path, hparams=cfg)
     elif cfg.config_name in cfg.module.char:
@@ -46,24 +45,13 @@ def main(cfg: DictConfig):
     elif cfg.config_name in cfg.module.word:
         model = WordModule.load_from_checkpoint(checkpoint_path=cfg.checkpoint_path, hparams=cfg)
     else:
-        raise ValueError("invalid config name")
+        raise ValueError(f"invalid config name: `{cfg.config_name}`")
 
-    inp = input()
+    cfg.datamodule.predict.texts = sys.stdin.readlines()
+    datamodule = DataModule(cfg=cfg.datamodule)
+    datamodule.setup(stage=TrainerFn.PREDICTING)
 
-    # TODO: Use hydra for configuration
-    dataset = RawTextDataset(
-        inp.split("\n"),
-        model_name_or_path=cfg.datamodule.model_name_or_path,
-        max_seq_length=cfg.datamodule.max_seq_length,
-        tokenizer_kwargs=cfg.datamodule.tokenizer_kwargs,
-    )
-    dataloader = DataLoader(
-        dataset,
-        batch_size=cfg.batch_size,
-        shuffle=False,
-        pin_memory=True,
-    )
-    trainer.predict(model=model, dataloaders=dataloader)
+    trainer.predict(model=model, dataloaders=datamodule.predict_dataloader())
 
 
 if __name__ == "__main__":

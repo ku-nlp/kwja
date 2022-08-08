@@ -23,7 +23,7 @@
     precision: 1.0000 (2/2)
     recall   : 1.0000 (2/2)
     F        : 1.0000
-  all
+  pas
     precision: 1.0000 (2/2)
     recall   : 1.0000 (2/2)
     F        : 1.0000
@@ -52,7 +52,7 @@
     precision: 1.0000 (1/1)
     recall   : 1.0000 (1/1)
     F        : 1.0000
-  all
+  pas
     precision: 1.0000 (1/1)
     recall   : 0.5000 (1/2)
     F        : 0.6667
@@ -81,7 +81,7 @@ all_case
     precision: 1.0000 (3/3)
     recall   : 1.0000 (3/3)
     F        : 1.0000
-  all
+  pas
     precision: 1.0000 (3/3)
     recall   : 0.7500 (3/4)
     F        : 0.8571

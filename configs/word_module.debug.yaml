@@ -2,7 +2,7 @@ defaults:
   - base
   - callbacks: [early_stopping, model_checkpoint, model_summary, progress_bar]
   - datamodule: word
-  - dataset: word_dataset
+  - dataset: word
   - logger: wandb
   - model: word_roberta_base
   - module: default
@@ -22,10 +22,19 @@ cases: ["ガ", "ヲ", "ニ", "ガ２"]
 bar_rels: ["ノ"]
 exophora_referents: ["著者", "読者", "不特定:人", "不特定:物"]
 cohesion_tasks: [pas_analysis, bridging, coreference]  # pas_analysis, bridging, and/or coreference
+restrict_cohesion_target: True
 
 # set monitor and mode for early_stopping and model_checkpoint
-monitor: valid/f1
+monitor: valid/aggregated_word_metrics
 mode: max
+aggregating_metrics: [
+  "word_analysis_f1",
+  "macro_word_feature_f1",
+  "macro_base_phrase_feature_f1",
+  "base_phrase_LAS_f1",
+  "pas_all_case",
+  "discourse_parsing_f1_no_relation_ignored",
+]
 # batch size
 batch_size: 4
 accumulate_grad_batches: 1

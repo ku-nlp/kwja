@@ -5,9 +5,10 @@ import hydra
 import torch
 from omegaconf import DictConfig
 from pytorch_lightning.core.lightning import LightningModule
-from transformers import AutoTokenizer, PretrainedConfig, PreTrainedTokenizer
+from pytorch_lightning.utilities.types import STEP_OUTPUT
+from transformers import AutoTokenizer, PretrainedConfig, PreTrainedTokenizerBase
 
-from jula.evaluators.word_segmenter import WordSegmenterMetric
+from jula.evaluators.word_segmentation_metric import WordSegmentationMetric
 from jula.models.models.char_encoder import CharEncoder
 from jula.models.models.word_segmenter import WordSegmenter
 
@@ -18,35 +19,31 @@ class CharModule(LightningModule):
         self.hparams.update(hparams)
         self.save_hyperparameters()
 
-        self.tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(
+        self.valid_corpora = list(hparams.datamodule.valid.keys())
+        self.test_corpora = list(hparams.datamodule.test.keys())
+
+        tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             hparams.model.model_name_or_path,
-            **hydra.utils.instantiate(hparams.dataset.tokenizer_kwargs, _convert_="partial"),
+            **hydra.utils.instantiate(hparams.dataset.tokenizer_kwargs),
         )
+        self.char_encoder: CharEncoder = CharEncoder(hparams, vocab_size=len(tokenizer.get_vocab()))
 
-        self.valid_corpora = list(hparams.dataset.valid.keys())
-        self.test_corpora = list(hparams.dataset.test.keys())
-
-        self.char_encoder: CharEncoder = CharEncoder(hparams, self.tokenizer)
         pretrained_model_config: PretrainedConfig = self.char_encoder.pretrained_model.config
-        self.word_segmenter: WordSegmenter = WordSegmenter(
-            hparams=hparams,
-            pretrained_model_config=pretrained_model_config,
-        )
-        self.valid_word_segmenter_metrics: dict[str, WordSegmenterMetric] = {
-            corpus: WordSegmenterMetric() for corpus in self.valid_corpora
+
+        self.word_segmenter: WordSegmenter = WordSegmenter(hparams, pretrained_model_config)
+        self.valid_word_segmenter_metrics: dict[str, WordSegmentationMetric] = {
+            corpus: WordSegmentationMetric() for corpus in self.valid_corpora
         }
-        self.test_word_segmenter_metrics: dict[str, WordSegmenterMetric] = {
-            corpus: WordSegmenterMetric() for corpus in self.test_corpora
+        self.test_word_segmenter_metrics: dict[str, WordSegmentationMetric] = {
+            corpus: WordSegmentationMetric() for corpus in self.test_corpora
         }
 
     def forward(self, **kwargs) -> dict[str, dict[str, torch.Tensor]]:
         encoder_output = self.char_encoder(kwargs)  # (b, seq_len, h)
         word_segmenter_outputs = self.word_segmenter(encoder_output, kwargs)
-        return {
-            "word_segmenter_outputs": word_segmenter_outputs,
-        }
+        return {"word_segmenter_outputs": word_segmenter_outputs}
 
-    def training_step(self, batch: Any, batch_idx: int) -> dict[str, Any]:
+    def training_step(self, batch: Any, batch_idx: int) -> STEP_OUTPUT:
         outputs: dict[str, dict[str, torch.Tensor]] = self(**batch)
         self.log(
             "train/word_segmenter_loss",
@@ -64,10 +61,7 @@ class CharModule(LightningModule):
             "seg_labels": batch["seg_labels"],
         }
         self.valid_word_segmenter_metrics[corpus].update(**word_segmenter_args)
-        self.log(
-            "valid/word_segmenter_loss",
-            outputs["word_segmenter_outputs"]["loss"],
-        )
+        self.log("valid/word_segmenter_loss", outputs["word_segmenter_outputs"]["loss"])
 
     def validation_epoch_end(self, validation_step_outputs) -> None:
         f1s: list[float] = []
@@ -78,12 +72,8 @@ class CharModule(LightningModule):
                     word_segmenter_f1 += value
                 self.log(f"valid_{corpus}/{name}", value)
                 metric.reset()
-        self.log(
-            "valid/word_segmenter_f1",
-            word_segmenter_f1 / len(self.valid_word_segmenter_metrics),
-        )
+        self.log("valid/word_segmenter_f1", word_segmenter_f1 / len(self.valid_word_segmenter_metrics))
         f1s.append(word_segmenter_f1 / len(self.valid_word_segmenter_metrics))
-
         self.log("valid/f1", mean(f1s))
 
     def test_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Any:
@@ -94,10 +84,7 @@ class CharModule(LightningModule):
             "seg_labels": batch["seg_labels"],
         }
         self.test_word_segmenter_metrics[corpus].update(**word_segmenter_args)
-        self.log(
-            "test/word_segmenter_loss",
-            outputs["word_segmenter_outputs"]["loss"],
-        )
+        self.log("test/word_segmenter_loss", outputs["word_segmenter_outputs"]["loss"])
 
     def test_epoch_end(self, test_step_outputs) -> None:
         f1s: list[float] = []
@@ -108,20 +95,16 @@ class CharModule(LightningModule):
                     word_segmenter_f1 += value
                 self.log(f"test_{corpus}/{name}", value)
                 metric.reset()
-        self.log(
-            "test/word_segmenter_f1",
-            word_segmenter_f1 / len(self.test_word_segmenter_metrics),
-        )
+        self.log("test/word_segmenter_f1", word_segmenter_f1 / len(self.test_word_segmenter_metrics))
         f1s.append(word_segmenter_f1 / len(self.test_word_segmenter_metrics))
-
         self.log("test/f1", mean(f1s))
 
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Any:
         outputs: dict[str, dict[str, torch.Tensor]] = self(**batch)
         return {
-            "example_ids": batch["example_ids"],
+            "dataloader_idx": dataloader_idx or 0,
+            "input_ids": batch["input_ids"],
             "word_segmenter_logits": outputs["word_segmenter_outputs"]["logits"],
-            "word_segmenter_labels": batch["seg_labels"],
         }
 
     def configure_optimizers(self):

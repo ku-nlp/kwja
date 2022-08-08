@@ -5,7 +5,7 @@ from torchmetrics import Metric
 from jula.datamodule.datasets.word_dataset import WordDataset
 from jula.datamodule.examples import CohesionExample, Task
 from jula.evaluators.cohesion_scorer import Scorer, ScoreResult
-from jula.writer.cohesion import CohesionKNPWriter
+from jula.utils.cohesion import CohesionKNPWriter
 
 
 class CohesionAnalysisMetric(Metric):
@@ -27,7 +27,7 @@ class CohesionAnalysisMetric(Metric):
         assert len(output) == len(example_ids)
         for out, eid in zip(output, example_ids):
             self.example_ids.append(eid)
-            gold_example: CohesionExample = dataset.cohesion_examples[dataset.document_ids[eid.item()]]
+            gold_example: CohesionExample = dataset.examples[eid.item()].cohesion_example
             # (rel, phrase, 0 or phrase+special)
             preds: list[list[list[float]]] = dataset.dump_prediction(out.tolist(), gold_example)
             self.predictions.append(
@@ -57,7 +57,7 @@ class CohesionAnalysisMetric(Metric):
             exophora_referents=dataset.exophora_referents,
             coreference=(Task.COREFERENCE in dataset.cohesion_tasks),
             bridging=(Task.BRIDGING in dataset.cohesion_tasks),
-            pas_target=targets2label[tuple(dataset.pas_targets)],
+            pas_target=targets2label[tuple(dataset.extractors[Task.PAS_ANALYSIS].pas_targets)],
         )
         score_result: ScoreResult = scorer.run()
 

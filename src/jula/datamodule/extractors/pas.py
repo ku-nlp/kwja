@@ -3,8 +3,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 
 from rhoknp import BasePhrase, Document
-from rhoknp.rel import Argument, ArgumentType, ExophoraReferent, SpecialArgument
-from rhoknp.rel.pas import BaseArgument
+from rhoknp.cohesion import Argument, ArgumentType, EndophoraArgument, ExophoraArgument, ExophoraReferent
 
 from .base import Extractor, Phrase
 
@@ -20,12 +19,12 @@ class PasExtractor(Extractor):
     def __init__(
         self,
         cases: list[str],
-        pas_targets: list[str],
         exophors: list[ExophoraReferent],
+        restrict_target: bool,
         kc: bool = False,
     ) -> None:
-        self.pas_targets = pas_targets
-        super().__init__(exophors, kc)
+        self.pas_targets = ["pred", "noun"]
+        super().__init__(exophors, restrict_target=restrict_target, kc=kc)
         self.cases = cases
 
     def extract(
@@ -43,7 +42,6 @@ class PasExtractor(Extractor):
                     continue
                 candidates: list[int] = [bp.global_index for bp in bp_list if self.is_candidate(bp, anaphor) is True]
                 phrases[anaphor.global_index].candidates = candidates
-                # arguments = document.get_arguments(anaphor, relax=False)
                 for case in self.cases:
                     arguments = anaphor.pas.get_arguments(case, relax=False)
                     arguments_set[anaphor.global_index][case] = self._get_args(arguments, candidates)
@@ -52,7 +50,7 @@ class PasExtractor(Extractor):
 
     def _get_args(
         self,
-        orig_args: list[BaseArgument],
+        orig_args: list[Argument],
         candidates: list[int],
     ) -> list[str]:
         """Get string representations of orig_args.
@@ -61,12 +59,12 @@ class PasExtractor(Extractor):
         case: {dmid}%N
         zero: {dmid}%O
         exophor: {exophor}
-        no arg: NULL
+        no arg: [NULL]
         """
         # filter out non-target exophors
-        args: list[BaseArgument] = []
+        args: list[Argument] = []
         for arg in orig_args:
-            if isinstance(arg, SpecialArgument):
+            if isinstance(arg, ExophoraArgument):
                 arg.exophora_referent = self._relax_exophora_referent(arg.exophora_referent)
                 if arg.exophora_referent in self.exophora_referents:
                     args.append(arg)
@@ -78,7 +76,7 @@ class PasExtractor(Extractor):
             return ["[NULL]"]
         arg_strings: list[str] = []
         for arg in args:
-            if isinstance(arg, Argument):
+            if isinstance(arg, EndophoraArgument):
                 if arg.base_phrase.global_index not in candidates:
                     logger.debug(f"argument: {arg} is not in candidates and ignored")
                     continue
@@ -97,7 +95,7 @@ class PasExtractor(Extractor):
         return arg_strings
 
     def is_target(self, bp: BasePhrase) -> bool:
-        return self.is_pas_target(
+        return self.restrict_target is False or self.is_pas_target(
             bp,
             verbal=("pred" in self.pas_targets),
             nominal=("noun" in self.pas_targets),

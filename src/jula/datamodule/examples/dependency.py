@@ -1,12 +1,11 @@
 from rhoknp import Document
-from rhoknp.units.utils import DepType
+from rhoknp.props import DepType
 
 
 class DependencyExample:
     """A single training/test example for dependency parsing."""
 
     def __init__(self) -> None:
-        self.example_id: int = -1
         self.doc_id: str = ""
         self.dependencies: list[int] = []  # 形態素単位係り受け
         self.candidates: list[list[int]] = []  # 形態素単位係り先選択候補

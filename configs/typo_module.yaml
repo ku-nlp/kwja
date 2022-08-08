@@ -1,0 +1,27 @@
+defaults:
+  - base
+  - callbacks: [early_stopping, model_checkpoint, model_summary, typo_module_writer, progress_bar]
+  - datamodule: typo
+  - dataset: typo
+  - logger: wandb
+  - model: char_roberta_large
+  - module: default
+  - optimizer: adamw
+  - scheduler: constant_schedule_with_warmup
+  - trainer: default
+  - _self_
+
+devices: ${oc.env:GPUS,0}
+do_predict_after_train: True
+checkpoint_path: ""
+
+# set monitor and mode for early_stopping and model_checkpoint
+monitor: valid/loss
+mode: min
+# batch size
+batch_size: 2
+accumulate_grad_batches: 32
+# option
+confidence_threshold: 0.9   # valid only for inference
+# scheduler options
+warmup_steps: 100

@@ -1,51 +1,13 @@
-from collections import defaultdict
 from typing import Union
 
 import torch
 from rhoknp import BasePhrase, Document, Morpheme
-from rhoknp.units.utils import DepType
+from rhoknp.props import DepType
 from torchmetrics import Metric
 
-from jula.evaluators.my_conll18_ud_eval import main as conll18_ud_eval
+from jula.evaluators.conll18_ud_eval import main as conll18_ud_eval
 from jula.utils.constants import INDEX2DEPENDENCY_TYPE
-
-
-class DependencyManager:
-    def __init__(self) -> None:
-        self.directed_graph: dict[int, set] = defaultdict(set)
-        self.root = False
-
-    def add_edge(self, src: int, dst: int) -> None:
-        self.directed_graph[src].add(dst)
-
-    def remove_edge(self, src: int, dst: int) -> None:
-        self.directed_graph[src].remove(dst)
-
-    def is_cyclic(self, src: int, visited: set[int], cache: dict[int, bool]) -> bool:
-        if src in cache:
-            return cache[src]
-
-        if src in visited:
-            return True
-        else:
-            visited.add(src)
-
-        ret = False
-        for dst in self.directed_graph[src]:
-            if self.is_cyclic(dst, visited, cache):
-                ret = True
-                break
-
-        cache[src] = ret
-        return ret
-
-    def has_cycle(self) -> bool:
-        visited: set[int] = set()
-        cache: dict[int, bool] = {}
-        for src in list(self.directed_graph.keys()):
-            if self.is_cyclic(src, visited, cache):
-                return True
-        return False
+from jula.utils.dependency_parsing import DependencyManager
 
 
 class DependencyParsingMetric(Metric):
@@ -231,10 +193,10 @@ class DependencyParsingMetric(Metric):
             if src == self.get_number_of_units(unit) and not dependency_manager.root:
                 system_head, system_deprel = 0, DepType.DEPENDENCY
             else:
-                system_head, system_deprel = self.resolve_dependency(unit, dependency_manager)
+                system_head, system_deprel = self._resolve_dependency(unit, dependency_manager)
         return system_head, system_deprel
 
-    def resolve_dependency(
+    def _resolve_dependency(
         self, unit: Union[BasePhrase, Morpheme], dependency_manager: DependencyManager
     ) -> tuple[int, DepType]:
         src = unit.index + 1

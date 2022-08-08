@@ -8,37 +8,36 @@ do
     s) SCRIPTS="$OPTARG" ;;
     j) JOBS="$OPTARG" ;;
     o) OUT_DIR="$OPTARG" ;;
-    *) echo "invalid option";;
+    *)
+      echo "invalid option"
+      exit ;;
   esac
 done
 
 # shellcheck source=/dev/null
 source "$ACTIVATOR"
-mkdir -p "$WORK_DIR" "$OUT_DIR"/{kwdlc,fuman}
-cd "$WORK_DIR" || return
-git clone git@github.com:ku-nlp/KyotoCorpusFull.git
-git clone git@github.com:ku-nlp/KWDLC.git
-git clone git@github.com:ku-nlp/AnnotatedFKCCorpus.git
-python "$SCRIPTS"/add_features.py KyotoCorpusFull/knp kyoto/knp -j "$JOBS"
-python "$SCRIPTS"/add_features.py KWDLC/knp kwdlc/knp -j "$JOBS"
-python "$SCRIPTS"/add_features.py AnnotatedFKCCorpus/knp fuman/knp -j "$JOBS"
-mkdir -p kyoto/split
+mkdir -p "$WORK_DIR" "$OUT_DIR"/{kyoto,kwdlc,fuman}
+git clone git@github.com:ku-nlp/KyotoCorpusFull.git "$WORK_DIR"/KyotoCorpusFull
+git clone git@github.com:ku-nlp/KWDLC.git "$WORK_DIR"/KWDLC
+git clone git@github.com:ku-nlp/AnnotatedFKCCorpus.git "$WORK_DIR"/AnnotatedFKCCorpus
+python "$SCRIPTS"/add_features.py "$WORK_DIR"/KyotoCorpusFull/knp "$WORK_DIR"/kyoto/knp -j "$JOBS"
+python "$SCRIPTS"/add_features.py "$WORK_DIR"/KWDLC/knp "$WORK_DIR"/kwdlc/knp -j "$JOBS"
+python "$SCRIPTS"/add_features.py "$WORK_DIR"/AnnotatedFKCCorpus/knp "$WORK_DIR"/fuman/knp -j "$JOBS"
 kyoto idsplit \
-  --corpus-dir kyoto/knp \
-  --output-dir kyoto/split \
-  --train KyotoCorpusFull/id/full/train.id \
-  --valid KyotoCorpusFull/id/full/dev.id \
-  --test KyotoCorpusFull/id/full/test.id
+  --corpus-dir "$WORK_DIR"/kyoto/knp \
+  --output-dir "$OUT_DIR"/kyoto \
+  --train "$WORK_DIR"/KyotoCorpusFull/id/full/train.id \
+  --valid "$WORK_DIR"/KyotoCorpusFull/id/full/dev.id \
+  --test "$WORK_DIR"/KyotoCorpusFull/id/full/test.id
 kyoto idsplit \
-  --corpus-dir kwdlc/knp \
+  --corpus-dir "$WORK_DIR"/kwdlc/knp \
   --output-dir "$OUT_DIR"/kwdlc \
-  --train KWDLC/id/split_for_pas/train.id \
-  --valid KWDLC/id/split_for_pas/dev.id \
-  --test KWDLC/id/split_for_pas/test.id
+  --train "$WORK_DIR"/KWDLC/id/split_for_pas/train.id \
+  --valid "$WORK_DIR"/KWDLC/id/split_for_pas/dev.id \
+  --test "$WORK_DIR"/KWDLC/id/split_for_pas/test.id
 kyoto idsplit \
-  --corpus-dir fuman/knp \
+  --corpus-dir "$WORK_DIR"/fuman/knp \
   --output-dir "$OUT_DIR"/fuman \
-  --train AnnotatedFKCCorpus/id/split_for_pas/train.id \
-  --valid AnnotatedFKCCorpus/id/split_for_pas/dev.id \
-  --test AnnotatedFKCCorpus/id/split_for_pas/test.id
-python "$SCRIPTS"/split_document.py kyoto/split "$OUT_DIR"/kyoto
+  --train "$WORK_DIR"/AnnotatedFKCCorpus/id/split_for_pas/train.id \
+  --valid "$WORK_DIR"/AnnotatedFKCCorpus/id/split_for_pas/dev.id \
+  --test "$WORK_DIR"/AnnotatedFKCCorpus/id/split_for_pas/test.id

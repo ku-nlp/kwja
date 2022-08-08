@@ -2,10 +2,9 @@ import json
 from pathlib import Path
 from typing import Union
 
-import hydra
 import torch
 from torch.utils.data import Dataset
-from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizer
+from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
 from jula.utils.constants import TYPO_DUMMY_TOKEN, TYPO_OPN2TOKEN
@@ -26,10 +25,9 @@ class TypoDataset(Dataset):
         self.documents = self.load_documents(self.path)
         assert len(self) != 0
 
-        tokenizer_kwargs = tokenizer_kwargs or {}
-        self.tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(
+        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             model_name_or_path,
-            **hydra.utils.instantiate(tokenizer_kwargs, _convert_="partial"),
+            **(tokenizer_kwargs or {}),
         )
         assert self.tokenizer.pad_token_id is not None
         self.pad_token_id: int = self.tokenizer.pad_token_id
@@ -99,4 +97,5 @@ class TypoDataset(Dataset):
             "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
             "kdr_labels": torch.tensor(kdr_labels, dtype=torch.long),
             "ins_labels": torch.tensor(ins_labels, dtype=torch.long),
+            "texts": document["pre_text"],
         }

@@ -1,8 +1,18 @@
-_target_: jula.datamodule.datasets.word_dataset.WordDataset
-model_name_or_path: ${model.model_name_or_path}
-max_seq_length: ${model.max_seq_length}
-tokenizer_kwargs: ${dataset.tokenizer_kwargs}
-cases: ${cases}
-bar_rels: ${bar_rels}
-exophora_referents: ${exophora_referents}
-cohesion_tasks: ${cohesion_tasks}
+defaults:
+  - train:
+    - word_kyoto.yaml
+    - word_kwdlc.yaml
+    - word_fuman.yaml
+  - valid:
+    - word_kyoto.yaml
+    - word_kwdlc.yaml
+    - word_fuman.yaml
+  - test:
+    - word_kyoto.yaml
+    - word_kwdlc.yaml
+    - word_fuman.yaml
+  - predict:
+    - word_inference.yaml
+
+batch_size: ${batch_size}
+num_workers: ${num_workers}

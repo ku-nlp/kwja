@@ -1,6 +1,18 @@
-_target_: jula.datamodule.datasets.char_dataset.CharDataset
-wiki_ene_dic_path: ${dataset.wiki_ene_dic_path}
-max_ene_num: ${dataset.max_ene_num}
-model_name_or_path: ${model.model_name_or_path}
-max_seq_length: ${model.max_seq_length}
-tokenizer_kwargs: ${dataset.tokenizer_kwargs}
+defaults:
+  - train:
+    - char_kyoto.yaml
+    - char_kwdlc.yaml
+    - char_fuman.yaml
+  - valid:
+    - char_kyoto.yaml
+    - char_kwdlc.yaml
+    - char_fuman.yaml
+  - test:
+    - char_kyoto.yaml
+    - char_kwdlc.yaml
+    - char_fuman.yaml
+  - predict:
+    - char_inference.yaml
+
+batch_size: ${batch_size}
+num_workers: ${num_workers}

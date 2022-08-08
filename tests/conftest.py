@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 from rhoknp import Document
-from rhoknp.rel import ExophoraReferent
+from rhoknp.cohesion import ExophoraReferent
 
 from jula.evaluators.cohesion_scorer import Scorer
 

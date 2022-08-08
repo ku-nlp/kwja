@@ -6,7 +6,7 @@ import pytorch_lightning as pl
 import transformers.utils.logging as hf_logging
 import wandb
 from dotenv import load_dotenv
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.loggers import LightningLoggerBase
 
@@ -17,9 +17,10 @@ from jula.models.word_module import WordModule
 
 hf_logging.set_verbosity(hf_logging.ERROR)
 logging.getLogger("rhoknp").setLevel(logging.WARNING)
+OmegaConf.register_new_resolver("concat", lambda x, y: x + y)
 
 
-@hydra.main(version_base=None, config_path="../configs", config_name="word_segmenter")
+@hydra.main(version_base=None, config_path="../configs")
 def main(cfg: DictConfig):
     load_dotenv()
     if isinstance(cfg.devices, str):
@@ -40,7 +41,7 @@ def main(cfg: DictConfig):
         devices=cfg.devices,
     )
 
-    datamodule: DataModule = DataModule(cfg=cfg)
+    datamodule = DataModule(cfg=cfg.datamodule)
 
     model: Union[TypoModule, CharModule, WordModule]
     if cfg.config_name in cfg.module.typo:
