@@ -34,6 +34,6 @@ class WordNormalizationMetric(Metric):
         for word_norm_type, f1 in zip(exist_word_norm_type, word_normalization_f1s):
             metrics[f"word_normalization_f1:{word_norm_type}"] = f1
         for word_norm_type in INDEX2WORD_NORM_TYPE.values():
-            if f"word_normalization_f1_{word_norm_type}" not in metrics:
+            if f"word_normalization_f1:{word_norm_type}" not in metrics:
                 metrics[f"word_normalization_f1:{word_norm_type}"] = 0.0
         return metrics
