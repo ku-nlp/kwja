@@ -10,6 +10,7 @@ from transformers import AutoTokenizer, PretrainedConfig, PreTrainedTokenizerBas
 
 from jula.evaluators.word_segmentation_metric import WordSegmentationMetric
 from jula.models.models.char_encoder import CharEncoder
+from jula.models.models.word_normalizer import WordNormalizer
 from jula.models.models.word_segmenter import WordSegmenter
 
 
@@ -26,17 +27,19 @@ class CharModule(LightningModule):
             hparams.model.model_name_or_path,
             **hydra.utils.instantiate(hparams.dataset.tokenizer_kwargs),
         )
-        self.char_encoder: CharEncoder = CharEncoder(hparams, vocab_size=len(tokenizer.get_vocab()))
+        self.char_encoder = CharEncoder(hparams, vocab_size=len(tokenizer.get_vocab()))
 
         pretrained_model_config: PretrainedConfig = self.char_encoder.pretrained_model.config
 
-        self.word_segmenter: WordSegmenter = WordSegmenter(hparams, pretrained_model_config)
+        self.word_segmenter = WordSegmenter(hparams, pretrained_model_config)
         self.valid_word_segmenter_metrics: dict[str, WordSegmentationMetric] = {
             corpus: WordSegmentationMetric() for corpus in self.valid_corpora
         }
         self.test_word_segmenter_metrics: dict[str, WordSegmentationMetric] = {
             corpus: WordSegmentationMetric() for corpus in self.test_corpora
         }
+
+        self.word_normalizer = WordNormalizer(hparams, pretrained_model_config)
 
     def forward(self, **kwargs) -> dict[str, dict[str, torch.Tensor]]:
         encoder_output = self.char_encoder(kwargs)  # (b, seq_len, h)
