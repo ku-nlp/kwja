@@ -151,10 +151,7 @@ class MorphemeNormalizer:
         if morpheme.conjtype == "*":
             normalized = morpheme.surf
         else:
-            normalized = self.jinf(
-                morpheme.lemma, morpheme.conjtype, "基本形", morpheme.conjform
-            )
-            print(normalized)
+            normalized = self.jinf(morpheme.lemma, morpheme.conjtype, "基本形", morpheme.conjform)
         return get_normalization_opns(morpheme.surf, normalized)
 
 
@@ -173,7 +170,6 @@ def get_normalization_opns(surf: str, normalized: str) -> List[str]:
     dops[0][0] = ""
     for j in range(1, normalized_len):
         cj = normalized[j - 1]
-        lops: List[str] = []
         for i in range(1, surf_len):
             if i < j:
                 continue
@@ -188,12 +184,7 @@ def get_normalization_opns(surf: str, normalized: str) -> List[str]:
                 lops.append("K")
                 costs.append(d[i - 1, j - 1])
             else:
-                if (
-                    i == 1
-                    and j == 1
-                    and ci in VOICED2VOICELESS
-                    and cj == VOICED2VOICELESS[ci]
-                ):
+                if i == 1 and j == 1 and ci in VOICED2VOICELESS and cj == VOICED2VOICELESS[ci]:
                     lops.append("V")
                     costs.append(d[i - 1, j - 1] + 1)
                 if ci in LOWER2UPPER and cj == LOWER2UPPER[ci]:
@@ -248,12 +239,7 @@ def get_normalized(surf: str, ops: List[str], strict: bool = True) -> str:
                     raise ValueError(f"not a voiced kana {c} in {surf}")
                 normalized += c
         elif op == "D":
-            if (
-                strict
-                and c not in CHOON_SET
-                and c not in HATSUON_SET
-                and c not in LOWER2UPPER
-            ):
+            if strict and c not in CHOON_SET and c not in HATSUON_SET and c not in LOWER2UPPER:
                 raise ValueError(f"not a removable kana {c} in {surf}")
         elif op == "S":
             if c in LOWER2UPPER:

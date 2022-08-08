@@ -21,12 +21,7 @@ class CharDataset(BaseDataset):
         model_name_or_path: str = "cl-tohoku/bert-base-japanese-char",
         tokenizer_kwargs: dict = None,
     ) -> None:
-        super().__init__(
-            path,
-            model_name_or_path,
-            max_seq_length,
-            tokenizer_kwargs,
-        )
+        super().__init__(path, model_name_or_path, max_seq_length, tokenizer_kwargs)
 
         self.normalizer = MorphemeNormalizer()
         self.max_ene_num = max_ene_num
@@ -39,6 +34,44 @@ class CharDataset(BaseDataset):
         return {
             "example_ids": torch.tensor(index, dtype=torch.long),
             **self.encode(document),
+        }
+
+    def encode(self, document: Document) -> dict[str, torch.Tensor]:
+        encoding: BatchEncoding = self.tokenizer(
+            document.text,
+            truncation=True,
+            padding=PaddingStrategy.MAX_LENGTH,
+            max_length=self.max_seq_length,
+        )
+        input_ids = encoding["input_ids"]
+        attention_mask = encoding["attention_mask"]
+
+        seg_labels: list[int] = []
+        for morpheme in document.morphemes:
+            seg_labels.extend([SEG_TYPES.index("B")] + [SEG_TYPES.index("I")] * (len(morpheme.text) - 1))
+        seg_labels = [IGNORE_INDEX] + seg_labels[: self.max_seq_length - 2] + [IGNORE_INDEX]
+        seg_labels += [IGNORE_INDEX] * (self.max_seq_length - len(seg_labels))
+
+        charnorm_labels: list[int] = []
+        for morpheme in document.morphemes:
+            for opn in self.normalizer.get_normalization_opns(morpheme):
+                charnorm_labels.append(CHARNORM_TYPES.index(opn))
+        charnorm_labels = [IGNORE_INDEX] + charnorm_labels[: self.max_seq_length - 2] + [IGNORE_INDEX]
+        charnorm_labels += [IGNORE_INDEX] * (self.max_seq_length - len(charnorm_labels))
+
+        raw_ene_ids: list[list[int]] = self.get_ene_ids(document.text)
+        ene_ids: list[list[int]] = []
+        for raw_ene_id in raw_ene_ids:
+            ene_ids.append(
+                [ENE_TYPE_BIES.index("PAD")] + raw_ene_id[: self.max_seq_length - 2] + [ENE_TYPE_BIES.index("PAD")]
+            )
+
+        return {
+            "input_ids": torch.tensor(input_ids, dtype=torch.long),
+            "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
+            "ene_ids": torch.tensor(ene_ids, dtype=torch.long),
+            "seg_labels": torch.tensor(seg_labels, dtype=torch.long),
+            "charnorm_labels": torch.tensor(charnorm_labels, dtype=torch.long),
         }
 
     def get_ene_ids(self, text: str) -> list[list[int]]:
@@ -67,41 +100,3 @@ class CharDataset(BaseDataset):
                 ene_ids[idx][pos] = ene_id
 
         return ene_ids
-
-    def encode(self, document: Document) -> dict[str, torch.Tensor]:
-        encoding: BatchEncoding = self.tokenizer(
-            document.text,
-            truncation=True,
-            padding=PaddingStrategy.MAX_LENGTH,
-            max_length=self.max_seq_length,
-        )
-        input_ids = encoding["input_ids"]
-        attention_mask = encoding["attention_mask"]
-
-        seg_labels: list[int] = []
-        for morpheme in document.morphemes:
-            seg_labels.extend([SEG_TYPES.index("B")] + [SEG_TYPES.index("I")] * (len(morpheme.text) - 1))
-        seg_labels = [IGNORE_INDEX] + seg_labels[: self.max_seq_length - 2] + [IGNORE_INDEX]
-        seg_labels = seg_labels + [IGNORE_INDEX] * (self.max_seq_length - len(seg_labels))
-
-        charnorm_labels: list[int] = []
-        for morpheme in document.morphemes:
-            for opn in self.normalizer.get_normalization_opns(morpheme):
-                charnorm_labels.append(CHARNORM_TYPES.index(opn))
-        charnorm_labels = [IGNORE_INDEX] + charnorm_labels[: self.max_seq_length - 2] + [IGNORE_INDEX]
-        charnorm_labels = charnorm_labels + [IGNORE_INDEX] * (self.max_seq_length - len(charnorm_labels))
-
-        raw_ene_ids: list[list[int]] = self.get_ene_ids(document.text)
-        ene_ids: list[list[int]] = []
-        for raw_ene_id in raw_ene_ids:
-            ene_ids.append(
-                [ENE_TYPE_BIES.index("PAD")] + raw_ene_id[: self.max_seq_length - 2] + [ENE_TYPE_BIES.index("PAD")]
-            )
-
-        return {
-            "input_ids": torch.tensor(input_ids, dtype=torch.long),
-            "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
-            "ene_ids": torch.tensor(ene_ids, dtype=torch.long),
-            "seg_labels": torch.tensor(seg_labels, dtype=torch.long),
-            "charnorm_labels": torch.tensor(charnorm_labels, dtype=torch.long),
-        }
