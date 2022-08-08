@@ -192,13 +192,13 @@ class WordDataset(BaseDataset):
 
         # reading prediction
         reading_example = example.reading_example
+        reading_ids = [IGNORE_INDEX] * self.max_seq_length
         if reading_example.readings:
             non_special_token_indexes = [
                 token_index
                 for token_index, word_id in enumerate(merged_encoding.word_ids)
                 if word_id is not None and token_index not in self.index_to_special
             ]
-            reading_ids = [IGNORE_INDEX] * self.max_seq_length
             for index, non_special_token_index in enumerate(non_special_token_indexes):
                 reading = reading_example.readings[index]
                 decoded_token = self.tokenizer.decode(merged_encoding.ids[non_special_token_index])
