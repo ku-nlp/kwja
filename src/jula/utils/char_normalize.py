@@ -1,8 +1,10 @@
-from typing import List
+import logging
 
 import numpy as np
 from jinf import Jinf
 from rhoknp import Morpheme
+
+logger = logging.getLogger(__name__)
 
 # KATAKANA-HIRAGANA PROLONGED SOUND MARK (0x30fc)
 # "〜"(0x301C)  "⁓" (U+2053)、Full-width tilde:
@@ -144,10 +146,10 @@ PROLONGED_MAP_FOR_EROW = {
 
 
 class MorphemeNormalizer:
-    def __init__(self):
+    def __init__(self) -> None:
         self.jinf = Jinf()
 
-    def get_normalization_opns(self, morpheme: Morpheme) -> List[str]:
+    def get_normalization_opns(self, morpheme: Morpheme) -> list[str]:
         if morpheme.conjtype == "*":
             normalized = morpheme.surf
         else:
@@ -155,13 +157,13 @@ class MorphemeNormalizer:
         return get_normalization_opns(morpheme.surf, normalized)
 
 
-def get_normalization_opns(surf: str, normalized: str) -> List[str]:
+def get_normalization_opns(surf: str, normalized: str) -> list[str]:
     surf_len = len(surf) + 1
     normalized_len = len(normalized) + 1
     if surf_len < normalized_len:
         raise ValueError
     d = np.inf * np.ones((surf_len, normalized_len), dtype=np.int32)
-    dops: List[List[str]] = []
+    dops: list[list[str]] = []
     for i in range(surf_len):
         dops.append([])
         for j in range(normalized_len):
@@ -205,7 +207,11 @@ def get_normalization_opns(surf: str, normalized: str) -> List[str]:
                 d[i, j] = costs[idx]
                 dops[i][j] = lops[idx]
     if np.isinf(d[-1, -1]):
-        raise ValueError
+        logger.warning(
+            f"failed to get normalization labels to convert {surf} to {normalized}; "
+            f"return KEEP as normalization labels"
+        )
+        return ["K"] * len(surf)
     # backtracking
     i, j = surf_len - 1, normalized_len - 1
     ops = []
@@ -223,7 +229,7 @@ def get_normalization_opns(surf: str, normalized: str) -> List[str]:
     return ops
 
 
-def get_normalized(surf: str, ops: List[str], strict: bool = True) -> str:
+def get_normalized(surf: str, ops: list[str], strict: bool = True) -> str:
     assert len(surf) == len(ops)
     normalized = ""
     for i, (c, op) in enumerate(zip(surf, ops)):
