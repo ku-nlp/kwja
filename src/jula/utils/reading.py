@@ -151,6 +151,15 @@ PROLONGED_MAP_FOR_EROW: Final = {
 }
 
 
+def get_reading2id(path: str) -> dict[str, int]:
+    reading2id = {"[UNK]": 0, "[ID]": 1}
+    with open(path, "r") as f:
+        for line in f:
+            if line := line.strip():
+                reading2id[line] = len(reading2id)
+    return reading2id
+
+
 class ReadingAligner:
     DELIMITER = "▁"
     kana_re = re.compile("^[\u3041-\u30FF]+$")

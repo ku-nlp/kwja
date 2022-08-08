@@ -35,7 +35,7 @@ from jula.utils.constants import (
     WORD_FEATURES,
 )
 from jula.utils.kanjidic import KanjiDic
-from jula.utils.reading_aligner import ReadingAligner
+from jula.utils.reading import ReadingAligner, get_reading2id
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +92,7 @@ class WordDataset(BaseDataset):
         }
         self.index_to_special: dict[int, str] = {v: k for k, v in self.special_to_index.items()}
         self.reading_resource_path = Path(reading_resource_path)
-        self.reading2id = self.get_reading2id(str(self.reading_resource_path / "vocab.txt"))
+        self.reading2id = get_reading2id(str(self.reading_resource_path / "vocab.txt"))
         self.reading_aligner = ReadingAligner(self.tokenizer, KanjiDic(str(self.reading_resource_path / "kanjidic")))
         self.examples: list[WordExampleSet] = self._load_examples(self.documents)
         self.special_encoding: Encoding = self.tokenizer(
@@ -297,14 +297,6 @@ class WordDataset(BaseDataset):
             "cohesion_mask": torch.tensor(cohesion_mask, dtype=torch.bool),
             "texts": example.text,
         }
-
-    @staticmethod
-    def get_reading2id(path: str) -> dict[str, int]:
-        reading2id = {"[UNK]": 0, "[ID]": 1}
-        with open(path, "r") as f:
-            for line in f:
-                reading2id[str(line.strip())] = len(reading2id)
-        return reading2id
 
     def dump_prediction(
         self,

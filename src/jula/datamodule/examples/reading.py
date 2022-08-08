@@ -1,6 +1,6 @@
 from rhoknp import Document
 
-from jula.utils.reading_aligner import ReadingAligner
+from jula.utils.reading import ReadingAligner
 
 
 class ReadingExample:
