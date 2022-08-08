@@ -1,5 +1,0 @@
-defaults:
-  - /datamodule/char@kyoto
-
-kyoto:
-  path: ${oc.env:DATA_DIR}/kyoto/train

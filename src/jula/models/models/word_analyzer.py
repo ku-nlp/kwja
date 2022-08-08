@@ -3,13 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from transformers import PretrainedConfig
 
-from jula.utils.utils import (
-    CONJFORM_TYPES,
-    CONJTYPE_TYPES,
-    IGNORE_INDEX,
-    POS_TYPES,
-    SUBPOS_TYPES,
-)
+from jula.utils.constants import CONJFORM_TYPES, CONJTYPE_TYPES, IGNORE_INDEX, POS_TYPES, SUBPOS_TYPES
 
 
 class WordAnalyzer(nn.Module):
@@ -30,19 +24,13 @@ class WordAnalyzer(nn.Module):
         self.conjtype_cls = nn.Linear(hidden_size, self.num_conjtype_labels)
         self.conjform_cls = nn.Linear(hidden_size, self.num_conjform_labels)
 
-    def forward(
-        self, encoder_output: torch.Tensor, inputs: dict[str, torch.Tensor]
-    ) -> dict[str, torch.Tensor]:
+    def forward(self, encoder_output: torch.Tensor, inputs: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         output: dict[str, torch.Tensor] = dict()
         base_output = self.base_cls(encoder_output)  # (b, seq_len, h)
         pos_logits = self.pos_cls(base_output)  # (b, seq_len, pos_label_num)
         subpos_logits = self.subpos_cls(base_output)  # (b, seq_len, subpos_label_num)
-        conjtype_logits = self.conjtype_cls(
-            base_output
-        )  # (b, seq_len, conjtype_label_num)
-        conjform_logits = self.conjform_cls(
-            base_output
-        )  # (b, seq_len, conjform_label_num)
+        conjtype_logits = self.conjtype_cls(base_output)  # (b, seq_len, conjtype_label_num)
+        conjform_logits = self.conjform_cls(base_output)  # (b, seq_len, conjform_label_num)
         output["pos_logits"] = pos_logits
         output["subpos_logits"] = subpos_logits
         output["conjtype_logits"] = conjtype_logits
@@ -69,9 +57,6 @@ class WordAnalyzer(nn.Module):
                 ignore_index=IGNORE_INDEX,
             )
             output["loss"] = (
-                output["pos_loss"]
-                + output["subpos_loss"]
-                + output["conjtype_loss"]
-                + output["conjform_loss"]
+                output["pos_loss"] + output["subpos_loss"] + output["conjtype_loss"] + output["conjform_loss"]
             ) / 4
         return output

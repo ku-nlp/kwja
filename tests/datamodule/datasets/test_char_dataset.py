@@ -4,7 +4,7 @@ from pathlib import Path
 from rhoknp import Document
 
 from jula.datamodule.datasets.char_dataset import CharDataset
-from jula.utils.utils import ENE_TYPE_BIES, IGNORE_INDEX
+from jula.utils.constants import ENE_TYPE_BIES, IGNORE_INDEX
 
 here = Path(__file__).absolute().parent
 path = here.joinpath("knp_files")
@@ -12,7 +12,7 @@ wiki_ene_dic_path = here.joinpath("wiki_ene_dic")
 
 
 def test_init():
-    _ = CharDataset(path=str(path), wiki_ene_dic_path=str(wiki_ene_dic_path))
+    _ = CharDataset(path=str(path), wiki_ene_dic_path=str(wiki_ene_dic_path), max_seq_length=512)
 
 
 def test_getitem():
@@ -39,12 +39,8 @@ def test_getitem():
         assert item["ene_ids"].shape == (max_ene_num, max_seq_length)
         assert item["seg_labels"].shape == (max_seq_length,)
 
-        cls_token_position = (
-            item["input_ids"].tolist().index(dataset.tokenizer.cls_token_id)
-        )
-        sep_token_position = (
-            item["input_ids"].tolist().index(dataset.tokenizer.sep_token_id)
-        )
+        cls_token_position = item["input_ids"].tolist().index(dataset.tokenizer.cls_token_id)
+        sep_token_position = item["input_ids"].tolist().index(dataset.tokenizer.sep_token_id)
         assert item["seg_labels"][cls_token_position].tolist() == IGNORE_INDEX
         assert item["seg_labels"][sep_token_position].tolist() == IGNORE_INDEX
 
@@ -87,11 +83,7 @@ def test_encode():
     )
     encoding = dataset.encode(document)
 
-    assert len(list(filter(lambda x: x == 0, encoding["charnorm_labels"]))) == 16
-
-    ene_ids = [
-        [ENE_TYPE_BIES.index("PAD")] * max_seq_length for _ in range(max_ene_num)
-    ]
+    ene_ids = [[ENE_TYPE_BIES.index("PAD")] * max_seq_length for _ in range(max_ene_num)]
     # 0: 大学
     ene_ids[0][1] = ENE_TYPE_BIES.index("B-0")
     ene_ids[0][2] = ENE_TYPE_BIES.index("E-0")
@@ -108,3 +100,5 @@ def test_encode():
     # 7: 達した
     # 8: 。
     assert encoding["ene_ids"].tolist() == ene_ids
+
+    assert len(list(filter(lambda x: x == 0, encoding["charnorm_labels"]))) == 16
