@@ -146,6 +146,8 @@ class WordDataset(BaseDataset):
             discourse_example = DiscourseExample()
             discourse_example.load(document, has_annotation=False)
             path = self.path / "disc_expert" / f"{document.doc_id}.knp"
+            if not path.exists() and self.path.name == "train":
+                path = self.path / "disc_crowd" / f"{document.doc_id}.knp"
             if path.exists():
                 try:
                     document_disc = Document.from_knp(path.read_text())
@@ -153,15 +155,6 @@ class WordDataset(BaseDataset):
                         discourse_example.load(document_disc)
                 except AssertionError:
                     logger.warning(f"{path} is not a valid KNP file")
-            elif self.path.name == "train":
-                path = self.path / "disc_crowd" / f"{document.doc_id}.knp"
-                if path.exists():
-                    try:
-                        document_disc = Document.from_knp(path.read_text())
-                        if document == document_disc:
-                            discourse_example.load(document_disc)
-                    except AssertionError:
-                        logger.warning(f"{path} is not a valid KNP file")
 
             examples.append(
                 WordExampleSet(
