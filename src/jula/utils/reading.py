@@ -150,9 +150,12 @@ PROLONGED_MAP_FOR_EROW: Final = {
     "れ": "え",
 }
 
+UNK_ID = 0
+ID_ID = 1
+
 
 def get_reading2id(path: str) -> dict[str, int]:
-    reading2id = {"[UNK]": 0, "[ID]": 1}
+    reading2id = {"[UNK]": UNK_ID, "[ID]": ID_ID}
     with open(path, "r") as f:
         for line in f:
             if line := line.strip():

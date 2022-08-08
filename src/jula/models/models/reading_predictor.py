@@ -33,7 +33,7 @@ class ReadingPredictor(nn.Module):
     def forward(self, pooled_outputs: torch.Tensor, batch: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         outputs: dict[str, torch.Tensor] = {}
         reading_predictor_logits = self.reading_predictor_head(pooled_outputs)  # (b, seq, num_labels)
-        outputs["reading_predictor_logits"] = reading_predictor_logits
+        outputs["logits"] = reading_predictor_logits
         if "reading_ids" in batch:
             loss = F.cross_entropy(
                 input=reading_predictor_logits.view(-1, reading_predictor_logits.size(2)),
