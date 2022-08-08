@@ -36,4 +36,6 @@ class WordNormalizationMetric(Metric):
         for charnorm_type in INDEX2CHARNORM_TYPE.values():
             if f"word_normalization_f1_{charnorm_type}" not in metrics:
                 metrics[f"word_normalization_f1_{charnorm_type}"] = 0.0
+        for index, charnorm_type in INDEX2CHARNORM_TYPE.items():
+            metrics[f"word_normalization_num_{charnorm_type}"] = (labels == index).sum().item()
         return metrics
