@@ -14,6 +14,7 @@ from jula.evaluators.phrase_analysis_metric import PhraseAnalysisMetric
 from jula.evaluators.word_analysis_metric import WordAnalysisMetric
 from jula.models.models.phrase_analyzer import PhraseAnalyzer
 from jula.models.models.pooling import PoolingStrategy
+from jula.models.models.reading_predictor import ReadingPredictor
 from jula.models.models.relation_analyzer import RelationAnalyzer
 from jula.models.models.word_analyzer import WordAnalyzer
 from jula.models.models.word_encoder import WordEncoder
@@ -35,6 +36,10 @@ class WordModule(LightningModule):
         self.word_encoder: WordEncoder = WordEncoder(hparams, vocab_size=len(tokenizer.get_vocab()))
 
         pretrained_model_config: PretrainedConfig = self.word_encoder.pretrained_model.config
+
+        self.reading_predictor: ReadingPredictor = ReadingPredictor(
+            hparams.dataset.reading_resource_path, pretrained_model_config
+        )
 
         self.word_analyzer: WordAnalyzer = WordAnalyzer(pretrained_model_config)
         self.valid_word_analysis_metrics: dict[str, WordAnalysisMetric] = {

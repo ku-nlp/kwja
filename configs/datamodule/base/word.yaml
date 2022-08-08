@@ -8,4 +8,4 @@ cases: ${cases}
 bar_rels: ${bar_rels}
 exophora_referents: ${exophora_referents}
 cohesion_tasks: ${cohesion_tasks}
-reading_resource_path: ${oc.env:DATA_DIR}/reading_prediction
+reading_resource_path: ${dataset.reading_resource_path}
