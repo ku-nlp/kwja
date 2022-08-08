@@ -1,6 +1,11 @@
+import logging
+from typing import Union
+
 from rhoknp import Document
 
 from jula.utils.reading import ReadingAligner
+
+logger = logging.getLogger(__name__)
 
 
 class ReadingExample:
@@ -8,9 +13,14 @@ class ReadingExample:
 
     def __init__(self) -> None:
         self.doc_id: str = ""
-        self.readings: list[str] = []
+        self.readings: Union[list[str], None] = []
 
     def load(self, document: Document, aligner: ReadingAligner) -> None:
         self.doc_id = document.doc_id
-        for _, reading in aligner.align(document):
-            self.readings.append(reading)
+        try:
+            self.readings = []
+            for _, reading in aligner.align(document):
+                self.readings.append(reading)
+        except ValueError as e:
+            logger.warning(e)
+            self.readings = None

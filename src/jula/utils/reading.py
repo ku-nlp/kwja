@@ -16,9 +16,9 @@ from jula.utils.kanjidic import KanjiDic
 # "〜"(0x301C)  "⁓" (U+2053)、Full-width tilde:
 # "～" (U+FF5E)、tilde operator: "∼" (U+223C)
 # Half-widths HIRAGANA-KATAKANA PROLONGED SOUND MARK (U+FF70
-CHOON_SET: Final = set(["ー", "〜", "～", "∼", "ｰ"])
+CHOON_SET: Final = {"ー", "〜", "～", "∼", "ｰ"}
 
-HATSUON_SET: Final = set(["っ", "ッ"])
+HATSUON_SET: Final = {"っ", "ッ"}
 
 LOWER2UPPER: Final = {
     "ぁ": "あ",
@@ -150,8 +150,9 @@ PROLONGED_MAP_FOR_EROW: Final = {
     "れ": "え",
 }
 
-UNK_ID = 0
-ID_ID = 1
+IGNORE_READING = "IGNORED"
+UNK_ID: Final = 0
+ID_ID: Final = 1
 
 
 def get_reading2id(path: str) -> dict[str, int]:
