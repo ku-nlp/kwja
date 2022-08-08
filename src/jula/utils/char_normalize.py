@@ -159,7 +159,7 @@ class MorphemeNormalizer:
                 normalized = self.jinf(morpheme.lemma, morpheme.conjtype, "基本形", morpheme.conjform)
             return get_normalization_opns(morpheme.surf, normalized)
         except ValueError as e:
-            logger.warning(f"failed to get normalized form of {morpheme.surf}: {e}")
+            logger.info(f"failed to get normalized form of {morpheme.surf}: {e}")
             return [IGNORE_CHARNORM_TYPE] * len(morpheme.surf)
 
 
