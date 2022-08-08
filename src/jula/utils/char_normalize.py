@@ -158,9 +158,9 @@ class MorphemeNormalizer:
             else:
                 normalized = self.jinf(morpheme.lemma, morpheme.conjtype, "基本形", morpheme.conjform)
             return get_normalization_opns(morpheme.surf, normalized)
-        except ValueError:
-            logger.warning(f"failed to get normalized form of {morpheme.surf}")
-            return [IGNORE_CHARNORM_TYPE] * len(morpheme.surf)  # '_' is ignored during training
+        except ValueError as e:
+            logger.warning(f"failed to get normalized form of {morpheme.surf}: {e}")
+            return [IGNORE_CHARNORM_TYPE] * len(morpheme.surf)
 
 
 def get_normalization_opns(surf: str, normalized: str) -> list[str]:
