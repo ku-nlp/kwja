@@ -32,7 +32,8 @@ from jula.utils.constants import (
 here = Path(__file__).absolute().parent
 path = here.joinpath("knp_files")
 data_dir = here.parent.parent / "data"
-reading_dir = here / "reading_files"
+
+reading_resource_path = here / "reading_files"
 
 exophora_referents = ["著者", "読者", "不特定:人", "不特定:物"]
 special_tokens = exophora_referents + ["[NULL]", "[NA]", "[ROOT]"]
@@ -44,7 +45,7 @@ word_dataset_kwargs = {
     "special_tokens": ListConfig(special_tokens),
     "restrict_cohesion_target": True,
     "tokenizer_kwargs": {"additional_special_tokens": special_tokens},
-    "reading_path": reading_dir,
+    "reading_resource_path": reading_resource_path,
 }
 
 

@@ -62,7 +62,7 @@ class WordDataset(BaseDataset):
         cohesion_tasks: ListConfig[str],
         special_tokens: ListConfig[str],
         restrict_cohesion_target: bool,
-        reading_path: str,
+        reading_resource_path: str,
         model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
         max_seq_length: int = 512,
         tokenizer_kwargs: dict = None,
@@ -89,8 +89,9 @@ class WordDataset(BaseDataset):
             token: self.max_seq_length - len(self.special_tokens) + i for i, token in enumerate(self.special_tokens)
         }
         self.index_to_special: dict[int, str] = {v: k for k, v in self.special_to_index.items()}
-        self.reading2id: dict[str, int] = self.get_reading2id(fpath=str(Path(reading_path) / "vocab.txt"))
-        self.reading_aligner = ReadingAligner(self.tokenizer, KanjiDic(str(Path(reading_path) / "kanjidic")))
+        self.reading_resource_path = Path(reading_resource_path)
+        self.reading2id = self.get_reading2id(str(self.reading_resource_path / "vocab.txt"))
+        self.reading_aligner = ReadingAligner(self.tokenizer, KanjiDic(str(self.reading_resource_path / "kanjidic")))
         self.examples: list[WordExampleSet] = self._load_examples(self.documents)
         self.special_encoding: Encoding = self.tokenizer(
             self.special_tokens,
@@ -281,11 +282,10 @@ class WordDataset(BaseDataset):
             "texts": example.text,
         }
 
-    def get_reading2id(self, fpath: str) -> dict[str, int]:
-        reading2id = {
-            "[UNK]": 0,
-        }
-        with open(fpath, mode="r") as f:
+    @staticmethod
+    def get_reading2id(path: str) -> dict[str, int]:
+        reading2id = {"[UNK]": 0}
+        with open(path, "r") as f:
             for line in f:
                 reading2id[str(line.strip())] = len(reading2id)
         return reading2id

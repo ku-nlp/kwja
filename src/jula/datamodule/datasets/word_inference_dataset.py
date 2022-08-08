@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import torch
 from omegaconf import ListConfig
 from rhoknp.cohesion import ExophoraReferent
@@ -6,6 +8,7 @@ from torch.utils.data import Dataset
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
+from jula.datamodule.datasets.word_dataset import WordDataset
 from jula.datamodule.examples import Task
 
 
@@ -18,6 +21,7 @@ class WordInferenceDataset(Dataset):
         exophora_referents: ListConfig[str],
         cohesion_tasks: ListConfig[str],
         special_tokens: ListConfig[str],
+        reading_resource_path: str,
         model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
         max_seq_length: int = 512,
         tokenizer_kwargs: dict = None,
@@ -43,6 +47,8 @@ class WordInferenceDataset(Dataset):
             + self.bar_rels * (Task.BRIDGING in self.cohesion_tasks)
             + ["="] * (Task.COREFERENCE in self.cohesion_tasks)
         )
+        self.reading_resource_path = Path(reading_resource_path)
+        self.reading2id = WordDataset.get_reading2id(str(self.reading_resource_path / "vocab.txt"))
         self.special_encoding: Encoding = self.tokenizer(
             self.special_tokens,
             is_split_into_words=True,
