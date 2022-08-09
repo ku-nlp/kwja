@@ -1,7 +1,6 @@
 from typing import Union
 
 import torch
-from sklearn.metrics import accuracy_score
 from torchmetrics import Metric
 
 from jula.utils.constants import IGNORE_INDEX
@@ -22,11 +21,7 @@ class ReadingPredictorMetric(Metric):
         predictions = self.predictions.view(-1)
         labels = self.labels.view(-1)
         ignore_indexes = labels == IGNORE_INDEX
-        predictions = predictions[~ignore_indexes]
-        labels = labels[~ignore_indexes]
-        acc = accuracy_score(labels.cpu().numpy(), predictions.cpu().numpy())
-        unk_indexes = predictions == UNK_ID
-        predictions = predictions[~unk_indexes]
-        labels = labels[~unk_indexes]
-        acc_unk = accuracy_score(labels.cpu().numpy(), predictions.cpu().numpy())
-        return {"reading_predictor_accuracy": acc * (1 - acc_unk)}
+        predictions = predictions[~ignore_indexes].cpu().numpy()
+        labels = labels[~ignore_indexes].cpu().numpy()
+        num_correct = sum(p == l and p != UNK_ID for p, l in zip(predictions, labels))
+        return {"reading_predictor_accuracy": num_correct / len(predictions)}
