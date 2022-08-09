@@ -30,6 +30,7 @@ monitor: valid/aggregated_word_metrics
 mode: max
 aggregating_metrics: [
   "word_analysis_f1",
+  "ner_f1",
   "macro_word_feature_f1",
   "macro_base_phrase_feature_f1",
   "base_phrase_LAS_f1",

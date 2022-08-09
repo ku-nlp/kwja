@@ -947,7 +947,7 @@ results = phrase_analysis_metric.compute()
 
 
 def test_phrase_analysis_metric():
-    epsilon = 1e-6
+    epsilon = 1e-8
 
     # word features
     # prec, rec = 5 / 5, 5 / 5

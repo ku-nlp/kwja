@@ -200,6 +200,28 @@ CONJFORM_TYPES = (
 )
 INDEX2CONJFORM_TYPE = {index: conjform_type for index, conjform_type in enumerate(CONJFORM_TYPES)}
 
+NE_TAGS = (
+    "B-ORGANIZATION",
+    "I-ORGANIZATION",
+    "B-PERSON",
+    "I-PERSON",
+    "B-LOCATION",
+    "I-LOCATION",
+    "B-ARTIFACT",
+    "I-ARTIFACT",
+    "B-DATE",
+    "I-DATE",
+    "B-TIME",
+    "I-TIME",
+    "B-MONEY",
+    "I-MONEY",
+    "B-PERCENT",
+    "I-PERCENT",
+    "B-OPTIONAL",
+    "I-OPTIONAL",
+    "O",
+)
+
 SUB_WORD_FEATURES = (
     "用言表記先頭",
     "用言表記末尾",

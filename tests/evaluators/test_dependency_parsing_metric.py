@@ -68,14 +68,14 @@ def test_dependency_parsing_metric():
 
     results = dependency_parsing_metric.compute(documents)
 
-    prec, rec = 2 / 2, 2 / 2
-    assert results["base_phrase_UAS_f1"] == 2 * prec * rec / (prec + rec)
-    prec, rec = 4 / 4, 4 / 4
-    assert results["morpheme_UAS_f1"] == 2 * prec * rec / (prec + rec)
-    prec, rec = 1 / 2, 1 / 2
-    assert results["base_phrase_LAS_f1"] == 2 * prec * rec / (prec + rec)
-    prec, rec = 3 / 4, 3 / 4
-    assert results["morpheme_LAS_f1"] == 2 * prec * rec / (prec + rec)
+    # prec, rec = 2 / 2, 2 / 2
+    assert results["base_phrase_UAS_f1"] == 1.0
+    # prec, rec = 4 / 4, 4 / 4
+    assert results["morpheme_UAS_f1"] == 1.0
+    # prec, rec = 1 / 2, 1 / 2
+    assert results["base_phrase_LAS_f1"] == 0.5
+    # prec, rec = 3 / 4, 3 / 4
+    assert results["morpheme_LAS_f1"] == 0.75
 
 
 def test_cyclic_dependency():
@@ -120,12 +120,12 @@ def test_cyclic_dependency():
     """
     results = dependency_parsing_metric.compute(documents)
 
-    prec, rec = 2 / 2, 2 / 2
-    assert results["base_phrase_UAS_f1"] == 2 * prec * rec / (prec + rec)
+    # prec, rec = 2 / 2, 2 / 2
+    assert results["base_phrase_UAS_f1"] == 1.0
     # prec, rec = 0 / 4, 0 / 4
     assert results["morpheme_UAS_f1"] == 0.0
-    prec, rec = 1 / 2, 1 / 2
-    assert results["base_phrase_LAS_f1"] == 2 * prec * rec / (prec + rec)
+    # prec, rec = 1 / 2, 1 / 2
+    assert results["base_phrase_LAS_f1"] == 0.5
     # prec, rec = 0 / 4, 0 / 4
     assert results["morpheme_LAS_f1"] == 0.0
 
@@ -174,12 +174,12 @@ def test_multiple_roots():
 
     # prec, rec = 0 / 2, 0 / 2
     assert results["base_phrase_UAS_f1"] == 0.0
-    prec, rec = 1 / 4, 1 / 4
-    assert results["morpheme_UAS_f1"] == 2 * prec * rec / (prec + rec)
+    # prec, rec = 1 / 4, 1 / 4
+    assert results["morpheme_UAS_f1"] == 0.25
     # prec, rec = 0 / 2, 0 / 2
     assert results["base_phrase_LAS_f1"] == 0.0
-    prec, rec = 1 / 4, 1 / 4
-    assert results["morpheme_LAS_f1"] == 2 * prec * rec / (prec + rec)
+    # prec, rec = 1 / 4, 1 / 4
+    assert results["morpheme_LAS_f1"] == 0.25
 
 
 def test_no_root():
@@ -224,11 +224,11 @@ def test_no_root():
     """
     results = dependency_parsing_metric.compute(documents)
 
-    prec, rec = 2 / 2, 2 / 2
-    assert results["base_phrase_UAS_f1"] == 2 * prec * rec / (prec + rec)
-    prec, rec = 2 / 4, 2 / 4
-    assert results["morpheme_UAS_f1"] == 2 * prec * rec / (prec + rec)
-    prec, rec = 1 / 2, 1 / 2
-    assert results["base_phrase_LAS_f1"] == 2 * prec * rec / (prec + rec)
-    prec, rec = 1 / 4, 1 / 4
-    assert results["morpheme_LAS_f1"] == 2 * prec * rec / (prec + rec)
+    # prec, rec = 2 / 2, 2 / 2
+    assert results["base_phrase_UAS_f1"] == 1.0
+    # prec, rec = 2 / 4, 2 / 4
+    assert results["morpheme_UAS_f1"] == 0.5
+    # prec, rec = 1 / 2, 1 / 2
+    assert results["base_phrase_LAS_f1"] == 0.5
+    # prec, rec = 1 / 4, 1 / 4
+    assert results["morpheme_LAS_f1"] == 0.25
