@@ -25,6 +25,7 @@ from jula.utils.constants import (
     INDEX2SUBPOS_TYPE,
 )
 from jula.utils.dependency_parsing import DependencyManager
+from jula.utils.reading import get_reading2id
 
 logger = logging.getLogger(__name__)
 
@@ -33,10 +34,14 @@ class WordModuleWriter(BasePredictionWriter):
     def __init__(
         self,
         output_dir: str,
+        reading_resource_path: str,
         pred_filename: str = "predict",
         use_stdout: bool = False,
     ) -> None:
         super().__init__(write_interval="epoch")
+
+        self.reading_resource_path = Path(reading_resource_path)
+        self.reading2id = get_reading2id(str(self.reading_resource_path / "vocab.txt"))
 
         self.destination: Union[Path, TextIO]
         if use_stdout is True:

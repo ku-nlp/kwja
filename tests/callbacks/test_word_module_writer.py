@@ -20,10 +20,13 @@ from jula.utils.constants import (
     WORD_FEATURES,
 )
 
+here = Path(__file__).absolute().parent
+reading_resource_path = here.parent / "datamodule/datasets/reading_files"
+
 
 def test_init():
     with tempfile.TemporaryDirectory() as tmp_dir:
-        _ = WordModuleWriter(tmp_dir)
+        _ = WordModuleWriter(tmp_dir, str(reading_resource_path))
 
 
 class MockTrainer:
@@ -120,7 +123,7 @@ def test_write_on_epoch_end():
     pred_filename = "test"
     with tempfile.TemporaryDirectory() as tmp_dir:
         # max_seq_length = 4 (今日, は, 晴れ, だ) + 7 (著者, 読者, 不特定:人, 不特定:物, [NULL], [NA], [ROOT])
-        writer = WordModuleWriter(tmp_dir, pred_filename=pred_filename)
+        writer = WordModuleWriter(tmp_dir, str(reading_resource_path), pred_filename=pred_filename)
         exophora_referents = ["著者", "読者", "不特定:人", "不特定:物"]
         special_tokens = exophora_referents + ["[NULL]", "[NA]", "[ROOT]"]
         dataset = WordInferenceDataset(
