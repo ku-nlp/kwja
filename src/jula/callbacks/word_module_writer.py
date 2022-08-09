@@ -223,13 +223,11 @@ class WordModuleWriter(BasePredictionWriter):
 
     @staticmethod
     def _add_named_entities(document: Document, ne_tag_preds: list[int]) -> None:
-        category_map = {category.value: category for category in NamedEntityCategory}
         for sentence in document.sentences:
             morphemes = sentence.morphemes
             category = ""
             morphemes_buff = []
-            for morpheme in morphemes:
-                ne_tag_pred = ne_tag_preds[morpheme.global_index]
+            for morpheme, ne_tag_pred in zip(morphemes, ne_tag_preds):
                 ne_tag = NE_TAGS[ne_tag_pred]
                 if ne_tag.startswith("B-"):
                     category = ne_tag[2:]
@@ -238,7 +236,7 @@ class WordModuleWriter(BasePredictionWriter):
                     morphemes_buff.append(morpheme)
                 else:
                     if morphemes_buff:
-                        named_entity = NamedEntity(category=category_map[category], morphemes=morphemes_buff)
+                        named_entity = NamedEntity(category=NamedEntityCategory(category), morphemes=morphemes_buff)
                         sentence.named_entities.append(named_entity)
                     category = ""
                     morphemes_buff = []
