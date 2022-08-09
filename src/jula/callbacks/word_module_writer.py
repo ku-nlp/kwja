@@ -7,6 +7,7 @@ from typing import Any, Optional, Sequence, TextIO, Union
 
 import pytorch_lightning as pl
 import torch
+from jinf import Jinf
 from pytorch_lightning.callbacks import BasePredictionWriter
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
 from rhoknp.cohesion import ExophoraReferent, RelTag, RelTagList
@@ -38,6 +39,8 @@ class WordModuleWriter(BasePredictionWriter):
         use_stdout: bool = False,
     ) -> None:
         super().__init__(write_interval="epoch")
+
+        self.jinf = Jinf()
 
         self.destination: Union[Path, TextIO]
         if use_stdout is True:
@@ -132,8 +135,8 @@ class WordModuleWriter(BasePredictionWriter):
         elif isinstance(self.destination, TextIOBase):
             self.destination.write(output_string)
 
-    @staticmethod
     def _create_morphemes(
+        self,
         words: list[str],
         pos_preds: list[int],
         subpos_preds: list[int],
@@ -144,17 +147,26 @@ class WordModuleWriter(BasePredictionWriter):
         for word, pos_index, subpos_index, conjtype_index, conjform_index in zip(
             words, pos_preds, subpos_preds, conjtype_preds, conjform_preds
         ):
+            pos = INDEX2POS_TYPE[pos_index]
+            subpos = INDEX2SUBPOS_TYPE[subpos_index]
+            conjtype = INDEX2CONJTYPE_TYPE[conjtype_index]
+            conjform = INDEX2CONJFORM_TYPE[conjform_index]
+            try:
+                lemma = self.jinf(word, conjtype, conjform, "基本形")
+            except ValueError as e:
+                logger.warning(f"failed to get lemma for {word}: ({e})")
+                lemma = word
             attributes = MorphemeAttributes(
                 surf=word,
                 reading=word,  # TODO
-                lemma=word,  # TODO
-                pos=INDEX2POS_TYPE[pos_index],
+                lemma=lemma,
+                pos=pos,
                 pos_id=0,  # TODO
-                subpos=INDEX2SUBPOS_TYPE[subpos_index],
+                subpos=subpos,
                 subpos_id=0,  # TODO
-                conjtype=INDEX2CONJTYPE_TYPE[conjtype_index],
+                conjtype=conjtype,
                 conjtype_id=0,  # TODO
-                conjform=INDEX2CONJFORM_TYPE[conjform_index],
+                conjform=conjform,
                 conjform_id=0,  # TODO
             )
             morphemes.append(Morpheme(attributes, SemanticsDict(), FeatureDict()))
