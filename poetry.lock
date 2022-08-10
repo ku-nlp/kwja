@@ -435,7 +435,7 @@ tinydb = "^4.7"
 type = "git"
 url = "https://github.com/ku-nlp/JumanDIC-py.git"
 reference = "main"
-resolved_reference = "8a4896422a01ea4b409ae220608f2403fbc4f208"
+resolved_reference = "46917c961cbe63494b4e91bc7d7e96c7a3b34ca4"
 
 [[package]]
 name = "kyoto-reader"
