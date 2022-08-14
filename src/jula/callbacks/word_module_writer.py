@@ -18,6 +18,7 @@ import jula
 from jula.datamodule.datasets.word_dataset import WordDataset
 from jula.utils.constants import (
     BASE_PHRASE_FEATURES,
+    CONJTYPE_CONJFORM_TYPE2ID,
     INDEX2CONJFORM_TYPE,
     INDEX2CONJTYPE_TYPE,
     INDEX2DEPENDENCY_TYPE,
@@ -25,6 +26,8 @@ from jula.utils.constants import (
     INDEX2POS_TYPE,
     INDEX2SUBPOS_TYPE,
     NE_TAGS,
+    POS_SUBPOS_TYPE2ID,
+    POS_TYPE2ID,
 )
 from jula.utils.dependency_parsing import DependencyManager
 
@@ -148,9 +151,13 @@ class WordModuleWriter(BasePredictionWriter):
             words, pos_preds, subpos_preds, conjtype_preds, conjform_preds
         ):
             pos = INDEX2POS_TYPE[pos_index]
+            pos_id = POS_TYPE2ID[pos]
             subpos = INDEX2SUBPOS_TYPE[subpos_index]
+            subpos_id = POS_SUBPOS_TYPE2ID[pos][subpos]
             conjtype = INDEX2CONJTYPE_TYPE[conjtype_index]
+            conjtype_id = conjtype_index
             conjform = INDEX2CONJFORM_TYPE[conjform_index]
+            conjform_id = CONJTYPE_CONJFORM_TYPE2ID[conjtype][conjform]
             try:
                 lemma = self.jinf(word, conjtype, conjform, "基本形")
             except ValueError as e:
@@ -161,13 +168,13 @@ class WordModuleWriter(BasePredictionWriter):
                 reading=word,  # TODO
                 lemma=lemma,
                 pos=pos,
-                pos_id=0,  # TODO
+                pos_id=pos_id,
                 subpos=subpos,
-                subpos_id=0,  # TODO
+                subpos_id=subpos_id,
                 conjtype=conjtype,
-                conjtype_id=0,  # TODO
+                conjtype_id=conjtype_id,
                 conjform=conjform,
-                conjform_id=0,  # TODO
+                conjform_id=conjform_id,
             )
             morphemes.append(Morpheme(attributes, SemanticsDict(), FeatureDict()))
         return morphemes
