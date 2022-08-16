@@ -10,6 +10,7 @@ from transformers import PretrainedConfig
 from jula.evaluators.cohesion_analysis_metric import CohesionAnalysisMetric
 from jula.evaluators.dependency_parsing_metric import DependencyParsingMetric
 from jula.evaluators.discourse_parsing_metric import DiscourseParsingMetric
+from jula.evaluators.ner_metric import NERMetric
 from jula.evaluators.phrase_analysis_metric import PhraseAnalysisMetric
 from jula.evaluators.word_analysis_metric import WordAnalysisMetric
 from jula.models.models.phrase_analyzer import PhraseAnalyzer
@@ -39,6 +40,8 @@ class WordModule(LightningModule):
         self.test_word_analysis_metrics: dict[str, WordAnalysisMetric] = {
             corpus: WordAnalysisMetric() for corpus in self.test_corpora
         }
+        self.valid_ner_metrics: dict[str, NERMetric] = {corpus: NERMetric() for corpus in self.valid_corpora}
+        self.test_ner_metrics: dict[str, NERMetric] = {corpus: NERMetric() for corpus in self.test_corpora}
 
         self.phrase_analyzer: PhraseAnalyzer = PhraseAnalyzer(pretrained_model_config)
         self.valid_phrase_analysis_metrics: dict[str, PhraseAnalysisMetric] = {
@@ -85,6 +88,8 @@ class WordModule(LightningModule):
         outputs: dict[str, torch.Tensor] = self(**batch)
         word_analysis_loss = outputs["word_analyzer_outputs"]["loss"]
         self.log("train/word_analysis_loss", word_analysis_loss)
+        ner_loss = outputs["phrase_analyzer_outputs"]["ner_loss"]
+        self.log("train/ner_loss", ner_loss)
         word_feature_loss = outputs["phrase_analyzer_outputs"]["word_feature_loss"]
         self.log("train/word_feature_loss", word_feature_loss)
         base_phrase_feature_loss = outputs["phrase_analyzer_outputs"]["base_phrase_feature_loss"]
@@ -99,6 +104,7 @@ class WordModule(LightningModule):
         self.log("train/discourse_parsing_loss", discourse_parsing_loss)
         return (
             word_analysis_loss
+            + ner_loss
             + word_feature_loss
             + base_phrase_feature_loss
             + dependency_loss
@@ -123,6 +129,14 @@ class WordModule(LightningModule):
         }
         self.valid_word_analysis_metrics[corpus].update(**word_analysis_metric_args)
         self.log("valid/word_analysis_loss", outputs["word_analyzer_outputs"]["loss"])
+
+        ner_metric_args = {
+            "example_ids": batch["example_ids"],
+            "ne_tag_predictions": torch.argmax(outputs["phrase_analyzer_outputs"]["ne_logits"], dim=-1),
+            "ne_tags": batch["ne_tags"],
+        }
+        self.valid_ner_metrics[corpus].update(**ner_metric_args)
+        self.log("valid/ner_loss", outputs["phrase_analyzer_outputs"]["ner_loss"])
 
         phrase_analysis_metric_args = {
             "example_ids": batch["example_ids"],
@@ -174,6 +188,10 @@ class WordModule(LightningModule):
         log_metrics: dict[str, dict[str, float]] = {corpus: {} for corpus in self.valid_corpora}
 
         for corpus, metric in self.valid_word_analysis_metrics.items():
+            log_metrics[corpus].update(metric.compute())
+            metric.reset()
+
+        for corpus, metric in self.valid_ner_metrics.items():
             log_metrics[corpus].update(metric.compute())
             metric.reset()
 
@@ -229,6 +247,14 @@ class WordModule(LightningModule):
         self.test_word_analysis_metrics[corpus].update(**word_analysis_metric_args)
         self.log("test/word_analysis_loss", outputs["word_analyzer_outputs"]["loss"])
 
+        ner_metric_args = {
+            "example_ids": batch["example_ids"],
+            "ne_tag_predictions": torch.argmax(outputs["phrase_analyzer_outputs"]["ne_logits"], dim=-1),
+            "ne_tags": batch["ne_tags"],
+        }
+        self.test_ner_metrics[corpus].update(**ner_metric_args)
+        self.log("valid/ner_loss", outputs["phrase_analyzer_outputs"]["ner_loss"])
+
         phrase_analysis_metric_args = {
             "example_ids": batch["example_ids"],
             "word_feature_predictions": outputs["phrase_analyzer_outputs"]["word_feature_logits"].ge(0.5).long(),
@@ -282,6 +308,10 @@ class WordModule(LightningModule):
             log_metrics[corpus].update(metric.compute())
             metric.reset()
 
+        for corpus, metric in self.test_ner_metrics.items():
+            log_metrics[corpus].update(metric.compute())
+            metric.reset()
+
         for corpus, metric in self.test_phrase_analysis_metrics.items():
             log_metrics[corpus].update(metric.compute())
             metric.reset()
@@ -327,6 +357,7 @@ class WordModule(LightningModule):
             "word_analysis_subpos_logits": outputs["word_analyzer_outputs"]["subpos_logits"],
             "word_analysis_conjtype_logits": outputs["word_analyzer_outputs"]["conjtype_logits"],
             "word_analysis_conjform_logits": outputs["word_analyzer_outputs"]["conjform_logits"],
+            "ne_logits": outputs["phrase_analyzer_outputs"]["ne_logits"],
             "word_feature_logits": outputs["phrase_analyzer_outputs"]["word_feature_logits"],
             "base_phrase_feature_logits": outputs["phrase_analyzer_outputs"]["base_phrase_feature_logits"],
             "dependency_logits": outputs["relation_analyzer_outputs"]["dependency_logits"],

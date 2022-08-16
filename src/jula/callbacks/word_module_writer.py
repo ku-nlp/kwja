@@ -7,22 +7,27 @@ from typing import Any, Optional, Sequence, TextIO, Union
 
 import pytorch_lightning as pl
 import torch
+from jinf import Jinf
 from pytorch_lightning.callbacks import BasePredictionWriter
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
 from rhoknp.cohesion import ExophoraReferent, RelTag, RelTagList
-from rhoknp.props import DepType, FeatureDict, NETagList, SemanticsDict
+from rhoknp.props import DepType, FeatureDict, NamedEntity, NamedEntityCategory, NETagList, SemanticsDict
 from rhoknp.units.morpheme import MorphemeAttributes
 
 import jula
 from jula.datamodule.datasets.word_dataset import WordDataset
 from jula.utils.constants import (
     BASE_PHRASE_FEATURES,
+    CONJTYPE_CONJFORM_TYPE2ID,
     INDEX2CONJFORM_TYPE,
     INDEX2CONJTYPE_TYPE,
     INDEX2DEPENDENCY_TYPE,
     INDEX2DISCOURSE_RELATION,
     INDEX2POS_TYPE,
     INDEX2SUBPOS_TYPE,
+    NE_TAGS,
+    POS_SUBPOS_TYPE2ID,
+    POS_TYPE2ID,
 )
 from jula.utils.dependency_parsing import DependencyManager
 
@@ -37,6 +42,8 @@ class WordModuleWriter(BasePredictionWriter):
         use_stdout: bool = False,
     ) -> None:
         super().__init__(write_interval="epoch")
+
+        self.jinf = Jinf()
 
         self.destination: Union[Path, TextIO]
         if use_stdout is True:
@@ -64,6 +71,7 @@ class WordModuleWriter(BasePredictionWriter):
                 batch_subpos_preds = torch.argmax(batch_pred["word_analysis_subpos_logits"], dim=-1)
                 batch_conjtype_preds = torch.argmax(batch_pred["word_analysis_conjtype_logits"], dim=-1)
                 batch_conjform_preds = torch.argmax(batch_pred["word_analysis_conjform_logits"], dim=-1)
+                batch_ne_tag_preds = torch.argmax(batch_pred["ne_logits"], dim=-1)
                 batch_word_feature_preds = batch_pred["word_feature_logits"]
                 batch_base_phrase_feature_preds = batch_pred["base_phrase_feature_logits"].ge(0.5).long()
                 batch_dependency_preds = torch.topk(
@@ -81,6 +89,7 @@ class WordModuleWriter(BasePredictionWriter):
                     conjtype_preds,
                     conjform_preds,
                     word_feature_preds,
+                    ne_tag_preds,
                     base_phrase_feature_preds,
                     dependency_preds,
                     dependency_type_preds,
@@ -93,6 +102,7 @@ class WordModuleWriter(BasePredictionWriter):
                     batch_conjtype_preds.tolist(),
                     batch_conjform_preds.tolist(),
                     batch_word_feature_preds.tolist(),
+                    batch_ne_tag_preds.tolist(),
                     batch_base_phrase_feature_preds.tolist(),
                     batch_dependency_preds.tolist(),
                     batch_dependency_type_preds.tolist(),
@@ -109,6 +119,7 @@ class WordModuleWriter(BasePredictionWriter):
                     )
                     document = self._chunk_morphemes(morphemes, word_feature_preds)
                     self._add_base_phrase_features(document, base_phrase_feature_preds)
+                    self._add_named_entities(document, ne_tag_preds)
                     self._add_dependency(document, dependency_preds, dependency_type_preds, dataset.special_to_index)
                     self._add_cohesion(
                         document,
@@ -127,8 +138,8 @@ class WordModuleWriter(BasePredictionWriter):
         elif isinstance(self.destination, TextIOBase):
             self.destination.write(output_string)
 
-    @staticmethod
     def _create_morphemes(
+        self,
         words: list[str],
         pos_preds: list[int],
         subpos_preds: list[int],
@@ -139,18 +150,31 @@ class WordModuleWriter(BasePredictionWriter):
         for word, pos_index, subpos_index, conjtype_index, conjform_index in zip(
             words, pos_preds, subpos_preds, conjtype_preds, conjform_preds
         ):
+            pos = INDEX2POS_TYPE[pos_index]
+            pos_id = POS_TYPE2ID[pos]
+            subpos = INDEX2SUBPOS_TYPE[subpos_index]
+            subpos_id = POS_SUBPOS_TYPE2ID[pos][subpos]
+            conjtype = INDEX2CONJTYPE_TYPE[conjtype_index]
+            conjtype_id = conjtype_index
+            conjform = INDEX2CONJFORM_TYPE[conjform_index]
+            conjform_id = CONJTYPE_CONJFORM_TYPE2ID[conjtype][conjform]
+            try:
+                lemma = self.jinf(word, conjtype, conjform, "基本形")
+            except ValueError as e:
+                logger.warning(f"failed to get lemma for {word}: ({e})")
+                lemma = word
             attributes = MorphemeAttributes(
                 surf=word,
                 reading=word,  # TODO
-                lemma=word,  # TODO
-                pos=INDEX2POS_TYPE[pos_index],
-                pos_id=0,  # TODO
-                subpos=INDEX2SUBPOS_TYPE[subpos_index],
-                subpos_id=0,  # TODO
-                conjtype=INDEX2CONJTYPE_TYPE[conjtype_index],
-                conjtype_id=0,  # TODO
-                conjform=INDEX2CONJFORM_TYPE[conjform_index],
-                conjform_id=0,  # TODO
+                lemma=lemma,
+                pos=pos,
+                pos_id=pos_id,
+                subpos=subpos,
+                subpos_id=subpos_id,
+                conjtype=conjtype,
+                conjtype_id=conjtype_id,
+                conjform=conjform,
+                conjform_id=conjform_id,
             )
             morphemes.append(Morpheme(attributes, SemanticsDict(), FeatureDict()))
         return morphemes
@@ -173,6 +197,7 @@ class WordModuleWriter(BasePredictionWriter):
             ) = word_feature_pred
             if base_phrase_head_prob >= 0.5:
                 morpheme.features["基本句-主辞"] = True
+            # TODO: refactor & set strict condition
             if declinable_word_surf_head >= 0.5:
                 morpheme.features["用言表記先頭"] = True
             if declinable_word_surf_end >= 0.5:
@@ -214,6 +239,26 @@ class WordModuleWriter(BasePredictionWriter):
                 if pred == 1:
                     k, *vs = feature.split(":")
                     base_phrase.features[k] = ":".join(vs) or True
+
+    @staticmethod
+    def _add_named_entities(document: Document, ne_tag_preds: list[int]) -> None:
+        for sentence in document.sentences:
+            morphemes = sentence.morphemes
+            category = ""
+            morphemes_buff = []
+            for morpheme, ne_tag_pred in zip(morphemes, ne_tag_preds):
+                ne_tag = NE_TAGS[ne_tag_pred]
+                if ne_tag.startswith("B-"):
+                    category = ne_tag[2:]
+                    morphemes_buff.append(morpheme)
+                elif ne_tag.startswith("I-") and ne_tag[2:] == category:
+                    morphemes_buff.append(morpheme)
+                else:
+                    if morphemes_buff:
+                        named_entity = NamedEntity(category=NamedEntityCategory(category), morphemes=morphemes_buff)
+                        sentence.named_entities.append(named_entity)
+                    category = ""
+                    morphemes_buff = []
 
     @staticmethod
     def _resolve_dependency(base_phrase: BasePhrase, dependency_manager: DependencyManager) -> None:
