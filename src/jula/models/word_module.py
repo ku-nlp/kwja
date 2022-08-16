@@ -5,7 +5,7 @@ import hydra
 import torch
 from omegaconf import DictConfig
 from pytorch_lightning.core.lightning import LightningModule
-from transformers import AutoTokenizer, PretrainedConfig, PreTrainedTokenizerBase
+from transformers import PretrainedConfig
 
 from jula.evaluators.cohesion_analysis_metric import CohesionAnalysisMetric
 from jula.evaluators.dependency_parsing_metric import DependencyParsingMetric
@@ -28,11 +28,7 @@ class WordModule(LightningModule):
         self.valid_corpora = list(hparams.datamodule.valid.keys())
         self.test_corpora = list(hparams.datamodule.test.keys())
 
-        tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-            hparams.model.model_name_or_path,
-            **hydra.utils.instantiate(hparams.dataset.tokenizer_kwargs),
-        )
-        self.word_encoder: WordEncoder = WordEncoder(hparams, vocab_size=len(tokenizer.get_vocab()))
+        self.word_encoder: WordEncoder = WordEncoder(hparams)
 
         pretrained_model_config: PretrainedConfig = self.word_encoder.pretrained_model.config
 
