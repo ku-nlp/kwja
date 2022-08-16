@@ -1,4 +1,5 @@
 import itertools
+import re
 
 from rhoknp.props import DepType
 
@@ -352,3 +353,5 @@ DISCOURSE_RELATIONS = (
     "逆接",
 )
 INDEX2DISCOURSE_RELATION = {index: discourse_relation for index, discourse_relation in enumerate(DISCOURSE_RELATIONS)}
+
+SUB_DOC_PAT = re.compile(r"-([1-9][0-9]|0[1-9])$")

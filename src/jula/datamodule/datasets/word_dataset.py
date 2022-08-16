@@ -1,5 +1,7 @@
 import logging
+import sys
 from dataclasses import dataclass
+from pathlib import Path
 
 import torch
 from omegaconf import ListConfig
@@ -64,6 +66,7 @@ class WordDataset(BaseDataset):
         max_seq_length: int = 512,
         tokenizer_kwargs: dict = None,
     ) -> None:
+        self.special_tokens: list[str] = list(special_tokens)
         super().__init__(
             path,
             model_name_or_path,
@@ -71,7 +74,6 @@ class WordDataset(BaseDataset):
             tokenizer_kwargs,
         )
         self.exophora_referents = [ExophoraReferent(s) for s in exophora_referents]
-        self.special_tokens: list[str] = list(special_tokens)
         self.cohesion_tasks: list[Task] = [Task(t) for t in cohesion_tasks]
         self.cases: list[str] = list(cases)
         self.bar_rels: list[str] = list(bar_rels)
@@ -114,6 +116,51 @@ class WordDataset(BaseDataset):
     @property
     def num_special_tokens(self) -> int:
         return len(self.special_tokens)
+
+    def split_documents(self, document: Document) -> list[Document]:
+        max_token_length = self.max_seq_length - self.num_special_tokens
+
+        cum_lens = [0]
+        for sentence in document.sentences:
+            num_tokens = len(self.tokenizer.tokenize(" ".join(morpheme.surf for morpheme in sentence.morphemes)))
+            cum_lens.append(cum_lens[-1] + num_tokens)
+
+        end = 1
+        # end を探索
+        while end < len(document.sentences) and cum_lens[end + 1] - cum_lens[0] <= max_token_length:
+            end += 1
+
+        sub_documents: list[Document] = []
+        while end < len(document.sentences) + 1:
+            start = 0
+            # start を探索
+            while cum_lens[end] - cum_lens[start] > max_token_length:
+                start += 1
+                if start == end - 1:
+                    break
+
+            sub_knp_text = "".join(sentence.to_knp() for sentence in document.sentences[start:end])
+            sub_document = Document.from_knp(sub_knp_text)
+            sub_document.doc_id = f"{document.doc_id}-{len(sub_documents):02}"
+            sub_documents.append(sub_document)
+            end += 1
+        return sub_documents
+
+    def load_documents(self, path: Path, ext: str = "knp") -> dict[str, Document]:
+        doc_id2document: dict[str, Document] = {}
+        for file_path in sorted(path.glob(f"*.{ext}")):
+            # TODO: fix document file
+            try:
+                document = Document.from_knp(file_path.read_text())
+                if path.parent.name == "kyoto":
+                    sub_documents = self.split_documents(document)
+                    for sub_document in sub_documents:
+                        doc_id2document[sub_document.doc_id] = sub_document
+                else:
+                    doc_id2document[document.doc_id] = document
+            except AssertionError:
+                print(f"{file_path} is not a valid knp file.", file=sys.stderr)
+        return doc_id2document
 
     def _load_examples(self, documents: list[Document]) -> list[WordExampleSet]:
         examples = []
@@ -194,7 +241,7 @@ class WordDataset(BaseDataset):
         word_feature_example = example.word_feature_example
         morpheme_type_set = (POS_TYPES, SUBPOS_TYPES, CONJTYPE_TYPES, CONJFORM_TYPES)
         morpheme_types = [[IGNORE_INDEX] * len(morpheme_type_set) for _ in range(self.max_seq_length)]
-        for morpheme_index, mrph_types in enumerate(word_feature_example.types):
+        for morpheme_index, mrph_types in word_feature_example.types:
             for i, (mrph_type, all_types) in enumerate(zip(mrph_types, morpheme_type_set)):
                 if mrph_type in all_types:
                     morpheme_types[morpheme_index][i] = all_types.index(mrph_type)
@@ -211,7 +258,7 @@ class WordDataset(BaseDataset):
 
         # word feature tagging
         word_features = [[IGNORE_INDEX] * len(WORD_FEATURES) for _ in range(self.max_seq_length)]
-        for morpheme_index, feature_set in enumerate(word_feature_example.features):
+        for morpheme_index, feature_set in word_feature_example.features.items():
             for i, word_feature in enumerate(WORD_FEATURES):
                 word_features[morpheme_index][i] = int(word_feature in feature_set)
 
@@ -225,7 +272,7 @@ class WordDataset(BaseDataset):
         # dependency parsing
         dependency_example = example.dependency_example
         dependencies: list[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
-        for global_morpheme_index, dependency in enumerate(dependency_example.dependencies):
+        for global_morpheme_index, dependency in dependency_example.dependencies:
             dependencies[global_morpheme_index] = dependency if dependency != -1 else self.special_to_index["[ROOT]"]
 
         dependency_mask: list[list[bool]] = []  # False -> mask, True -> keep
@@ -235,7 +282,7 @@ class WordDataset(BaseDataset):
         dependency_mask += [[False] * self.max_seq_length] * (self.max_seq_length - len(dependency_mask))  # pad
 
         dependency_types: list[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
-        for global_morpheme_index, dependency_type in enumerate(dependency_example.dependency_types):
+        for global_morpheme_index, dependency_type in dependency_example.dependency_types:
             dependency_types[global_morpheme_index] = DEPENDENCY_TYPE2INDEX[dependency_type]
 
         # PAS analysis & coreference resolution

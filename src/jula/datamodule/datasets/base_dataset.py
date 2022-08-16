@@ -20,14 +20,14 @@ class BaseDataset(Dataset):
         self.path = Path(path)
         assert self.path.is_dir()
 
-        self.doc_id2document = self.load_documents(self.path, ext)
-        assert len(self.documents) != 0
-
         self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             model_name_or_path,
             **(tokenizer_kwargs or {}),
         )
         self.max_seq_length = max_seq_length
+
+        self.doc_id2document = self.load_documents(self.path, ext)
+        assert len(self.documents) != 0
 
     def __len__(self) -> int:
         return len(self.documents)

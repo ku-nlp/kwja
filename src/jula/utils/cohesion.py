@@ -25,9 +25,16 @@ class CohesionKNPWriter:
         self.rel_types: list[str] = dataset.cohesion_rel_types
         self.exophora_referents: list[ExophoraReferent] = dataset.exophora_referents
         self.specials: list[str] = dataset.special_tokens
-        self.documents: list[Document] = [Document.from_knp(doc.to_knp()) for doc in dataset.documents]
+        self.documents: list[Document] = [self.reconstruct(doc) for doc in dataset.documents]
         self.examples: list[CohesionExample] = [e.cohesion_example for e in dataset.examples]
         self.kc: bool = False
+
+    @staticmethod
+    def reconstruct(doc):
+        doc_id = doc.doc_id
+        reconstructed = Document.from_knp(doc.to_knp())
+        reconstructed.doc_id = doc_id
+        return reconstructed
 
     def write(
         self,
