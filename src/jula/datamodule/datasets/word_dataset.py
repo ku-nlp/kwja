@@ -35,6 +35,7 @@ from jula.utils.constants import (
     SUBPOS_TYPES,
     WORD_FEATURES,
 )
+from jula.utils.sub_document import to_sub_doc_id
 
 logger = logging.getLogger(__name__)
 
@@ -139,7 +140,7 @@ class WordDataset(BaseDataset):
                     break
 
             sub_document = Document.from_sentences(document.sentences[start:end])
-            sub_document.doc_id = f"{document.doc_id}-{sub_idx:02}"
+            sub_document.doc_id = to_sub_doc_id(document.doc_id, sub_idx, stride=1)  # TODO: make stride configurable
             sub_documents.append(sub_document)
             sub_idx += 1
             end += 1
