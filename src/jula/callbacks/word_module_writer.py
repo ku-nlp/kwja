@@ -11,6 +11,7 @@ from jinf import Jinf
 from pytorch_lightning.callbacks import BasePredictionWriter
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
 from rhoknp.cohesion import ExophoraReferent, RelTag, RelTagList
+from rhoknp.cohesion.discourse_relation import DiscourseRelationTag
 from rhoknp.props import DepType, FeatureDict, NamedEntity, NamedEntityCategory, NETagList, SemanticsDict
 from rhoknp.units.morpheme import MorphemeAttributes
 
@@ -200,7 +201,7 @@ class WordModuleWriter(BasePredictionWriter):
                 morpheme.features["用言表記末尾"] = True
             # even if base_phrase_end_prob is low, if phrase_end_prob is high enough, create chunk here
             if base_phrase_end_prob >= 0.5 or base_phrase_end_prob + phrase_end_prob >= 1.0:
-                base_phrase = BasePhrase(None, None, FeatureDict(), RelTagList(), NETagList())
+                base_phrase = BasePhrase(None, None, FeatureDict(), RelTagList(), NETagList(), DiscourseRelationTag())
                 base_phrase.morphemes = morphemes_buff
                 morphemes_buff = []
                 base_phrases_buff.append(base_phrase)
@@ -213,7 +214,7 @@ class WordModuleWriter(BasePredictionWriter):
 
         # clear buffers
         if morphemes_buff:
-            base_phrase = BasePhrase(None, None, FeatureDict(), RelTagList(), NETagList())
+            base_phrase = BasePhrase(None, None, FeatureDict(), RelTagList(), NETagList(), DiscourseRelationTag())
             base_phrase.morphemes = morphemes_buff
             base_phrases_buff.append(base_phrase)
         if base_phrases_buff:
