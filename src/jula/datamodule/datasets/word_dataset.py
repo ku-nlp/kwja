@@ -250,7 +250,7 @@ class WordDataset(BaseDataset):
                 if mrph_type in all_types:
                     morpheme_types[morpheme_index][i] = all_types.index(mrph_type)
 
-        ne_tags = [
+        ne_tags: list[int] = [
             (NE_TAGS.index("O") if morpheme_index in word_feature_example.features.keys() else IGNORE_INDEX)
             for morpheme_index in range(self.max_seq_length)
         ]
@@ -258,7 +258,7 @@ class WordDataset(BaseDataset):
             category = named_entity.category.value
             for i, morpheme in enumerate(named_entity.morphemes):
                 bi = "B" if i == 0 else "I"
-                assert ne_tags[morpheme.global_index] == "O"
+                assert ne_tags[morpheme.global_index] == NE_TAGS.index("O")
                 ne_tags[morpheme.global_index] = NE_TAGS.index(f"{bi}-{category}")
 
         # word feature tagging
