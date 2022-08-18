@@ -2,7 +2,8 @@ import re
 
 from rhoknp import Document
 
-from jula.utils.constants import BASE_PHRASE_FEATURES, SUB_DOC_PAT
+from jula.utils.constants import BASE_PHRASE_FEATURES
+from jula.utils.sub_document import extract_target_sentences
 
 
 class BasePhraseFeatureExample:
@@ -17,13 +18,9 @@ class BasePhraseFeatureExample:
 
     def load(self, document: Document) -> None:
         self.doc_id = document.doc_id
-        if SUB_DOC_PAT.search(self.doc_id) is not None:
-            target = document.sentences[-1]
-        else:
-            target = document
 
         target_feature_set = set(BASE_PHRASE_FEATURES)
-        for base_phrase in target.base_phrases:
+        for base_phrase in [bp for sent in extract_target_sentences(document) for bp in sent.base_phrases]:
             self.heads.append(base_phrase.head.global_index)
             features = {
                 k + (f":{v}" if isinstance(v, str) and self.IGNORE_VALUE.match(k) is None else "")

@@ -242,19 +242,20 @@ class WordDataset(BaseDataset):
         word_feature_example = example.word_feature_example
         morpheme_type_set = (POS_TYPES, SUBPOS_TYPES, CONJTYPE_TYPES, CONJFORM_TYPES)
         morpheme_types = [[IGNORE_INDEX] * len(morpheme_type_set) for _ in range(self.max_seq_length)]
-        for morpheme_index, mrph_types in word_feature_example.types:
+        for morpheme_index, mrph_types in word_feature_example.types.items():
             for i, (mrph_type, all_types) in enumerate(zip(mrph_types, morpheme_type_set)):
                 if mrph_type in all_types:
                     morpheme_types[morpheme_index][i] = all_types.index(mrph_type)
 
         ne_tags = [
-            NE_TAGS.index("O") if idx < len(word_feature_example.features) else IGNORE_INDEX
-            for idx in range(self.max_seq_length)
+            (NE_TAGS.index("O") if morpheme_index in word_feature_example.features.keys() else IGNORE_INDEX)
+            for morpheme_index in range(self.max_seq_length)
         ]
         for named_entity in word_feature_example.named_entities:
             category = named_entity.category.value
             for i, morpheme in enumerate(named_entity.morphemes):
                 bi = "B" if i == 0 else "I"
+                assert ne_tags[morpheme.global_index] == "O"
                 ne_tags[morpheme.global_index] = NE_TAGS.index(f"{bi}-{category}")
 
         # word feature tagging
@@ -273,18 +274,18 @@ class WordDataset(BaseDataset):
         # dependency parsing
         dependency_example = example.dependency_example
         dependencies: list[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
-        for global_morpheme_index, dependency in dependency_example.dependencies:
-            dependencies[global_morpheme_index] = dependency if dependency != -1 else self.special_to_index["[ROOT]"]
+        for morpheme_index, dependency in dependency_example.dependencies.items():
+            dependencies[morpheme_index] = dependency if dependency != -1 else self.special_to_index["[ROOT]"]
 
-        dependency_mask: list[list[bool]] = []  # False -> mask, True -> keep
-        for cands in dependency_example.candidates:
-            cands.append(self.special_to_index["[ROOT]"])
-            dependency_mask.append([(x in cands) for x in range(self.max_seq_length)])
-        dependency_mask += [[False] * self.max_seq_length] * (self.max_seq_length - len(dependency_mask))  # pad
+        # False -> mask, True -> keep
+        dependency_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
+        for morpheme_index, candidates in dependency_example.candidates.items():
+            for candidate_index in candidates + [self.special_to_index["[ROOT]"]]:
+                dependency_mask[morpheme_index][candidate_index] = True
 
         dependency_types: list[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
-        for global_morpheme_index, dependency_type in dependency_example.dependency_types:
-            dependency_types[global_morpheme_index] = DEPENDENCY_TYPE2INDEX[dependency_type]
+        for morpheme_index, dependency_type in dependency_example.dependency_types.items():
+            dependency_types[morpheme_index] = DEPENDENCY_TYPE2INDEX[dependency_type]
 
         # PAS analysis & coreference resolution
         cohesion_example = example.cohesion_example

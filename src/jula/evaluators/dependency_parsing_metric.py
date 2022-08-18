@@ -6,8 +6,9 @@ from rhoknp.props import DepType
 from torchmetrics import Metric
 
 from jula.evaluators.conll18_ud_eval import main as conll18_ud_eval
-from jula.utils.constants import INDEX2DEPENDENCY_TYPE, SUB_DOC_PAT
+from jula.utils.constants import INDEX2DEPENDENCY_TYPE
 from jula.utils.dependency_parsing import DependencyManager
+from jula.utils.sub_document import extract_target_sentences
 
 
 class DependencyParsingMetric(Metric):
@@ -67,10 +68,7 @@ class DependencyParsingMetric(Metric):
             documents, dependency_predictions, dependency_type_predictions
         ):
             sequence_len = len(dependency_prediction)
-            sentences = document.sentences
-            if SUB_DOC_PAT.search(document.doc_id) is not None:
-                sentences = sentences[-1:]
-            for sentence in sentences:
+            for sentence in extract_target_sentences(document):
                 morpheme_global_index2base_phrase_index = {
                     morpheme.global_index: base_phrase.index + 1
                     for base_phrase in sentence.base_phrases
@@ -111,10 +109,7 @@ class DependencyParsingMetric(Metric):
             documents, dependency_predictions, dependency_type_predictions
         ):
             sequence_len = len(dependency_prediction)
-            sentences = document.sentences
-            if SUB_DOC_PAT.search(document.doc_id) is not None:
-                sentences = sentences[-1:]
-            for sentence in sentences:
+            for sentence in extract_target_sentences(document):
                 morpheme_global_index2morpheme_index = {
                     morpheme.global_index: morpheme.index + 1 for morpheme in sentence.morphemes
                 }
