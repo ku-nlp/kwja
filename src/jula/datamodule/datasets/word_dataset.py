@@ -117,9 +117,7 @@ class WordDataset(BaseDataset):
     def num_special_tokens(self) -> int:
         return len(self.special_tokens)
 
-    def split_documents(self, document: Document) -> list[Document]:
-        max_token_length = self.max_seq_length - self.num_special_tokens
-
+    def _split_document(self, document: Document, max_token_length: int) -> list[Document]:
         cum_lens = [0]
         for sentence in document.sentences:
             num_tokens = len(self.tokenizer.tokenize(" ".join(morpheme.surf for morpheme in sentence.morphemes)))
@@ -131,6 +129,7 @@ class WordDataset(BaseDataset):
             end += 1
 
         sub_documents: list[Document] = []
+        sub_idx = 0
         while end < len(document.sentences) + 1:
             start = 0
             # start を探索
@@ -139,10 +138,10 @@ class WordDataset(BaseDataset):
                 if start == end - 1:
                     break
 
-            sub_knp_text = "".join(sentence.to_knp() for sentence in document.sentences[start:end])
-            sub_document = Document.from_knp(sub_knp_text)
-            sub_document.doc_id = f"{document.doc_id}-{len(sub_documents):02}"
+            sub_document = Document.from_sentences(document.sentences[start:end])
+            sub_document.doc_id = f"{document.doc_id}-{sub_idx:02}"
             sub_documents.append(sub_document)
+            sub_idx += 1
             end += 1
         return sub_documents
 
@@ -153,7 +152,10 @@ class WordDataset(BaseDataset):
             try:
                 document = Document.from_knp(file_path.read_text())
                 if path.parent.name == "kyoto":
-                    sub_documents = self.split_documents(document)
+                    sub_documents = self._split_document(
+                        document,
+                        max_token_length=self.max_seq_length - self.num_special_tokens - 2,  # -2 for [CLS] and [SEP]
+                    )
                     for sub_document in sub_documents:
                         doc_id2document[sub_document.doc_id] = sub_document
                 else:
