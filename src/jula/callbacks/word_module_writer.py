@@ -27,6 +27,7 @@ from jula.utils.constants import (
     NE_TAGS,
 )
 from jula.utils.dependency_parsing import DependencyManager
+from jula.utils.sub_document import extract_target_sentences
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,7 @@ class WordModuleWriter(BasePredictionWriter):
         predictions: Sequence[Any],
         batch_indices: Optional[Sequence[Any]] = None,
     ) -> None:
-        documents: list[Document] = []
+        sentences: list[Sentence] = []
         dataloaders = trainer.predict_dataloaders
         for prediction in predictions:
             for batch_pred in prediction:
@@ -125,11 +126,13 @@ class WordModuleWriter(BasePredictionWriter):
                         dataset.exophora_referents,
                         dataset.index_to_special,
                     )
-                    document = Document.from_knp(document.to_knp())  # reparse to get clauses
+                    doc_id = document.doc_id
+                    document = document.reparse()  # reparse to get clauses
+                    document.doc_id = doc_id
                     self._add_discourse(document, discourse_parsing_preds)
-                    documents.append(document)
+                    sentences += extract_target_sentences(document)
 
-        output_string = "".join(doc.to_knp() for doc in documents)
+        output_string = "".join(sentence.to_knp() for sentence in sentences)
         if isinstance(self.destination, Path):
             self.destination.write_text(output_string)
         elif isinstance(self.destination, TextIOBase):
