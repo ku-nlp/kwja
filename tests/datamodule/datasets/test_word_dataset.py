@@ -43,6 +43,7 @@ word_dataset_kwargs = {
     "special_tokens": ListConfig(special_tokens),
     "restrict_cohesion_target": True,
     "tokenizer_kwargs": {"additional_special_tokens": special_tokens},
+    "document_split_stride": 1,
 }
 
 

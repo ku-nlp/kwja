@@ -2,3 +2,4 @@ special_tokens: ${concat:${exophora_referents},["[NULL]", "[NA]", "[ROOT]"]}
 tokenizer_kwargs:
   additional_special_tokens: ${dataset.special_tokens}
   _convert_: all
+document_split_stride: 1

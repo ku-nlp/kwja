@@ -63,11 +63,13 @@ class WordDataset(BaseDataset):
         cohesion_tasks: ListConfig[str],
         special_tokens: ListConfig[str],
         restrict_cohesion_target: bool,
+        document_split_stride: int,
         model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
         max_seq_length: int = 512,
         tokenizer_kwargs: dict = None,
     ) -> None:
         self.special_tokens: list[str] = list(special_tokens)
+        self.document_split_stride = document_split_stride
         super().__init__(
             path,
             model_name_or_path,
@@ -116,7 +118,7 @@ class WordDataset(BaseDataset):
     def num_special_tokens(self) -> int:
         return len(self.special_tokens)
 
-    def _split_document(self, document: Document, max_token_length: int) -> list[Document]:
+    def _split_document(self, document: Document, max_token_length: int, stride: int) -> list[Document]:
         cum_lens = [0]
         for sentence in document.sentences:
             num_tokens = len(self.tokenizer.tokenize(" ".join(morpheme.surf for morpheme in sentence.morphemes)))
@@ -138,7 +140,7 @@ class WordDataset(BaseDataset):
                     break
 
             sub_document = Document.from_sentences(document.sentences[start:end])
-            sub_document.doc_id = to_sub_doc_id(document.doc_id, sub_idx, stride=1)  # TODO: make stride configurable
+            sub_document.doc_id = to_sub_doc_id(document.doc_id, sub_idx, stride=stride)
             sub_documents.append(sub_document)
             sub_idx += 1
             end += 1
@@ -154,6 +156,7 @@ class WordDataset(BaseDataset):
                     sub_documents = self._split_document(
                         document,
                         max_token_length=self.max_seq_length - self.num_special_tokens - 2,  # -2 for [CLS] and [SEP]
+                        stride=self.document_split_stride,
                     )
                     for sub_document in sub_documents:
                         doc_id2document[sub_document.doc_id] = sub_document
