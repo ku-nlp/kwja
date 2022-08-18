@@ -6,7 +6,8 @@ SUB_DOC_PAT: re.Pattern[str] = re.compile(r"^(?P<did>[a-zA-Z\d\-_]+?)-split(?P<s
 
 
 def is_target_sentence(sentence: Sentence) -> bool:
-    match = SUB_DOC_PAT.match(sentence.sid)
+    document = sentence.document
+    match = SUB_DOC_PAT.match(document.doc_id)
     if match is None:
         return True
     stride = int(match.group("stride"))
@@ -14,7 +15,7 @@ def is_target_sentence(sentence: Sentence) -> bool:
     if idx == 0:
         return True
     else:
-        return sentence in sentence.document.sentences[-stride:]
+        return sentence in document.sentences[-stride:]
 
 
 def extract_target_sentences(document: Document) -> list[Sentence]:
