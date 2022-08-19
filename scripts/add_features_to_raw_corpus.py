@@ -151,6 +151,10 @@ def set_named_entities(document: Document, sid2tagged_sentence: dict[str, Senten
             tagged_sentence = sid2tagged_sentence[sentence.sid]
             alignment = align(tagged_sentence.morphemes, sentence.morphemes)
             if alignment is None:
+                print(
+                    f'alignment ({" ".join(m.surf for m in tagged_sentence.morphemes)} / '
+                    f'{" ".join(m.surf for m in sentence.morphemes)}) not found'
+                )
                 continue
 
             for category, morphemes_buff in extract_named_entities(tagged_sentence):
