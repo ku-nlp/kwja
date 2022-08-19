@@ -84,6 +84,8 @@ def is_target_base_phrase_feature(k: str, v: Any) -> bool:
 def refresh(document: Document) -> None:
     for morpheme in document.morphemes:
         feature_dict = {}
+        if morpheme.base_phrase.head == morpheme:
+            feature_dict["基本句-主辞"] = True
         for feature in SUB_WORD_FEATURES:
             k, *vs = feature.split(":")
             if k in morpheme.features:
