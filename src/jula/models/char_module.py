@@ -6,7 +6,7 @@ import torch
 from omegaconf import DictConfig
 from pytorch_lightning.core.lightning import LightningModule
 from pytorch_lightning.utilities.types import STEP_OUTPUT
-from transformers import AutoTokenizer, PretrainedConfig, PreTrainedTokenizerBase
+from transformers import PretrainedConfig
 
 from jula.evaluators.word_segmentation_metric import WordSegmentationMetric
 from jula.models.models.char_encoder import CharEncoder
@@ -22,11 +22,7 @@ class CharModule(LightningModule):
         self.valid_corpora = list(hparams.datamodule.valid.keys())
         self.test_corpora = list(hparams.datamodule.test.keys())
 
-        tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-            hparams.model.model_name_or_path,
-            **hydra.utils.instantiate(hparams.dataset.tokenizer_kwargs),
-        )
-        self.char_encoder: CharEncoder = CharEncoder(hparams, vocab_size=len(tokenizer.get_vocab()))
+        self.char_encoder: CharEncoder = CharEncoder(hparams)
 
         pretrained_model_config: PretrainedConfig = self.char_encoder.pretrained_model.config
 

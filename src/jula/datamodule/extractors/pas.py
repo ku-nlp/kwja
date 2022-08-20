@@ -41,6 +41,7 @@ class PasExtractor(Extractor):
             phrases[anaphor.global_index].is_target = True
             candidates: list[int] = [bp.global_index for bp in bp_list if self.is_candidate(bp, anaphor) is True]
             phrases[anaphor.global_index].candidates = candidates
+            assert anaphor.pas is not None, "pas has not been set"
             for case in self.cases:
                 arguments = anaphor.pas.get_arguments(case, relax=False)
                 arguments_set[anaphor.global_index][case] = self._get_args(arguments, candidates)

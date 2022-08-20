@@ -2,14 +2,20 @@ import multiprocessing as mp
 import re
 import textwrap
 from argparse import ArgumentParser
+from itertools import product
 from pathlib import Path
 from subprocess import PIPE, Popen
+from typing import Any, Optional, Union
 
 from kyoto_reader import KyotoReader
-from rhoknp import KNP, Document, Jumanpp, Sentence
+from rhoknp import KNP, Document, Jumanpp, Morpheme, Sentence
+from rhoknp.props import FeatureDict, NamedEntity, NamedEntityCategory
 from tqdm import tqdm
 
-FEATURES_PATTERN = re.compile(r"(?P<features>(<[^>]+>)+)")
+from jula.utils.constants import BASE_PHRASE_FEATURES, SUB_WORD_FEATURES
+
+FEATURES_PAT = re.compile(r"(?P<features>(<[^>]+>)+)")
+IGNORE_VALUE_PAT = re.compile(r"節-(前向き)?機能疑?")
 
 
 class JumanppAugmenter:
@@ -70,9 +76,115 @@ class JumanppAugmenter:
                     original_morpheme.semantics[k] = v
 
 
-def add_features(doc_ids: list[str], reader: KyotoReader, output_dir: Path) -> None:
-    knp = KNP(options=["-tab", "-dpnd-fast", "-read-feature"])
+def is_target_base_phrase_feature(k: str, v: Any) -> bool:
+    name = k + (f":{v}" if isinstance(v, str) and IGNORE_VALUE_PAT.match(k) is None else "")
+    return name in BASE_PHRASE_FEATURES
+
+
+def refresh(document: Document) -> None:
+    for morpheme in document.morphemes:
+        feature_dict = {}
+        if morpheme.base_phrase.head == morpheme:
+            feature_dict["基本句-主辞"] = True
+        for feature in SUB_WORD_FEATURES:
+            k, *vs = feature.split(":")
+            if k in morpheme.features:
+                feature_dict[k] = morpheme.features[k]
+        morpheme.features = FeatureDict(feature_dict)
+        morpheme.semantics.clear()
+    for base_phrase in document.base_phrases:
+        feature_dict = {}
+        for feature in BASE_PHRASE_FEATURES:
+            k, *vs = feature.split(":")
+            if k in base_phrase.features and is_target_base_phrase_feature(k, base_phrase.features[k]):
+                feature_dict[k] = base_phrase.features[k]
+        base_phrase.features = FeatureDict(feature_dict)
+    for phrase in document.phrases:
+        phrase.features.clear()
+
+
+def align(morphemes1: list[Morpheme], morphemes2: list[Morpheme]) -> Union[dict[str, list[Morpheme]], None]:
+    alignment = {}
+    idx1, idx2 = 0, 0
+    for _ in range(max(len(morphemes1), len(morphemes2))):
+        if idx1 >= len(morphemes1) or idx2 >= len(morphemes2):
+            break
+
+        range1 = range(1, min(len(morphemes1) - idx1 + 1, 11))
+        range2 = range(1, min(len(morphemes2) - idx2 + 1, 11))
+        for i, j in product(range1, range2):
+            subseq1, subseq2 = map(
+                lambda x: "".join(morpheme.surf for morpheme in x),
+                [morphemes1[idx1 : idx1 + i], morphemes2[idx2 : idx2 + j]],
+            )
+            if subseq1 == subseq2:
+                key = "-".join(str(morpheme1.index) for morpheme1 in morphemes1[idx1 : idx1 + i])
+                alignment[key] = morphemes2[idx2 : idx2 + j]
+                idx1 += i
+                idx2 += j
+                break
+        else:
+            return None
+
+    return alignment
+
+
+def extract_named_entities(tagged_sentence: Sentence) -> list[tuple[str, list[Morpheme]]]:
+    named_entities = []
+    category, morphemes_buff = "", []
+    for morpheme in tagged_sentence.morphemes:
+        if "NE" in morpheme.semantics:
+            cat, span = morpheme.semantics["NE"].split(":")
+            if span in {"single", "head"}:
+                category, morphemes_buff = cat, [morpheme]
+            elif span in {"middle", "tail"} and cat == category:
+                morphemes_buff.append(morpheme)
+
+            if span in {"single", "tail"} and category != "":
+                named_entities.append((category, morphemes_buff))
+                category, morphemes_buff = "", []
+
+    return named_entities
+
+
+def set_named_entities(document: Document, sid2tagged_sentence: dict[str, Sentence]) -> None:
+    for sentence in document.sentences:
+        if sentence.sid in sid2tagged_sentence:
+            tagged_sentence = sid2tagged_sentence[sentence.sid]
+            alignment = align(tagged_sentence.morphemes, sentence.morphemes)
+            if alignment is None:
+                print(
+                    f'alignment ({" ".join(m.surf for m in tagged_sentence.morphemes)} / '
+                    f'{" ".join(m.surf for m in sentence.morphemes)}) not found'
+                )
+                continue
+
+            for category, morphemes_buff in extract_named_entities(tagged_sentence):
+                morphemes, keys = [], []
+                for morpheme in morphemes_buff:
+                    keys.append(str(morpheme.index))
+                    if "-".join(keys) in alignment:
+                        morphemes.extend(alignment["-".join(keys)])
+                        keys = []
+
+                if len(keys) == 0:
+                    named_entity = NamedEntity(category=NamedEntityCategory(category), morphemes=morphemes)
+                    sentence.named_entities.append(named_entity)
+                else:
+                    print(
+                        f'morpheme span of {" ".join(m.surf for m in morphemes_buff)} not found in '
+                        f'{" ".join(m.surf for m in sentence.morphemes)}'
+                    )
+
+
+def add_features(
+    doc_ids: list[str],
+    reader: KyotoReader,
+    output_dir: Path,
+    sid2tagged_sentence: Optional[dict[str, Sentence]] = None,
+) -> None:
     jumanpp_augmenter = JumanppAugmenter()
+    knp = KNP(options=["-tab", "-dpnd-fast", "-read-feature"])
 
     for doc_id in tqdm(doc_ids):
         old_knp_lines = reader.get_knp(doc_id).split("\n")
@@ -80,7 +192,7 @@ def add_features(doc_ids: list[str], reader: KyotoReader, output_dir: Path) -> N
         for idx, line in enumerate(old_knp_lines):
             if line.startswith("*") or line.startswith("+"):
                 pass
-            elif mo := FEATURES_PATTERN.search(line):
+            elif mo := FEATURES_PAT.search(line):
                 features = mo.group("features")
                 old_knp_lines[idx] = line.replace(features, "")
                 buf.append((idx, features))
@@ -104,8 +216,13 @@ def add_features(doc_ids: list[str], reader: KyotoReader, output_dir: Path) -> N
             new_knp_lines[idx] += features
         knp_text = "\n".join(new_knp_lines)
 
+        document = Document.from_knp(knp_text)
+        refresh(document)
+        if sid2tagged_sentence is not None:
+            set_named_entities(document, sid2tagged_sentence)
+
         with output_dir.joinpath(f"{document.doc_id}.knp").open(mode="w") as f:
-            f.write(knp_text)
+            f.write(document.to_knp())
 
 
 def test_jumanpp_augmenter():
@@ -260,6 +377,7 @@ def main():
     parser = ArgumentParser()
     parser.add_argument("INPUT", type=str, help="path to input knp dir")
     parser.add_argument("OUTPUT", type=str, help="path to output dir")
+    parser.add_argument("--ne-tags", default=None, type=str, help="path to ne tags")
     parser.add_argument("-j", default=1, type=int, help="number of jobs")
     args = parser.parse_args()
 
@@ -267,10 +385,18 @@ def main():
     output_dir = Path(args.OUTPUT)
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    if args.ne_tags:
+        with open(args.ne_tags, mode="r") as f:
+            document = Document.from_jumanpp(f.read())
+        sid2tagged_sentence = {sentence.sid: sentence for sentence in document.sentences}
+    else:
+        sid2tagged_sentence = None
+
     doc_ids = reader.doc_ids
     chunk_size = len(doc_ids) // args.j + int(len(doc_ids) % args.j > 0)
     iterable = [
-        (doc_ids[slice(start, start + chunk_size)], reader, output_dir) for start in range(0, len(doc_ids), chunk_size)
+        (doc_ids[slice(start, start + chunk_size)], reader, output_dir, sid2tagged_sentence)
+        for start in range(0, len(doc_ids), chunk_size)
     ]
     with mp.Pool(args.j) as pool:
         pool.starmap(add_features, iterable)
