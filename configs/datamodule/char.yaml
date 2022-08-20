@@ -14,5 +14,5 @@ defaults:
   - predict:
     - char_inference.yaml
 
-batch_size: ${batch_size}
+batch_size: ${max_batches_per_device}
 num_workers: ${num_workers}
