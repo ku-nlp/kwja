@@ -100,9 +100,6 @@ class WordDataset(BaseDataset):
             add_special_tokens=False,
         ).encodings[0]
 
-    def __len__(self) -> int:
-        return len(self.examples)
-
     @property
     def special_indices(self) -> list[int]:
         return list(self.special_to_index.values())
@@ -183,6 +180,9 @@ class WordDataset(BaseDataset):
                 f"Make sure there exist any documents in {self.path} and they are not too long."
             )
         return examples
+
+    def __len__(self) -> int:
+        return len(self.examples)
 
     def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
         return self.encode(self.examples[index])
