@@ -29,11 +29,6 @@ def test_load_documents():
     _ = BaseDataset._load_documents(path)
 
 
-def test_len():
-    dataset = BaseDataset(str(path), **base_dataset_kwargs)
-    assert len(dataset) == 2
-
-
 def test_split_document():
     dataset = BaseDataset(str(path), max_seq_length=13, **base_dataset_kwargs)
     assert len(dataset.orig_documents) == 2
