@@ -35,16 +35,16 @@ data_dir = here.parent.parent / "data"
 
 exophora_referents = ["著者", "読者", "不特定:人", "不特定:物"]
 special_tokens = exophora_referents + ["[NULL]", "[NA]", "[ROOT]"]
-word_dataset_kwargs = {
-    "cases": ListConfig(["ガ", "ヲ", "ニ", "ガ２"]),
-    "bar_rels": ListConfig(["ノ"]),
-    "exophora_referents": ListConfig(exophora_referents),
-    "cohesion_tasks": ListConfig(["pas_analysis", "bridging", "coreference"]),
-    "special_tokens": ListConfig(special_tokens),
-    "restrict_cohesion_target": True,
-    "tokenizer_kwargs": {"additional_special_tokens": special_tokens},
-    "document_split_stride": 1,
-}
+word_dataset_kwargs = dict(
+    cases=ListConfig(["ガ", "ヲ", "ニ", "ガ２"]),
+    bar_rels=ListConfig(["ノ"]),
+    exophora_referents=ListConfig(exophora_referents),
+    cohesion_tasks=ListConfig(["pas_analysis", "bridging", "coreference"]),
+    special_tokens=ListConfig(special_tokens),
+    restrict_cohesion_target=True,
+    tokenizer_kwargs={"additional_special_tokens": special_tokens},
+    document_split_stride=1,
+)
 
 
 def test_init():

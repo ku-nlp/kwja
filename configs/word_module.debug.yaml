@@ -13,6 +13,7 @@ defaults:
 
 devices: ${oc.env:GPUS,0}
 do_predict_after_train: False
+document_split_stride: 1
 
 # for dependency parser
 k: 4

@@ -8,4 +8,4 @@ cases: ${cases}
 bar_rels: ${bar_rels}
 exophora_referents: ${exophora_referents}
 cohesion_tasks: ${cohesion_tasks}
-document_split_stride: ${dataset.document_split_stride}
+document_split_stride: ${document_split_stride}

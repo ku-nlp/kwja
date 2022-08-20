@@ -12,7 +12,12 @@ wiki_ene_dic_path = here.joinpath("wiki_ene_dic")
 
 
 def test_init():
-    _ = CharDataset(path=str(path), wiki_ene_dic_path=str(wiki_ene_dic_path), max_seq_length=512)
+    _ = CharDataset(
+        path=str(path),
+        document_split_stride=1,
+        wiki_ene_dic_path=str(wiki_ene_dic_path),
+        max_seq_length=512,
+    )
 
 
 def test_getitem():
@@ -21,6 +26,7 @@ def test_getitem():
     # TODO: use roberta
     dataset = CharDataset(
         path=str(path),
+        document_split_stride=1,
         wiki_ene_dic_path=str(wiki_ene_dic_path),
         max_ene_num=max_ene_num,
         model_name_or_path="cl-tohoku/bert-base-japanese-char",
@@ -50,6 +56,7 @@ def test_encode():
     max_ene_num = 3
     dataset = CharDataset(
         path=str(path),
+        document_split_stride=1,
         wiki_ene_dic_path=str(wiki_ene_dic_path),
         max_ene_num=max_ene_num,
         model_name_or_path="cl-tohoku/bert-base-japanese-char",
