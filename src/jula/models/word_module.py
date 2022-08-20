@@ -115,7 +115,7 @@ class WordModule(LightningModule):
 
     def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> None:
         batch["training"] = False
-        outputs: dict[str, torch.Tensor] = self(**batch)
+        outputs: dict[str, dict[str, torch.Tensor]] = self(**batch)
         corpus = self.valid_corpora[dataloader_idx or 0]
         word_analysis_metric_args = {
             "pos_preds": torch.argmax(outputs["word_analyzer_outputs"]["pos_logits"], dim=-1),
@@ -232,7 +232,7 @@ class WordModule(LightningModule):
 
     def test_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> None:
         batch["training"] = False
-        outputs: dict[str, torch.Tensor] = self(**batch)
+        outputs: dict[str, dict[str, torch.Tensor]] = self(**batch)
         corpus = self.test_corpora[dataloader_idx or 0]
         word_analysis_metric_args = {
             "pos_preds": torch.argmax(outputs["word_analyzer_outputs"]["pos_logits"], dim=-1),
@@ -349,7 +349,7 @@ class WordModule(LightningModule):
 
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Any:
         batch["training"] = False
-        outputs: dict[str, torch.Tensor] = self(**batch)
+        outputs: dict[str, dict[str, torch.Tensor]] = self(**batch)
         return {
             "texts": batch["texts"],
             "dataloader_idx": dataloader_idx or 0,
