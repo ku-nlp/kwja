@@ -32,3 +32,11 @@ def test_load_documents():
 def test_len():
     dataset = BaseDataset(str(path), **base_dataset_kwargs)
     assert len(dataset) == 2
+
+
+def test_split_document():
+    dataset = BaseDataset(str(path), max_seq_length=13, **base_dataset_kwargs)
+    assert len(dataset.orig_documents) == 2
+    assert [doc.doc_id for doc in dataset.orig_documents] == ["000", "1"]
+    assert len(dataset.documents) == 3
+    assert [doc.doc_id for doc in dataset.documents] == ["000-split100", "000-split101", "1"]

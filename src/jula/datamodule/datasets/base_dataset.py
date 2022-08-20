@@ -91,5 +91,5 @@ class BaseDataset(Dataset):
             sub_document.doc_id = to_sub_doc_id(document.doc_id, sub_idx, stride=stride)
             sub_documents.append(sub_document)
             sub_idx += 1
-            end += 1
+            end += stride
         return sub_documents
