@@ -46,9 +46,6 @@ class BaseDataset(Dataset):
             )
         assert len(self.documents) != 0
 
-    def __len__(self) -> int:
-        return len(self.documents)
-
     @staticmethod
     def _load_documents(document_dir: Path, ext: str = "knp") -> list[Document]:
         documents = []
