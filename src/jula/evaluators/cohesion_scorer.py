@@ -160,6 +160,7 @@ class SubScorer:
         self.bridgings_pred: list[Predicate] = []
         self.mentions_pred: list[BasePhrase] = []
         for bp in document_pred.base_phrases:
+            assert bp.pas is not None, "pas has not been set"
             if PasExtractor.is_pas_target(
                 bp,
                 verbal=(pas_target in ("pred", "all")),
@@ -174,6 +175,7 @@ class SubScorer:
         self.bridgings_gold: list[Predicate] = []
         self.mentions_gold: list[BasePhrase] = []
         for bp in document_gold.base_phrases:
+            assert bp.pas is not None, "pas has not been set"
             if PasExtractor.is_pas_target(
                 bp,
                 verbal=(pas_target in ("pred", "all")),
@@ -238,8 +240,8 @@ class SubScorer:
                     arg = args_pred[0]
                     if arg in args_gold_relaxed:
                         # use dep_type of gold argument if possible
-                        arg_gold = args_gold_relaxed[args_gold_relaxed.index(arg)]
-                        analysis = Scorer.DEPTYPE2ANALYSIS[arg_gold.type]
+                        arg_gold_prec = args_gold_relaxed[args_gold_relaxed.index(arg)]
+                        analysis = Scorer.DEPTYPE2ANALYSIS[arg_gold_prec.type]
                         self.comp_result[key] = analysis
                         measures.at[case, analysis].correct += 1
                     else:
@@ -252,13 +254,13 @@ class SubScorer:
                 # 正解が複数ある場合、そのうち一つが当てられていればそれを正解に採用
                 # いずれも当てられていなければ、relax されていない項から一つを選び正解に採用
                 if args_gold or (self.comp_result.get(key, None) in Scorer.DEPTYPE2ANALYSIS.values()):
-                    arg_gold = None
+                    arg_gold_rec: Optional[Argument] = None
                     for arg in args_gold_relaxed:
                         if arg in args_pred:
-                            arg_gold = arg  # 予測されている項を優先して正解の項に採用
+                            arg_gold_rec = arg  # 予測されている項を優先して正解の項に採用
                             break
-                    if arg_gold is not None:
-                        analysis = Scorer.DEPTYPE2ANALYSIS[arg_gold.type]
+                    if arg_gold_rec is not None:
+                        analysis = Scorer.DEPTYPE2ANALYSIS[arg_gold_rec.type]
                         assert self.comp_result[key] == analysis
                     else:
                         analysis = Scorer.DEPTYPE2ANALYSIS[args_gold[0].type]
@@ -330,8 +332,8 @@ class SubScorer:
                 antecedent_pred = antecedents_pred[0]
                 if antecedent_pred in antecedents_gold_relaxed:
                     # use dep_type of gold antecedent if possible
-                    antecedent_gold = antecedents_gold_relaxed[antecedents_gold_relaxed.index(antecedent_pred)]
-                    analysis = Scorer.DEPTYPE2ANALYSIS[antecedent_gold.type]
+                    antecedent_gold_prec = antecedents_gold_relaxed[antecedents_gold_relaxed.index(antecedent_pred)]
+                    analysis = Scorer.DEPTYPE2ANALYSIS[antecedent_gold_prec.type]
                     if analysis == "overt":
                         analysis = "dep"
                     self.comp_result[key] = analysis
@@ -345,13 +347,13 @@ class SubScorer:
 
             # calculate recall
             if antecedents_gold or (self.comp_result.get(key, None) in Scorer.DEPTYPE2ANALYSIS.values()):
-                antecedent_gold = None
+                antecedent_gold_rec: Optional[Argument] = None
                 for ant in antecedents_gold_relaxed:
                     if ant in antecedents_pred:
-                        antecedent_gold = ant  # 予測されている先行詞を優先して正解の先行詞に採用
+                        antecedent_gold_rec = ant  # 予測されている先行詞を優先して正解の先行詞に採用
                         break
-                if antecedent_gold is not None:
-                    analysis = Scorer.DEPTYPE2ANALYSIS[antecedent_gold.type]
+                if antecedent_gold_rec is not None:
+                    analysis = Scorer.DEPTYPE2ANALYSIS[antecedent_gold_rec.type]
                     if analysis == "overt":
                         analysis = "dep"
                     assert self.comp_result[key] == analysis

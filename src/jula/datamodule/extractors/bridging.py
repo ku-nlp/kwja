@@ -41,6 +41,7 @@ class BridgingExtractor(Extractor):
                 candidates: list[int] = [bp.global_index for bp in bp_list if self.is_candidate(bp, anaphor) is True]
                 phrases[anaphor.global_index].candidates = candidates
                 arguments: list[Argument] = []
+                assert anaphor.pas is not None, "pas has not been set"
                 for rel in self.rels:
                     arguments += anaphor.pas.get_arguments(rel, relax=False)
                 arguments_set[anaphor.global_index] = self._get_args(arguments, candidates)
