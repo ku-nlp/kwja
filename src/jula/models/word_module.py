@@ -226,6 +226,8 @@ class WordModule(LightningModule):
 
         for corpus, metrics in log_metrics.items():
             self.log_dict({f"valid_{corpus}/{name}": value for name, value in metrics.items()})
+        for name in list(log_metrics.values())[0].keys():
+            self.log(f"valid/{name}", mean(log_metrics[corpus].get(name, 0) for corpus in self.valid_corpora))
         self.log(
             "valid/aggregated_word_metrics",
             mean(metrics["aggregated_word_metrics"] for metrics in log_metrics.values()),
@@ -347,6 +349,8 @@ class WordModule(LightningModule):
 
         for corpus, metrics in log_metrics.items():
             self.log_dict({f"test_{corpus}/{name}": value for name, value in metrics.items()})
+        for name in list(log_metrics.values())[0].keys():
+            self.log(f"test/{name}", mean(log_metrics[corpus].get(name, 0) for corpus in self.test_corpora))
         self.log(
             "test/aggregated_word_metrics",
             mean(metrics["aggregated_word_metrics"] for metrics in log_metrics.values()),
