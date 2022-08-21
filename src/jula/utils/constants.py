@@ -1,4 +1,5 @@
 import itertools
+import re
 
 from rhoknp.props import DepType
 
@@ -944,6 +945,7 @@ BASE_PHRASE_FEATURES = (
     "節-区切",
     *SUB_BASE_PHRASE_FEATURES,
 )
+IGNORE_VALUE_FEATURE_PAT = re.compile(r"節-(前向き)?機能疑?")
 IGNORE_INDEX = -100
 
 

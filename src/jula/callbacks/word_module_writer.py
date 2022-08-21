@@ -275,6 +275,7 @@ class WordModuleWriter(BasePredictionWriter):
             else:
                 base_phrase.parent_index = dst
                 base_phrase.dep_type = DepType.DEPENDENCY
+                return
 
         for dst in range(src - 1, -1, -1):
             dependency_manager.add_edge(src, dst)
@@ -283,6 +284,7 @@ class WordModuleWriter(BasePredictionWriter):
             else:
                 base_phrase.parent_index = dst
                 base_phrase.dep_type = DepType.DEPENDENCY
+                return
 
         raise RuntimeError("couldn't resolve dependency")
 
