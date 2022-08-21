@@ -11,7 +11,6 @@ defaults:
   - trainer: debug
   - _self_
 
-devices: ${oc.env:GPUS,0}
 do_predict_after_train: False
 document_split_stride: 1
 
@@ -37,8 +36,12 @@ aggregating_metrics: [
   "pas_all_case",
   "discourse_parsing_f1_no_relation_ignored",
 ]
-# batch size
-batch_size: 4
-accumulate_grad_batches: 1
-# scheduler options
+
+# hyper-parameters to be tuned
 warmup_steps: 100
+effective_batch_size: 16
+
+# environment dependent settings
+devices: ${oc.env:GPUS,0}
+max_batches_per_device: 2
+num_workers: 0
