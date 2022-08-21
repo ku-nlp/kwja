@@ -56,7 +56,7 @@ class CohesionAnalysisMetric(Metric):
 
         scorer = Scorer(
             documents_pred,
-            dataset.documents,
+            dataset.orig_documents,
             target_cases=dataset.cases,
             exophora_referents=dataset.exophora_referents,
             coreference=(Task.COREFERENCE in dataset.cohesion_tasks),

@@ -1,30 +1,34 @@
 from rhoknp import Document
 from rhoknp.props import DepType
 
+from jula.utils.sub_document import extract_target_sentences
+
 
 class DependencyExample:
     """A single training/test example for dependency parsing."""
 
     def __init__(self) -> None:
         self.doc_id: str = ""
-        self.dependencies: list[int] = []  # 形態素単位係り受け
-        self.candidates: list[list[int]] = []  # 形態素単位係り先選択候補
-        self.dependency_types: list[DepType] = []  # 形態素単位係り受けラベル
+        self.dependencies: dict[int, int] = {}  # 形態素単位係り受け
+        self.candidates: dict[int, list[int]] = {}  # 形態素単位係り先選択候補
+        self.dependency_types: dict[int, DepType] = {}  # 形態素単位係り受けラベル
 
     def load(self, document: Document) -> None:
         self.doc_id = document.doc_id
-        for morpheme in document.morphemes:
-            parent = morpheme.parent
-            if parent is not None:
-                self.dependencies.append(parent.global_index)
-            else:  # 係り先がなければ[ROOT]を指す
-                self.dependencies.append(-1)
-
-        for sentence in document.sentences:
-            intra_morphemes = sentence.morphemes
+        for sentence in extract_target_sentences(document):
             for morpheme in sentence.morphemes:
-                self.candidates.append([m.global_index for m in intra_morphemes if m != morpheme])
+                parent = morpheme.parent
+                # 係り先がなければ-1
+                self.dependencies[morpheme.global_index] = parent.global_index if parent is not None else -1
 
-        self.dependency_types = [DepType.DEPENDENCY] * len(document.morphemes)
-        for base_phrase in document.base_phrases:
-            self.dependency_types[base_phrase.head.global_index] = base_phrase.dep_type
+            intra_morphemes = sentence.morphemes
+            for morpheme in intra_morphemes:
+                self.candidates[morpheme.global_index] = [m.global_index for m in intra_morphemes if m != morpheme]
+
+            for base_phrase in sentence.base_phrases:
+                for morpheme in base_phrase.morphemes:
+                    if morpheme == base_phrase.head:
+                        dependency_type = base_phrase.dep_type
+                    else:
+                        dependency_type = DepType.DEPENDENCY
+                    self.dependency_types[morpheme.global_index] = dependency_type

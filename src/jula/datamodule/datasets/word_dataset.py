@@ -60,18 +60,20 @@ class WordDataset(BaseDataset):
         cohesion_tasks: ListConfig,
         special_tokens: ListConfig,
         restrict_cohesion_target: bool,
+        document_split_stride: int,
         model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
         max_seq_length: int = 512,
         tokenizer_kwargs: dict = None,
     ) -> None:
+        self.special_tokens: list[str] = list(special_tokens)
         super().__init__(
             path,
+            document_split_stride,
             model_name_or_path,
             max_seq_length,
             tokenizer_kwargs,
         )
         self.exophora_referents = [ExophoraReferent(s) for s in exophora_referents]
-        self.special_tokens: list[str] = list(special_tokens)
         self.cohesion_tasks: list[Task] = [Task(t) for t in cohesion_tasks]
         self.cases: list[str] = list(cases)
         self.bar_rels: list[str] = list(bar_rels)
@@ -81,11 +83,9 @@ class WordDataset(BaseDataset):
             + ["="] * (Task.COREFERENCE in self.cohesion_tasks)
         )
         self.extractors = {
-            Task.PAS_ANALYSIS: PasExtractor(self.cases, self.exophora_referents, restrict_cohesion_target, kc=False),
-            Task.COREFERENCE: CoreferenceExtractor(self.exophora_referents, restrict_cohesion_target, kc=False),
-            Task.BRIDGING: BridgingExtractor(
-                self.bar_rels, self.exophora_referents, restrict_cohesion_target, kc=False
-            ),
+            Task.PAS_ANALYSIS: PasExtractor(self.cases, self.exophora_referents, restrict_cohesion_target),
+            Task.COREFERENCE: CoreferenceExtractor(self.exophora_referents, restrict_cohesion_target),
+            Task.BRIDGING: BridgingExtractor(self.bar_rels, self.exophora_referents, restrict_cohesion_target),
         }
         self.special_to_index: dict[str, int] = {
             token: self.max_seq_length - len(self.special_tokens) + i for i, token in enumerate(self.special_tokens)
@@ -99,9 +99,6 @@ class WordDataset(BaseDataset):
             truncation=False,
             add_special_tokens=False,
         ).encodings[0]
-
-    def __len__(self) -> int:
-        return len(self.examples)
 
     @property
     def special_indices(self) -> list[int]:
@@ -184,6 +181,9 @@ class WordDataset(BaseDataset):
             )
         return examples
 
+    def __len__(self) -> int:
+        return len(self.examples)
+
     def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
         return self.encode(self.examples[index])
 
@@ -194,24 +194,25 @@ class WordDataset(BaseDataset):
         word_feature_example = example.word_feature_example
         morpheme_type_set = (POS_TYPES, SUBPOS_TYPES, CONJTYPE_TYPES, CONJFORM_TYPES)
         morpheme_types = [[IGNORE_INDEX] * len(morpheme_type_set) for _ in range(self.max_seq_length)]
-        for morpheme_index, mrph_types in enumerate(word_feature_example.types):
+        for morpheme_index, mrph_types in word_feature_example.types.items():
             for i, (mrph_type, all_types) in enumerate(zip(mrph_types, morpheme_type_set)):
                 if mrph_type in all_types:
                     morpheme_types[morpheme_index][i] = all_types.index(mrph_type)
 
-        ne_tags = [
-            NE_TAGS.index("O") if idx < len(word_feature_example.features) else IGNORE_INDEX
-            for idx in range(self.max_seq_length)
+        ne_tags: list[int] = [
+            (NE_TAGS.index("O") if morpheme_index in word_feature_example.features.keys() else IGNORE_INDEX)
+            for morpheme_index in range(self.max_seq_length)
         ]
         for named_entity in word_feature_example.named_entities:
             category = named_entity.category.value
             for i, morpheme in enumerate(named_entity.morphemes):
                 bi = "B" if i == 0 else "I"
+                assert ne_tags[morpheme.global_index] == NE_TAGS.index("O")
                 ne_tags[morpheme.global_index] = NE_TAGS.index(f"{bi}-{category}")
 
         # word feature tagging
         word_features = [[IGNORE_INDEX] * len(WORD_FEATURES) for _ in range(self.max_seq_length)]
-        for morpheme_index, feature_set in enumerate(word_feature_example.features):
+        for morpheme_index, feature_set in word_feature_example.features.items():
             for i, word_feature in enumerate(WORD_FEATURES):
                 word_features[morpheme_index][i] = int(word_feature in feature_set)
 
@@ -225,18 +226,18 @@ class WordDataset(BaseDataset):
         # dependency parsing
         dependency_example = example.dependency_example
         dependencies: list[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
-        for global_morpheme_index, dependency in enumerate(dependency_example.dependencies):
-            dependencies[global_morpheme_index] = dependency if dependency != -1 else self.special_to_index["[ROOT]"]
+        for morpheme_index, dependency in dependency_example.dependencies.items():
+            dependencies[morpheme_index] = dependency if dependency != -1 else self.special_to_index["[ROOT]"]
 
-        dependency_mask: list[list[bool]] = []  # False -> mask, True -> keep
-        for cands in dependency_example.candidates:
-            cands.append(self.special_to_index["[ROOT]"])
-            dependency_mask.append([(x in cands) for x in range(self.max_seq_length)])
-        dependency_mask += [[False] * self.max_seq_length] * (self.max_seq_length - len(dependency_mask))  # pad
+        # False -> mask, True -> keep
+        dependency_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
+        for morpheme_index, candidates in dependency_example.candidates.items():
+            for candidate_index in candidates + [self.special_to_index["[ROOT]"]]:
+                dependency_mask[morpheme_index][candidate_index] = True
 
         dependency_types: list[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
-        for global_morpheme_index, dependency_type in enumerate(dependency_example.dependency_types):
-            dependency_types[global_morpheme_index] = DEPENDENCY_TYPE2INDEX[dependency_type]
+        for morpheme_index, dependency_type in dependency_example.dependency_types.items():
+            dependency_types[morpheme_index] = DEPENDENCY_TYPE2INDEX[dependency_type]
 
         # PAS analysis & coreference resolution
         cohesion_example = example.cohesion_example

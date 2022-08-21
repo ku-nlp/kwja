@@ -11,6 +11,7 @@ from jinf import Jinf
 from pytorch_lightning.callbacks import BasePredictionWriter
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
 from rhoknp.cohesion import ExophoraReferent, RelTag, RelTagList
+from rhoknp.cohesion.discourse_relation import DiscourseRelationTag
 from rhoknp.props import DepType, FeatureDict, NamedEntity, NamedEntityCategory, NETagList, SemanticsDict
 from rhoknp.units.morpheme import MorphemeAttributes
 
@@ -30,6 +31,7 @@ from jula.utils.constants import (
     POS_TYPE2ID,
 )
 from jula.utils.dependency_parsing import DependencyManager
+from jula.utils.sub_document import extract_target_sentences
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +63,7 @@ class WordModuleWriter(BasePredictionWriter):
         predictions: Sequence[Any],
         batch_indices: Optional[Sequence[Any]] = None,
     ) -> None:
-        documents: list[Document] = []
+        sentences: list[Sentence] = []
         dataloaders = trainer.predict_dataloaders
         for prediction in predictions:
             for batch_pred in prediction:
@@ -128,11 +130,13 @@ class WordModuleWriter(BasePredictionWriter):
                         dataset.exophora_referents,
                         dataset.index_to_special,
                     )
-                    document = Document.from_knp(document.to_knp())  # reparse to get clauses
+                    doc_id = document.doc_id
+                    document = document.reparse()  # reparse to get clauses
+                    document.doc_id = doc_id
                     self._add_discourse(document, discourse_parsing_preds)
-                    documents.append(document)
+                    sentences += extract_target_sentences(document)
 
-        output_string = "".join(doc.to_knp() for doc in documents)
+        output_string = "".join(sentence.to_knp() for sentence in sentences)
         if isinstance(self.destination, Path):
             self.destination.write_text(output_string)
         elif isinstance(self.destination, TextIOBase):
@@ -204,7 +208,7 @@ class WordModuleWriter(BasePredictionWriter):
                 morpheme.features["用言表記末尾"] = True
             # even if base_phrase_end_prob is low, if phrase_end_prob is high enough, create chunk here
             if base_phrase_end_prob >= 0.5 or base_phrase_end_prob + phrase_end_prob >= 1.0:
-                base_phrase = BasePhrase(None, None, FeatureDict(), RelTagList(), NETagList())
+                base_phrase = BasePhrase(None, None, FeatureDict(), RelTagList(), NETagList(), DiscourseRelationTag())
                 base_phrase.morphemes = morphemes_buff
                 morphemes_buff = []
                 base_phrases_buff.append(base_phrase)
@@ -217,7 +221,7 @@ class WordModuleWriter(BasePredictionWriter):
 
         # clear buffers
         if morphemes_buff:
-            base_phrase = BasePhrase(None, None, FeatureDict(), RelTagList(), NETagList())
+            base_phrase = BasePhrase(None, None, FeatureDict(), RelTagList(), NETagList(), DiscourseRelationTag())
             base_phrase.morphemes = morphemes_buff
             base_phrases_buff.append(base_phrase)
         if base_phrases_buff:

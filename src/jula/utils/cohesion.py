@@ -1,13 +1,15 @@
 import io
 import logging
+from collections import defaultdict
 from pathlib import Path
 from typing import TextIO, Union
 
-from rhoknp import BasePhrase, Document
+from rhoknp import BasePhrase, Document, Sentence
 from rhoknp.cohesion import Argument, EndophoraArgument, ExophoraArgument, ExophoraReferent, Pas, RelTag, RelTagList
 
 from jula.datamodule.datasets.word_dataset import WordDataset
 from jula.datamodule.examples import CohesionExample, Task
+from jula.utils.sub_document import extract_target_sentences, to_orig_doc_id
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +27,16 @@ class CohesionKNPWriter:
         self.rel_types: list[str] = dataset.cohesion_rel_types
         self.exophora_referents: list[ExophoraReferent] = dataset.exophora_referents
         self.specials: list[str] = dataset.special_tokens
-        self.documents: list[Document] = [Document.from_knp(doc.to_knp()) for doc in dataset.documents]
+        self.documents: list[Document] = [self.reconstruct(doc) for doc in dataset.documents]
         self.examples: list[CohesionExample] = [e.cohesion_example for e in dataset.examples]
         self.kc: bool = False
+
+    @staticmethod
+    def reconstruct(doc):
+        doc_id = doc.doc_id
+        reconstructed = Document.from_knp(doc.to_knp())
+        reconstructed.doc_id = doc_id
+        return reconstructed
 
     def write(
         self,
@@ -54,10 +63,9 @@ class CohesionKNPWriter:
             logger.warning("invalid output destination")
 
         did2prediction: dict[str, list] = {self.examples[eid].doc_id: pred for eid, pred in predictions.items()}
-        documents = []
+        orig_did_to_sentences: dict[str, list[Sentence]] = defaultdict(list)
         for document in self.documents:
-            did = document.doc_id
-            if prediction := did2prediction.get(did):  # (phrase, rel)
+            if prediction := did2prediction.get(document.doc_id):  # (phrase, rel)
                 for base_phrase, pred in zip(document.base_phrases, prediction):
                     base_phrase.rels = self._to_rels(pred, document.base_phrases)
             else:
@@ -65,10 +73,12 @@ class CohesionKNPWriter:
                     continue
                 for base_phrase in document.base_phrases:
                     base_phrase.rels = []
-            document.reparse_rel()
-            documents.append(document)
+            orig_did_to_sentences[to_orig_doc_id(document.doc_id)] += extract_target_sentences(document)
 
-        for document in documents:
+        documents = []
+        for sentences in orig_did_to_sentences.values():
+            document = Document.from_sentences(sentences)
+            documents.append(document)
             if destination is None:
                 continue
             output_knp_lines = document.to_knp().splitlines()

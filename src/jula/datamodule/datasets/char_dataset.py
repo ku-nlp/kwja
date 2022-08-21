@@ -14,6 +14,7 @@ class CharDataset(BaseDataset):
     def __init__(
         self,
         path: str,
+        document_split_stride: int,
         max_seq_length: int,
         wiki_ene_dic_path: str,
         max_ene_num: int = 0,
@@ -22,6 +23,7 @@ class CharDataset(BaseDataset):
     ) -> None:
         super().__init__(
             path,
+            document_split_stride,
             model_name_or_path,
             max_seq_length,
             tokenizer_kwargs,
@@ -32,8 +34,11 @@ class CharDataset(BaseDataset):
         self.darts.open(f"{wiki_ene_dic_path}/wiki.da")
         self.values: list[list[str]] = pickle.load(open(f"{wiki_ene_dic_path}/wiki_values.pkl", "rb"))
 
+    def __len__(self) -> int:
+        return len(self.orig_documents)  # TODO: use split documents
+
     def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
-        document = self.documents[index]
+        document = self.orig_documents[index]  # TODO: use split documents
         return {
             "example_ids": torch.tensor(index, dtype=torch.long),
             **self.encode(document),
