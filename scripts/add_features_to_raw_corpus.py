@@ -12,10 +12,9 @@ from rhoknp import KNP, Document, Jumanpp, Morpheme, Sentence
 from rhoknp.props import FeatureDict, NamedEntity, NamedEntityCategory
 from tqdm import tqdm
 
-from jula.utils.constants import BASE_PHRASE_FEATURES, SUB_WORD_FEATURES
+from jula.utils.constants import BASE_PHRASE_FEATURES, IGNORE_VALUE_FEATURE_PAT, SUB_WORD_FEATURES
 
 FEATURES_PAT = re.compile(r"(?P<features>(<[^>]+>)+)")
-IGNORE_VALUE_PAT = re.compile(r"節-(前向き)?機能疑?")
 
 
 class JumanppAugmenter:
@@ -76,33 +75,6 @@ class JumanppAugmenter:
                     original_morpheme.semantics[k] = v
 
 
-def is_target_base_phrase_feature(k: str, v: Any) -> bool:
-    name = k + (f":{v}" if isinstance(v, str) and IGNORE_VALUE_PAT.match(k) is None else "")
-    return name in BASE_PHRASE_FEATURES
-
-
-def refresh(document: Document) -> None:
-    for morpheme in document.morphemes:
-        feature_dict = {}
-        if morpheme.base_phrase.head == morpheme:
-            feature_dict["基本句-主辞"] = True
-        for feature in SUB_WORD_FEATURES:
-            k, *vs = feature.split(":")
-            if k in morpheme.features:
-                feature_dict[k] = morpheme.features[k]
-        morpheme.features = FeatureDict(feature_dict)
-        morpheme.semantics.clear()
-    for base_phrase in document.base_phrases:
-        feature_dict = {}
-        for feature in BASE_PHRASE_FEATURES:
-            k, *vs = feature.split(":")
-            if k in base_phrase.features and is_target_base_phrase_feature(k, base_phrase.features[k]):
-                feature_dict[k] = base_phrase.features[k]
-        base_phrase.features = FeatureDict(feature_dict)
-    for phrase in document.phrases:
-        phrase.features.clear()
-
-
 def align(morphemes1: list[Morpheme], morphemes2: list[Morpheme]) -> Union[dict[str, list[Morpheme]], None]:
     alignment = {}
     idx1, idx2 = 0, 0
@@ -149,12 +121,13 @@ def extract_named_entities(tagged_sentence: Sentence) -> list[tuple[str, list[Mo
 
 def set_named_entities(document: Document, sid2tagged_sentence: dict[str, Sentence]) -> None:
     for sentence in document.sentences:
-        if sentence.sid in sid2tagged_sentence:
+        # 既にneタグが付与されている文は対象としない
+        if sentence.sid in sid2tagged_sentence and len(sentence.named_entities) == 0:
             tagged_sentence = sid2tagged_sentence[sentence.sid]
             alignment = align(tagged_sentence.morphemes, sentence.morphemes)
             if alignment is None:
                 print(
-                    f'alignment ({" ".join(m.surf for m in tagged_sentence.morphemes)} / '
+                    f'alignment ({" ".join(m.surf for m in tagged_sentence.morphemes)} | '
                     f'{" ".join(m.surf for m in sentence.morphemes)}) not found'
                 )
                 continue
@@ -175,6 +148,50 @@ def set_named_entities(document: Document, sid2tagged_sentence: dict[str, Senten
                         f'morpheme span of {" ".join(m.surf for m in morphemes_buff)} not found in '
                         f'{" ".join(m.surf for m in sentence.morphemes)}'
                     )
+
+
+def is_target_base_phrase_feature(k: str, v: Any) -> bool:
+    name = k + (f":{v}" if isinstance(v, str) and IGNORE_VALUE_FEATURE_PAT.match(k) is None else "")
+    return name in BASE_PHRASE_FEATURES
+
+
+def refresh(document: Document) -> None:
+    for morpheme in document.morphemes:
+        feature_dict = {}
+        if morpheme.base_phrase.head == morpheme:
+            feature_dict["基本句-主辞"] = True
+        for feature in SUB_WORD_FEATURES:
+            k, *vs = feature.split(":")
+            if k in morpheme.features:
+                feature_dict[k] = morpheme.features[k]
+        morpheme.features = FeatureDict(feature_dict)
+        morpheme.semantics.clear()
+
+    for base_phrase in document.base_phrases:
+        feature_dict = {}
+        for feature in BASE_PHRASE_FEATURES:
+            k, *vs = feature.split(":")
+            if k in base_phrase.features and is_target_base_phrase_feature(k, base_phrase.features[k]):
+                feature_dict[k] = base_phrase.features[k]
+        base_phrase.features = FeatureDict(feature_dict)
+
+    for phrase in document.phrases:
+        phrase.features.clear()
+
+    # あるnamed entityの一部もまたnamed entityである場合、外側だけ残す
+    for sentence in document.sentences:
+        for ne1 in list(sentence.named_entities):
+            indices1 = {morpheme.index for morpheme in ne1.morphemes}
+            for ne2 in list(sentence.named_entities):
+                indices2 = {morpheme.index for morpheme in ne2.morphemes}
+                if len(indices1 & indices2) > 0 and len(indices1) < len(indices2):
+                    print(
+                        f'NE tag {" ".join(m.surf for m in ne1.morphemes)} removed '
+                        f'due to the named entity {" ".join(m.surf for m in ne2.morphemes)} '
+                        f"({sentence.sid}:{sentence.text})"
+                    )
+                    sentence.named_entities.remove(ne1)
+                    break
 
 
 def add_features(
@@ -217,9 +234,9 @@ def add_features(
         knp_text = "\n".join(new_knp_lines)
 
         document = Document.from_knp(knp_text)
-        refresh(document)
         if sid2tagged_sentence is not None:
             set_named_entities(document, sid2tagged_sentence)
+        refresh(document)
 
         with output_dir.joinpath(f"{document.doc_id}.knp").open(mode="w") as f:
             f.write(document.to_knp())
