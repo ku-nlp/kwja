@@ -1,3 +1,4 @@
+from pathlib import Path
 from statistics import mean
 from typing import Any, Optional
 
@@ -327,6 +328,7 @@ class WordModule(LightningModule):
             dataset = self.trainer.test_dataloaders[idx].dataset
             metric = self.test_cohesion_analysis_metrics[corpus]
             score_result = metric.compute(dataset)
+            Path(self.hparams.run_dir).mkdir(exist_ok=True)
             score_result.export_csv(f"{self.hparams.run_dir}/cohesion_analysis_scores_{corpus}.csv")
             score_result.export_txt(f"{self.hparams.run_dir}/cohesion_analysis_scores_{corpus}.txt")
             for rel, val in score_result.to_dict().items():
