@@ -1,6 +1,6 @@
 import logging
 import math
-from typing import Optional, Union
+from typing import Optional
 
 import hydra
 import pytorch_lightning as pl
@@ -12,9 +12,6 @@ from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.loggers import LightningLoggerBase
 
 from jula.datamodule.datamodule import DataModule
-from jula.models.char_module import CharModule
-from jula.models.typo_module import TypoModule
-from jula.models.word_module import WordModule
 
 hf_logging.set_verbosity(hf_logging.ERROR)
 logging.getLogger("rhoknp").setLevel(logging.WARNING)
@@ -56,15 +53,7 @@ def main(cfg: DictConfig):
 
     datamodule = DataModule(cfg=cfg.datamodule)
 
-    model: Union[TypoModule, CharModule, WordModule]
-    if cfg.config_name in cfg.module.typo:
-        model = TypoModule(hparams=cfg)
-    elif cfg.config_name in cfg.module.char:
-        model = CharModule(hparams=cfg)
-    elif cfg.config_name in cfg.module.word:
-        model = WordModule(hparams=cfg)
-    else:
-        raise ValueError(f"invalid config name: `{cfg.config_name}`")
+    model: pl.LightningModule = hydra.utils.instantiate(cfg.module.cls, hparams=cfg, _recursive_=False)
 
     trainer.fit(model=model, datamodule=datamodule)
     trainer.test(model=model, datamodule=datamodule, ckpt_path="best" if not is_debug else None)

@@ -5,7 +5,7 @@ defaults:
   - dataset: typo
   - logger: wandb
   - model: char_roberta_large
-  - module: default
+  - module: typo
   - optimizer: adamw
   - scheduler: constant_schedule_with_warmup
   - trainer: default

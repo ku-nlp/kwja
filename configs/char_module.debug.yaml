@@ -5,13 +5,14 @@ defaults:
   - dataset: char
   - logger: wandb
   - model: char_roberta_base
-  - module: default
+  - module: char
   - optimizer: adamw
   - scheduler: constant_schedule_with_warmup
   - trainer: debug
   - _self_
 
 do_predict_after_train: False
+checkpoint_path: ""
 document_split_stride: 1
 
 # set monitor and mode for early_stopping and model_checkpoint

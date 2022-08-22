@@ -5,7 +5,7 @@ defaults:
   - dataset: char
   - logger: wandb
   - model: char_roberta_base
-  - module: default
+  - module: char
   - optimizer: adamw
   - scheduler: constant_schedule_with_warmup
   - trainer: default

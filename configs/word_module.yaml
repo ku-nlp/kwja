@@ -5,7 +5,7 @@ defaults:
   - dataset: word
   - logger: wandb
   - model: word_roberta_base
-  - module: default
+  - module: word
   - optimizer: adamw
   - scheduler: constant_schedule_with_warmup
   - trainer: default

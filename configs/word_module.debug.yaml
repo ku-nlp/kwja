@@ -5,13 +5,14 @@ defaults:
   - dataset: word
   - logger: wandb
   - model: word_roberta_base
-  - module: default
+  - module: word
   - optimizer: adamw
   - scheduler: constant_schedule_with_warmup
   - trainer: debug
   - _self_
 
 do_predict_after_train: False
+checkpoint_path: ""
 document_split_stride: 1
 
 # for dependency parser
