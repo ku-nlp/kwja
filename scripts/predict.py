@@ -6,6 +6,7 @@ import transformers.utils.logging as hf_logging
 from dotenv import load_dotenv
 from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning.callbacks import Callback
+from pytorch_lightning.trainer.states import TrainerFn
 
 from jula.datamodule.datamodule import DataModule
 from jula.models.char_module import CharModule
@@ -48,7 +49,8 @@ def main(cfg: DictConfig):
     else:
         raise ValueError("invalid config name")
 
-    datamodule = DataModule(cfg=cfg.datamondule)
+    datamodule = DataModule(cfg=cfg.datamodule)
+    datamodule.setup(stage=TrainerFn.TESTING)
     dataloader = datamodule.test_dataloader()  # or val_dataloader()
     trainer.predict(model=model, dataloaders=dataloader)
 
