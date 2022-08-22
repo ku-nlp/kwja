@@ -8,7 +8,7 @@ TYPO_OPN2TOKEN = {
     "D": "<d>",
     "_": "<_>",
 }
-TOKEN2TYPO_OPN = {v: k for k, v in TYPO_OPN2TOKEN.items()}
+TOKEN2TYPO_OPN: dict[str, str] = {v: k for k, v in TYPO_OPN2TOKEN.items()}
 TYPO_DUMMY_TOKEN = "<dummy>"
 ENE_TYPES = (
     "0",  # CONCEPT
@@ -25,7 +25,7 @@ ENE_TYPES = (
     "1.11",  # 病気名
     "1.12",  # 色名
 )
-ENE_TYPE_BIES: tuple = ("PAD",) + tuple(
+ENE_TYPE_BIES: tuple[str, ...] = ("PAD",) + tuple(
     itertools.chain.from_iterable((f"B-{ene}", f"I-{ene}", f"E-{ene}") for ene in ENE_TYPES)
 )
 
@@ -33,7 +33,7 @@ SEG_TYPES = (
     "B",
     "I",
 )
-INDEX2SEG_TYPE = {index: seg_type for index, seg_type in enumerate(SEG_TYPES)}
+INDEX2SEG_TYPE: dict[int, str] = {index: seg_type for index, seg_type in enumerate(SEG_TYPES)}
 
 # 品詞
 POS_TYPE2ID = {
@@ -54,9 +54,9 @@ POS_TYPE2ID = {
 }
 POS_TYPES = tuple(POS_TYPE2ID.keys())
 
-INDEX2POS_TYPE = {index: pos_type for index, pos_type in enumerate(POS_TYPES)}
+INDEX2POS_TYPE: dict[int, str] = {index: pos_type for index, pos_type in enumerate(POS_TYPES)}
 # 品詞細分類
-POS_SUBPOS_TYPE2ID = {
+POS_SUBPOS_TYPE2ID: dict[str, dict[str, int]] = {
     "特殊": {
         "句点": 1,
         "読点": 2,
@@ -114,11 +114,11 @@ POS_SUBPOS_TYPE2ID = {
 }
 SUBPOS_TYPES = ("*",) + tuple(
     subpos_type
-    for pos_type, subpos_type2ids in POS_SUBPOS_TYPE2ID.items()
-    for subpos_type in subpos_type2ids
+    for subpos_type2ids in POS_SUBPOS_TYPE2ID.values()
+    for subpos_type in subpos_type2ids.keys()
     if subpos_type != "*"
 )
-INDEX2SUBPOS_TYPE = {index: subpos_type for index, subpos_type in enumerate(SUBPOS_TYPES)}
+INDEX2SUBPOS_TYPE: dict[int, str] = {index: subpos_type for index, subpos_type in enumerate(SUBPOS_TYPES)}
 # 活用型
 CONJTYPE_TYPES = (
     "*",
@@ -155,9 +155,9 @@ CONJTYPE_TYPES = (
     "動詞性接尾辞ます型",
     "動詞性接尾辞うる型",
 )
-INDEX2CONJTYPE_TYPE = {index: conjtype_type for index, conjtype_type in enumerate(CONJTYPE_TYPES)}
+INDEX2CONJTYPE_TYPE: dict[int, str] = {index: conjtype_type for index, conjtype_type in enumerate(CONJTYPE_TYPES)}
 # 活用形
-CONJTYPE_CONJFORM_TYPE2ID = {
+CONJTYPE_CONJFORM_TYPE2ID: dict[str, dict[str, int]] = {
     "*": {"*": 0},
     "母音動詞": {
         "*": 0,
@@ -839,15 +839,15 @@ CONJFORM_TYPES_WITH_OVERLAP = tuple(
     )
 )
 CONJFORM_TYPES = tuple(sorted(set(CONJFORM_TYPES_WITH_OVERLAP), key=CONJFORM_TYPES_WITH_OVERLAP.index))
-INDEX2CONJFORM_TYPE = {index: conjform_type for index, conjform_type in enumerate(CONJFORM_TYPES)}
+INDEX2CONJFORM_TYPE: dict[int, str] = {index: conjform_type for index, conjform_type in enumerate(CONJFORM_TYPES)}
 
-NE_TAGS = sum([(f"B-{cat.value}", f"I-{cat.value}") for cat in NamedEntityCategory], ("O",))
+NE_TAGS: tuple[str, ...] = sum([(f"B-{cat.value}", f"I-{cat.value}") for cat in NamedEntityCategory], ("O",))
 
 SUB_WORD_FEATURES = (
     "用言表記先頭",
     "用言表記末尾",
 )
-WORD_FEATURES = ("基本句-主辞", "基本句-区切", "文節-区切", *SUB_WORD_FEATURES)
+WORD_FEATURES: tuple[str, ...] = ("基本句-主辞", "基本句-区切", "文節-区切", *SUB_WORD_FEATURES)
 
 SUB_BASE_PHRASE_FEATURES = (
     # cf. https://github.com/ku-nlp/knp/blob/master/doc/knp_feature.pdf
@@ -975,4 +975,6 @@ DISCOURSE_RELATIONS = (
     "対比",
     "逆接",
 )
-INDEX2DISCOURSE_RELATION = {index: discourse_relation for index, discourse_relation in enumerate(DISCOURSE_RELATIONS)}
+INDEX2DISCOURSE_RELATION: dict[int, str] = {
+    index: discourse_relation for index, discourse_relation in enumerate(DISCOURSE_RELATIONS)
+}
