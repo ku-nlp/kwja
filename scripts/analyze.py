@@ -35,7 +35,8 @@ def main(cfg: DictConfig):
 
     model: pl.LightningModule = hydra.utils.call(cfg.module.load_from_checkpoint, hparams=cfg, _recursive_=False)
 
-    cfg.datamodule.predict.texts = sys.stdin.readlines()
+    if not cfg.datamodule.predict.texts:
+        cfg.datamodule.predict.texts = sys.stdin.readlines()
     datamodule = DataModule(cfg=cfg.datamodule)
     datamodule.setup(stage=TrainerFn.PREDICTING)
 
