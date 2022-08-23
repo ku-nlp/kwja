@@ -14,6 +14,15 @@ defaults:
 do_predict_after_train: True
 checkpoint_path: ""
 document_split_stride: 1
+training_tasks: [
+  "word_analysis",
+  "ner",
+  "word_feature_tagging",
+  "base_phrase_feature_tagging",
+  "dependency_parsing",
+  "cohesion_analysis",
+  "discourse_parsing",
+]
 
 # for dependency parser
 k: 4

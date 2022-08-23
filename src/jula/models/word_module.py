@@ -86,33 +86,40 @@ class WordModule(LightningModule):
 
     def training_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
         batch["training"] = True
-        outputs: dict[str, torch.Tensor] = self(**batch)
-        word_analysis_loss = outputs["word_analyzer_outputs"]["loss"]
-        self.log("train/word_analysis_loss", word_analysis_loss)
-        ner_loss = outputs["phrase_analyzer_outputs"]["ner_loss"]
-        self.log("train/ner_loss", ner_loss)
-        word_feature_loss = outputs["phrase_analyzer_outputs"]["word_feature_loss"]
-        self.log("train/word_feature_loss", word_feature_loss)
-        base_phrase_feature_loss = outputs["phrase_analyzer_outputs"]["base_phrase_feature_loss"]
-        self.log("train/base_phrase_feature_loss", base_phrase_feature_loss)
-        dependency_loss = outputs["relation_analyzer_outputs"]["dependency_loss"]
-        self.log("train/dependency_loss", dependency_loss)
-        dependency_type_loss = outputs["relation_analyzer_outputs"]["dependency_type_loss"]
-        self.log("train/dependency_type_loss", dependency_type_loss)
-        cohesion_loss = outputs["relation_analyzer_outputs"]["cohesion_loss"]
-        self.log("train/cohesion_loss", cohesion_loss)
-        discourse_parsing_loss = outputs["relation_analyzer_outputs"]["discourse_parsing_loss"]
-        self.log("train/discourse_parsing_loss", discourse_parsing_loss)
-        return (
-            word_analysis_loss
-            + ner_loss
-            + word_feature_loss
-            + base_phrase_feature_loss
-            + dependency_loss
-            + dependency_type_loss
-            + cohesion_loss
-            + discourse_parsing_loss
-        )
+        outputs: dict[str, dict[str, torch.Tensor]] = self(**batch)
+        loss = torch.tensor(0.0, device=self.device)
+        if "word_analysis" in self.hparams.training_tasks:
+            word_analysis_loss = outputs["word_analyzer_outputs"]["loss"]
+            loss += word_analysis_loss
+            self.log("train/word_analysis_loss", word_analysis_loss)
+        if "ner" in self.hparams.training_tasks:
+            ner_loss = outputs["phrase_analyzer_outputs"]["ner_loss"]
+            loss += ner_loss
+            self.log("train/ner_loss", ner_loss)
+        if "word_feature_tagging" in self.hparams.training_tasks:
+            word_feature_loss = outputs["phrase_analyzer_outputs"]["word_feature_loss"]
+            loss += word_feature_loss
+            self.log("train/word_feature_loss", word_feature_loss)
+        if "base_phrase_feature_tagging" in self.hparams.training_tasks:
+            base_phrase_feature_loss = outputs["phrase_analyzer_outputs"]["base_phrase_feature_loss"]
+            loss += base_phrase_feature_loss
+            self.log("train/base_phrase_feature_loss", base_phrase_feature_loss)
+        if "dependency_parsing" in self.hparams.training_tasks:
+            dependency_loss = outputs["relation_analyzer_outputs"]["dependency_loss"]
+            loss += dependency_loss
+            self.log("train/dependency_loss", dependency_loss)
+            dependency_type_loss = outputs["relation_analyzer_outputs"]["dependency_type_loss"]
+            loss += dependency_type_loss
+            self.log("train/dependency_type_loss", dependency_type_loss)
+        if "cohesion_analysis" in self.hparams.training_tasks:
+            cohesion_analysis_loss = outputs["relation_analyzer_outputs"]["cohesion_loss"]
+            loss += cohesion_analysis_loss
+            self.log("train/cohesion_analysis_loss", cohesion_analysis_loss)
+        if "discourse_parsing" in self.hparams.training_tasks:
+            discourse_parsing_loss = outputs["relation_analyzer_outputs"]["discourse_parsing_loss"]
+            loss += discourse_parsing_loss
+            self.log("train/discourse_parsing_loss", discourse_parsing_loss)
+        return loss
 
     def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> None:
         batch["training"] = False
@@ -188,41 +195,52 @@ class WordModule(LightningModule):
     def validation_epoch_end(self, validation_step_outputs) -> None:
         log_metrics: dict[str, dict[str, float]] = {corpus: {} for corpus in self.valid_corpora}
 
-        for corpus, metric in self.valid_word_analysis_metrics.items():
-            log_metrics[corpus].update(metric.compute())
-            metric.reset()
+        if "word_analysis" in self.hparams.training_tasks:
+            for corpus, metric in self.valid_word_analysis_metrics.items():
+                log_metrics[corpus].update(metric.compute())
+                metric.reset()
 
-        for corpus, metric in self.valid_ner_metrics.items():
-            log_metrics[corpus].update(metric.compute())
-            metric.reset()
+        if "ner" in self.hparams.training_tasks:
+            for corpus, metric in self.valid_ner_metrics.items():
+                log_metrics[corpus].update(metric.compute())
+                metric.reset()
 
-        for corpus, metric in self.valid_phrase_analysis_metrics.items():
-            log_metrics[corpus].update(metric.compute())
-            metric.reset()
+        if (
+            "word_feature_tagging" in self.hparams.training_tasks
+            or "base_phrase_feature_tagging" in self.hparams.training_tasks
+        ):
+            for corpus, metric in self.valid_phrase_analysis_metrics.items():
+                log_metrics[corpus].update(metric.compute())
+                metric.reset()
 
-        for idx, corpus in enumerate(self.valid_corpora):
-            dataset = self.trainer.val_dataloaders[idx].dataset
-            metric = self.valid_dependency_parsing_metrics[corpus]
-            documents = [dataset.doc_id2document[example.doc_id] for example in dataset.examples]
-            log_metrics[corpus].update(metric.compute(documents))
-            metric.reset()
+        if "dependency_parsing" in self.hparams.training_tasks:
+            for idx, corpus in enumerate(self.valid_corpora):
+                dataset = self.trainer.val_dataloaders[idx].dataset
+                metric = self.valid_dependency_parsing_metrics[corpus]
+                documents = [dataset.doc_id2document[example.doc_id] for example in dataset.examples]
+                log_metrics[corpus].update(metric.compute(documents))
+                metric.reset()
 
-        for idx, corpus in enumerate(self.valid_corpora):
-            dataset = self.trainer.val_dataloaders[idx].dataset
-            metric = self.valid_cohesion_analysis_metrics[corpus]
-            for rel, val in metric.compute(dataset).to_dict().items():
-                for met, sub_val in val.items():
-                    log_metrics[corpus][f"{met}_{rel}"] = sub_val.f1
-            metric.reset()
+        if "cohesion_analysis" in self.hparams.training_tasks:
+            for idx, corpus in enumerate(self.valid_corpora):
+                dataset = self.trainer.val_dataloaders[idx].dataset
+                metric = self.valid_cohesion_analysis_metrics[corpus]
+                for rel, val in metric.compute(dataset).to_dict().items():
+                    for met, sub_val in val.items():
+                        log_metrics[corpus][f"{met}_{rel}"] = sub_val.f1
+                metric.reset()
 
-        for idx, corpus in enumerate(self.valid_corpora):
-            metric = self.valid_discourse_parsing_metrics[corpus]
-            for name, value in metric.compute().items():
-                log_metrics[corpus][name] = value
-            metric.reset()
+        if "discourse_parsing" in self.hparams.training_tasks:
+            for idx, corpus in enumerate(self.valid_corpora):
+                metric = self.valid_discourse_parsing_metrics[corpus]
+                for name, value in metric.compute().items():
+                    log_metrics[corpus][name] = value
+                metric.reset()
 
         for corpus, metrics in log_metrics.items():
-            metrics["aggregated_word_metrics"] = mean(metrics[key] for key in self.hparams.aggregating_metrics)
+            metrics["aggregated_word_metrics"] = mean(
+                metrics[key] for key in self.hparams.aggregating_metrics if key in metrics
+            )
 
         for corpus, metrics in log_metrics.items():
             self.log_dict({f"valid_{corpus}/{name}": value for name, value in metrics.items()})
@@ -307,42 +325,51 @@ class WordModule(LightningModule):
     def test_epoch_end(self, test_step_outputs) -> None:
         log_metrics: dict[str, dict[str, float]] = {corpus: {} for corpus in self.test_corpora}
 
-        for corpus, metric in self.test_word_analysis_metrics.items():
-            log_metrics[corpus].update(metric.compute())
-            metric.reset()
+        if "word_analysis" in self.hparams.training_tasks:
+            for corpus, metric in self.test_word_analysis_metrics.items():
+                log_metrics[corpus].update(metric.compute())
+                metric.reset()
 
-        for corpus, metric in self.test_ner_metrics.items():
-            log_metrics[corpus].update(metric.compute())
-            metric.reset()
+        if "ner" in self.hparams.training_tasks:
+            for corpus, metric in self.test_ner_metrics.items():
+                log_metrics[corpus].update(metric.compute())
+                metric.reset()
 
-        for corpus, metric in self.test_phrase_analysis_metrics.items():
-            log_metrics[corpus].update(metric.compute())
-            metric.reset()
+        if (
+            "word_feature_tagging" in self.hparams.training_tasks
+            or "base_phrase_feature_tagging" in self.hparams.training_tasks
+        ):
+            for corpus, metric in self.test_phrase_analysis_metrics.items():
+                log_metrics[corpus].update(metric.compute())
+                metric.reset()
 
-        for idx, corpus in enumerate(self.test_corpora):
-            dataset = self.trainer.test_dataloaders[idx].dataset
-            metric = self.test_dependency_parsing_metrics[corpus]
-            documents = [dataset.doc_id2document[example.doc_id] for example in dataset.examples]
-            log_metrics[corpus].update(metric.compute(documents))
-            metric.reset()
+        if "dependency_parsing" in self.hparams.training_tasks:
+            for idx, corpus in enumerate(self.test_corpora):
+                dataset = self.trainer.test_dataloaders[idx].dataset
+                metric = self.test_dependency_parsing_metrics[corpus]
+                documents = [dataset.doc_id2document[example.doc_id] for example in dataset.examples]
+                log_metrics[corpus].update(metric.compute(documents))
+                metric.reset()
 
-        for idx, corpus in enumerate(self.test_corpora):
-            dataset = self.trainer.test_dataloaders[idx].dataset
-            metric = self.test_cohesion_analysis_metrics[corpus]
-            score_result = metric.compute(dataset)
-            Path(self.hparams.run_dir).mkdir(exist_ok=True)
-            score_result.export_csv(f"{self.hparams.run_dir}/cohesion_analysis_scores_{corpus}.csv")
-            score_result.export_txt(f"{self.hparams.run_dir}/cohesion_analysis_scores_{corpus}.txt")
-            for rel, val in score_result.to_dict().items():
-                for met, sub_val in val.items():
-                    log_metrics[corpus][f"{met}_{rel}"] = sub_val.f1
-            metric.reset()
+        if "cohesion_analysis" in self.hparams.training_tasks:
+            for idx, corpus in enumerate(self.test_corpora):
+                dataset = self.trainer.test_dataloaders[idx].dataset
+                metric = self.test_cohesion_analysis_metrics[corpus]
+                score_result = metric.compute(dataset)
+                Path(self.hparams.run_dir).mkdir(exist_ok=True)
+                score_result.export_csv(f"{self.hparams.run_dir}/cohesion_analysis_scores_{corpus}.csv")
+                score_result.export_txt(f"{self.hparams.run_dir}/cohesion_analysis_scores_{corpus}.txt")
+                for rel, val in score_result.to_dict().items():
+                    for met, sub_val in val.items():
+                        log_metrics[corpus][f"{met}_{rel}"] = sub_val.f1
+                metric.reset()
 
-        for idx, corpus in enumerate(self.test_corpora):
-            metric = self.test_discourse_parsing_metrics[corpus]
-            for name, value in metric.compute().items():
-                log_metrics[corpus][name] = value
-            metric.reset()
+        if "discourse_parsing" in self.hparams.training_tasks:
+            for idx, corpus in enumerate(self.test_corpora):
+                metric = self.test_discourse_parsing_metrics[corpus]
+                for name, value in metric.compute().items():
+                    log_metrics[corpus][name] = value
+                metric.reset()
 
         for corpus, metrics in log_metrics.items():
             metrics["aggregated_word_metrics"] = mean(metrics[key] for key in self.hparams.aggregating_metrics)
