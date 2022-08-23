@@ -2,7 +2,7 @@ from jula.datamodule.datasets.word_inference_dataset import WordInferenceDataset
 
 word_dataset_kwargs = {
     "tokenizer_kwargs": {"additional_special_tokens": ["著者", "読者", "不特定:人", "不特定:物", "[NULL]", "[NA]", "[ROOT]"]},
-    "cases": ["ガ", "ヲ", "ニ", "ガ２"],
+    "pas_cases": ["ガ", "ヲ", "ニ", "ガ２"],
     "bar_rels": ["ノ"],
     "exophora_referents": ["著者", "読者", "不特定:人", "不特定:物"],
     "cohesion_tasks": ["pas_analysis", "bridging", "coreference"],

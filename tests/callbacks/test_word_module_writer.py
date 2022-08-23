@@ -136,7 +136,7 @@ def test_write_on_epoch_end():
             model_name_or_path="nlp-waseda/roberta-base-japanese",
             max_seq_length=11,
             tokenizer_kwargs={"additional_special_tokens": special_tokens},
-            cases=ListConfig(["ガ", "ヲ", "ニ", "ガ２"]),
+            pas_cases=ListConfig(["ガ", "ヲ", "ニ", "ガ２"]),
             bar_rels=ListConfig(["ノ"]),
             exophora_referents=ListConfig(exophora_referents),
             cohesion_tasks=ListConfig(["pas_analysis", "bridging", "coreference"]),

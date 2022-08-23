@@ -36,7 +36,7 @@ data_dir = here.parent.parent / "data"
 exophora_referents = ["著者", "読者", "不特定:人", "不特定:物"]
 special_tokens = exophora_referents + ["[NULL]", "[NA]", "[ROOT]"]
 word_dataset_kwargs = dict(
-    cases=ListConfig(["ガ", "ヲ", "ニ", "ガ２"]),
+    pas_cases=ListConfig(["ガ", "ヲ", "ニ", "ガ２"]),
     bar_rels=ListConfig(["ノ"]),
     exophora_referents=ListConfig(exophora_referents),
     cohesion_tasks=ListConfig(["pas_analysis", "bridging", "coreference"]),
@@ -326,7 +326,7 @@ def test_pas():
     assert len(mrphs) == len(mrphs_exp)
     for phrase in phrases:
         arguments: dict[str, list[str]] = annotation.arguments_set[phrase.dtid]
-        for case in dataset.cases:
+        for case in dataset.pas_cases:
             arg_strings = [arg[:-2] if arg[-2:] in ("%C", "%N", "%O") else arg for arg in arguments[case]]
             arg_strings = [(s if s in dataset.special_to_index else str(phrases[int(s)].dmid)) for s in arg_strings]
             assert set(arg_strings) == set(mrphs_exp[phrase.dmid]["arguments"][case])

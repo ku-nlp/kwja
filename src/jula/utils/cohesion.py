@@ -22,7 +22,7 @@ class CohesionKNPWriter:
     """
 
     def __init__(self, dataset: WordDataset) -> None:
-        self.cases: list[str] = dataset.cases
+        self.cases: list[str] = dataset.pas_cases
         self.tasks: list[CohesionTask] = dataset.cohesion_tasks
         self.rel_types: list[str] = dataset.cohesion_rel_types
         self.exophora_referents: list[ExophoraReferent] = dataset.exophora_referents

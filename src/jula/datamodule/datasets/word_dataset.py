@@ -54,7 +54,7 @@ class WordDataset(BaseDataset):
     def __init__(
         self,
         path: str,
-        cases: ListConfig,
+        pas_cases: ListConfig,
         bar_rels: ListConfig,
         exophora_referents: ListConfig,
         cohesion_tasks: ListConfig,
@@ -75,15 +75,15 @@ class WordDataset(BaseDataset):
         )
         self.exophora_referents = [ExophoraReferent(s) for s in exophora_referents]
         self.cohesion_tasks: list[CohesionTask] = [CohesionTask(t) for t in cohesion_tasks]
-        self.cases: list[str] = list(cases)
+        self.pas_cases: list[str] = list(pas_cases)
         self.bar_rels: list[str] = list(bar_rels)
         self.cohesion_rel_types = (
-            self.cases * (CohesionTask.PAS_ANALYSIS in self.cohesion_tasks)
+            self.pas_cases * (CohesionTask.PAS_ANALYSIS in self.cohesion_tasks)
             + self.bar_rels * (CohesionTask.BRIDGING in self.cohesion_tasks)
             + ["="] * (CohesionTask.COREFERENCE in self.cohesion_tasks)
         )
         self.extractors = {
-            CohesionTask.PAS_ANALYSIS: PasExtractor(self.cases, self.exophora_referents, restrict_cohesion_target),
+            CohesionTask.PAS_ANALYSIS: PasExtractor(self.pas_cases, self.exophora_referents, restrict_cohesion_target),
             CohesionTask.COREFERENCE: CoreferenceExtractor(self.exophora_referents, restrict_cohesion_target),
             CohesionTask.BRIDGING: BridgingExtractor(self.bar_rels, self.exophora_referents, restrict_cohesion_target),
         }
@@ -247,7 +247,7 @@ class WordDataset(BaseDataset):
             task = CohesionTask.PAS_ANALYSIS
             annotation = cohesion_example.annotations[task]
             phrases = cohesion_example.phrases[task]
-            for case in self.cases:
+            for case in self.pas_cases:
                 arguments_set = [arguments[case] for arguments in annotation.arguments_set]
                 ret = self._convert_annotation_to_feature(arguments_set, phrases)
                 cohesion_target.append(ret[0])
@@ -302,7 +302,7 @@ class WordDataset(BaseDataset):
         ret: list[list[list[float]]] = [[] for _ in next(iter(example.phrases.values()))]
         task_idx = 0
         if CohesionTask.PAS_ANALYSIS in self.cohesion_tasks:
-            for _ in self.cases:
+            for _ in self.pas_cases:
                 for i, p in enumerate(
                     self._word2bp_level(result[task_idx], example.phrases[CohesionTask.PAS_ANALYSIS])
                 ):

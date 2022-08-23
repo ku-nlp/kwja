@@ -13,7 +13,7 @@ class WordInferenceDataset(Dataset):
     def __init__(
         self,
         texts: list[str],
-        cases: ListConfig,
+        pas_cases: ListConfig,
         bar_rels: ListConfig,
         exophora_referents: ListConfig,
         cohesion_tasks: ListConfig,
@@ -36,10 +36,10 @@ class WordInferenceDataset(Dataset):
         }
         self.index_to_special: dict[int, str] = {v: k for k, v in self.special_to_index.items()}
         self.cohesion_tasks = [CohesionTask(t) for t in cohesion_tasks]
-        self.cases = list(cases)
+        self.pas_cases = list(pas_cases)
         self.bar_rels = list(bar_rels)
         self.cohesion_rel_types = (
-            self.cases * (CohesionTask.PAS_ANALYSIS in self.cohesion_tasks)
+            self.pas_cases * (CohesionTask.PAS_ANALYSIS in self.cohesion_tasks)
             + self.bar_rels * (CohesionTask.BRIDGING in self.cohesion_tasks)
             + ["="] * (CohesionTask.COREFERENCE in self.cohesion_tasks)
         )
