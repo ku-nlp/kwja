@@ -2,6 +2,7 @@ import pytest
 from rhoknp import Morpheme
 
 from jula.utils.char_normalize import (
+    MorphemeDenormalizer,
     MorphemeNormalizer,
     get_normalization_opns,
     get_normalized,
@@ -110,3 +111,18 @@ def test_morpheme_normalizer():
     opns = normalizer.get_normalization_opns(morpheme)
     assert len(opns) == len(expected)
     assert all([a == b for a, b in zip(opns, expected)])
+
+
+denormalize_list = [
+    ("なあ", "なぁ"),
+    ("さあ", "さぁ"),
+    ("もうれつ", "もーれつ"),
+    ("鎌ケ谷", "鎌ヶ谷"),
+    ("八ケ岳", "八ヶ岳"),
+]
+
+
+@pytest.mark.parametrize("surf,expected", denormalize_list)
+def test_denofrmalize_deterministic(surf, expected):
+    md = MorphemeDenormalizer()
+    assert md._denormalize_deterministic(surf) == expected

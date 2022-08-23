@@ -2,7 +2,7 @@ from typing import List
 
 import numpy as np
 from jinf import Jinf
-from rhoknp import Morpheme
+from rhoknp import Morpheme, Sentence
 
 # KATAKANA-HIRAGANA PROLONGED SOUND MARK (0x30fc)
 # "〜"(0x301C)  "⁓" (U+2053)、Full-width tilde:
@@ -154,7 +154,6 @@ class MorphemeNormalizer:
             normalized = self.jinf(
                 morpheme.lemma, morpheme.conjtype, "基本形", morpheme.conjform
             )
-            print(normalized)
         return get_normalization_opns(morpheme.surf, normalized)
 
 
@@ -303,7 +302,267 @@ def get_normalized(surf: str, ops: List[str], strict: bool = True) -> str:
     return normalized
 
 
+UPPER2LOWER = {
+    "あ": "ぁ",
+    "い": "ぃ",
+    "う": "ぅ",
+    "え": "ぇ",
+    "お": "ぉ",
+    "わ": "ゎ",
+}
+
+
+class SentenceDenormalizer:
+    def __init__(self):
+        self.mn = MorphemeNormalizer()
+        self.md = MorphemeDenormalizer()
+
+    def denormalize(self, sentence: Sentence, p=0.5) -> None:
+        prob = p
+        for morpheme in reversed(sentence.morphemes):
+            if not self._is_normal_morpheme(morpheme):
+                continue
+            surf2 = self.md.denormalize(morpheme)
+            if surf2 != morpheme.surf:
+                if np.random.rand() < prob:
+                    morpheme._attributes.surf = surf2
+                    prob *= 0.1
+            else:
+                prob = min(prob * 1.5, p)
+
+    def _is_normal_morpheme(self, morpheme):
+        try:
+            opn = self.mn.get_normalization_opns(morpheme)
+        except ValueError:
+            return False
+        return all(map(lambda x: x == "K", opn))
+
+
+class MorphemeDenormalizer:
+    def denormalize(self, morpheme: Morpheme) -> str:
+        return self._denormalize(morpheme.surf)
+
+    def _denormalize(self, surf: str) -> str:
+        if len(surf) == 1:
+            return surf
+        surf2 = self._denormalize_deterministic(surf, var_prolonged=True)
+        cands = [[surf, 10.0]]
+        # D: ー, っ
+        if is_kana(surf2[-1]):
+            d = 0.1
+            if surf2[-1] in ("ん", "ン", "っ", "ッ"):
+                d *= 0.1
+            cands.append([surf2 + "ー", d * 1.0])
+            cands.append([surf2 + "ーー", d * 0.1])
+            cands.append([surf2 + "ーーー", d * 0.05])
+            cands.append([surf2 + "〜", d * 0.2])
+            cands.append([surf2 + "〜〜", d * 0.02])
+            cands.append([surf2 + "〜〜〜", d * 0.001])
+            cands.append([surf2 + "っ", d * 0.1])
+            cands.append([surf2 + "ッ", d * 0.05])
+        # D: ぁ, ぅ, ぉ, っ
+        if surf2[-1] in (
+            "あ",
+            "か",
+            "さ",
+            "た",
+            "な",
+            "は",
+            "ま",
+            "や",
+            "ら",
+            "わ",
+            "が",
+            "ざ",
+            "だ",
+            "ば",
+            "ぱ",
+            "ゃ",
+        ):
+            d = 0.5
+            cands.append([surf2 + "ぁ", d * 1.0])
+            cands.append([surf2 + "ぁー", d * 0.1])
+            cands.append([surf2 + "ぁーー", d * 0.05])
+        elif surf2[-1] in (
+            "う",
+            "く",
+            "す",
+            "つ",
+            "ぬ",
+            "ふ",
+            "む",
+            "ゆ",
+            "る",
+            "ぐ",
+            "ず",
+            "づ",
+            "ぶ",
+            "ぷ",
+            "ゅ",
+        ):
+            d = 0.5
+            cands.append([surf2 + "ぅ", d * 1.0])
+            cands.append([surf2 + "ぅー", d * 0.01])
+            cands.append([surf2 + "ぅーー", d * 0.05])
+        elif surf2[-1] in (
+            "お",
+            "こ",
+            "そ",
+            "と",
+            "の",
+            "ほ",
+            "も",
+            "よ",
+            "ろ",
+            "ご",
+            "ぞ",
+            "ど",
+            "ぼ",
+            "ぽ",
+            "ょ",
+        ):
+            d = 0.5
+            cands.append([surf2 + "ぉ", d * 1.0])
+            cands.append([surf2 + "ぉー", d * 0.1])
+            cands.append([surf2 + "ぉーー", d * 0.05])
+        elif surf2[-1] == "っ":
+            d = 0.5
+            cands.append([surf2 + "っ", d * 1.0])
+            cands.append([surf2 + "っっ", d * 0.1])
+            cands.append([surf2 + "っっ", d * 0.05])
+        elif len(surf2) >= 2 and surf2[-1] == "い" and is_kana(surf2[-2]):
+            d = 1.0
+            cands.append([surf2[:-1] + "ーい", d * 1.0])
+            cands.append([surf2[:-1] + "ーーい", d * 0.1])
+        elif len(surf2) >= 2 and surf2[-1] == "く" and is_kana(surf2[-2]):
+            d = 1.0
+            cands.append([surf2[:-1] + "ーく", d * 1.0])
+            cands.append([surf2[:-1] + "ーーく", d * 0.1])
+        if surf2 == "です":
+            cands.append(["でーす", 1.0])
+            cands.append(["で〜す", 0.2])
+        if surf2 == "ます":
+            cands.append(["まーす", 1.0])
+            cands.append(["ま〜す", 0.2])
+        if len(cands) <= 1:
+            return surf2
+        probs = np.array(list(map(lambda x: x[1], cands)))
+        probs /= probs.sum()
+        idx = np.random.choice(len(probs), p=probs)
+        return cands[idx][0]
+
+    def _denormalize_deterministic(self, surf, var_prolonged=False) -> str:
+        # S
+        if surf[-1] in UPPER2LOWER:
+            surf2 = surf[:-1] + UPPER2LOWER[surf[-1]]
+            return surf2
+        # S: ケ/ヶ
+        pos = find_kanji_ga(surf)
+        if pos >= 0:
+            c = "ヶ" if surf[pos] == "ケ" else "ケ"
+            surf2 = surf[:pos] + c + surf[pos + 1 :]
+            return surf2
+        # P, E
+        if var_prolonged and np.random.rand() < 0.1:
+            prolonged = "〜"
+        else:
+            prolonged = "ー"
+        for i, c in reversed(list(enumerate(surf))):
+            if i == 0:
+                break
+            # よう -> よー
+            # ずうっと -> ずーっと
+            # もうれつ -> もーれつ
+            # びみょう -> びみょー
+            # もどかしい -> もどかしー
+            if c == "う":
+                if surf[i - 1] in (
+                    "う",
+                    "お",
+                    "く",
+                    "こ",
+                    "す",
+                    "そ",
+                    "つ",
+                    "と",
+                    "ぬ",
+                    "の",
+                    "ふ",
+                    "ほ",
+                    "む",
+                    "も",
+                    "ゆ",
+                    "よ",
+                    "る",
+                    "ろ",
+                    "ぐ",
+                    "ご",
+                    "ず",
+                    "ぞ",
+                    "づ",
+                    "ど",
+                    "ぶ",
+                    "ぼ",
+                    "ぷ",
+                    "ぽ",
+                    "ゅ",
+                    "ょ",
+                ):
+                    surf2 = surf[:i] + prolonged + surf[i + 1 :]
+                    return surf2
+            if c == "い" and surf[i - 1] == "し":
+                surf2 = surf[:i] + prolonged + surf[i + 1 :]
+                return surf2
+            if c == "え":
+                if surf[i - 1] in (
+                    "け",
+                    "せ",
+                    "て",
+                    "ね",
+                    "へ",
+                    "め",
+                    "れ",
+                    "げ",
+                    "ぜ",
+                    "で",
+                    "べ",
+                    "ぺ",
+                ):
+                    surf2 = surf[:i] + prolonged + surf[i + 1 :]
+                    return surf2
+        # no rule applicable
+        return surf
+
+
+def is_kana(char):
+    # this ignores extended kana
+    if char >= "\u3040" and char <= "\u30FF":
+        return True
+    return False
+
+
+def find_kanji_ga(surf) -> int:
+    # "ケ": "ヶ",
+    # "ヶ": "ケ",
+    pos = surf.find("ケ", 1, len(surf) - 1)
+    if pos < 0:
+        pos = surf.find("ヶ", 1, len(surf) - 1)
+        if pos < 0:
+            return -1
+    if is_chinese_char(surf[pos - 1]) and is_chinese_char(surf[pos + 1]):
+        return pos
+    return -1
+
+
+def is_chinese_char(char: str) -> bool:
+    # this ignores minor Chinese characters
+    if char >= "\u4E00" and char <= "\u9FFF":
+        return True
+    return False
+
+
 if __name__ == "__main__":
     # print(get_normalized("がえるー", ["V", "K", "K", "D"], strict=True) == "かえる")
-    print(get_normalization_opns("あーーーー", "あー"))
-    print(get_normalization_opns("ね〜", "ねえ"))
+    # print(get_normalization_opns("あーーーー", "あー"))
+    # print(get_normalization_opns("ね〜", "ねえ"))
+    print(MorphemeDenormalizer()._denormalize_deterministic("なあ"))
