@@ -1,3 +1,4 @@
+from enum import Enum
 from pathlib import Path
 from statistics import mean
 from typing import Any, Optional
@@ -21,11 +22,22 @@ from jula.models.models.word_analyzer import WordAnalyzer
 from jula.models.models.word_encoder import WordEncoder
 
 
+class WordTask(Enum):
+    WORD_ANALYSIS = "word_analysis"
+    NER = "ner"
+    WORD_FEATURE_TAGGING = "word_feature_tagging"
+    BASE_PHRASE_FEATURE_TAGGING = "base_phrase_feature_tagging"
+    DEPENDENCY_PARSING = "dependency_parsing"
+    COHESION_ANALYSIS = "cohesion_analysis"
+    DISCOURSE_PARSING = "discourse_parsing"
+
+
 class WordModule(LightningModule):
     def __init__(self, hparams: DictConfig) -> None:
         super().__init__()
         self.hparams.update(hparams)
         self.save_hyperparameters()
+        self.training_tasks = list(map(WordTask, self.hparams.training_tasks))
 
         self.valid_corpora = list(hparams.datamodule.valid.keys())
         self.test_corpora = list(hparams.datamodule.test.keys())
@@ -88,34 +100,34 @@ class WordModule(LightningModule):
         batch["training"] = True
         outputs: dict[str, dict[str, torch.Tensor]] = self(**batch)
         loss = torch.tensor(0.0, device=self.device)
-        if "word_analysis" in self.hparams.training_tasks:
+        if WordTask.WORD_ANALYSIS in self.training_tasks:
             word_analysis_loss = outputs["word_analyzer_outputs"]["loss"]
             loss += word_analysis_loss
             self.log("train/word_analysis_loss", word_analysis_loss)
-        if "ner" in self.hparams.training_tasks:
+        if WordTask.NER in self.training_tasks:
             ner_loss = outputs["phrase_analyzer_outputs"]["ner_loss"]
             loss += ner_loss
             self.log("train/ner_loss", ner_loss)
-        if "word_feature_tagging" in self.hparams.training_tasks:
+        if WordTask.WORD_FEATURE_TAGGING in self.training_tasks:
             word_feature_loss = outputs["phrase_analyzer_outputs"]["word_feature_loss"]
             loss += word_feature_loss
             self.log("train/word_feature_loss", word_feature_loss)
-        if "base_phrase_feature_tagging" in self.hparams.training_tasks:
+        if WordTask.BASE_PHRASE_FEATURE_TAGGING in self.training_tasks:
             base_phrase_feature_loss = outputs["phrase_analyzer_outputs"]["base_phrase_feature_loss"]
             loss += base_phrase_feature_loss
             self.log("train/base_phrase_feature_loss", base_phrase_feature_loss)
-        if "dependency_parsing" in self.hparams.training_tasks:
+        if WordTask.DEPENDENCY_PARSING in self.training_tasks:
             dependency_loss = outputs["relation_analyzer_outputs"]["dependency_loss"]
             loss += dependency_loss
             self.log("train/dependency_loss", dependency_loss)
             dependency_type_loss = outputs["relation_analyzer_outputs"]["dependency_type_loss"]
             loss += dependency_type_loss
             self.log("train/dependency_type_loss", dependency_type_loss)
-        if "cohesion_analysis" in self.hparams.training_tasks:
+        if WordTask.COHESION_ANALYSIS in self.training_tasks:
             cohesion_analysis_loss = outputs["relation_analyzer_outputs"]["cohesion_loss"]
             loss += cohesion_analysis_loss
             self.log("train/cohesion_analysis_loss", cohesion_analysis_loss)
-        if "discourse_parsing" in self.hparams.training_tasks:
+        if WordTask.DISCOURSE_PARSING in self.training_tasks:
             discourse_parsing_loss = outputs["relation_analyzer_outputs"]["discourse_parsing_loss"]
             loss += discourse_parsing_loss
             self.log("train/discourse_parsing_loss", discourse_parsing_loss)
@@ -195,25 +207,25 @@ class WordModule(LightningModule):
     def validation_epoch_end(self, validation_step_outputs) -> None:
         log_metrics: dict[str, dict[str, float]] = {corpus: {} for corpus in self.valid_corpora}
 
-        if "word_analysis" in self.hparams.training_tasks:
+        if WordTask.WORD_ANALYSIS in self.training_tasks:
             for corpus, metric in self.valid_word_analysis_metrics.items():
                 log_metrics[corpus].update(metric.compute())
                 metric.reset()
 
-        if "ner" in self.hparams.training_tasks:
+        if WordTask.NER in self.training_tasks:
             for corpus, metric in self.valid_ner_metrics.items():
                 log_metrics[corpus].update(metric.compute())
                 metric.reset()
 
         if (
-            "word_feature_tagging" in self.hparams.training_tasks
-            or "base_phrase_feature_tagging" in self.hparams.training_tasks
+            WordTask.WORD_FEATURE_TAGGING in self.training_tasks
+            or WordTask.BASE_PHRASE_FEATURE_TAGGING in self.training_tasks
         ):
             for corpus, metric in self.valid_phrase_analysis_metrics.items():
                 log_metrics[corpus].update(metric.compute())
                 metric.reset()
 
-        if "dependency_parsing" in self.hparams.training_tasks:
+        if WordTask.DEPENDENCY_PARSING in self.training_tasks:
             for idx, corpus in enumerate(self.valid_corpora):
                 dataset = self.trainer.val_dataloaders[idx].dataset
                 metric = self.valid_dependency_parsing_metrics[corpus]
@@ -221,7 +233,7 @@ class WordModule(LightningModule):
                 log_metrics[corpus].update(metric.compute(documents))
                 metric.reset()
 
-        if "cohesion_analysis" in self.hparams.training_tasks:
+        if WordTask.COHESION_ANALYSIS in self.training_tasks:
             for idx, corpus in enumerate(self.valid_corpora):
                 dataset = self.trainer.val_dataloaders[idx].dataset
                 metric = self.valid_cohesion_analysis_metrics[corpus]
@@ -230,7 +242,7 @@ class WordModule(LightningModule):
                         log_metrics[corpus][f"{met}_{rel}"] = sub_val.f1
                 metric.reset()
 
-        if "discourse_parsing" in self.hparams.training_tasks:
+        if WordTask.DISCOURSE_PARSING in self.training_tasks:
             for idx, corpus in enumerate(self.valid_corpora):
                 metric = self.valid_discourse_parsing_metrics[corpus]
                 for name, value in metric.compute().items():
@@ -325,25 +337,25 @@ class WordModule(LightningModule):
     def test_epoch_end(self, test_step_outputs) -> None:
         log_metrics: dict[str, dict[str, float]] = {corpus: {} for corpus in self.test_corpora}
 
-        if "word_analysis" in self.hparams.training_tasks:
+        if WordTask.WORD_ANALYSIS in self.training_tasks:
             for corpus, metric in self.test_word_analysis_metrics.items():
                 log_metrics[corpus].update(metric.compute())
                 metric.reset()
 
-        if "ner" in self.hparams.training_tasks:
+        if WordTask.NER in self.training_tasks:
             for corpus, metric in self.test_ner_metrics.items():
                 log_metrics[corpus].update(metric.compute())
                 metric.reset()
 
         if (
-            "word_feature_tagging" in self.hparams.training_tasks
-            or "base_phrase_feature_tagging" in self.hparams.training_tasks
+            WordTask.WORD_FEATURE_TAGGING in self.training_tasks
+            or WordTask.BASE_PHRASE_FEATURE_TAGGING in self.training_tasks
         ):
             for corpus, metric in self.test_phrase_analysis_metrics.items():
                 log_metrics[corpus].update(metric.compute())
                 metric.reset()
 
-        if "dependency_parsing" in self.hparams.training_tasks:
+        if WordTask.DEPENDENCY_PARSING in self.training_tasks:
             for idx, corpus in enumerate(self.test_corpora):
                 dataset = self.trainer.test_dataloaders[idx].dataset
                 metric = self.test_dependency_parsing_metrics[corpus]
@@ -351,7 +363,7 @@ class WordModule(LightningModule):
                 log_metrics[corpus].update(metric.compute(documents))
                 metric.reset()
 
-        if "cohesion_analysis" in self.hparams.training_tasks:
+        if WordTask.COHESION_ANALYSIS in self.training_tasks:
             for idx, corpus in enumerate(self.test_corpora):
                 dataset = self.trainer.test_dataloaders[idx].dataset
                 metric = self.test_cohesion_analysis_metrics[corpus]
@@ -364,7 +376,7 @@ class WordModule(LightningModule):
                         log_metrics[corpus][f"{met}_{rel}"] = sub_val.f1
                 metric.reset()
 
-        if "discourse_parsing" in self.hparams.training_tasks:
+        if WordTask.DISCOURSE_PARSING in self.training_tasks:
             for idx, corpus in enumerate(self.test_corpora):
                 metric = self.test_discourse_parsing_metrics[corpus]
                 for name, value in metric.compute().items():
