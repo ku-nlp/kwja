@@ -326,11 +326,10 @@ class SentenceDenormalizer:
                 prob = min(prob * 1.5, p)
 
     def _is_normal_morpheme(self, morpheme):
-        try:
-            opn = self.mn.get_normalization_opns(morpheme)
-        except ValueError:
+        opn = self.mn.get_normalization_opns(morpheme)
+        if opn[0] == IGNORE_WORD_NORM_TYPE:
             return False
-        return all(map(lambda x: x == "K", opn))
+        return all(map(lambda x: x in ("K"), opn))
 
 
 class MorphemeDenormalizer:
