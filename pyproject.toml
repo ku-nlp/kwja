@@ -34,6 +34,7 @@ python-dotenv = "^0.20.0"
 pandas = "^1.4.2"
 dartsclone = "^0.10.2"
 jinf = {git = "https://github.com/hkiyomaru/jinf.git", rev = "main"}
+kyoto-reader = "^2.5.2"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.1"
@@ -45,3 +46,16 @@ jula = "jula.cli.cli:app"
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 120
+target-version = ["py39", "py310"]
+
+[tool.isort]
+line_length = 120
+py_version=39
+profile = "black"
+src_paths = ["src"]
+
+[tool.mypy]
+python_version = 3.9

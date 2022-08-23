@@ -2,13 +2,12 @@ import json
 from pathlib import Path
 from typing import Union
 
-import hydra
 import torch
 from torch.utils.data import Dataset
-from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizer
+from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
-from jula.utils.utils import TYPO_DUMMY_TOKEN, TYPO_OPN2TOKEN
+from jula.utils.constants import TYPO_DUMMY_TOKEN, TYPO_OPN2TOKEN
 
 
 class TypoDataset(Dataset):
@@ -26,10 +25,9 @@ class TypoDataset(Dataset):
         self.documents = self.load_documents(self.path)
         assert len(self) != 0
 
-        tokenizer_kwargs = tokenizer_kwargs or {}
-        self.tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(
+        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             model_name_or_path,
-            **hydra.utils.instantiate(tokenizer_kwargs, _convert_="partial"),
+            **(tokenizer_kwargs or {}),
         )
         assert self.tokenizer.pad_token_id is not None
         self.pad_token_id: int = self.tokenizer.pad_token_id
@@ -61,9 +59,7 @@ class TypoDataset(Dataset):
                 opn2id[str(line.strip())] = len(opn2id)
         return opn2id
 
-    def encode(
-        self, document: dict[str, Union[str, list[str]]]
-    ) -> dict[str, torch.Tensor]:
+    def encode(self, document: dict[str, Union[str, list[str]]]) -> dict[str, torch.Tensor]:
         if isinstance(document["pre_text"], list):
             raise ValueError('document["pre_text"] must be string')
         encoding: BatchEncoding = self.tokenizer(
@@ -83,14 +79,8 @@ class TypoDataset(Dataset):
                 kdr_label = self.opn2id.get(opn.removeprefix("R:"), self.unk_token_id)
             kdr_labels.append(kdr_label)
         kdr_labels.append(self.pad_token_id)
-        kdr_labels = (
-            [self.pad_token_id]
-            + kdr_labels[: self.max_seq_length - 2]
-            + [self.pad_token_id]
-        )
-        kdr_labels = kdr_labels + [self.pad_token_id] * (
-            self.max_seq_length - len(kdr_labels)
-        )
+        kdr_labels = [self.pad_token_id] + kdr_labels[: self.max_seq_length - 2] + [self.pad_token_id]
+        kdr_labels = kdr_labels + [self.pad_token_id] * (self.max_seq_length - len(kdr_labels))
 
         ins_labels: list[int] = []
         for opn in document["inss"]:
@@ -99,18 +89,13 @@ class TypoDataset(Dataset):
             else:
                 ins_label = self.opn2id.get(opn.removeprefix("I:"), self.unk_token_id)
             ins_labels.append(ins_label)
-        ins_labels = (
-            [self.pad_token_id]
-            + ins_labels[: self.max_seq_length - 2]
-            + [self.pad_token_id]
-        )
-        ins_labels = ins_labels + [self.pad_token_id] * (
-            self.max_seq_length - len(ins_labels)
-        )
+        ins_labels = [self.pad_token_id] + ins_labels[: self.max_seq_length - 2] + [self.pad_token_id]
+        ins_labels = ins_labels + [self.pad_token_id] * (self.max_seq_length - len(ins_labels))
 
         return {
             "input_ids": torch.tensor(input_ids, dtype=torch.long),
             "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
             "kdr_labels": torch.tensor(kdr_labels, dtype=torch.long),
             "ins_labels": torch.tensor(ins_labels, dtype=torch.long),
+            "texts": document["pre_text"],
         }

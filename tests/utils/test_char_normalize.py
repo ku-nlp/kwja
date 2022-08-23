@@ -1,12 +1,7 @@
 import pytest
 from rhoknp import Morpheme
 
-from jula.utils.char_normalize import (
-    MorphemeDenormalizer,
-    MorphemeNormalizer,
-    get_normalization_opns,
-    get_normalized,
-)
+from jula.utils.word_normalize import MorphemeDenormalizer, MorphemeNormalizer, get_normalization_opns, get_normalized
 
 wellformed_list = [
     ("なぁ", ["K", "S"], "なあ"),
@@ -102,9 +97,7 @@ def test_gen_ormalized_surf_malformed_loose(surf, ops, expected):
 
 
 def test_morpheme_normalizer():
-    jumanpp_text = (
-        'きたー きた きる 動詞 2 * 0 母音動詞 1 タ形 10 "代表表記:着る/きる ドメイン:家庭・暮らし 反義:動詞:脱ぐ/ぬぐ 非標準表記:DPL"'
-    )
+    jumanpp_text = 'きたー きた きる 動詞 2 * 0 母音動詞 1 タ形 10 "代表表記:着る/きる ドメイン:家庭・暮らし 反義:動詞:脱ぐ/ぬぐ 非標準表記:DPL"'
     expected = ["K", "K", "D"]
     morpheme = Morpheme.from_jumanpp(jumanpp_text)
     normalizer = MorphemeNormalizer()

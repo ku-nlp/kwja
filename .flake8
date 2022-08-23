@@ -1,4 +1,4 @@
 [flake8]
 per-file-ignores =
 	*:E501
-extend-ignore = E203
+	E203

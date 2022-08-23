@@ -35,12 +35,6 @@ def test_getitem():
         assert item["kdr_labels"].shape == (max_seq_length,)
         assert item["ins_labels"].shape == (max_seq_length,)
 
-        kdr_labels = [
-            x for x in item["kdr_labels"] if x != dataset.tokenizer.pad_token_id
-        ]
-        ins_labels = [
-            x
-            for x in item["ins_labels"].tolist()
-            if x != dataset.tokenizer.pad_token_id
-        ]
+        kdr_labels = [x for x in item["kdr_labels"] if x != dataset.tokenizer.pad_token_id]
+        ins_labels = [x for x in item["ins_labels"].tolist() if x != dataset.tokenizer.pad_token_id]
         assert len(kdr_labels) == len(ins_labels) - 1

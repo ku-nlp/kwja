@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from rhoknp import BasePhrase, Document, Sentence
-from rhoknp.rel import ExophoraReferent, ExophoraReferentType
+from rhoknp.cohesion import ExophoraReferent, ExophoraReferentType
 
 
 @dataclass(frozen=True)
@@ -30,10 +30,12 @@ class Extractor:
     def __init__(
         self,
         exophora_referents: list[ExophoraReferent],
+        restrict_target: bool = False,
         kc: bool = False,
     ) -> None:
         self.kc = kc
         self.exophora_referents = exophora_referents
+        self.restrict_target = restrict_target
 
     def _kc_skip_sentence(self, sentence: Sentence, document: Document) -> bool:
         # do not skip sentences not from Kyoto Corpus
@@ -66,6 +68,5 @@ class Extractor:
     @staticmethod
     def is_candidate(bp: BasePhrase, anaphor: BasePhrase) -> bool:
         return bp.global_index < anaphor.global_index or (
-            bp.global_index > anaphor.global_index
-            and bp.sentence.sid == anaphor.sentence.sid
+            bp.global_index > anaphor.global_index and bp.sentence.sid == anaphor.sentence.sid
         )

@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from omegaconf import DictConfig
-from transformers import PretrainedConfig, PreTrainedTokenizer
+from transformers import PretrainedConfig, PreTrainedTokenizerBase
 
 
 class TypoCorrector(nn.Module):
@@ -10,7 +10,7 @@ class TypoCorrector(nn.Module):
         self,
         hparams: DictConfig,
         pretrained_model_config: PretrainedConfig,
-        tokenizer: PreTrainedTokenizer,
+        tokenizer: PreTrainedTokenizerBase,
     ) -> None:
         super().__init__()
         self.hparams = hparams
@@ -34,9 +34,7 @@ class TypoCorrector(nn.Module):
         assert self.tokenizer.pad_token_id is not None
         self.pad_token_id: int = self.tokenizer.pad_token_id
 
-    def forward(
-        self, encoder_output: torch.Tensor, inputs: dict[str, torch.Tensor]
-    ) -> dict[str, torch.Tensor]:
+    def forward(self, encoder_output: torch.Tensor, inputs: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         output: dict[str, torch.Tensor] = dict()
         kdr_logits = self.kdr_cls(encoder_output)  # (b, seq_len, kdr_label_num)
         output["kdr_logits"] = kdr_logits

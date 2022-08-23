@@ -1,0 +1,4 @@
+case,overt,dep,zero_endophora,zero_exophora,zero,dep_zero,pas,bridging,coreference
+ガ,0.0,1.0,1.0,0.0,1.0,1.0,1.0
+ヲ,0.0,0.0,1.0,0.0,1.0,1.0,0.666667
+all_case,0.0,1.0,1.0,0.0,1.0,1.0,0.857143,1.0,0.0

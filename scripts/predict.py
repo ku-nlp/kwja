@@ -4,7 +4,7 @@ import hydra
 import pytorch_lightning as pl
 import transformers.utils.logging as hf_logging
 from dotenv import load_dotenv
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning.callbacks import Callback
 
 from jula.datamodule.datamodule import DataModule
@@ -13,9 +13,10 @@ from jula.models.typo_module import TypoModule
 from jula.models.word_module import WordModule
 
 hf_logging.set_verbosity(hf_logging.ERROR)
+OmegaConf.register_new_resolver("concat", lambda x, y: x + y)
 
 
-@hydra.main(version_base=None, config_path="../configs", config_name="word_segmenter")
+@hydra.main(version_base=None, config_path="../configs")
 def main(cfg: DictConfig):
     load_dotenv()
     if isinstance(cfg.devices, str):
@@ -39,22 +40,17 @@ def main(cfg: DictConfig):
     model: Union[TypoModule, CharModule, WordModule]
     # add config name if you want
     if cfg.config_name in cfg.module.typo:
-        model = TypoModule.load_from_checkpoint(
-            checkpoint_path=cfg.checkpoint_path, hparams=cfg
-        )
+        model = TypoModule.load_from_checkpoint(checkpoint_path=cfg.checkpoint_path, hparams=cfg)
     elif cfg.config_name in cfg.module.char:
-        model = CharModule.load_from_checkpoint(
-            checkpoint_path=cfg.checkpoint_path, hparams=cfg
-        )
+        model = CharModule.load_from_checkpoint(checkpoint_path=cfg.checkpoint_path, hparams=cfg)
     elif cfg.config_name in cfg.module.word:
-        model = WordModule.load_from_checkpoint(
-            checkpoint_path=cfg.checkpoint_path, hparams=cfg
-        )
+        model = WordModule.load_from_checkpoint(checkpoint_path=cfg.checkpoint_path, hparams=cfg)
     else:
         raise ValueError("invalid config name")
 
-    datamodule: DataModule = DataModule(cfg=cfg)
-    trainer.predict(model=model, datamodule=datamodule)
+    datamodule = DataModule(cfg=cfg.datamondule)
+    dataloader = datamodule.test_dataloader()  # or val_dataloader()
+    trainer.predict(model=model, dataloaders=dataloader)
 
 
 if __name__ == "__main__":
