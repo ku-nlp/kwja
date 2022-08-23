@@ -6,7 +6,7 @@ from torch.utils.data import Dataset
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
-from jula.datamodule.examples import Task
+from jula.datamodule.examples import CohesionTask
 
 
 class WordInferenceDataset(Dataset):
@@ -35,13 +35,13 @@ class WordInferenceDataset(Dataset):
             token: self.max_seq_length - len(self.special_tokens) + i for i, token in enumerate(self.special_tokens)
         }
         self.index_to_special: dict[int, str] = {v: k for k, v in self.special_to_index.items()}
-        self.cohesion_tasks = [Task(t) for t in cohesion_tasks]
+        self.cohesion_tasks = [CohesionTask(t) for t in cohesion_tasks]
         self.cases = list(cases)
         self.bar_rels = list(bar_rels)
         self.cohesion_rel_types = (
-            self.cases * (Task.PAS_ANALYSIS in self.cohesion_tasks)
-            + self.bar_rels * (Task.BRIDGING in self.cohesion_tasks)
-            + ["="] * (Task.COREFERENCE in self.cohesion_tasks)
+            self.cases * (CohesionTask.PAS_ANALYSIS in self.cohesion_tasks)
+            + self.bar_rels * (CohesionTask.BRIDGING in self.cohesion_tasks)
+            + ["="] * (CohesionTask.COREFERENCE in self.cohesion_tasks)
         )
         self.special_encoding: Encoding = self.tokenizer(
             self.special_tokens,

@@ -8,7 +8,7 @@ from rhoknp import BasePhrase, Document, Sentence
 from rhoknp.cohesion import Argument, EndophoraArgument, ExophoraArgument, ExophoraReferent, Pas, RelTag, RelTagList
 
 from jula.datamodule.datasets.word_dataset import WordDataset
-from jula.datamodule.examples import CohesionExample, Task
+from jula.datamodule.examples import CohesionExample, CohesionTask
 from jula.utils.sub_document import extract_target_sentences, to_orig_doc_id
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ class CohesionKNPWriter:
 
     def __init__(self, dataset: WordDataset) -> None:
         self.cases: list[str] = dataset.cases
-        self.tasks: list[Task] = dataset.cohesion_tasks
+        self.tasks: list[CohesionTask] = dataset.cohesion_tasks
         self.rel_types: list[str] = dataset.cohesion_rel_types
         self.exophora_referents: list[ExophoraReferent] = dataset.exophora_referents
         self.specials: list[str] = dataset.special_tokens
@@ -162,7 +162,7 @@ class CohesionKNPWriter:
     ) -> str:
         sid2index: dict[str, int] = {sent.sid: i for i, sent in enumerate(document.sentences)}
         case_elements = []
-        for case in self.cases + ["ノ"] * (Task.BRIDGING in self.tasks):
+        for case in self.cases + ["ノ"] * (CohesionTask.BRIDGING in self.tasks):
             items = ["-"] * 6
             items[0] = case
             args = pas.get_arguments(case, relax=False)

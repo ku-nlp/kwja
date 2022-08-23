@@ -3,7 +3,7 @@ import torch
 from torchmetrics import Metric
 
 from jula.datamodule.datasets.word_dataset import WordDataset
-from jula.datamodule.examples import CohesionExample, Task
+from jula.datamodule.examples import CohesionExample, CohesionTask
 from jula.evaluators.cohesion_scorer import Scorer, ScoreResult
 from jula.utils.cohesion import CohesionKNPWriter
 
@@ -59,9 +59,9 @@ class CohesionAnalysisMetric(Metric):
             dataset.orig_documents,
             target_cases=dataset.cases,
             exophora_referents=dataset.exophora_referents,
-            coreference=(Task.COREFERENCE in dataset.cohesion_tasks),
-            bridging=(Task.BRIDGING in dataset.cohesion_tasks),
-            pas_target=targets2label[tuple(dataset.extractors[Task.PAS_ANALYSIS].pas_targets)],
+            coreference=(CohesionTask.COREFERENCE in dataset.cohesion_tasks),
+            bridging=(CohesionTask.BRIDGING in dataset.cohesion_tasks),
+            pas_target=targets2label[tuple(dataset.extractors[CohesionTask.PAS_ANALYSIS].pas_targets)],
         )
         score_result: ScoreResult = scorer.run()
 

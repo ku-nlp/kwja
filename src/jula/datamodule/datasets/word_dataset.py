@@ -14,9 +14,9 @@ from jula.datamodule.datasets.base_dataset import BaseDataset
 from jula.datamodule.examples import (
     BasePhraseFeatureExample,
     CohesionExample,
+    CohesionTask,
     DependencyExample,
     DiscourseExample,
-    Task,
     WordFeatureExample,
 )
 from jula.datamodule.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
@@ -74,18 +74,18 @@ class WordDataset(BaseDataset):
             tokenizer_kwargs,
         )
         self.exophora_referents = [ExophoraReferent(s) for s in exophora_referents]
-        self.cohesion_tasks: list[Task] = [Task(t) for t in cohesion_tasks]
+        self.cohesion_tasks: list[CohesionTask] = [CohesionTask(t) for t in cohesion_tasks]
         self.cases: list[str] = list(cases)
         self.bar_rels: list[str] = list(bar_rels)
         self.cohesion_rel_types = (
-            self.cases * (Task.PAS_ANALYSIS in self.cohesion_tasks)
-            + self.bar_rels * (Task.BRIDGING in self.cohesion_tasks)
-            + ["="] * (Task.COREFERENCE in self.cohesion_tasks)
+            self.cases * (CohesionTask.PAS_ANALYSIS in self.cohesion_tasks)
+            + self.bar_rels * (CohesionTask.BRIDGING in self.cohesion_tasks)
+            + ["="] * (CohesionTask.COREFERENCE in self.cohesion_tasks)
         )
         self.extractors = {
-            Task.PAS_ANALYSIS: PasExtractor(self.cases, self.exophora_referents, restrict_cohesion_target),
-            Task.COREFERENCE: CoreferenceExtractor(self.exophora_referents, restrict_cohesion_target),
-            Task.BRIDGING: BridgingExtractor(self.bar_rels, self.exophora_referents, restrict_cohesion_target),
+            CohesionTask.PAS_ANALYSIS: PasExtractor(self.cases, self.exophora_referents, restrict_cohesion_target),
+            CohesionTask.COREFERENCE: CoreferenceExtractor(self.exophora_referents, restrict_cohesion_target),
+            CohesionTask.BRIDGING: BridgingExtractor(self.bar_rels, self.exophora_referents, restrict_cohesion_target),
         }
         self.special_to_index: dict[str, int] = {
             token: self.max_seq_length - len(self.special_tokens) + i for i, token in enumerate(self.special_tokens)
@@ -243,8 +243,8 @@ class WordDataset(BaseDataset):
         cohesion_example = example.cohesion_example
         cohesion_target: list[list[list[int]]] = []  # (task, src, tgt)
         candidates_set: list[list[list[int]]] = []  # (task, src, tgt)
-        if Task.PAS_ANALYSIS in self.cohesion_tasks:
-            task = Task.PAS_ANALYSIS
+        if CohesionTask.PAS_ANALYSIS in self.cohesion_tasks:
+            task = CohesionTask.PAS_ANALYSIS
             annotation = cohesion_example.annotations[task]
             phrases = cohesion_example.phrases[task]
             for case in self.cases:
@@ -252,7 +252,7 @@ class WordDataset(BaseDataset):
                 ret = self._convert_annotation_to_feature(arguments_set, phrases)
                 cohesion_target.append(ret[0])
                 candidates_set.append(ret[1])
-        for task in (Task.BRIDGING, Task.COREFERENCE):
+        for task in (CohesionTask.BRIDGING, CohesionTask.COREFERENCE):
             if task not in self.cohesion_tasks:
                 continue
             annotation = cohesion_example.annotations[task].arguments_set
@@ -301,17 +301,19 @@ class WordDataset(BaseDataset):
         """1 example 中に存在する基本句それぞれに対してシステム予測のリストを返す．"""
         ret: list[list[list[float]]] = [[] for _ in next(iter(example.phrases.values()))]
         task_idx = 0
-        if Task.PAS_ANALYSIS in self.cohesion_tasks:
+        if CohesionTask.PAS_ANALYSIS in self.cohesion_tasks:
             for _ in self.cases:
-                for i, p in enumerate(self._word2bp_level(result[task_idx], example.phrases[Task.PAS_ANALYSIS])):
+                for i, p in enumerate(
+                    self._word2bp_level(result[task_idx], example.phrases[CohesionTask.PAS_ANALYSIS])
+                ):
                     ret[i].append(p)
                 task_idx += 1
-        if Task.BRIDGING in self.cohesion_tasks:
-            for i, p in enumerate(self._word2bp_level(result[task_idx], example.phrases[Task.BRIDGING])):
+        if CohesionTask.BRIDGING in self.cohesion_tasks:
+            for i, p in enumerate(self._word2bp_level(result[task_idx], example.phrases[CohesionTask.BRIDGING])):
                 ret[i].append(p)
             task_idx += 1
-        if Task.COREFERENCE in self.cohesion_tasks:
-            for i, p in enumerate(self._word2bp_level(result[task_idx], example.phrases[Task.COREFERENCE])):
+        if CohesionTask.COREFERENCE in self.cohesion_tasks:
+            for i, p in enumerate(self._word2bp_level(result[task_idx], example.phrases[CohesionTask.COREFERENCE])):
                 ret[i].append(p)
             task_idx += 1
         return ret
