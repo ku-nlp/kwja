@@ -14,7 +14,7 @@ from pytorch_lightning.loggers import LightningLoggerBase
 from jula.datamodule.datamodule import DataModule
 
 hf_logging.set_verbosity(hf_logging.ERROR)
-logging.getLogger("rhoknp").setLevel(logging.WARNING)
+logging.getLogger("rhoknp").setLevel(logging.ERROR)
 OmegaConf.register_new_resolver("concat", lambda x, y: x + y)
 
 
