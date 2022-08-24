@@ -384,7 +384,9 @@ class WordModule(LightningModule):
             metric.reset()
 
         for corpus, metrics in log_metrics.items():
-            metrics["aggregated_word_metrics"] = mean(metrics[key] for key in self.hparams.aggregating_metrics)
+            metrics["aggregated_word_metrics"] = mean(
+                metrics[key] for key in self.hparams.aggregating_metrics if key in metrics
+            )
 
         for corpus, metrics in log_metrics.items():
             self.log_dict({f"test_{corpus}/{name}": value for name, value in metrics.items()})
