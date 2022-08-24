@@ -27,6 +27,9 @@ training_tasks: [
 # for dependency parser
 k: 4
 
+# for discourse parser
+discourse_parsing_threshold: 0.0
+
 # for cohesion analysis
 pas_cases: ["ガ", "ヲ", "ニ", "ガ２"]
 bar_rels: ["ノ"]
