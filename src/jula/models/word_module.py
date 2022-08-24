@@ -20,6 +20,7 @@ from jula.models.models.pooling import PoolingStrategy
 from jula.models.models.relation_analyzer import RelationAnalyzer
 from jula.models.models.word_analyzer import WordAnalyzer
 from jula.models.models.word_encoder import WordEncoder
+from jula.utils.constants import DISCOURSE_RELATIONS
 
 
 class WordTask(Enum):
@@ -83,6 +84,8 @@ class WordModule(LightningModule):
         self.test_discourse_parsing_metrics: dict[str, DiscourseParsingMetric] = {
             corpus: DiscourseParsingMetric() for corpus in self.test_corpora
         }
+
+        self.discourse_parsing_threshold: float = self.hparams.discourse_parsing_threshold
 
     def forward(self, **batch) -> dict[str, dict[str, torch.Tensor]]:
         # (batch_size, seq_len, hidden_size)
@@ -194,11 +197,13 @@ class WordModule(LightningModule):
         self.valid_cohesion_analysis_metrics[corpus].update(**cohesion_analysis_metric_args)
         self.log("valid/cohesion_loss", outputs["relation_analyzer_outputs"]["cohesion_loss"])
 
+        discourse_parsing_logits = outputs["relation_analyzer_outputs"]["discourse_parsing_logits"]
+        discourse_parsing_probs = torch.softmax(discourse_parsing_logits, dim=-1)
+        discourse_parsing_max_probs, discourse_parsing_predictions = torch.max(discourse_parsing_probs, dim=-1)
+        discourse_parsing_unconfident_indexes = discourse_parsing_max_probs < self.discourse_parsing_threshold
+        discourse_parsing_predictions[discourse_parsing_unconfident_indexes] = DISCOURSE_RELATIONS.index("談話関係なし")
         discourse_parsing_metric_args = {
-            "discourse_parsing_predictions": torch.argmax(
-                outputs["relation_analyzer_outputs"]["discourse_parsing_logits"],
-                dim=-1,
-            ),
+            "discourse_parsing_predictions": discourse_parsing_predictions,
             "discourse_parsing_labels": batch["discourse_relations"],
         }
         self.valid_discourse_parsing_metrics[corpus].update(**discourse_parsing_metric_args)
@@ -324,11 +329,13 @@ class WordModule(LightningModule):
         self.test_cohesion_analysis_metrics[corpus].update(**cohesion_analysis_metric_args)
         self.log("test/cohesion_loss", outputs["relation_analyzer_outputs"]["cohesion_loss"])
 
+        discourse_parsing_logits = outputs["relation_analyzer_outputs"]["discourse_parsing_logits"]
+        discourse_parsing_probs = torch.softmax(discourse_parsing_logits, dim=-1)
+        discourse_parsing_max_probs, discourse_parsing_predictions = torch.max(discourse_parsing_probs, dim=-1)
+        discourse_parsing_unconfident_indexes = discourse_parsing_max_probs < self.discourse_parsing_threshold
+        discourse_parsing_predictions[discourse_parsing_unconfident_indexes] = DISCOURSE_RELATIONS.index("談話関係なし")
         discourse_parsing_metric_args = {
-            "discourse_parsing_predictions": torch.argmax(
-                outputs["relation_analyzer_outputs"]["discourse_parsing_logits"],
-                dim=-1,
-            ),
+            "discourse_parsing_predictions": discourse_parsing_predictions,
             "discourse_parsing_labels": batch["discourse_relations"],
         }
         self.test_discourse_parsing_metrics[corpus].update(**discourse_parsing_metric_args)
