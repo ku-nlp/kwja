@@ -220,7 +220,7 @@ class SubScorer:
                     args_pred = predicate_pred.pas.get_arguments(case, relax=False)
                 else:
                     args_pred = []
-                # Our analyzer predicts one argument for one predicate
+                # this project predicts one argument for one predicate
                 assert len(args_pred) in (0, 1)
 
                 if global_index in global_index2predicate_gold:
@@ -309,10 +309,8 @@ class SubScorer:
                 )
             else:
                 antecedents_pred = []
-            assert len(antecedents_pred) in (
-                0,
-                1,
-            )  # in bert_pas_analysis, predict one argument for one predicate
+            # this project predicts one argument for one predicate
+            assert len(antecedents_pred) in (0, 1)
 
             if global_index in global_index2anaphor_gold:
                 anaphor_gold: Predicate = global_index2anaphor_gold[global_index]

@@ -237,9 +237,8 @@ class WordModule(LightningModule):
             metric = self.valid_cohesion_analysis_metrics[corpus]
             if WordTask.COHESION_ANALYSIS in self.training_tasks:
                 dataset = self.trainer.val_dataloaders[idx].dataset
-                for rel, val in metric.compute(dataset).to_dict().items():
-                    for met, sub_val in val.items():
-                        log_metrics[corpus][f"{met}_{rel}"] = sub_val.f1
+                _, metric_values = metric.compute(dataset)
+                log_metrics[corpus].update(metric_values)
             metric.reset()
 
         for idx, corpus in enumerate(self.valid_corpora):
@@ -367,13 +366,11 @@ class WordModule(LightningModule):
             metric = self.test_cohesion_analysis_metrics[corpus]
             if WordTask.COHESION_ANALYSIS in self.training_tasks:
                 dataset = self.trainer.test_dataloaders[idx].dataset
-                score_result = metric.compute(dataset)
+                score_result, metric_values = metric.compute(dataset)
+                log_metrics[corpus].update(metric_values)
                 Path(self.hparams.run_dir).mkdir(exist_ok=True)
                 score_result.export_csv(f"{self.hparams.run_dir}/cohesion_analysis_scores_{corpus}.csv")
                 score_result.export_txt(f"{self.hparams.run_dir}/cohesion_analysis_scores_{corpus}.txt")
-                for rel, val in score_result.to_dict().items():
-                    for met, sub_val in val.items():
-                        log_metrics[corpus][f"{met}_{rel}"] = sub_val.f1
             metric.reset()
 
         for idx, corpus in enumerate(self.test_corpora):

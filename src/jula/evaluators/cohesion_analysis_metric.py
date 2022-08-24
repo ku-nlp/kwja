@@ -1,3 +1,5 @@
+from statistics import mean
+
 import numpy as np
 import torch
 from torchmetrics import Metric
@@ -40,7 +42,7 @@ class CohesionAnalysisMetric(Metric):
                 )
             )
 
-    def compute(self, dataset: WordDataset) -> ScoreResult:
+    def compute(self, dataset: WordDataset) -> tuple[ScoreResult, dict[str, float]]:
         knp_writer = CohesionKNPWriter(dataset)
         assert len(self.example_ids) == len(self.predictions), f"{len(self.example_ids)} vs {len(self.predictions)}"
         predictions: dict[int, list[list[int]]] = {
@@ -64,5 +66,17 @@ class CohesionAnalysisMetric(Metric):
             pas_target=targets2label[tuple(dataset.extractors[CohesionTask.PAS_ANALYSIS].pas_targets)],
         )
         score_result: ScoreResult = scorer.run()
+        ret_dict = {}
+        for rel, val in score_result.to_dict().items():
+            for met, sub_val in val.items():
+                ret_dict[f"{met}_{rel}"] = sub_val.f1
+        f1s = []
+        if CohesionTask.PAS_ANALYSIS in dataset.cohesion_tasks:
+            f1s.append(ret_dict["pas_all_case"])
+        if CohesionTask.BRIDGING in dataset.cohesion_tasks:
+            f1s.append(ret_dict["bridging_all_case"])
+        if CohesionTask.COREFERENCE in dataset.cohesion_tasks:
+            f1s.append(ret_dict["coreference_all_case"])
+        ret_dict["cohesion_analysis_f1"] = mean(f1s)
 
-        return score_result
+        return score_result, ret_dict
