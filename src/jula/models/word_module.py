@@ -207,47 +207,47 @@ class WordModule(LightningModule):
     def validation_epoch_end(self, validation_step_outputs) -> None:
         log_metrics: dict[str, dict[str, float]] = {corpus: {} for corpus in self.valid_corpora}
 
-        if WordTask.WORD_ANALYSIS in self.training_tasks:
-            for corpus, metric in self.valid_word_analysis_metrics.items():
+        for corpus, metric in self.valid_word_analysis_metrics.items():
+            if WordTask.WORD_ANALYSIS in self.training_tasks:
                 log_metrics[corpus].update(metric.compute())
-                metric.reset()
+            metric.reset()
 
-        if WordTask.NER in self.training_tasks:
-            for corpus, metric in self.valid_ner_metrics.items():
+        for corpus, metric in self.valid_ner_metrics.items():
+            if WordTask.NER in self.training_tasks:
                 log_metrics[corpus].update(metric.compute())
-                metric.reset()
+            metric.reset()
 
-        if (
-            WordTask.WORD_FEATURE_TAGGING in self.training_tasks
-            or WordTask.BASE_PHRASE_FEATURE_TAGGING in self.training_tasks
-        ):
-            for corpus, metric in self.valid_phrase_analysis_metrics.items():
+        for corpus, metric in self.valid_phrase_analysis_metrics.items():
+            if (
+                WordTask.WORD_FEATURE_TAGGING in self.training_tasks
+                or WordTask.BASE_PHRASE_FEATURE_TAGGING in self.training_tasks
+            ):
                 log_metrics[corpus].update(metric.compute())
-                metric.reset()
+            metric.reset()
 
-        if WordTask.DEPENDENCY_PARSING in self.training_tasks:
-            for idx, corpus in enumerate(self.valid_corpora):
+        for idx, corpus in enumerate(self.valid_corpora):
+            metric = self.valid_dependency_parsing_metrics[corpus]
+            if WordTask.DEPENDENCY_PARSING in self.training_tasks:
                 dataset = self.trainer.val_dataloaders[idx].dataset
-                metric = self.valid_dependency_parsing_metrics[corpus]
                 documents = [dataset.doc_id2document[example.doc_id] for example in dataset.examples]
                 log_metrics[corpus].update(metric.compute(documents))
-                metric.reset()
+            metric.reset()
 
-        if WordTask.COHESION_ANALYSIS in self.training_tasks:
-            for idx, corpus in enumerate(self.valid_corpora):
+        for idx, corpus in enumerate(self.valid_corpora):
+            metric = self.valid_cohesion_analysis_metrics[corpus]
+            if WordTask.COHESION_ANALYSIS in self.training_tasks:
                 dataset = self.trainer.val_dataloaders[idx].dataset
-                metric = self.valid_cohesion_analysis_metrics[corpus]
                 for rel, val in metric.compute(dataset).to_dict().items():
                     for met, sub_val in val.items():
                         log_metrics[corpus][f"{met}_{rel}"] = sub_val.f1
-                metric.reset()
+            metric.reset()
 
-        if WordTask.DISCOURSE_PARSING in self.training_tasks:
-            for idx, corpus in enumerate(self.valid_corpora):
-                metric = self.valid_discourse_parsing_metrics[corpus]
+        for idx, corpus in enumerate(self.valid_corpora):
+            metric = self.valid_discourse_parsing_metrics[corpus]
+            if WordTask.DISCOURSE_PARSING in self.training_tasks:
                 for name, value in metric.compute().items():
                     log_metrics[corpus][name] = value
-                metric.reset()
+            metric.reset()
 
         for corpus, metrics in log_metrics.items():
             metrics["aggregated_word_metrics"] = mean(
@@ -337,36 +337,36 @@ class WordModule(LightningModule):
     def test_epoch_end(self, test_step_outputs) -> None:
         log_metrics: dict[str, dict[str, float]] = {corpus: {} for corpus in self.test_corpora}
 
-        if WordTask.WORD_ANALYSIS in self.training_tasks:
-            for corpus, metric in self.test_word_analysis_metrics.items():
+        for corpus, metric in self.test_word_analysis_metrics.items():
+            if WordTask.WORD_ANALYSIS in self.training_tasks:
                 log_metrics[corpus].update(metric.compute())
-                metric.reset()
+            metric.reset()
 
-        if WordTask.NER in self.training_tasks:
-            for corpus, metric in self.test_ner_metrics.items():
+        for corpus, metric in self.test_ner_metrics.items():
+            if WordTask.NER in self.training_tasks:
                 log_metrics[corpus].update(metric.compute())
-                metric.reset()
+            metric.reset()
 
-        if (
-            WordTask.WORD_FEATURE_TAGGING in self.training_tasks
-            or WordTask.BASE_PHRASE_FEATURE_TAGGING in self.training_tasks
-        ):
-            for corpus, metric in self.test_phrase_analysis_metrics.items():
+        for corpus, metric in self.test_phrase_analysis_metrics.items():
+            if (
+                WordTask.WORD_FEATURE_TAGGING in self.training_tasks
+                or WordTask.BASE_PHRASE_FEATURE_TAGGING in self.training_tasks
+            ):
                 log_metrics[corpus].update(metric.compute())
-                metric.reset()
+            metric.reset()
 
-        if WordTask.DEPENDENCY_PARSING in self.training_tasks:
-            for idx, corpus in enumerate(self.test_corpora):
+        for idx, corpus in enumerate(self.test_corpora):
+            metric = self.test_dependency_parsing_metrics[corpus]
+            if WordTask.DEPENDENCY_PARSING in self.training_tasks:
                 dataset = self.trainer.test_dataloaders[idx].dataset
-                metric = self.test_dependency_parsing_metrics[corpus]
                 documents = [dataset.doc_id2document[example.doc_id] for example in dataset.examples]
                 log_metrics[corpus].update(metric.compute(documents))
-                metric.reset()
+            metric.reset()
 
-        if WordTask.COHESION_ANALYSIS in self.training_tasks:
-            for idx, corpus in enumerate(self.test_corpora):
+        for idx, corpus in enumerate(self.test_corpora):
+            metric = self.test_cohesion_analysis_metrics[corpus]
+            if WordTask.COHESION_ANALYSIS in self.training_tasks:
                 dataset = self.trainer.test_dataloaders[idx].dataset
-                metric = self.test_cohesion_analysis_metrics[corpus]
                 score_result = metric.compute(dataset)
                 Path(self.hparams.run_dir).mkdir(exist_ok=True)
                 score_result.export_csv(f"{self.hparams.run_dir}/cohesion_analysis_scores_{corpus}.csv")
@@ -374,14 +374,14 @@ class WordModule(LightningModule):
                 for rel, val in score_result.to_dict().items():
                     for met, sub_val in val.items():
                         log_metrics[corpus][f"{met}_{rel}"] = sub_val.f1
-                metric.reset()
+            metric.reset()
 
-        if WordTask.DISCOURSE_PARSING in self.training_tasks:
-            for idx, corpus in enumerate(self.test_corpora):
-                metric = self.test_discourse_parsing_metrics[corpus]
+        for idx, corpus in enumerate(self.test_corpora):
+            metric = self.test_discourse_parsing_metrics[corpus]
+            if WordTask.DISCOURSE_PARSING in self.training_tasks:
                 for name, value in metric.compute().items():
                     log_metrics[corpus][name] = value
-                metric.reset()
+            metric.reset()
 
         for corpus, metrics in log_metrics.items():
             metrics["aggregated_word_metrics"] = mean(metrics[key] for key in self.hparams.aggregating_metrics)
