@@ -52,6 +52,8 @@ class CharDataset(BaseDataset):
                 match_word_len: int = len(subtext[0:match_len].decode("utf-8"))
                 for i in range(match_word_len):
                     pos_in_match_word: int = char_pos + i
+                    if pos_in_match_word >= self.max_seq_length:
+                        break
                     for ene_type in self.values[match_idx]:
                         if i == 0:
                             bie = "B"
