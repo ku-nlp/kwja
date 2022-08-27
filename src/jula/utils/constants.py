@@ -841,7 +841,9 @@ CONJFORM_TYPES_WITH_OVERLAP = tuple(
 CONJFORM_TYPES = tuple(sorted(set(CONJFORM_TYPES_WITH_OVERLAP), key=CONJFORM_TYPES_WITH_OVERLAP.index))
 INDEX2CONJFORM_TYPE: dict[int, str] = {index: conjform_type for index, conjform_type in enumerate(CONJFORM_TYPES)}
 
-NE_TAGS: tuple[str, ...] = sum([(f"B-{cat.value}", f"I-{cat.value}") for cat in NamedEntityCategory], ("O",))
+NE_TAGS: tuple[str, ...] = sum(
+    [(f"B-{cat.value}", f"I-{cat.value}") for cat in NamedEntityCategory if cat != NamedEntityCategory.OPTIONAL], ("O",)
+)
 
 SUB_WORD_FEATURES = (
     "用言表記先頭",

@@ -290,7 +290,7 @@ class WordModule(LightningModule):
             "ne_tags": batch["ne_tags"],
         }
         self.test_ner_metrics[corpus].update(**ner_metric_args)
-        self.log("valid/ner_loss", outputs["phrase_analyzer_outputs"]["ner_loss"])
+        self.log("test/ner_loss", outputs["phrase_analyzer_outputs"]["ner_loss"])
 
         phrase_analysis_metric_args = {
             "example_ids": batch["example_ids"],
