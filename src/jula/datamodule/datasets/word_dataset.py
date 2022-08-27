@@ -207,7 +207,7 @@ class WordDataset(BaseDataset):
             category = named_entity.category.value
             for i, morpheme in enumerate(named_entity.morphemes):
                 bi = "B" if i == 0 else "I"
-                assert ne_tags[morpheme.global_index] == NE_TAGS.index("O"), f"invalid NE span in {example.doc_id}"
+                assert ne_tags[morpheme.global_index] == NE_TAGS.index("O"), f"nested NE found in {example.doc_id}"
                 ne_tags[morpheme.global_index] = NE_TAGS.index(f"{bi}-{category}")
 
         # word feature tagging

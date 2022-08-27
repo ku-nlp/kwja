@@ -15,6 +15,7 @@ from tqdm import tqdm
 from jula.utils.constants import BASE_PHRASE_FEATURES, IGNORE_VALUE_FEATURE_PAT, SUB_WORD_FEATURES
 
 FEATURES_PAT = re.compile(r"(?P<features>(<[^>]+>)+)")
+OPTIONAL_PAT = re.compile(r"(?P<optional><NE:OPTIONAL:[^>]+>)")
 
 
 class JumanppAugmenter:
@@ -178,13 +179,13 @@ def refresh(document: Document) -> None:
     for phrase in document.phrases:
         phrase.features.clear()
 
-    # あるnamed entityの一部もまたnamed entityである場合、外側だけ残す
     for sentence in document.sentences:
         for ne1 in list(sentence.named_entities):
-            indices1 = {morpheme.index for morpheme in ne1.morphemes}
-            for ne2 in list(sentence.named_entities):
-                indices2 = {morpheme.index for morpheme in ne2.morphemes}
-                if len(indices1 & indices2) > 0 and len(indices1) < len(indices2):
+            span1 = {morpheme.index for morpheme in ne1.morphemes}
+            for ne2 in sentence.named_entities:
+                span2 = {morpheme.index for morpheme in ne2.morphemes}
+                # あるnamed entityの一部もまたnamed entityである場合、外側だけ残す
+                if len(span1 & span2) > 0 and len(span1) < len(span2):
                     print(
                         f'NE tag {" ".join(m.surf for m in ne1.morphemes)} removed '
                         f'due to the named entity {" ".join(m.surf for m in ne2.morphemes)} '
@@ -238,8 +239,12 @@ def add_features(
             set_named_entities(document, sid2tagged_sentence)
         refresh(document)
 
+        knp_text = document.to_knp()
+        for mo in OPTIONAL_PAT.finditer(knp_text):
+            knp_text = knp_text.replace(mo.group("optional"), "")
+
         with output_dir.joinpath(f"{document.doc_id}.knp").open(mode="w") as f:
-            f.write(document.to_knp())
+            f.write(knp_text)
 
 
 def test_jumanpp_augmenter():
