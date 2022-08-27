@@ -15,7 +15,7 @@ from tqdm import tqdm
 from jula.utils.constants import BASE_PHRASE_FEATURES, IGNORE_VALUE_FEATURE_PAT, SUB_WORD_FEATURES
 
 FEATURES_PAT = re.compile(r"(?P<features>(<[^>]+>)+)")
-OPTIONAL_PAT = re.compile(r"(?P<optional><NE:OPTIONAL:[^>]+>)")
+NE_OPTIONAL_PAT = re.compile(r"(?P<optional><NE:OPTIONAL:[^>]+>)")
 
 
 class JumanppAugmenter:
@@ -240,7 +240,7 @@ def add_features(
         refresh(document)
 
         knp_text = document.to_knp()
-        for mo in OPTIONAL_PAT.finditer(knp_text):
+        for mo in NE_OPTIONAL_PAT.finditer(knp_text):
             knp_text = knp_text.replace(mo.group("optional"), "")
 
         with output_dir.joinpath(f"{document.doc_id}.knp").open(mode="w") as f:
