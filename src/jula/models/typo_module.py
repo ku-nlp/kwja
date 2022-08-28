@@ -23,7 +23,6 @@ class TypoModule(LightningModule):
         self.model: TypoCorrector = TypoCorrector(
             hparams=hparams,
             pretrained_model_config=pretrained_model_config,
-            tokenizer=self.tokenizer,
         )
         self.metrics: TypoCorrectionMetric = TypoCorrectionMetric()
 
