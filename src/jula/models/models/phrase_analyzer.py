@@ -17,9 +17,8 @@ class PhraseAnalyzer(nn.Module):
         self.ne_head = nn.Sequential(
             OrderedDict(
                 [
-                    # single-taskで学習すると学習が進まないため除外
-                    # ("dense", nn.Linear(hidden_size, hidden_size)),
-                    # ("hidden_act", nn.GELU()),
+                    ("dense", nn.Linear(hidden_size, hidden_size)),
+                    ("hidden_act", nn.GELU()),
                     (
                         "dropout",
                         nn.Dropout(hidden_dropout_prob),
