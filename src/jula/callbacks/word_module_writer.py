@@ -31,6 +31,7 @@ from jula.utils.constants import (
     POS_TYPE2ID,
 )
 from jula.utils.dependency_parsing import DependencyManager
+from jula.utils.reading import get_reading2id, get_word_level_readings
 from jula.utils.sub_document import extract_target_sentences
 
 logger = logging.getLogger(__name__)
@@ -40,11 +41,15 @@ class WordModuleWriter(BasePredictionWriter):
     def __init__(
         self,
         output_dir: str,
+        reading_resource_path: str,
         pred_filename: str = "predict",
         use_stdout: bool = False,
     ) -> None:
         super().__init__(write_interval="epoch")
 
+        self.reading_resource_path = Path(reading_resource_path)
+        reading2id = get_reading2id(str(self.reading_resource_path / "vocab.txt"))
+        self.id2reading = {v: k for k, v in reading2id.items()}
         self.jinf = Jinf()
 
         self.destination: Union[Path, TextIO]
@@ -68,7 +73,10 @@ class WordModuleWriter(BasePredictionWriter):
         for prediction in predictions:
             for batch_pred in prediction:
                 batch_texts = batch_pred["texts"]
+                batch_tokens = batch_pred["tokens"]
                 dataloader_idx: int = batch_pred["dataloader_idx"]
+                batch_reading_subword_map = batch_pred["reading_subword_map"]
+                batch_reading_preds = torch.argmax(batch_pred["reading_prediction_logits"], dim=-1)
                 batch_pos_preds = torch.argmax(batch_pred["word_analysis_pos_logits"], dim=-1)
                 batch_subpos_preds = torch.argmax(batch_pred["word_analysis_subpos_logits"], dim=-1)
                 batch_conjtype_preds = torch.argmax(batch_pred["word_analysis_conjtype_logits"], dim=-1)
@@ -86,6 +94,9 @@ class WordModuleWriter(BasePredictionWriter):
                 batch_discourse_parsing_preds = torch.argmax(batch_pred["discourse_parsing_logits"], dim=3)
                 for (
                     text,
+                    tokens,
+                    reading_subword_map,
+                    reading_preds,
                     pos_preds,
                     subpos_preds,
                     conjtype_preds,
@@ -99,6 +110,9 @@ class WordModuleWriter(BasePredictionWriter):
                     discourse_parsing_preds,
                 ) in zip(
                     batch_texts,
+                    batch_tokens,
+                    batch_reading_subword_map.tolist(),
+                    batch_reading_preds.tolist(),
                     batch_pos_preds.tolist(),
                     batch_subpos_preds.tolist(),
                     batch_conjtype_preds.tolist(),
@@ -112,8 +126,12 @@ class WordModuleWriter(BasePredictionWriter):
                     batch_discourse_parsing_preds.tolist(),
                 ):
                     dataset: WordDataset = dataloaders[dataloader_idx].dataset
+                    # TODO: get word-level reading predictions
+                    readings = [self.id2reading[pred] for pred in reading_preds]
+                    word_reading_preds = get_word_level_readings(readings, tokens.split(), reading_subword_map)
                     morphemes = self._create_morphemes(
                         text.split(),
+                        word_reading_preds,
                         pos_preds,
                         subpos_preds,
                         conjtype_preds,
@@ -145,14 +163,15 @@ class WordModuleWriter(BasePredictionWriter):
     def _create_morphemes(
         self,
         words: list[str],
+        reading_preds: list[str],
         pos_preds: list[int],
         subpos_preds: list[int],
         conjtype_preds: list[int],
         conjform_preds: list[int],
     ) -> list[Morpheme]:
         morphemes = []
-        for word, pos_index, subpos_index, conjtype_index, conjform_index in zip(
-            words, pos_preds, subpos_preds, conjtype_preds, conjform_preds
+        for word, reading, pos_index, subpos_index, conjtype_index, conjform_index in zip(
+            words, reading_preds, pos_preds, subpos_preds, conjtype_preds, conjform_preds
         ):
             pos = INDEX2POS_TYPE[pos_index]
             pos_id = POS_TYPE2ID[pos]
@@ -169,7 +188,7 @@ class WordModuleWriter(BasePredictionWriter):
                 lemma = word
             attributes = MorphemeAttributes(
                 surf=word,
-                reading=word,  # TODO
+                reading=reading,
                 lemma=lemma,
                 pos=pos,
                 pos_id=pos_id,

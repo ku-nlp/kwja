@@ -8,4 +8,5 @@ pas_cases: ${pas_cases}
 bar_rels: ${bar_rels}
 exophora_referents: ${exophora_referents}
 cohesion_tasks: ${cohesion_tasks}
+reading_resource_path: ${dataset.reading_resource_path}
 document_split_stride: ${document_split_stride}

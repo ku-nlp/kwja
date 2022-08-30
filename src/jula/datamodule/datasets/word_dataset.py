@@ -1,5 +1,6 @@
 import logging
 from dataclasses import dataclass
+from pathlib import Path
 
 import torch
 from omegaconf import ListConfig
@@ -17,6 +18,7 @@ from jula.datamodule.examples import (
     CohesionTask,
     DependencyExample,
     DiscourseExample,
+    ReadingExample,
     WordFeatureExample,
 )
 from jula.datamodule.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
@@ -33,6 +35,8 @@ from jula.utils.constants import (
     SUBPOS_TYPES,
     WORD_FEATURES,
 )
+from jula.utils.kanjidic import KanjiDic
+from jula.utils.reading import ReadingAligner, get_reading2id
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +47,7 @@ class WordExampleSet:
     doc_id: str
     text: str  # space-delimited word sequence
     encoding: Encoding
+    reading_example: ReadingExample
     word_feature_example: WordFeatureExample
     base_phrase_feature_example: BasePhraseFeatureExample
     dependency_example: DependencyExample
@@ -60,6 +65,7 @@ class WordDataset(BaseDataset):
         cohesion_tasks: ListConfig,
         special_tokens: ListConfig,
         restrict_cohesion_target: bool,
+        reading_resource_path: str,
         document_split_stride: int,
         model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
         max_seq_length: int = 512,
@@ -91,6 +97,9 @@ class WordDataset(BaseDataset):
             token: self.max_seq_length - len(self.special_tokens) + i for i, token in enumerate(self.special_tokens)
         }
         self.index_to_special: dict[int, str] = {v: k for k, v in self.special_to_index.items()}
+        self.reading_resource_path = Path(reading_resource_path)
+        self.reading2id = get_reading2id(str(self.reading_resource_path / "vocab.txt"))
+        self.reading_aligner = ReadingAligner(self.tokenizer, KanjiDic(str(self.reading_resource_path / "kanjidic")))
         self.examples: list[WordExampleSet] = self._load_examples(self.documents)
         self.special_encoding: Encoding = self.tokenizer(
             self.special_tokens,
@@ -127,6 +136,9 @@ class WordDataset(BaseDataset):
             if len(encoding.ids) > self.max_seq_length - self.num_special_tokens:
                 continue
 
+            reading_example = ReadingExample()
+            reading_example.load(document, aligner=self.reading_aligner)
+
             word_feature_example = WordFeatureExample()
             word_feature_example.load(document)
 
@@ -142,6 +154,8 @@ class WordDataset(BaseDataset):
             discourse_example = DiscourseExample()
             discourse_example.load(document, has_annotation=False)
             path = self.path / "disc_expert" / f"{document.doc_id}.knp"
+            if not path.exists() and self.path.name == "train":
+                path = self.path / "disc_crowd" / f"{document.doc_id}.knp"
             if path.exists():
                 try:
                     document_disc = Document.from_knp(path.read_text())
@@ -149,15 +163,6 @@ class WordDataset(BaseDataset):
                         discourse_example.load(document_disc)
                 except AssertionError:
                     logger.warning(f"{path} is not a valid KNP file")
-            elif self.path.name == "train":
-                path = self.path / "disc_crowd" / f"{document.doc_id}.knp"
-                if path.exists():
-                    try:
-                        document_disc = Document.from_knp(path.read_text())
-                        if document == document_disc:
-                            discourse_example.load(document_disc)
-                    except AssertionError:
-                        logger.warning(f"{path} is not a valid KNP file")
 
             examples.append(
                 WordExampleSet(
@@ -165,6 +170,7 @@ class WordDataset(BaseDataset):
                     doc_id=document.doc_id,
                     text=" ".join(words),
                     encoding=encoding,
+                    reading_example=reading_example,
                     word_feature_example=word_feature_example,
                     base_phrase_feature_example=base_phrase_feature_example,
                     dependency_example=dependency_example,
@@ -188,6 +194,25 @@ class WordDataset(BaseDataset):
         return self.encode(self.examples[index])
 
     def encode(self, example: WordExampleSet) -> dict[str, torch.Tensor]:
+        merged_encoding: Encoding = Encoding.merge([example.encoding, self.special_encoding])
+
+        # reading prediction
+        reading_example = example.reading_example
+        reading_ids = [IGNORE_INDEX] * self.max_seq_length
+        if reading_example.readings:
+            non_special_token_indexes = [
+                token_index
+                for token_index, word_id in enumerate(merged_encoding.word_ids)
+                if word_id is not None and token_index not in self.index_to_special
+            ]
+            for index, non_special_token_index in enumerate(non_special_token_indexes):
+                reading = reading_example.readings[index]
+                decoded_token = self.tokenizer.decode(merged_encoding.ids[non_special_token_index])
+                if reading == decoded_token:
+                    reading_ids[non_special_token_index] = self.reading2id["[ID]"]
+                else:
+                    reading_ids[non_special_token_index] = self.reading2id.get(reading, self.reading2id["[UNK]"])
+
         # NOTE: hereafter, indices are given at the word level
 
         # morpheme type tagging
@@ -273,14 +298,16 @@ class WordDataset(BaseDataset):
                     relation_index = DISCOURSE_RELATIONS.index(relation)
                     discourse_relations[global_morpheme_index_i][global_morpheme_index_j] = relation_index
 
-        merged_encoding: Encoding = Encoding.merge([example.encoding, self.special_encoding])
-
         return {
             "example_ids": torch.tensor(example.example_id, dtype=torch.long),
             "input_ids": torch.tensor(merged_encoding.ids, dtype=torch.long),
             "attention_mask": torch.tensor(merged_encoding.attention_mask, dtype=torch.long),
             "subword_map": torch.tensor(self._gen_subword_map(merged_encoding), dtype=torch.bool),
+            "reading_subword_map": torch.tensor(
+                self._gen_subword_map(merged_encoding, include_additional_words=False), dtype=torch.bool
+            ),
             "mrph_types": torch.tensor(morpheme_types, dtype=torch.long),
+            "reading_ids": torch.tensor(reading_ids, dtype=torch.long),
             "ne_tags": torch.tensor(ne_tags, dtype=torch.long),
             "word_features": torch.tensor(word_features, dtype=torch.long),
             "base_phrase_features": torch.tensor(base_phrase_features, dtype=torch.long),
@@ -291,6 +318,7 @@ class WordDataset(BaseDataset):
             "cohesion_target": torch.tensor(cohesion_target, dtype=torch.int),
             "cohesion_mask": torch.tensor(cohesion_mask, dtype=torch.bool),
             "texts": example.text,
+            "tokens": " ".join(self.tokenizer.decode(id_) for id_ in merged_encoding.ids),
         }
 
     def dump_prediction(
@@ -337,13 +365,14 @@ class WordDataset(BaseDataset):
             ret[anaphor.dtid] = softmax(phrase_level_scores).tolist()
         return ret
 
-    def _gen_subword_map(self, encoding: Encoding) -> list[list[bool]]:
+    def _gen_subword_map(self, encoding: Encoding, include_additional_words: bool = True) -> list[list[bool]]:
         subword_map = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
         for token_id, word_id in enumerate(encoding.word_ids):
             if word_id is not None:
                 subword_map[word_id][token_id] = True
-        for special_index in self.special_indices:
-            subword_map[special_index][special_index] = True
+        if include_additional_words:
+            for special_index in self.special_indices:
+                subword_map[special_index][special_index] = True
         return subword_map
 
     def _convert_annotation_to_feature(
