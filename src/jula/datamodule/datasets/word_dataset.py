@@ -77,11 +77,12 @@ class WordDataset(BaseDataset):
         self.cohesion_tasks: list[CohesionTask] = [CohesionTask(t) for t in cohesion_tasks]
         self.pas_cases: list[str] = list(pas_cases)
         self.bar_rels: list[str] = list(bar_rels)
-        self.cohesion_rel_types = (
-            self.pas_cases * (CohesionTask.PAS_ANALYSIS in self.cohesion_tasks)
-            + self.bar_rels * (CohesionTask.BRIDGING in self.cohesion_tasks)
-            + ["="] * (CohesionTask.COREFERENCE in self.cohesion_tasks)
-        )
+        self.cohesion_task_to_rel_types = {
+            CohesionTask.PAS_ANALYSIS: self.pas_cases,
+            CohesionTask.BRIDGING: self.bar_rels,
+            CohesionTask.COREFERENCE: ["="],
+        }
+        self.restrict_cohesion_target = restrict_cohesion_target
         self.extractors = {
             CohesionTask.PAS_ANALYSIS: PasExtractor(self.pas_cases, self.exophora_referents, restrict_cohesion_target),
             CohesionTask.COREFERENCE: CoreferenceExtractor(self.exophora_referents, restrict_cohesion_target),
@@ -111,6 +112,10 @@ class WordDataset(BaseDataset):
     @property
     def num_special_tokens(self) -> int:
         return len(self.special_tokens)
+
+    @property
+    def cohesion_rel_types(self) -> list[str]:
+        return [t for ts in self.cohesion_task_to_rel_types.values() for t in ts]
 
     def _load_examples(self, documents: list[Document]) -> list[WordExampleSet]:
         examples = []

@@ -7,6 +7,7 @@ from transformers import AutoTokenizer, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
 from jula.datamodule.examples import CohesionTask
+from jula.datamodule.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
 
 
 class WordInferenceDataset(Dataset):
@@ -18,6 +19,7 @@ class WordInferenceDataset(Dataset):
         exophora_referents: ListConfig,
         cohesion_tasks: ListConfig,
         special_tokens: ListConfig,
+        restrict_cohesion_target: bool,
         model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
         max_seq_length: int = 512,
         tokenizer_kwargs: dict = None,
@@ -36,13 +38,18 @@ class WordInferenceDataset(Dataset):
         }
         self.index_to_special: dict[int, str] = {v: k for k, v in self.special_to_index.items()}
         self.cohesion_tasks = [CohesionTask(t) for t in cohesion_tasks]
-        self.pas_cases = list(pas_cases)
-        self.bar_rels = list(bar_rels)
-        self.cohesion_rel_types = (
-            self.pas_cases * (CohesionTask.PAS_ANALYSIS in self.cohesion_tasks)
-            + self.bar_rels * (CohesionTask.BRIDGING in self.cohesion_tasks)
-            + ["="] * (CohesionTask.COREFERENCE in self.cohesion_tasks)
-        )
+        self.pas_cases: list[str] = list(pas_cases)
+        self.bar_rels: list[str] = list(bar_rels)
+        self.cohesion_task_to_rel_types = {
+            CohesionTask.PAS_ANALYSIS: self.pas_cases,
+            CohesionTask.BRIDGING: self.bar_rels,
+            CohesionTask.COREFERENCE: ["="],
+        }
+        self.extractors = {
+            CohesionTask.PAS_ANALYSIS: PasExtractor(self.pas_cases, self.exophora_referents, restrict_cohesion_target),
+            CohesionTask.COREFERENCE: CoreferenceExtractor(self.exophora_referents, restrict_cohesion_target),
+            CohesionTask.BRIDGING: BridgingExtractor(self.bar_rels, self.exophora_referents, restrict_cohesion_target),
+        }
         self.special_encoding: Encoding = self.tokenizer(
             self.special_tokens,
             is_split_into_words=True,
@@ -62,6 +69,10 @@ class WordInferenceDataset(Dataset):
     @property
     def num_special_tokens(self) -> int:
         return len(self.special_tokens)
+
+    @property
+    def cohesion_rel_types(self) -> list[str]:
+        return [t for ts in self.cohesion_task_to_rel_types.values() for t in ts]
 
     def __len__(self) -> int:
         return len(self.texts)

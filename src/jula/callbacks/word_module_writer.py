@@ -17,6 +17,8 @@ from rhoknp.units.morpheme import MorphemeAttributes
 
 import jula
 from jula.datamodule.datasets.word_dataset import WordDataset
+from jula.datamodule.examples import CohesionTask
+from jula.datamodule.extractors.base import Extractor
 from jula.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJTYPE_CONJFORM_TYPE2ID,
@@ -126,9 +128,10 @@ class WordModuleWriter(BasePredictionWriter):
                     self._add_cohesion(
                         document,
                         cohesion_preds,
-                        dataset.cohesion_rel_types,
+                        dataset.cohesion_task_to_rel_types,
                         dataset.exophora_referents,
                         dataset.index_to_special,
+                        dataset.extractors,
                     )
                     doc_id = document.doc_id
                     document = document.reparse()  # reparse to get clauses
@@ -337,18 +340,25 @@ class WordModuleWriter(BasePredictionWriter):
         self,
         document: Document,
         cohesion_preds: list[list[int]],
-        rel_types: list[str],
+        task_to_rel_types: dict[CohesionTask, list[str]],
         exophora_referents: list[ExophoraReferent],
         index_to_special: dict[int, str],
+        task_to_extractors: dict[CohesionTask, Extractor],
     ) -> None:
+        all_rel_types = [t for ts in task_to_rel_types.values() for t in ts]
         for base_phrase in document.base_phrases:
-            base_phrase.rels = self._to_rels(
+            base_phrase.rels = RelTagList()
+            rel_tags = self._to_rels(
                 [preds[base_phrase.head.global_index] for preds in cohesion_preds],
                 document.morphemes,
-                rel_types,
+                all_rel_types,
                 exophora_referents,
                 index_to_special,
             )
+            for task, rel_types in task_to_rel_types.items():
+                extractor = task_to_extractors[task]
+                if extractor.is_target(base_phrase):
+                    base_phrase.rels += [rel for rel in rel_tags if rel.type in rel_types]
 
     @staticmethod
     def _add_discourse(document: Document, discourse_preds: list[list[int]]) -> None:
@@ -376,7 +386,7 @@ class WordModuleWriter(BasePredictionWriter):
         exophora_referents: list[ExophoraReferent],
         index_to_special: dict[int, str],
     ) -> RelTagList:
-        rels = RelTagList()
+        rel_tags = RelTagList()
         assert len(rel_types) == len(prediction)
         for relation, morpheme_index in zip(rel_types, prediction):
             if morpheme_index < 0:
@@ -384,7 +394,7 @@ class WordModuleWriter(BasePredictionWriter):
             if 0 <= morpheme_index < len(morphemes):
                 # normal
                 prediction_bp: BasePhrase = morphemes[morpheme_index].base_phrase
-                rels.append(
+                rel_tags.append(
                     RelTag(
                         type=relation,
                         target=prediction_bp.head.text,
@@ -396,7 +406,7 @@ class WordModuleWriter(BasePredictionWriter):
             elif special_token := index_to_special.get(morpheme_index):
                 # exophora
                 if special_token in [str(e) for e in exophora_referents]:  # exclude [NULL], [NA], and [ROOT]
-                    rels.append(
+                    rel_tags.append(
                         RelTag(
                             type=relation,
                             target=special_token,
@@ -408,7 +418,7 @@ class WordModuleWriter(BasePredictionWriter):
             else:
                 raise ValueError(f"invalid morpheme index: {morpheme_index} in {morphemes[0].document.doc_id}")
 
-        return rels
+        return rel_tags
 
     def write_on_batch_end(
         self,

@@ -11,6 +11,7 @@ word_dataset_kwargs = dict(
     cohesion_tasks=ListConfig(["pas_analysis", "bridging", "coreference"]),
     special_tokens=ListConfig(special_tokens),
     tokenizer_kwargs={"additional_special_tokens": special_tokens},
+    restrict_cohesion_target=True,
 )
 
 

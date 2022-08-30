@@ -141,6 +141,7 @@ def test_write_on_epoch_end():
             exophora_referents=ListConfig(exophora_referents),
             cohesion_tasks=ListConfig(["pas_analysis", "bridging", "coreference"]),
             special_tokens=ListConfig(special_tokens),
+            restrict_cohesion_target=True,
         )
         trainer = MockTrainer([DataLoader(dataset)])
         writer.write_on_epoch_end(trainer, ..., predictions)
