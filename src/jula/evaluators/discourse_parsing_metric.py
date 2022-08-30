@@ -2,7 +2,7 @@ from typing import Union
 
 import torch
 from torchmetrics import Metric
-from torchmetrics.functional import accuracy, precision, recall
+from torchmetrics.functional import accuracy
 
 from jula.utils.constants import DISCOURSE_RELATIONS, IGNORE_INDEX
 
@@ -43,13 +43,13 @@ class DiscourseParsingMetric(Metric):
         if predictions[~ignored_indexes].numel() == 0:
             prec = 0.0
         else:
-            prec = precision(predictions[~ignored_indexes], labels[~ignored_indexes]).item()
+            prec = accuracy(predictions[~ignored_indexes], labels[~ignored_indexes]).item()
         # Recall
         ignored_indexes = labels == no_relation_index
         if labels[~ignored_indexes].numel() == 0:
             rec = 0.0
         else:
-            rec = recall(predictions[~ignored_indexes], labels[~ignored_indexes]).item()
+            rec = accuracy(predictions[~ignored_indexes], labels[~ignored_indexes]).item()
         # F1
         if prec + rec == 0:
             f1 = 0.0
