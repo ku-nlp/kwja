@@ -10,24 +10,6 @@ TYPO_OPN2TOKEN = {
 }
 TOKEN2TYPO_OPN: dict[str, str] = {v: k for k, v in TYPO_OPN2TOKEN.items()}
 TYPO_DUMMY_TOKEN = "<dummy>"
-ENE_TYPES = (
-    "0",  # CONCEPT
-    "1.0",  # 名前＿その他
-    "1.1",  # 人名
-    "1.2",  # 神名
-    "1.3",  # 動物呼称名
-    "1.4",  # 組織名
-    "1.5",  # 地名
-    "1.6",  # 施設名
-    "1.7",  # 製品名
-    "1.9",  # イベント名
-    "1.10",  # 自然物名
-    "1.11",  # 病気名
-    "1.12",  # 色名
-)
-ENE_TYPE_BIES: tuple[str, ...] = ("PAD",) + tuple(
-    itertools.chain.from_iterable((f"B-{ene}", f"I-{ene}", f"E-{ene}") for ene in ENE_TYPES)
-)
 
 SEG_TYPES = (
     "B",

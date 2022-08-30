@@ -11,7 +11,7 @@ class CharInferenceDataset(Dataset):
         model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
         max_seq_length: int = 512,
         tokenizer_kwargs: dict = None,
-        **_,  # accept `wiki_ene_dic_path` as a keyword argument
+        **_,
     ) -> None:
         self.texts = [text.strip() for text in texts]
         self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(

@@ -18,8 +18,6 @@ document_split_stride: 1
 # set monitor and mode for early_stopping and model_checkpoint
 monitor: valid/f1
 mode: max
-# option
-add_ene_embed_before_encoder: True
 
 # hyper-parameters to be tuned
 warmup_steps: 100
