@@ -162,7 +162,8 @@ def get_reading2id(path: str) -> dict[str, int]:
     with open(path, "r") as f:
         for line in f:
             if line := line.strip():
-                reading2id[line] = len(reading2id)
+                if line not in reading2id:
+                    reading2id[line] = len(reading2id)
     return reading2id
 
 
