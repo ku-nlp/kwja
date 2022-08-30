@@ -66,6 +66,7 @@ def test_getitem():
         assert "input_ids" in item
         assert "attention_mask" in item
         assert "subword_map" in item
+        assert "reading_subword_map" in item
         assert "reading_ids" in item
         assert "mrph_types" in item
         assert "word_features" in item
@@ -76,11 +77,15 @@ def test_getitem():
         assert "discourse_relations" in item
         assert "cohesion_target" in item
         assert "cohesion_mask" in item
+        assert "texts" in item
+        assert "tokens" in item
         assert item["example_ids"] == i
         assert item["input_ids"].shape == (max_seq_length,)
         assert item["attention_mask"].shape == (max_seq_length,)
         assert item["subword_map"].shape == (max_seq_length, max_seq_length)
         assert (item["subword_map"].sum(dim=1) != 0).sum() == len(document.morphemes) + dataset.num_special_tokens
+        assert item["reading_subword_map"].shape == (max_seq_length, max_seq_length)
+        assert (item["reading_subword_map"].sum(dim=1) != 0).sum() == len(document.morphemes)
         assert item["reading_ids"].shape == (max_seq_length,)
         assert item["mrph_types"].shape == (max_seq_length, 4)
         assert item["word_features"].shape == (max_seq_length, len(WORD_FEATURES))
@@ -334,6 +339,8 @@ def test_encode():
     discourse_relations[7][2] = DISCOURSE_RELATIONS.index("談話関係なし")
     discourse_relations[7][7] = DISCOURSE_RELATIONS.index("談話関係なし")
     assert encoding["discourse_relations"].tolist() == discourse_relations
+
+    assert encoding["texts"] == "風 が 吹く 。 すると 桶屋 が 儲かる 。"
 
 
 def test_pas():
