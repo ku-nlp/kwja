@@ -2,3 +2,4 @@ prediction_writer:
   _target_: jula.callbacks.word_module_writer.WordModuleWriter
   output_dir: ${run_dir}
   pred_filename: "predict"
+  ebase2bases_path: ${oc.env:DATA_DIR}/jumandic/ebase2bases.pkl

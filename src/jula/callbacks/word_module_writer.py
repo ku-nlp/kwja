@@ -1,5 +1,6 @@
 import logging
 import os
+import pickle
 import sys
 from io import TextIOBase
 from pathlib import Path
@@ -40,12 +41,15 @@ class WordModuleWriter(BasePredictionWriter):
     def __init__(
         self,
         output_dir: str,
+        ebase2bases_path: str,
         pred_filename: str = "predict",
         use_stdout: bool = False,
     ) -> None:
         super().__init__(write_interval="epoch")
 
         self.jinf = Jinf()
+        with open(ebase2bases_path, "rb") as f:
+            self.ebase2bases = pickle.load(f)
 
         self.destination: Union[Path, TextIO]
         if use_stdout is True:
@@ -162,11 +166,21 @@ class WordModuleWriter(BasePredictionWriter):
             conjtype_id = conjtype_index
             conjform = INDEX2CONJFORM_TYPE[conjform_index]
             conjform_id = CONJTYPE_CONJFORM_TYPE2ID[conjtype][conjform]
-            try:
-                lemma = self.jinf(word, conjtype, conjform, "基本形")
-            except ValueError as e:
-                logger.warning(f"failed to get lemma for {word}: ({e})")
-                lemma = word
+            semantics: dict[str, Union[str, bool]] = {}
+            if conjform == "エ基本形":
+                if word in self.ebase2bases:
+                    lemma = self.ebase2bases[word][0]
+                    if len(self.ebase2bases[word]) > 1:
+                        semantics["基本形候補"] = ";".join(self.ebase2bases[word])
+                else:
+                    logger.warning(f"failed to get lemma for {word}")
+                    lemma = word
+            else:
+                try:
+                    lemma = self.jinf(word, conjtype, conjform, "基本形")
+                except ValueError as e:
+                    logger.warning(f"failed to get lemma for {word}: ({e})")
+                    lemma = word
             attributes = MorphemeAttributes(
                 surf=word,
                 reading=word,  # TODO
@@ -180,7 +194,7 @@ class WordModuleWriter(BasePredictionWriter):
                 conjform=conjform,
                 conjform_id=conjform_id,
             )
-            morphemes.append(Morpheme(attributes, SemanticsDict(), FeatureDict()))
+            morphemes.append(Morpheme(attributes, SemanticsDict(semantics), FeatureDict(semantics)))
         return morphemes
 
     @staticmethod

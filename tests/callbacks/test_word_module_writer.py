@@ -1,3 +1,5 @@
+import os
+import pickle
 import tempfile
 import textwrap
 from pathlib import Path
@@ -22,9 +24,18 @@ from jula.utils.constants import (
 )
 
 
+def make_ebase2bases():
+    f = tempfile.NamedTemporaryFile(delete=False)
+    f.write(pickle.dumps({"あええ": ["あおい"], "くれえ": ["くらい", "くろい"]}))
+    f.close()
+    return f.name
+
+
 def test_init():
     with tempfile.TemporaryDirectory() as tmp_dir:
-        _ = WordModuleWriter(tmp_dir)
+        ebase2bases_path = make_ebase2bases()
+        _ = WordModuleWriter(tmp_dir, ebase2bases_path)
+        os.unlink(ebase2bases_path)
 
 
 class MockTrainer:
@@ -128,7 +139,8 @@ def test_write_on_epoch_end():
     pred_filename = "test"
     with tempfile.TemporaryDirectory() as tmp_dir:
         # max_seq_length = 4 (今日, は, 晴れ, だ) + 7 (著者, 読者, 不特定:人, 不特定:物, [NULL], [NA], [ROOT])
-        writer = WordModuleWriter(tmp_dir, pred_filename=pred_filename)
+        ebase2bases_path = make_ebase2bases()
+        writer = WordModuleWriter(tmp_dir, ebase2bases_path, pred_filename=pred_filename)
         exophora_referents = ["著者", "読者", "不特定:人", "不特定:物"]
         special_tokens = exophora_referents + ["[NULL]", "[NA]", "[ROOT]"]
         dataset = WordInferenceDataset(
@@ -159,3 +171,4 @@ def test_write_on_epoch_end():
             """
         )
         assert Path(tmp_dir).joinpath(f"{pred_filename}.knp").read_text() == expected_knp
+        os.unlink(ebase2bases_path)
