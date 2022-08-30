@@ -239,10 +239,10 @@ class WordModule(LightningModule):
     def validation_epoch_end(self, validation_step_outputs) -> None:
         log_metrics: dict[str, dict[str, float]] = {corpus: {} for corpus in self.valid_corpora}
 
-        if WordTask.READING_PREDICTION in self.training_tasks:
-            for corpus, metric in self.valid_reading_predictor_metrics.items():
+        for corpus, metric in self.valid_reading_predictor_metrics.items():
+            if WordTask.READING_PREDICTION in self.training_tasks:
                 log_metrics[corpus].update(metric.compute())
-                metric.reset()
+            metric.reset()
 
         for corpus, metric in self.valid_word_analysis_metrics.items():
             if WordTask.WORD_ANALYSIS in self.training_tasks:
