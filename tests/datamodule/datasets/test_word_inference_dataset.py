@@ -1,22 +1,17 @@
-from pathlib import Path
+from omegaconf import ListConfig
 
 from jula.datamodule.datasets.word_inference_dataset import WordInferenceDataset
 
-here = Path(__file__).absolute().parent
-path = here.joinpath("knp_files")
-data_dir = here.parent.parent / "data"
-
-reading_resource_path = here / "reading_files"
-
-word_dataset_kwargs = {
-    "tokenizer_kwargs": {"additional_special_tokens": ["著者", "読者", "不特定:人", "不特定:物", "[NULL]", "[NA]", "[ROOT]"]},
-    "cases": ["ガ", "ヲ", "ニ", "ガ２"],
-    "bar_rels": ["ノ"],
-    "exophora_referents": ["著者", "読者", "不特定:人", "不特定:物"],
-    "cohesion_tasks": ["pas_analysis", "bridging", "coreference"],
-    "special_tokens": ["著者", "読者", "不特定:人", "不特定:物", "[NULL]", "[NA]", "[ROOT]"],
-    "reading_resource_path": reading_resource_path,
-}
+exophora_referents = ["著者", "読者", "不特定:人", "不特定:物"]
+special_tokens = exophora_referents + ["[NULL]", "[NA]", "[ROOT]"]
+word_dataset_kwargs = dict(
+    pas_cases=ListConfig(["ガ", "ヲ", "ニ", "ガ２"]),
+    bar_rels=ListConfig(["ノ"]),
+    exophora_referents=ListConfig(exophora_referents),
+    cohesion_tasks=ListConfig(["pas_analysis", "bridging", "coreference"]),
+    special_tokens=ListConfig(special_tokens),
+    tokenizer_kwargs={"additional_special_tokens": special_tokens},
+)
 
 
 def test_init():

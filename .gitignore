@@ -103,11 +103,11 @@ venv.bak/
 .mypy_cache/
 
 # local debugging
-data/
+data
 !tests/data
-model/
+model
 !configs/model/
-result/
+result
 
 # config
 configs/base.yaml

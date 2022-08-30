@@ -5,7 +5,8 @@ from dataclasses import dataclass
 from rhoknp import BasePhrase, Document
 from rhoknp.cohesion import Argument, ArgumentType, EndophoraArgument, ExophoraArgument, ExophoraReferent
 
-from .base import Extractor, Phrase
+from jula.datamodule.extractors.base import Extractor, Phrase
+from jula.utils.sub_document import extract_target_sentences
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ class PasExtractor(Extractor):
         kc: bool = False,
     ) -> None:
         self.pas_targets = ["pred", "noun"]
-        super().__init__(exophors, restrict_target=restrict_target, kc=kc)
+        super().__init__(exophors, restrict_target=restrict_target)
         self.cases = cases
 
     def extract(
@@ -34,17 +35,16 @@ class PasExtractor(Extractor):
     ) -> PasAnnotation:
         bp_list = document.base_phrases
         arguments_set: list[dict[str, list[str]]] = [defaultdict(list) for _ in bp_list]
-        for sentence in document.sentences:
-            for anaphor in sentence.base_phrases:
-                is_target_phrase: bool = self.is_target(anaphor) and self._kc_skip_sentence(sentence, document) is False
-                phrases[anaphor.global_index].is_target = is_target_phrase
-                if is_target_phrase is False:
-                    continue
-                candidates: list[int] = [bp.global_index for bp in bp_list if self.is_candidate(bp, anaphor) is True]
-                phrases[anaphor.global_index].candidates = candidates
-                for case in self.cases:
-                    arguments = anaphor.pas.get_arguments(case, relax=False)
-                    arguments_set[anaphor.global_index][case] = self._get_args(arguments, candidates)
+        for anaphor in [bp for sent in extract_target_sentences(document) for bp in sent.base_phrases]:
+            if self.is_target(anaphor) is False:
+                continue
+            phrases[anaphor.global_index].is_target = True
+            candidates: list[int] = [bp.global_index for bp in bp_list if self.is_candidate(bp, anaphor) is True]
+            phrases[anaphor.global_index].candidates = candidates
+            assert anaphor.pas is not None, "pas has not been set"
+            for case in self.cases:
+                arguments = anaphor.pas.get_arguments(case, relax=False)
+                arguments_set[anaphor.global_index][case] = self._get_args(arguments, candidates)
 
         return PasAnnotation(arguments_set)
 

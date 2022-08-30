@@ -5,11 +5,11 @@ from typing import Optional
 import hydra
 import pytorch_lightning as pl
 import transformers.utils.logging as hf_logging
-import wandb
 from dotenv import load_dotenv
 from omegaconf import DictConfig, ListConfig, OmegaConf
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.loggers import LightningLoggerBase
+from pytorch_lightning.trainer.states import TrainerFn
 
 from jula.datamodule.datamodule import DataModule
 
@@ -26,7 +26,6 @@ def main(cfg: DictConfig):
             cfg.devices = [int(x) for x in cfg.devices.split(",")]
         except ValueError:
             cfg.devices = None
-    cfg.seed = pl.seed_everything(seed=cfg.seed, workers=True)
 
     is_debug: bool = True if "fast_dev_run" in cfg.trainer else False
     logger: Optional[LightningLoggerBase] = hydra.utils.instantiate(cfg.logger) if not is_debug else None
@@ -50,21 +49,12 @@ def main(cfg: DictConfig):
         callbacks=callbacks,
         devices=cfg.devices,
     )
+    model: pl.LightningModule = hydra.utils.call(cfg.module.load_from_checkpoint, hparams=cfg, _recursive_=False)
 
     datamodule = DataModule(cfg=cfg.datamodule)
-
-    model: pl.LightningModule = hydra.utils.instantiate(cfg.module.cls, hparams=cfg, _recursive_=False)
-
-    trainer.fit(model=model, datamodule=datamodule)
-    trainer.test(model=model, datamodule=datamodule, ckpt_path="best" if not is_debug else None)
-    if cfg.do_predict_after_train:
-        trainer.predict(
-            model=model,
-            datamodule=datamodule,
-            ckpt_path=trainer.checkpoint_callback.best_model_path if trainer.checkpoint_callback else "best",
-        )
-
-    wandb.finish()
+    datamodule.setup(stage=TrainerFn.TESTING)
+    dataloader = datamodule.test_dataloader()  # or val_dataloader()
+    trainer.test(model=model, dataloaders=dataloader)
 
 
 if __name__ == "__main__":

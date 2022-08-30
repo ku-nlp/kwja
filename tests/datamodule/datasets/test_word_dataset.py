@@ -11,10 +11,10 @@ from jula.datamodule.datasets.word_dataset import WordDataset, WordExampleSet
 from jula.datamodule.examples import (
     BasePhraseFeatureExample,
     CohesionExample,
+    CohesionTask,
     DependencyExample,
     DiscourseExample,
     ReadingExample,
-    Task,
     WordFeatureExample,
 )
 from jula.datamodule.extractors import PasAnnotation
@@ -38,16 +38,17 @@ reading_resource_path = here / "reading_files"
 
 exophora_referents = ["著者", "読者", "不特定:人", "不特定:物"]
 special_tokens = exophora_referents + ["[NULL]", "[NA]", "[ROOT]"]
-word_dataset_kwargs = {
-    "cases": ListConfig(["ガ", "ヲ", "ニ", "ガ２"]),
-    "bar_rels": ListConfig(["ノ"]),
-    "exophora_referents": ListConfig(exophora_referents),
-    "cohesion_tasks": ListConfig(["pas_analysis", "bridging", "coreference"]),
-    "special_tokens": ListConfig(special_tokens),
-    "restrict_cohesion_target": True,
-    "tokenizer_kwargs": {"additional_special_tokens": special_tokens},
-    "reading_resource_path": reading_resource_path,
-}
+word_dataset_kwargs = dict(
+    pas_cases=ListConfig(["ガ", "ヲ", "ニ", "ガ２"]),
+    bar_rels=ListConfig(["ノ"]),
+    exophora_referents=ListConfig(exophora_referents),
+    cohesion_tasks=ListConfig(["pas_analysis", "bridging", "coreference"]),
+    special_tokens=ListConfig(special_tokens),
+    restrict_cohesion_target=True,
+    tokenizer_kwargs={"additional_special_tokens": special_tokens},
+    reading_resource_path=str(reading_resource_path),
+    document_split_stride=1,
+)
 
 
 def test_init():
@@ -341,14 +342,14 @@ def test_pas():
     example = [e for e in dataset.examples if e.doc_id == "w201106-0000060560"][0].cohesion_example
     example_expected = json.loads((data_dir / "expected/example/0.json").read_text())
     mrphs_exp = example_expected["mrphs"]
-    annotation: PasAnnotation = example.annotations[Task.PAS_ANALYSIS]
-    phrases = example.phrases[Task.PAS_ANALYSIS]
-    mrphs = example.mrphs[Task.PAS_ANALYSIS]
+    annotation: PasAnnotation = example.annotations[CohesionTask.PAS_ANALYSIS]
+    phrases = example.phrases[CohesionTask.PAS_ANALYSIS]
+    mrphs = example.mrphs[CohesionTask.PAS_ANALYSIS]
 
     assert len(mrphs) == len(mrphs_exp)
     for phrase in phrases:
         arguments: dict[str, list[str]] = annotation.arguments_set[phrase.dtid]
-        for case in dataset.cases:
+        for case in dataset.pas_cases:
             arg_strings = [arg[:-2] if arg[-2:] in ("%C", "%N", "%O") else arg for arg in arguments[case]]
             arg_strings = [(s if s in dataset.special_to_index else str(phrases[int(s)].dmid)) for s in arg_strings]
             assert set(arg_strings) == set(mrphs_exp[phrase.dmid]["arguments"][case])
@@ -356,8 +357,8 @@ def test_pas():
             mrph = mrphs[dmid]
             mrph_exp = mrphs_exp[dmid]
             assert mrph.surf == mrph_exp["surf"]
-            if mrph.is_target or example.mrphs[Task.BRIDGING][dmid].is_target:
+            if mrph.is_target or example.mrphs[CohesionTask.BRIDGING][dmid].is_target:
                 candidates = set(phrases[i].dmid for i in phrase.candidates)
-                bar_phrases = example.phrases[Task.BRIDGING]
+                bar_phrases = example.phrases[CohesionTask.BRIDGING]
                 candidates |= set(bar_phrases[i].dmid for i in bar_phrases[phrase.dtid].candidates)
                 assert candidates == set(mrph_exp["arg_candidates"])

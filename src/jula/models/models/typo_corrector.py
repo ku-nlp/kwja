@@ -1,8 +1,9 @@
+import hydra
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from omegaconf import DictConfig
-from transformers import PretrainedConfig, PreTrainedTokenizerBase
+from transformers import AutoTokenizer, PretrainedConfig, PreTrainedTokenizerBase
 
 
 class TypoCorrector(nn.Module):
@@ -10,21 +11,24 @@ class TypoCorrector(nn.Module):
         self,
         hparams: DictConfig,
         pretrained_model_config: PretrainedConfig,
-        tokenizer: PreTrainedTokenizerBase,
     ) -> None:
         super().__init__()
         self.hparams = hparams
-        self.tokenizer = tokenizer
+
+        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
+            hparams.model.model_name_or_path,
+            **hydra.utils.instantiate(hparams.dataset.tokenizer_kwargs, _convert_="partial"),
+        )
 
         self.hidden_size: int = pretrained_model_config.hidden_size
-        self.num_kdr_labels: int = len(tokenizer)
+        self.num_kdr_labels: int = len(self.tokenizer)
         self.kdr_cls = nn.Sequential(
             nn.Linear(self.hidden_size, self.hidden_size),
             nn.ReLU(),
             nn.Dropout(pretrained_model_config.hidden_dropout_prob),
             nn.Linear(self.hidden_size, self.num_kdr_labels),
         )
-        self.num_ins_labels: int = len(tokenizer) + hparams.dataset.extended_vocab_size
+        self.num_ins_labels: int = len(self.tokenizer) + hparams.dataset.extended_vocab_size
         self.ins_cls = nn.Sequential(
             nn.Linear(self.hidden_size, self.hidden_size),
             nn.ReLU(),

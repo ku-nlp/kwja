@@ -5,23 +5,27 @@ defaults:
   - dataset: char
   - logger: wandb
   - model: char_roberta_base
-  - module: default
+  - module: char
   - optimizer: adamw
   - scheduler: constant_schedule_with_warmup
   - trainer: default
   - _self_
 
-devices: ${oc.env:GPUS,0}
 do_predict_after_train: True
 checkpoint_path: ""
+document_split_stride: 1
 
 # set monitor and mode for early_stopping and model_checkpoint
 monitor: valid/f1
 mode: max
-# batch size
-batch_size: 8
-accumulate_grad_batches: 1
 # option
 add_ene_embed_before_encoder: True
-# scheduler options
+
+# hyper-parameters to be tuned
 warmup_steps: 100
+effective_batch_size: 16
+
+# environment dependent settings
+devices: ${oc.env:GPUS,0}
+max_batches_per_device: 2
+num_workers: 0

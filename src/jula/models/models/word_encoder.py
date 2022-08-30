@@ -1,17 +1,22 @@
 import torch
 import torch.nn as nn
 from omegaconf import DictConfig
-from transformers import AutoModel
+from transformers import AutoModel, PreTrainedModel
 
 from jula.models.models.pooling import PoolingStrategy, pool_subwords
 
 
 class WordEncoder(nn.Module):
-    def __init__(self, hparams: DictConfig, vocab_size: int) -> None:
+    def __init__(self, hparams: DictConfig) -> None:
         super().__init__()
         self.hparams = hparams
-        self.pretrained_model = AutoModel.from_pretrained(hparams.model.model_name_or_path, add_pooling_layer=False)
-        self.pretrained_model.resize_token_embeddings(vocab_size)
+        self.pretrained_model: PreTrainedModel = AutoModel.from_pretrained(
+            hparams.model.model_name_or_path, add_pooling_layer=False
+        )
+        if hasattr(hparams.dataset, "special_tokens"):
+            self.pretrained_model.resize_token_embeddings(
+                self.pretrained_model.config.vocab_size + len(hparams.dataset.special_tokens)
+            )
 
     def forward(
         self, batch: dict[str, torch.Tensor], pooling_strategy: PoolingStrategy
