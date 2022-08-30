@@ -4,7 +4,7 @@ from pathlib import Path
 from rhoknp import Document
 
 from jula.datamodule.datasets.char_dataset import CharDataset
-from jula.utils.constants import ENE_TYPE_BIES, IGNORE_INDEX
+from jula.utils.constants import IGNORE_INDEX
 
 here = Path(__file__).absolute().parent
 path = here.joinpath("knp_files")
@@ -15,20 +15,16 @@ def test_init():
     _ = CharDataset(
         path=str(path),
         document_split_stride=1,
-        wiki_ene_dic_path=str(wiki_ene_dic_path),
         max_seq_length=512,
     )
 
 
 def test_getitem():
     max_seq_length = 512
-    max_ene_num = 3
     # TODO: use roberta
     dataset = CharDataset(
         path=str(path),
         document_split_stride=1,
-        wiki_ene_dic_path=str(wiki_ene_dic_path),
-        max_ene_num=max_ene_num,
         model_name_or_path="cl-tohoku/bert-base-japanese-char",
         max_seq_length=max_seq_length,
         tokenizer_kwargs={"do_word_tokenize": False},
@@ -38,11 +34,9 @@ def test_getitem():
         assert isinstance(item, dict)
         assert "input_ids" in item
         assert "attention_mask" in item
-        assert "ene_ids" in item
         assert "seg_labels" in item
         assert item["input_ids"].shape == (max_seq_length,)
         assert item["attention_mask"].shape == (max_seq_length,)
-        assert item["ene_ids"].shape == (max_ene_num, max_seq_length)
         assert item["seg_labels"].shape == (max_seq_length,)
 
         cls_token_position = item["input_ids"].tolist().index(dataset.tokenizer.cls_token_id)
@@ -53,12 +47,9 @@ def test_getitem():
 
 def test_encode():
     max_seq_length = 20
-    max_ene_num = 3
     dataset = CharDataset(
         path=str(path),
         document_split_stride=1,
-        wiki_ene_dic_path=str(wiki_ene_dic_path),
-        max_ene_num=max_ene_num,
         model_name_or_path="cl-tohoku/bert-base-japanese-char",
         max_seq_length=max_seq_length,
         tokenizer_kwargs={"do_word_tokenize": False},
@@ -88,22 +79,4 @@ def test_encode():
             """
         )
     )
-    encoding = dataset.encode(document)
-
-    ene_ids = [[ENE_TYPE_BIES.index("PAD")] * max_seq_length for _ in range(max_ene_num)]
-    # 0: 大学
-    ene_ids[0][1] = ENE_TYPE_BIES.index("B-0")
-    ene_ids[0][2] = ENE_TYPE_BIES.index("E-0")
-    # 1: 進学
-    ene_ids[0][3] = ENE_TYPE_BIES.index("B-0")
-    ene_ids[0][4] = ENE_TYPE_BIES.index("E-0")
-    ene_ids[1][4] = ENE_TYPE_BIES.index("I-0")
-    # 2: 率
-    ene_ids[0][5] = ENE_TYPE_BIES.index("E-0")
-    # 3: は
-    # 4: ５４・４
-    # 5: ％
-    # 6: に
-    # 7: 達した
-    # 8: 。
-    assert encoding["ene_ids"].tolist() == ene_ids
+    _ = dataset.encode(document)
