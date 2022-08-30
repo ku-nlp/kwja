@@ -37,6 +37,25 @@ class MockTrainer:
 
 def test_write_on_epoch_end():
     texts = ["今日 は 晴れ だ"]
+    tokens = ["[CLS] 今日 は 晴れ だ"]
+
+    reading_subword_map = torch.tensor(
+        [
+            [
+                [False, True, False, False, False],
+                [False, False, True, False, False],
+                [False, False, False, True, False],
+                [False, False, False, False, True],
+                [False, True, False, False, False],
+            ]
+        ],
+        dtype=torch.bool,
+    )
+    reading_prediction_logits = torch.zeros(1, 5, 12906 + 2, dtype=torch.float)
+    reading_prediction_logits[0][1][257] = 1.0  # きょう
+    reading_prediction_logits[0][1][1] = 1.0  # ID
+    reading_prediction_logits[0][1][4041] = 1.0  # はれ
+    reading_prediction_logits[0][1][1] = 1.0  # ID
 
     word_analysis_pos_logits = torch.zeros(1, 11, len(POS_TYPES), dtype=torch.float)
     word_analysis_pos_logits[0][0][POS_TYPES.index("名詞")] = 1.0
@@ -112,7 +131,10 @@ def test_write_on_epoch_end():
         [
             {
                 "texts": texts,
+                "tokens": tokens,
                 "dataloader_idx": 0,
+                "reading_subword_map": reading_subword_map,
+                "reading_prediction_logits": reading_prediction_logits,
                 "word_analysis_pos_logits": word_analysis_pos_logits,
                 "word_analysis_subpos_logits": word_analysis_subpos_logits,
                 "word_analysis_conjtype_logits": word_analysis_conjtype_logits,

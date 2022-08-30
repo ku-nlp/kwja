@@ -72,7 +72,10 @@ class WordModuleWriter(BasePredictionWriter):
         for prediction in predictions:
             for batch_pred in prediction:
                 batch_texts = batch_pred["texts"]
+                batch_tokens = batch_pred["tokens"]
                 dataloader_idx: int = batch_pred["dataloader_idx"]
+                batch_reading_subword_map = batch_pred["reading_subword_map"]
+                batch_reading_preds = torch.argmax(batch_pred["reading_prediction_logits"], dim=-1)
                 batch_pos_preds = torch.argmax(batch_pred["word_analysis_pos_logits"], dim=-1)
                 batch_subpos_preds = torch.argmax(batch_pred["word_analysis_subpos_logits"], dim=-1)
                 batch_conjtype_preds = torch.argmax(batch_pred["word_analysis_conjtype_logits"], dim=-1)
@@ -90,6 +93,9 @@ class WordModuleWriter(BasePredictionWriter):
                 batch_discourse_parsing_preds = torch.argmax(batch_pred["discourse_parsing_logits"], dim=3)
                 for (
                     text,
+                    tokens,
+                    reading_subword_map,
+                    reading_preds,
                     pos_preds,
                     subpos_preds,
                     conjtype_preds,
@@ -103,6 +109,9 @@ class WordModuleWriter(BasePredictionWriter):
                     discourse_parsing_preds,
                 ) in zip(
                     batch_texts,
+                    batch_tokens,
+                    batch_reading_subword_map.tolist(),
+                    batch_reading_preds.tolist(),
                     batch_pos_preds.tolist(),
                     batch_subpos_preds.tolist(),
                     batch_conjtype_preds.tolist(),
@@ -116,6 +125,7 @@ class WordModuleWriter(BasePredictionWriter):
                     batch_discourse_parsing_preds.tolist(),
                 ):
                     dataset: WordDataset = dataloaders[dataloader_idx].dataset
+                    # TODO: get word-level reading predictions
                     morphemes = self._create_morphemes(
                         text.split(),
                         pos_preds,

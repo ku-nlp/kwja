@@ -451,7 +451,10 @@ class WordModule(LightningModule):
         outputs: dict[str, dict[str, torch.Tensor]] = self(**batch)
         return {
             "texts": batch["texts"],
+            "tokens": batch["tokens"],
             "dataloader_idx": dataloader_idx or 0,
+            "reading_subword_map": batch["reading_subword_map"],
+            "reading_prediction_logits": outputs["reading_predictor_outputs"]["logits"],
             "word_analysis_pos_logits": outputs["word_analyzer_outputs"]["pos_logits"],
             "word_analysis_subpos_logits": outputs["word_analyzer_outputs"]["subpos_logits"],
             "word_analysis_conjtype_logits": outputs["word_analyzer_outputs"]["conjtype_logits"],
