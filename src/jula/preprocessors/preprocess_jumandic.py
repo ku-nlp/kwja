@@ -20,7 +20,7 @@ def main():
         "--output-dir",
         type=str,
         default="./data",
-        help="path to directory to save",
+        help="path to directory to save data",
     )
     args = parser.parse_args()
     if not Path(args.input_dir).is_dir():
