@@ -1,10 +1,27 @@
+import logging
+from dataclasses import dataclass
+
 import torch
 from rhoknp import Document
+from tqdm import tqdm
 from transformers import BatchEncoding
 from transformers.utils import PaddingStrategy
 
 from jula.datamodule.datasets.base_dataset import BaseDataset
-from jula.utils.constants import IGNORE_INDEX, SEG_TYPES
+from jula.datamodule.examples.char_feature import CharFeatureExample
+from jula.utils.constants import IGNORE_INDEX
+
+
+@dataclass(frozen=True)
+class CharExampleSet:
+    example_id: int
+    doc_id: str
+    text: str  # space-delimited word sequence
+    encoding: BatchEncoding
+    char_feature_example: CharFeatureExample
+
+
+logger = logging.getLogger(__name__)
 
 
 class CharDataset(BaseDataset):
@@ -12,8 +29,8 @@ class CharDataset(BaseDataset):
         self,
         path: str,
         document_split_stride: int,
-        max_seq_length: int,
         model_name_or_path: str = "cl-tohoku/bert-base-japanese-char",
+        max_seq_length: int = 512,
         tokenizer_kwargs: dict = None,
     ) -> None:
         super().__init__(
@@ -23,35 +40,58 @@ class CharDataset(BaseDataset):
             max_seq_length,
             tokenizer_kwargs,
         )
+        self.examples: list[CharExampleSet] = self._load_examples(self.documents)
 
     def __len__(self) -> int:
-        return len(self.orig_documents)  # TODO: use split documents
+        return len(self.examples)
 
     def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
-        document = self.orig_documents[index]  # TODO: use split documents
+        return self.encode(self.examples[index])
+
+    def _load_examples(self, documents: list[Document]) -> list[CharExampleSet]:
+        examples = []
+        idx = 0
+        for document in tqdm(documents, dynamic_ncols=True):
+            encoding: BatchEncoding = self.tokenizer(
+                document.text,
+                padding=PaddingStrategy.MAX_LENGTH,
+                truncation=False,
+                max_length=self.max_seq_length,
+            )
+            if len(encoding.input_ids) > self.max_seq_length:
+                continue
+
+            char_feature_example = CharFeatureExample()
+            char_feature_example.load(document)
+
+            examples.append(
+                CharExampleSet(
+                    example_id=idx,
+                    doc_id=document.doc_id,
+                    text=document.text,
+                    encoding=encoding,
+                    char_feature_example=char_feature_example,
+                )
+            )
+            idx += 1
+
+        if len(examples) == 0:
+            logger.error(
+                "No examples to process. "
+                f"Make sure there exist any documents in {self.path} and they are not too long."
+            )
+        return examples
+
+    def encode(self, example: CharExampleSet) -> dict[str, torch.Tensor]:
+        char_feature_example = example.char_feature_example
+        seg_labels: list[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
+        for i, seg_label in char_feature_example.types.items():
+            # 先頭のCLSトークンをIGNORE_INDEXにするため＋1
+            seg_labels[i + 1] = seg_label
+
         return {
-            "example_ids": torch.tensor(index, dtype=torch.long),
-            **self.encode(document),
-        }
-
-    def encode(self, document: Document) -> dict[str, torch.Tensor]:
-        encoding: BatchEncoding = self.tokenizer(
-            document.text,
-            truncation=True,
-            padding=PaddingStrategy.MAX_LENGTH,
-            max_length=self.max_seq_length,
-        )
-        input_ids = encoding["input_ids"]
-        attention_mask = encoding["attention_mask"]
-
-        seg_labels: list[int] = []
-        for morpheme in document.morphemes:
-            seg_labels.extend([SEG_TYPES.index("B")] + [SEG_TYPES.index("I")] * (len(morpheme.text) - 1))
-        seg_labels = [IGNORE_INDEX] + seg_labels[: self.max_seq_length - 2] + [IGNORE_INDEX]
-        seg_labels = seg_labels + [IGNORE_INDEX] * (self.max_seq_length - len(seg_labels))
-
-        return {
-            "input_ids": torch.tensor(input_ids, dtype=torch.long),
-            "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
+            "example_ids": torch.tensor(example.example_id, dtype=torch.long),
+            "input_ids": torch.tensor(example.encoding.input_ids, dtype=torch.long),
+            "attention_mask": torch.tensor(example.encoding.attention_mask, dtype=torch.long),
             "seg_labels": torch.tensor(seg_labels, dtype=torch.long),
         }

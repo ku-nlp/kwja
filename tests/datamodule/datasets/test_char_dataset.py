@@ -4,18 +4,19 @@ from pathlib import Path
 from rhoknp import Document
 
 from jula.datamodule.datasets.char_dataset import CharDataset
-from jula.utils.constants import IGNORE_INDEX
+from jula.utils.constants import IGNORE_INDEX, SEG_TYPES
 
 here = Path(__file__).absolute().parent
 path = here.joinpath("knp_files")
-wiki_ene_dic_path = here.joinpath("wiki_ene_dic")
 
 
 def test_init():
     _ = CharDataset(
         path=str(path),
         document_split_stride=1,
+        model_name_or_path="cl-tohoku/bert-base-japanese-char",
         max_seq_length=512,
+        tokenizer_kwargs={"do_word_tokenize": False},
     )
 
 
@@ -32,17 +33,14 @@ def test_getitem():
     for i in range(len(dataset)):
         item = dataset[i]
         assert isinstance(item, dict)
+        assert "example_ids" in item
         assert "input_ids" in item
         assert "attention_mask" in item
         assert "seg_labels" in item
+        assert item["example_ids"] == i
         assert item["input_ids"].shape == (max_seq_length,)
         assert item["attention_mask"].shape == (max_seq_length,)
         assert item["seg_labels"].shape == (max_seq_length,)
-
-        cls_token_position = item["input_ids"].tolist().index(dataset.tokenizer.cls_token_id)
-        sep_token_position = item["input_ids"].tolist().index(dataset.tokenizer.sep_token_id)
-        assert item["seg_labels"][cls_token_position].tolist() == IGNORE_INDEX
-        assert item["seg_labels"][sep_token_position].tolist() == IGNORE_INDEX
 
 
 def test_encode():
@@ -79,4 +77,40 @@ def test_encode():
             """
         )
     )
-    _ = dataset.encode(document)
+    examples = dataset._load_examples([document])
+    encoding = dataset.encode(examples[0])
+
+    seg_labels = [IGNORE_INDEX for _ in range(max_seq_length)]
+    # 1: 大
+    seg_labels[1] = SEG_TYPES.index("B")
+    # 2: 学
+    seg_labels[2] = SEG_TYPES.index("I")
+    # 3: 進
+    seg_labels[3] = SEG_TYPES.index("B")
+    # 4: 学
+    seg_labels[4] = SEG_TYPES.index("I")
+    # 5: 率
+    seg_labels[5] = SEG_TYPES.index("B")
+    # 6: は
+    seg_labels[6] = SEG_TYPES.index("B")
+    # 7: ５
+    seg_labels[7] = SEG_TYPES.index("B")
+    # 8: ４
+    seg_labels[8] = SEG_TYPES.index("I")
+    # 9: ・
+    seg_labels[9] = SEG_TYPES.index("I")
+    # 10: ４
+    seg_labels[10] = SEG_TYPES.index("I")
+    # 11: ％
+    seg_labels[11] = SEG_TYPES.index("B")
+    # 12: に
+    seg_labels[12] = SEG_TYPES.index("B")
+    # 13: 達
+    seg_labels[13] = SEG_TYPES.index("B")
+    # 14: し
+    seg_labels[14] = SEG_TYPES.index("I")
+    # 15: た
+    seg_labels[15] = SEG_TYPES.index("I")
+    # 16: 。
+    seg_labels[16] = SEG_TYPES.index("B")
+    assert encoding["seg_labels"].tolist() == seg_labels
