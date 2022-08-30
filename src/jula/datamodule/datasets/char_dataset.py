@@ -11,6 +11,8 @@ from jula.datamodule.datasets.base_dataset import BaseDataset
 from jula.datamodule.examples.char_feature import CharFeatureExample
 from jula.utils.constants import IGNORE_INDEX
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass(frozen=True)
 class CharExampleSet:
@@ -19,9 +21,6 @@ class CharExampleSet:
     text: str  # space-delimited word sequence
     encoding: BatchEncoding
     char_feature_example: CharFeatureExample
-
-
-logger = logging.getLogger(__name__)
 
 
 class CharDataset(BaseDataset):
@@ -84,14 +83,14 @@ class CharDataset(BaseDataset):
 
     def encode(self, example: CharExampleSet) -> dict[str, torch.Tensor]:
         char_feature_example = example.char_feature_example
-        seg_labels: list[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
-        for i, seg_label in char_feature_example.types.items():
+        seg_types: list[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
+        for i, seg_label in char_feature_example.seg_types.items():
             # 先頭のCLSトークンをIGNORE_INDEXにするため＋1
-            seg_labels[i + 1] = seg_label
+            seg_types[i + 1] = seg_label
 
         return {
             "example_ids": torch.tensor(example.example_id, dtype=torch.long),
             "input_ids": torch.tensor(example.encoding.input_ids, dtype=torch.long),
             "attention_mask": torch.tensor(example.encoding.attention_mask, dtype=torch.long),
-            "seg_labels": torch.tensor(seg_labels, dtype=torch.long),
+            "seg_types": torch.tensor(seg_types, dtype=torch.long),
         }

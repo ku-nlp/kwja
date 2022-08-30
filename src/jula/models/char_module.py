@@ -54,7 +54,7 @@ class CharModule(LightningModule):
         corpus = self.valid_corpora[dataloader_idx or 0]
         word_segmenter_args = {
             "seg_preds": torch.argmax(outputs["word_segmenter_outputs"]["logits"], dim=-1),
-            "seg_labels": batch["seg_labels"],
+            "seg_types": batch["seg_types"],
         }
         self.valid_word_segmenter_metrics[corpus].update(**word_segmenter_args)
         self.log("valid/word_segmenter_loss", outputs["word_segmenter_outputs"]["loss"])
@@ -77,7 +77,7 @@ class CharModule(LightningModule):
         corpus = self.test_corpora[dataloader_idx or 0]
         word_segmenter_args = {
             "seg_preds": torch.argmax(outputs["word_segmenter_outputs"]["logits"], dim=-1),
-            "seg_labels": batch["seg_labels"],
+            "seg_types": batch["seg_types"],
         }
         self.test_word_segmenter_metrics[corpus].update(**word_segmenter_args)
         self.log("test/word_segmenter_loss", outputs["word_segmenter_outputs"]["loss"])

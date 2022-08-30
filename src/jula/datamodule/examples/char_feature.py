@@ -9,7 +9,7 @@ class CharFeatureExample:
 
     def __init__(self) -> None:
         self.doc_id: str = ""
-        self.types: dict[int, int] = {}  # 文字 index -> 単語分割用のBIタグ
+        self.seg_types: dict[int, int] = {}  # 文字 index -> 単語分割用のBIタグ
 
     def load(self, document: Document) -> None:
         self.doc_id = document.doc_id
@@ -18,7 +18,7 @@ class CharFeatureExample:
             if is_target_sentence(sentence):
                 for morpheme in sentence.morphemes:
                     for char_idx_in_morpheme in range(len(morpheme.text)):
-                        self.types[char_idx] = (
+                        self.seg_types[char_idx] = (
                             SEG_TYPES.index("B") if char_idx_in_morpheme == 0 else SEG_TYPES.index("I")
                         )
                         char_idx += 1

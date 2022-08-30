@@ -36,11 +36,11 @@ def test_getitem():
         assert "example_ids" in item
         assert "input_ids" in item
         assert "attention_mask" in item
-        assert "seg_labels" in item
+        assert "seg_types" in item
         assert item["example_ids"] == i
         assert item["input_ids"].shape == (max_seq_length,)
         assert item["attention_mask"].shape == (max_seq_length,)
-        assert item["seg_labels"].shape == (max_seq_length,)
+        assert item["seg_types"].shape == (max_seq_length,)
 
 
 def test_encode():
@@ -80,37 +80,37 @@ def test_encode():
     examples = dataset._load_examples([document])
     encoding = dataset.encode(examples[0])
 
-    seg_labels = [IGNORE_INDEX for _ in range(max_seq_length)]
+    seg_types = [IGNORE_INDEX for _ in range(max_seq_length)]
     # 1: 大
-    seg_labels[1] = SEG_TYPES.index("B")
+    seg_types[1] = SEG_TYPES.index("B")
     # 2: 学
-    seg_labels[2] = SEG_TYPES.index("I")
+    seg_types[2] = SEG_TYPES.index("I")
     # 3: 進
-    seg_labels[3] = SEG_TYPES.index("B")
+    seg_types[3] = SEG_TYPES.index("B")
     # 4: 学
-    seg_labels[4] = SEG_TYPES.index("I")
+    seg_types[4] = SEG_TYPES.index("I")
     # 5: 率
-    seg_labels[5] = SEG_TYPES.index("B")
+    seg_types[5] = SEG_TYPES.index("B")
     # 6: は
-    seg_labels[6] = SEG_TYPES.index("B")
+    seg_types[6] = SEG_TYPES.index("B")
     # 7: ５
-    seg_labels[7] = SEG_TYPES.index("B")
+    seg_types[7] = SEG_TYPES.index("B")
     # 8: ４
-    seg_labels[8] = SEG_TYPES.index("I")
+    seg_types[8] = SEG_TYPES.index("I")
     # 9: ・
-    seg_labels[9] = SEG_TYPES.index("I")
+    seg_types[9] = SEG_TYPES.index("I")
     # 10: ４
-    seg_labels[10] = SEG_TYPES.index("I")
+    seg_types[10] = SEG_TYPES.index("I")
     # 11: ％
-    seg_labels[11] = SEG_TYPES.index("B")
+    seg_types[11] = SEG_TYPES.index("B")
     # 12: に
-    seg_labels[12] = SEG_TYPES.index("B")
+    seg_types[12] = SEG_TYPES.index("B")
     # 13: 達
-    seg_labels[13] = SEG_TYPES.index("B")
+    seg_types[13] = SEG_TYPES.index("B")
     # 14: し
-    seg_labels[14] = SEG_TYPES.index("I")
+    seg_types[14] = SEG_TYPES.index("I")
     # 15: た
-    seg_labels[15] = SEG_TYPES.index("I")
+    seg_types[15] = SEG_TYPES.index("I")
     # 16: 。
-    seg_labels[16] = SEG_TYPES.index("B")
-    assert encoding["seg_labels"].tolist() == seg_labels
+    seg_types[16] = SEG_TYPES.index("B")
+    assert encoding["seg_types"].tolist() == seg_types

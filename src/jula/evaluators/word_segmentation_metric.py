@@ -15,7 +15,7 @@ class WordSegmentationMetric(Metric):
     def __init__(self) -> None:
         super().__init__()
         self.add_state("seg_preds", default=[], dist_reduce_fx="cat")
-        self.add_state("seg_labels", default=[], dist_reduce_fx="cat")
+        self.add_state("seg_types", default=[], dist_reduce_fx="cat")
 
     @staticmethod
     def filter_predictions(preds: list[str], labels: list[str]) -> Tuple[list[str], list[str]]:
@@ -41,15 +41,15 @@ class WordSegmentationMetric(Metric):
                     aligned_label[i].append(INDEX2SEG_TYPE[label[i][j]])
         return aligned_prediction, aligned_label
 
-    def update(self, seg_preds: torch.Tensor, seg_labels: torch.Tensor) -> None:
+    def update(self, seg_preds: torch.Tensor, seg_types: torch.Tensor) -> None:
         self.seg_preds.append(seg_preds)
-        self.seg_labels.append(seg_labels)
+        self.seg_types.append(seg_types)
 
     def compute(self):
         metrics: dict[str, Union[torch.Tensor, float]] = dict()
         aligned_predictions, aligned_labels = self._align_predictions(
             prediction=self.seg_preds.detach().cpu().numpy(),
-            label=self.seg_labels.detach().cpu().numpy(),
+            label=self.seg_types.detach().cpu().numpy(),
         )
         metrics["word_segmenter_acc"] = accuracy_score(y_true=aligned_labels, y_pred=aligned_predictions)
         metrics["word_segmenter_f1"] = f1_score(
