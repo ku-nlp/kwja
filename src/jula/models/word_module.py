@@ -120,6 +120,7 @@ class WordModule(LightningModule):
         loss = torch.tensor(0.0, device=self.device)
         if WordTask.READING_PREDICTION in self.training_tasks:
             reading_predictor_loss = outputs["reading_predictor_outputs"]["loss"]
+            loss += reading_predictor_loss
             self.log("train/reading_predictor_loss", reading_predictor_loss)
         if WordTask.WORD_ANALYSIS in self.training_tasks:
             word_analysis_loss = outputs["word_analyzer_outputs"]["loss"]
