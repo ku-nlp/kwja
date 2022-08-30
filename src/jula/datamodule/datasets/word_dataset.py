@@ -304,7 +304,7 @@ class WordDataset(BaseDataset):
             "attention_mask": torch.tensor(merged_encoding.attention_mask, dtype=torch.long),
             "subword_map": torch.tensor(self._gen_subword_map(merged_encoding), dtype=torch.bool),
             "reading_subword_map": torch.tensor(
-                self._gen_subword_map(merged_encoding, include_special_indices=False), dtype=torch.bool
+                self._gen_subword_map(merged_encoding, include_additional_words=False), dtype=torch.bool
             ),
             "mrph_types": torch.tensor(morpheme_types, dtype=torch.long),
             "reading_ids": torch.tensor(reading_ids, dtype=torch.long),
@@ -365,12 +365,12 @@ class WordDataset(BaseDataset):
             ret[anaphor.dtid] = softmax(phrase_level_scores).tolist()
         return ret
 
-    def _gen_subword_map(self, encoding: Encoding, include_special_indices: bool = True) -> list[list[bool]]:
+    def _gen_subword_map(self, encoding: Encoding, include_additional_words: bool = True) -> list[list[bool]]:
         subword_map = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
         for token_id, word_id in enumerate(encoding.word_ids):
             if word_id is not None:
                 subword_map[word_id][token_id] = True
-        if include_special_indices:
+        if include_additional_words:
             for special_index in self.special_indices:
                 subword_map[special_index][special_index] = True
         return subword_map

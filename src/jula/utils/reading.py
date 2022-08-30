@@ -151,12 +151,14 @@ PROLONGED_MAP_FOR_EROW: Final = {
 }
 
 IGNORE_READING = "IGNORED"
+UNK = "[UNK]"
+ID = "[ID]"
 UNK_ID: Final = 0
 ID_ID: Final = 1
 
 
 def get_reading2id(path: str) -> dict[str, int]:
-    reading2id = {"[UNK]": UNK_ID, "[ID]": ID_ID}
+    reading2id = {UNK: UNK_ID, ID: ID_ID}
     with open(path, "r") as f:
         for line in f:
             if line := line.strip():
@@ -394,6 +396,28 @@ class ReadingAligner:
             elif kanji_reading not in kanji_reading_list:
                 kanji_reading_list.append(kanji_reading)
         return kanji_reading_list
+
+
+def get_word_level_readings(readings: list[str], tokens: list[str], subword_map: list[list[bool]]) -> list[str]:
+    """サブワードレベルの読みを単語レベルの読みに変換．
+
+    Args:
+        readings: list[str] サブワードレベルの読み．
+        tokens: list[str] サブワードレベルの表層．
+        subword_map: list[list[bool]] subword_map[i][j] = True ならば i 番目の単語は j 番目のトークンを含む．
+    """
+    ret: list[str] = []
+    for flags in subword_map:
+        item = ""
+        for token, reading, flag in zip(tokens, readings, flags):
+            if flag:
+                if reading in {UNK, ID}:
+                    item += token
+                else:
+                    item += reading
+        if item:
+            ret.append(item)
+    return ret
 
 
 if __name__ == "__main__":
