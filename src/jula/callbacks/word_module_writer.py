@@ -21,6 +21,7 @@ from jula.datamodule.examples import CohesionTask
 from jula.datamodule.extractors.base import Extractor
 from jula.utils.constants import (
     BASE_PHRASE_FEATURES,
+    CONJFORM_TYPES,
     CONJTYPE_CONJFORM_TYPE2ID,
     INDEX2CONJFORM_TYPE,
     INDEX2CONJTYPE_TYPE,
@@ -31,6 +32,7 @@ from jula.utils.constants import (
     NE_TAGS,
     POS_SUBPOS_TYPE2ID,
     POS_TYPE2ID,
+    SUBPOS_TYPES,
 )
 from jula.utils.dependency_parsing import DependencyManager
 from jula.utils.reading import get_reading2id, get_word_level_readings
@@ -59,7 +61,7 @@ class WordModuleWriter(BasePredictionWriter):
             self.destination = sys.stdout
         else:
             self.destination = Path(f"{output_dir}/{pred_filename}.knp")
-            self.destination.parent.mkdir(exist_ok=True)
+            self.destination.parent.mkdir(exist_ok=True, parents=True)
             if self.destination.exists():
                 os.remove(str(self.destination))
 
@@ -79,10 +81,17 @@ class WordModuleWriter(BasePredictionWriter):
                 dataloader_idx: int = batch_pred["dataloader_idx"]
                 batch_reading_subword_map = batch_pred["reading_subword_map"]
                 batch_reading_preds = torch.argmax(batch_pred["reading_prediction_logits"], dim=-1)
-                batch_pos_preds = torch.argmax(batch_pred["word_analysis_pos_logits"], dim=-1)
-                batch_subpos_preds = torch.argmax(batch_pred["word_analysis_subpos_logits"], dim=-1)
-                batch_conjtype_preds = torch.argmax(batch_pred["word_analysis_conjtype_logits"], dim=-1)
-                batch_conjform_preds = torch.argmax(batch_pred["word_analysis_conjform_logits"], dim=-1)
+                (
+                    batch_pos_preds,
+                    batch_subpos_preds,
+                    batch_conjtype_preds,
+                    batch_conjform_preds,
+                ) = self._get_mrph_type_preds(
+                    pos_logits=batch_pred["word_analysis_pos_logits"],
+                    subpos_logits=batch_pred["word_analysis_subpos_logits"],
+                    conjtype_logits=batch_pred["word_analysis_conjtype_logits"],
+                    conjform_logits=batch_pred["word_analysis_conjform_logits"],
+                )
                 batch_ne_tag_preds = torch.argmax(batch_pred["ne_logits"], dim=-1)
                 batch_word_feature_preds = batch_pred["word_feature_logits"]
                 batch_base_phrase_feature_preds = batch_pred["base_phrase_feature_logits"].ge(0.5).long()
@@ -115,10 +124,10 @@ class WordModuleWriter(BasePredictionWriter):
                     batch_tokens,
                     batch_reading_subword_map.tolist(),
                     batch_reading_preds.tolist(),
-                    batch_pos_preds.tolist(),
-                    batch_subpos_preds.tolist(),
-                    batch_conjtype_preds.tolist(),
-                    batch_conjform_preds.tolist(),
+                    batch_pos_preds,
+                    batch_subpos_preds,
+                    batch_conjtype_preds,
+                    batch_conjform_preds,
                     batch_word_feature_preds.tolist(),
                     batch_ne_tag_preds.tolist(),
                     batch_base_phrase_feature_preds.tolist(),
@@ -204,6 +213,51 @@ class WordModuleWriter(BasePredictionWriter):
             )
             morphemes.append(Morpheme(attributes, SemanticsDict(), FeatureDict()))
         return morphemes
+
+    @staticmethod
+    def _get_mrph_type_preds(
+        pos_logits: torch.Tensor,
+        subpos_logits: torch.Tensor,
+        conjtype_logits: torch.Tensor,
+        conjform_logits: torch.Tensor,
+    ) -> tuple[list[list[int]], list[list[int]], list[list[int]], list[list[int]]]:
+        batch_pos_preds: list[list[int]] = torch.argmax(pos_logits, dim=-1).tolist()
+        batch_subpos_logits: list[list[list[float]]] = subpos_logits.tolist()
+        refined_batch_subpos_preds: list[list[int]] = []
+        for batch_idx, batch_pos_pred in enumerate(batch_pos_preds):
+            refined_subpos_preds: list[int] = []
+            for pos_idx, pos in enumerate(batch_pos_pred):
+                possible_subpos_ids: set[int] = {
+                    SUBPOS_TYPES.index(x) for x in POS_SUBPOS_TYPE2ID[INDEX2POS_TYPE[pos]].keys()
+                }
+                refined_subpos_pred: int = 0
+                refined_subpos_logit: float = float("-inf")
+                for logit_idx, logit in enumerate(batch_subpos_logits[batch_idx][pos_idx]):
+                    if logit_idx in possible_subpos_ids and logit > refined_subpos_logit:
+                        refined_subpos_pred = logit_idx
+                        refined_subpos_logit = logit
+                refined_subpos_preds.append(refined_subpos_pred)
+            refined_batch_subpos_preds.append(refined_subpos_preds)
+
+        batch_conjtype_preds: list[list[int]] = torch.argmax(conjtype_logits, dim=-1).tolist()
+        batch_conjform_logits: list[list[list[float]]] = conjform_logits.tolist()
+        refined_batch_conjform_preds: list[list[int]] = []
+        for batch_idx, batch_conjtype_pred in enumerate(batch_conjtype_preds):
+            refined_conjform_preds: list[int] = []
+            for conjtype_idx, conjtype in enumerate(batch_conjtype_pred):
+                possible_conjform_ids: set[int] = {
+                    CONJFORM_TYPES.index(x) for x in CONJTYPE_CONJFORM_TYPE2ID[INDEX2CONJTYPE_TYPE[conjtype]].keys()
+                }
+                refined_conjform_pred: int = 0
+                refined_conjform_logit: float = float("-inf")
+                for logit_idx, logit in enumerate(batch_conjform_logits[batch_idx][conjtype_idx]):
+                    if logit_idx in possible_conjform_ids and logit > refined_conjform_logit:
+                        refined_conjform_pred = logit_idx
+                        refined_conjform_logit = logit
+                refined_conjform_preds.append(refined_conjform_pred)
+            refined_batch_conjform_preds.append(refined_conjform_preds)
+
+        return batch_pos_preds, refined_batch_subpos_preds, batch_conjtype_preds, refined_batch_conjform_preds
 
     @staticmethod
     def _chunk_morphemes(morphemes: list[Morpheme], word_feature_preds: list[list[float]]) -> Document:
