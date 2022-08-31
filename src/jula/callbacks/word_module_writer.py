@@ -16,7 +16,7 @@ from rhoknp.props import DepType, FeatureDict, NamedEntity, NamedEntityCategory,
 from rhoknp.units.morpheme import MorphemeAttributes
 
 import jula
-from jula.datamodule.datasets.word_dataset import WordDataset
+from jula.datamodule.datasets import WordDataset, WordInferenceDataset
 from jula.datamodule.examples import CohesionTask
 from jula.datamodule.extractors.base import Extractor
 from jula.utils.constants import (
@@ -136,7 +136,7 @@ class WordModuleWriter(BasePredictionWriter):
                     batch_cohesion_preds.tolist(),
                     batch_discourse_parsing_preds.tolist(),
                 ):
-                    dataset: WordDataset = dataloaders[dataloader_idx].dataset
+                    dataset: Union[WordDataset, WordInferenceDataset] = dataloaders[dataloader_idx].dataset
                     # TODO: get word-level reading predictions
                     readings = [self.id2reading[pred] for pred in reading_preds]
                     word_reading_preds = get_word_level_readings(readings, tokens.split(), reading_subword_map)
@@ -465,7 +465,7 @@ class WordModuleWriter(BasePredictionWriter):
             if morpheme_index < 0:
                 continue  # non-target phrase
             if 0 <= morpheme_index < len(morphemes):
-                # normal
+                # endophora
                 prediction_bp: BasePhrase = morphemes[morpheme_index].base_phrase
                 rel_tags.append(
                     RelTag(

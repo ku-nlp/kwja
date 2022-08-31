@@ -8,7 +8,7 @@ import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks import BasePredictionWriter
 
-from jula.datamodule.datasets.char_dataset import CharDataset
+from jula.datamodule.datasets import CharDataset
 from jula.utils.constants import INDEX2SEG_TYPE
 
 
