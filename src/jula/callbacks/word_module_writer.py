@@ -201,7 +201,7 @@ class WordModuleWriter(BasePredictionWriter):
             semantics: dict[str, Union[str, bool]] = {}
             homographs = []
             # create lemma using surf, conjtype and conjform
-            # TODO: replace surf with norm
+            # TODO: replace word with norm
             if conjtype == "*":
                 lemma = word
             elif conjform not in self.ambig_surf2lemmas:
