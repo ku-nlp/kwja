@@ -34,28 +34,40 @@ def main():
     else:
         outdir.mkdir(parents=True)
 
-    ebase2bases: dict[str, list[str]] = {}
+    # TODO: externalize this
+    ambig_surf_specs = [
+        {
+            "conjtypes": ["イ形容詞アウオ段", "イ形容詞イ段", "イ形容詞イ段特殊"],
+            "conjform": "エ基本形",
+        },
+    ]
+    # conjtype -> surf -> list of lemmas
+    ambig_surf2lemmas: dict[str, dict[str, list[str]]] = {}
+    for ambig_surf_spec in ambig_surf_specs:
+        ambig_surf2lemmas[ambig_surf_spec["conjform"]] = {}
     jinf = Jinf()
     jumandic = JumanDIC(args.input_dir)
     for entry in jumandic:
-        if entry.conjtype in ("イ形容詞アウオ段", "イ形容詞イ段", "イ形容詞イ段特殊"):
-            for surf in entry.surf:
-                try:
-                    ebase_form = jinf(surf, entry.conjtype, "基本形", "エ基本形")
-                except IndexError:
-                    # いい
-                    pass
-                if ebase_form in ebase2bases:
-                    for surf2 in ebase2bases[ebase_form]:
-                        if surf == surf2:
-                            break
+        for ambig_surf_spec in ambig_surf_specs:
+            if entry.conjtype in ambig_surf_spec["conjtypes"]:
+                surf2lemmas = ambig_surf2lemmas[ambig_surf_spec["conjform"]]
+                for baseform in entry.surf:
+                    try:
+                        surf = jinf(baseform, entry.conjtype, "基本形", ambig_surf_spec["conjform"])
+                    except IndexError:
+                        # いい
+                        pass
+                    if surf in surf2lemmas:
+                        for baseform2 in surf2lemmas[surf]:
+                            if baseform == baseform2:
+                                break
+                        else:
+                            surf2lemmas[surf].append(baseform)
+                            print(surf2lemmas[surf])
                     else:
-                        ebase2bases[ebase_form].append(surf)
-                        print(ebase2bases[ebase_form])
-                else:
-                    ebase2bases[ebase_form] = [surf]
-    with (outdir / "ebase2bases.pkl").open("wb") as f:
-        f.write(pickle.dumps(ebase2bases))
+                        surf2lemmas[surf] = [baseform]
+    with (outdir / "ambig_surf2lemmas.pkl").open("wb") as f:
+        f.write(pickle.dumps(ambig_surf2lemmas))
 
 
 if __name__ == "__main__":

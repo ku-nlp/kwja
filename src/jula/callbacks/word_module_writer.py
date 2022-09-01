@@ -1,3 +1,4 @@
+import copy
 import logging
 import os
 import pickle
@@ -47,7 +48,7 @@ class WordModuleWriter(BasePredictionWriter):
         self,
         output_dir: str,
         reading_resource_path: str,
-        ebase2bases_path: str,
+        ambig_surf2lemmas_path: str,
         pred_filename: str = "predict",
         use_stdout: bool = False,
     ) -> None:
@@ -57,8 +58,8 @@ class WordModuleWriter(BasePredictionWriter):
         reading2id = get_reading2id(str(self.reading_resource_path / "vocab.txt"))
         self.id2reading = {v: k for k, v in reading2id.items()}
         self.jinf = Jinf()
-        with open(ebase2bases_path, "rb") as f:
-            self.ebase2bases = pickle.load(f)
+        with open(ambig_surf2lemmas_path, "rb") as f:
+            self.ambig_surf2lemmas = pickle.load(f)
 
         self.destination: Union[Path, TextIO]
         if use_stdout is True:
@@ -198,19 +199,27 @@ class WordModuleWriter(BasePredictionWriter):
             conjform = INDEX2CONJFORM_TYPE[conjform_index]
             conjform_id = CONJTYPE_CONJFORM_TYPE2ID[conjtype][conjform]
             semantics: dict[str, Union[str, bool]] = {}
-            if conjform == "エ基本形":
-                if word in self.ebase2bases:
-                    lemma = self.ebase2bases[word][0]
-                    if len(self.ebase2bases[word]) > 1:
-                        semantics["基本形候補"] = ";".join(self.ebase2bases[word])
-                else:
-                    logger.warning(f"failed to get lemma for {word}")
-                    lemma = word
-            else:
+            homographs = []
+            # create lemma using surf, conjtype and conjform
+            # TODO: replace surf with norm
+            if conjtype == "*":
+                lemma = word
+            elif conjform not in self.ambig_surf2lemmas:
                 try:
                     lemma = self.jinf(word, conjtype, conjform, "基本形")
                 except ValueError as e:
                     logger.warning(f"failed to get lemma for {word}: ({e})")
+                    lemma = word
+            else:
+                surf2lemmas = self.ambig_surf2lemmas[conjform]
+                if word in surf2lemmas:
+                    lemma = surf2lemmas[word][0]
+                    if len(surf2lemmas[word]) > 1:
+                        # ambiguous
+                        for lemma2 in surf2lemmas[word][1:]:
+                            homographs.append({"lemma": lemma2})
+                else:
+                    logger.warning(f"failed to get lemma for {word}")
                     lemma = word
             attributes = MorphemeAttributes(
                 surf=word,
@@ -225,7 +234,18 @@ class WordModuleWriter(BasePredictionWriter):
                 conjform=conjform,
                 conjform_id=conjform_id,
             )
-            morphemes.append(Morpheme(attributes, SemanticsDict(semantics), FeatureDict(semantics)))
+            morpheme = Morpheme(attributes, SemanticsDict(semantics), FeatureDict(semantics))
+            morphemes.append(morpheme)
+            if len(homographs) >= 1:
+                for homograph_struct in homographs:
+                    attributes2 = copy.deepcopy(attributes)
+                    semantics2 = copy.deepcopy(semantics)
+                    for k, v in homograph_struct.items():
+                        setattr(attributes2, k, v)
+                    morpheme2 = Morpheme(
+                        attributes2, SemanticsDict(semantics2), FeatureDict(semantics2), homograph=True
+                    )
+                    morpheme.homographs.append(morpheme2)
         return morphemes
 
     @staticmethod
