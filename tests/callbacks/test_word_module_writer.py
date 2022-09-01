@@ -23,6 +23,9 @@ from jula.utils.constants import (
     WORD_FEATURES,
 )
 
+here = Path(__file__).absolute().parent
+reading_resource_path = here.parent / "datamodule/datasets/reading_files"
+
 
 def make_ebase2bases():
     f = tempfile.NamedTemporaryFile(delete=False)
@@ -34,7 +37,7 @@ def make_ebase2bases():
 def test_init():
     with tempfile.TemporaryDirectory() as tmp_dir:
         ebase2bases_path = make_ebase2bases()
-        _ = WordModuleWriter(tmp_dir, ebase2bases_path)
+        _ = WordModuleWriter(tmp_dir, str(reading_resource_path), ebase2bases_path)
         os.unlink(ebase2bases_path)
 
 
@@ -45,6 +48,25 @@ class MockTrainer:
 
 def test_write_on_epoch_end():
     texts = ["今日 は 晴れ だ"]
+    tokens = ["[CLS] 今日 は 晴れ だ"]
+
+    reading_subword_map = torch.tensor(
+        [
+            [
+                [False, True, False, False, False],
+                [False, False, True, False, False],
+                [False, False, False, True, False],
+                [False, False, False, False, True],
+                [False, True, False, False, False],
+            ]
+        ],
+        dtype=torch.bool,
+    )
+    reading_prediction_logits = torch.zeros(1, 5, 12907, dtype=torch.float)  # 12907: vocab size
+    reading_prediction_logits[0][1][255] = 1.0  # きょう
+    reading_prediction_logits[0][2][1] = 1.0  # ID
+    reading_prediction_logits[0][3][4039] = 1.0  # はれ
+    reading_prediction_logits[0][4][1] = 1.0  # ID
 
     word_analysis_pos_logits = torch.zeros(1, 11, len(POS_TYPES), dtype=torch.float)
     word_analysis_pos_logits[0][0][POS_TYPES.index("名詞")] = 1.0
@@ -120,7 +142,10 @@ def test_write_on_epoch_end():
         [
             {
                 "texts": texts,
+                "tokens": tokens,
                 "dataloader_idx": 0,
+                "reading_subword_map": reading_subword_map,
+                "reading_prediction_logits": reading_prediction_logits,
                 "word_analysis_pos_logits": word_analysis_pos_logits,
                 "word_analysis_subpos_logits": word_analysis_subpos_logits,
                 "word_analysis_conjtype_logits": word_analysis_conjtype_logits,
@@ -140,7 +165,7 @@ def test_write_on_epoch_end():
     with tempfile.TemporaryDirectory() as tmp_dir:
         # max_seq_length = 4 (今日, は, 晴れ, だ) + 7 (著者, 読者, 不特定:人, 不特定:物, [NULL], [NA], [ROOT])
         ebase2bases_path = make_ebase2bases()
-        writer = WordModuleWriter(tmp_dir, ebase2bases_path, pred_filename=pred_filename)
+        writer = WordModuleWriter(tmp_dir, str(reading_resource_path), ebase2bases_path, pred_filename=pred_filename)
         exophora_referents = ["著者", "読者", "不特定:人", "不特定:物"]
         special_tokens = exophora_referents + ["[NULL]", "[NA]", "[ROOT]"]
         dataset = WordInferenceDataset(
@@ -153,6 +178,7 @@ def test_write_on_epoch_end():
             exophora_referents=ListConfig(exophora_referents),
             cohesion_tasks=ListConfig(["pas_analysis", "bridging", "coreference"]),
             special_tokens=ListConfig(special_tokens),
+            restrict_cohesion_target=True,
         )
         trainer = MockTrainer([DataLoader(dataset)])
         writer.write_on_epoch_end(trainer, ..., predictions)
@@ -161,11 +187,11 @@ def test_write_on_epoch_end():
             # S-ID:1 jula:{jula.__version__}
             * 1D
             + 1D <体言>
-            今日 今日 今日 名詞 6 時相名詞 10 * 0 * 0 <基本句-主辞>
+            今日 きょう 今日 名詞 6 時相名詞 10 * 0 * 0 <基本句-主辞>
             は は は 助詞 9 副助詞 2 * 0 * 0
             * -1D
             + -1D <rel type="ガ" target="今日" sid="1" id="0"/><NE:DATE:晴れ><用言:判><時制:非過去><節-主辞><節-区切><レベル:C><状態述語><談話関係:1/1/原因・理由>
-            晴れ 晴れ 晴れ 名詞 6 普通名詞 1 * 0 * 0 <基本句-主辞><用言表記先頭><用言表記末尾>
+            晴れ はれ 晴れ 名詞 6 普通名詞 1 * 0 * 0 <基本句-主辞><用言表記先頭><用言表記末尾>
             だ だ だ 判定詞 4 * 0 判定詞 25 基本形 2
             EOS
             """

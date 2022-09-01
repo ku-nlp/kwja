@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from torchmetrics import Metric
 
-from jula.datamodule.datasets.word_dataset import WordDataset
+from jula.datamodule.datasets import WordDataset
 from jula.datamodule.examples import CohesionExample, CohesionTask
 from jula.evaluators.cohesion_scorer import Scorer, ScoreResult
 from jula.utils.cohesion import CohesionKNPWriter

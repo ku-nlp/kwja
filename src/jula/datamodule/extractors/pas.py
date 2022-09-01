@@ -22,7 +22,6 @@ class PasExtractor(Extractor):
         cases: list[str],
         exophors: list[ExophoraReferent],
         restrict_target: bool,
-        kc: bool = False,
     ) -> None:
         self.pas_targets = ["pred", "noun"]
         super().__init__(exophors, restrict_target=restrict_target)
