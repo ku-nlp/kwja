@@ -121,17 +121,23 @@ class WordInferenceDataset(Dataset):
             max_length=self.max_seq_length - self.num_special_tokens,
         ).encodings[0]
 
-        # FIXME
-        intra_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
+        dependency_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
+        for sentence in document.sentences:
+            num_intra_morphemes = len(sentence.morphemes)
+            for i in range(num_intra_morphemes):
+                for j in range(num_intra_morphemes):
+                    if i != j:
+                        dependency_mask[i][j] = True
+                dependency_mask[i][self.special_to_index["[ROOT]"]] = True
+
+        cohesion_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
         num_morphemes = len(document.morphemes)
         for i in range(num_morphemes):
             for j in range(num_morphemes):
                 if i != j:
-                    intra_mask[i][j] = True
-            intra_mask[i][-1] = True
-        cohesion_mask = [True] * num_morphemes + [False] * (self.max_seq_length - num_morphemes)
-        for special_index in self.cohesion_special_indices:
-            cohesion_mask[special_index] = True
+                    cohesion_mask[i][j] = True
+            for special_index in self.cohesion_special_indices:
+                cohesion_mask[i][special_index] = True
 
         merged_encoding: Encoding = Encoding.merge([encoding, self.special_encoding])
 
@@ -143,9 +149,9 @@ class WordInferenceDataset(Dataset):
             "reading_subword_map": torch.tensor(
                 self._gen_subword_map(merged_encoding, include_additional_words=False), dtype=torch.bool
             ),
-            "intra_mask": torch.tensor(intra_mask, dtype=torch.bool),
+            "intra_mask": torch.tensor(dependency_mask, dtype=torch.bool),
             "cohesion_mask": torch.tensor(cohesion_mask, dtype=torch.bool)
-            .view(1, 1, -1)
+            .unsqueeze(0)
             .expand(len(self.cohesion_rel_types), self.max_seq_length, self.max_seq_length),
             "tokens": " ".join(self.tokenizer.decode(id_) for id_ in merged_encoding.ids),
         }
