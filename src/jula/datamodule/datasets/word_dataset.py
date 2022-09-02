@@ -45,7 +45,6 @@ logger = logging.getLogger(__name__)
 class WordExampleSet:
     example_id: int
     doc_id: str
-    text: str  # space-delimited word sequence. deprecated
     encoding: Encoding
     reading_example: ReadingExample
     word_feature_example: WordFeatureExample
@@ -130,9 +129,8 @@ class WordDataset(BaseDataset):
         examples = []
         idx = 0
         for document in tqdm(documents, dynamic_ncols=True):
-            words = [morpheme.text for morpheme in document.morphemes]
             encoding: Encoding = self.tokenizer(
-                words,
+                [morpheme.text for morpheme in document.morphemes],
                 is_split_into_words=True,
                 padding=PaddingStrategy.MAX_LENGTH,
                 truncation=False,
@@ -173,7 +171,6 @@ class WordDataset(BaseDataset):
                 WordExampleSet(
                     example_id=idx,
                     doc_id=document.doc_id,
-                    text=" ".join(words),
                     encoding=encoding,
                     reading_example=reading_example,
                     word_feature_example=word_feature_example,
