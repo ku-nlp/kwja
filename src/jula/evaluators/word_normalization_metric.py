@@ -10,18 +10,18 @@ from jula.utils.constants import IGNORE_INDEX, INDEX2WORD_NORM_TYPE
 class WordNormalizationMetric(Metric):
     def __init__(self) -> None:
         super().__init__()
-        self.add_state("word_norm_preds", default=[], dist_reduce_fx="cat")
-        self.add_state("word_norm_labels", default=[], dist_reduce_fx="cat")
+        self.add_state("norm_preds", default=[], dist_reduce_fx="cat")
+        self.add_state("norm_types", default=[], dist_reduce_fx="cat")
 
-    def update(self, word_norm_preds: torch.Tensor, word_norm_labels: torch.Tensor) -> None:
-        ignore_indexes = word_norm_labels == IGNORE_INDEX
-        self.word_norm_preds.append(word_norm_preds[~ignore_indexes])
-        self.word_norm_labels.append(word_norm_labels[~ignore_indexes])
+    def update(self, norm_preds: torch.Tensor, norm_types: torch.Tensor) -> None:
+        ignore_indexes = norm_types == IGNORE_INDEX
+        self.norm_preds.append(norm_preds[~ignore_indexes])
+        self.norm_types.append(norm_types[~ignore_indexes])
 
     def compute(self):
         metrics: dict[str, Union[torch.Tensor, float]] = dict()
-        preds = self.word_norm_preds.cpu()
-        labels = self.word_norm_labels.cpu()
+        preds = self.norm_preds.cpu()
+        labels = self.norm_types.cpu()
         metrics["word_normalization_acc"] = accuracy_score(labels.tolist(), preds.tolist())
         metrics["word_normalization_f1"] = f1_score(labels.tolist(), preds.tolist(), average="micro")
         exist_word_norm_type = [

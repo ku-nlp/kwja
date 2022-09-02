@@ -25,10 +25,10 @@ class WordNormalizer(nn.Module):
         output: dict[str, torch.Tensor] = dict()
         logits = self.cls(encoder_output)  # (b, seq_len, word_norm_label_num)
         output["logits"] = logits
-        if "word_norm_labels" in inputs:
+        if "norm_types" in inputs:
             word_norm_loss = F.cross_entropy(
                 input=logits.reshape(-1, self.num_labels),
-                target=inputs["word_norm_labels"].view(-1),
+                target=inputs["norm_types"].view(-1),
                 ignore_index=IGNORE_INDEX,
             )
             output["loss"] = word_norm_loss

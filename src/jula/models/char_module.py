@@ -70,8 +70,8 @@ class CharModule(LightningModule):
         self.valid_word_segmenter_metrics[corpus].update(**word_segmenter_args)
         self.log("valid/word_segmenter_loss", outputs["word_segmenter_outputs"]["loss"])
         word_normalizer_args = {
-            "word_norm_preds": torch.argmax(outputs["word_normalizer_outputs"]["logits"], dim=-1),
-            "word_norm_labels": batch["word_norm_labels"],
+            "norm_preds": torch.argmax(outputs["word_normalizer_outputs"]["logits"], dim=-1),
+            "norm_types": batch["norm_types"],
         }
         self.valid_word_normalizer_metrics[corpus].update(**word_normalizer_args)
         self.log("valid/word_normalizer_loss", outputs["word_normalizer_outputs"]["loss"])
@@ -86,7 +86,6 @@ class CharModule(LightningModule):
                 metric.reset()
         word_segmenter_f1 /= len(self.valid_word_segmenter_metrics)
         self.log("valid/word_segmenter_f1", word_segmenter_f1)
-        self.log("valid/f1", word_segmenter_f1)
 
         word_normalizer_f1 = 0.0
         for corpus, metric in self.valid_word_normalizer_metrics.items():
@@ -98,6 +97,8 @@ class CharModule(LightningModule):
         word_normalizer_f1 /= len(self.valid_word_normalizer_metrics)
         self.log("valid/word_normalizer_f1", word_normalizer_f1)
 
+        self.log("valid/f1", (word_segmenter_f1 + word_normalizer_f1) / 2)
+
     def test_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Any:
         outputs: dict[str, dict[str, torch.Tensor]] = self(**batch)
         corpus = self.test_corpora[dataloader_idx or 0]
@@ -108,8 +109,8 @@ class CharModule(LightningModule):
         self.test_word_segmenter_metrics[corpus].update(**word_segmenter_args)
         self.log("test/word_segmenter_loss", outputs["word_segmenter_outputs"]["loss"])
         word_normalizer_args = {
-            "word_norm_preds": torch.argmax(outputs["word_normalizer_outputs"]["logits"], dim=-1),
-            "word_norm_labels": batch["word_norm_labels"],
+            "norm_preds": torch.argmax(outputs["word_normalizer_outputs"]["logits"], dim=-1),
+            "norm_types": batch["norm_types"],
         }
         self.test_word_normalizer_metrics[corpus].update(**word_normalizer_args)
         self.log("test/word_normalizer_loss", outputs["word_normalizer_outputs"]["loss"])

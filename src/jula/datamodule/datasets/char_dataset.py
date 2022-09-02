@@ -85,12 +85,17 @@ class CharDataset(BaseDataset):
         char_feature_example = example.char_feature_example
         seg_types: list[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
         for i, seg_label in char_feature_example.seg_types.items():
-            # 先頭のCLSトークンをIGNORE_INDEXにするため＋1
+            # 先頭のCLSトークンをIGNORE_INDEXにするため+1
             seg_types[i + 1] = seg_label
+        norm_types: list[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
+        for i, norm_label in char_feature_example.norm_types.items():
+            # 先頭のCLSトークンをIGNORE_INDEXにするため+1
+            norm_types[i + 1] = norm_label
 
         return {
             "example_ids": torch.tensor(example.example_id, dtype=torch.long),
             "input_ids": torch.tensor(example.encoding.input_ids, dtype=torch.long),
             "attention_mask": torch.tensor(example.encoding.attention_mask, dtype=torch.long),
             "seg_types": torch.tensor(seg_types, dtype=torch.long),
+            "norm_types": torch.tensor(norm_types, dtype=torch.long),
         }
