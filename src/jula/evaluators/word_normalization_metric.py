@@ -1,10 +1,10 @@
 from typing import Union
 
 import torch
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.metrics import accuracy_score
 from torchmetrics import Metric
 
-from jula.utils.constants import IGNORE_INDEX, INDEX2WORD_NORM_TYPE
+from jula.utils.constants import IGNORE_INDEX, INDEX2WORD_NORM_TYPE, WORD_NORM_TYPES
 
 
 class WordNormalizationMetric(Metric):
@@ -22,18 +22,51 @@ class WordNormalizationMetric(Metric):
         metrics: dict[str, Union[torch.Tensor, float]] = dict()
         preds = self.norm_preds.cpu()
         labels = self.norm_types.cpu()
-        metrics["word_normalization_acc"] = accuracy_score(labels.tolist(), preds.tolist())
-        metrics["word_normalization_f1"] = f1_score(labels.tolist(), preds.tolist(), average="micro")
-        exist_word_norm_type = [
-            word_norm_type
-            for index, word_norm_type in INDEX2WORD_NORM_TYPE.items()
-            if index in set(labels.tolist() + preds.tolist())
-        ]
-        word_normalization_f1s = f1_score(labels.tolist(), preds.tolist(), average=None)
-        assert len(word_normalization_f1s) == len(exist_word_norm_type)
-        for word_norm_type, f1 in zip(exist_word_norm_type, word_normalization_f1s):
+
+        # Accuracy
+        metrics["word_normalization_accuracy"] = accuracy_score(labels.tolist(), preds.tolist())
+
+        # Precision
+        non_keep_indexes = preds != WORD_NORM_TYPES.index("K")
+        if non_keep_indexes.sum() == 0:
+            precision = 0.0
+        else:
+            precision = accuracy_score(preds[non_keep_indexes], labels[non_keep_indexes])
+        metrics["word_normalization_precision"] = accuracy_score(labels.tolist(), preds.tolist())
+
+        # Recall
+        non_keep_indexes = labels != WORD_NORM_TYPES.index("K")
+        if non_keep_indexes.sum() == 0:
+            recall = 0.0
+        else:
+            recall = accuracy_score(preds[non_keep_indexes], labels[non_keep_indexes])
+        metrics["word_normalization_recall"] = recall
+
+        # F1
+        if precision == 0.0 and recall == 0.0:
+            f1 = 0.0
+        else:
+            f1 = 2 * precision * recall / (precision + recall)
+        metrics["word_normalization_f1"] = f1
+
+        # F1 score for each type
+        for index, word_norm_type in INDEX2WORD_NORM_TYPE.items():
+            # Precision
+            indexes = preds == index
+            if indexes.sum() == 0:
+                precision = 0.0
+            else:
+                precision = accuracy_score(preds[indexes], labels[indexes])
+            # Recall
+            indexes = labels == index
+            if indexes.sum() == 0:
+                recall = 0.0
+            else:
+                recall = accuracy_score(preds[indexes], labels[indexes])
+            # F1
+            if precision == 0.0 and recall == 0.0:
+                f1 = 0.0
+            else:
+                f1 = 2 * precision * recall / (precision + recall)
             metrics[f"word_normalization_f1:{word_norm_type}"] = f1
-        for word_norm_type in INDEX2WORD_NORM_TYPE.values():
-            if f"word_normalization_f1:{word_norm_type}" not in metrics:
-                metrics[f"word_normalization_f1:{word_norm_type}"] = 0.0
         return metrics
