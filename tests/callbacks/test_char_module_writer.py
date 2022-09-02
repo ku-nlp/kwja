@@ -51,4 +51,4 @@ def test_write_on_epoch_end():
             ]
         ]
         writer.write_on_epoch_end(trainer, ..., predictions)
-        assert writer.destination.read_text() == "# S-ID:test0-0\n今日 は 晴れ\n"
+        assert writer.destination.read_text() == "# S-ID:test-0-0 jula:0.1.0\n今日 は 晴れ\n"

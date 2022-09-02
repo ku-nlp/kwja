@@ -7,6 +7,8 @@ from torch.utils.data import Dataset
 from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
+import jula
+
 
 class CharInferenceDataset(Dataset):
     def __init__(
@@ -29,6 +31,7 @@ class CharInferenceDataset(Dataset):
             document.doc_id = f"{doc_id_prefix}-{doc_idx:0{doc_id_width}}"
             for sent_idx, sentence in enumerate(document.sentences):
                 sentence.sid = f"{document.doc_id}-{sent_idx:0{sent_id_width}}"
+                sentence.misc_comment = f"jula:{jula.__version__}"
         self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             model_name_or_path,
             **(tokenizer_kwargs or {}),

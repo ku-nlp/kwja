@@ -129,10 +129,8 @@ def test_encode():
             """
         )
     )
-    words = [morpheme.text for morpheme in document.morphemes]
-    text = " ".join(words)
     encoding = dataset.tokenizer(
-        words,
+        [morpheme.text for morpheme in document.morphemes],
         is_split_into_words=True,
         padding=PaddingStrategy.MAX_LENGTH,
         truncation=False,
@@ -153,7 +151,6 @@ def test_encode():
     example = WordExampleSet(
         example_id=0,
         doc_id="",
-        text=text,
         encoding=encoding,
         reading_example=reading_example,
         word_feature_example=word_feature_example,

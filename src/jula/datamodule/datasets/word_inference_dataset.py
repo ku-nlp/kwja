@@ -1,6 +1,8 @@
 import logging
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import datetime
+from typing import Optional
 
 import torch
 from omegaconf import ListConfig
@@ -13,6 +15,7 @@ from torch.utils.data import Dataset
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
+import jula
 from jula.datamodule.examples import CohesionTask
 from jula.datamodule.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
 
@@ -39,10 +42,13 @@ class WordInferenceDataset(Dataset):
         model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
         max_seq_length: int = 512,
         tokenizer_kwargs: dict = None,
+        doc_id_prefix: Optional[str] = None,
         **_,
     ) -> None:
         did2sentences = defaultdict(list)
-        doc_id, sid = "", ""
+        if doc_id_prefix is None:
+            doc_id_prefix = datetime.now().strftime("%Y%m%d%H%M")
+        doc_id, sid = f"{doc_id_prefix}-0", f"{doc_id_prefix}-0-0"
         for text in texts:
             if text.startswith("#"):
                 sentence = Sentence.from_raw_text(text)
@@ -50,6 +56,7 @@ class WordInferenceDataset(Dataset):
             else:
                 sentence = Sentence()
                 sentence.doc_id, sentence.sid = doc_id, sid
+                sentence.misc_comment = f"jula:{jula.__version__}"
                 morphemes = []
                 for word in text.split(" "):
                     attributes = MorphemeAttributes(
@@ -137,7 +144,6 @@ class WordInferenceDataset(Dataset):
                 truncation=False,
                 max_length=self.max_seq_length - self.num_special_tokens,
             ).encodings[0]
-            print(encoding.ids, self.max_seq_length, self.num_special_tokens)
             if len(encoding.ids) > self.max_seq_length - self.num_special_tokens:
                 continue
 
