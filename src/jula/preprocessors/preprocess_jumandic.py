@@ -41,12 +41,14 @@ def main():
             "conjform": "エ基本形",
         },
     ]
+    jumandic = JumanDIC(args.input_dir)
+    jumandic.export(str(outdir / "jumandic.dic"))
+
     # conjtype -> surf -> list of lemmas
     ambig_surf2lemmas: dict[str, dict[str, list[str]]] = {}
     for ambig_surf_spec in ambig_surf_specs:
         ambig_surf2lemmas[ambig_surf_spec["conjform"]] = {}
     jinf = Jinf()
-    jumandic = JumanDIC(args.input_dir)
     for entry in jumandic:
         for ambig_surf_spec in ambig_surf_specs:
             if entry.conjtype in ambig_surf_spec["conjtypes"]:

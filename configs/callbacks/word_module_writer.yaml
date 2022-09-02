@@ -3,4 +3,4 @@ prediction_writer:
   output_dir: ${run_dir}
   reading_resource_path: ${dataset.reading_resource_path}
   pred_filename: "predict"
-  ambig_surf2lemmas_path: ${oc.env:DATA_DIR}/jumandic/ambig_surf2lemmas.pkl
+  jumandic_path: ${oc.env:DATA_DIR}/jumandic

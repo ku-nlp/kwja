@@ -10,6 +10,7 @@ from typing import Any, Optional, Sequence, TextIO, Union
 import pytorch_lightning as pl
 import torch
 from jinf import Jinf
+from jumandic import JumanDIC
 from pytorch_lightning.callbacks import BasePredictionWriter
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
 from rhoknp.cohesion import ExophoraReferent, RelTag, RelTagList
@@ -48,7 +49,8 @@ class WordModuleWriter(BasePredictionWriter):
         self,
         output_dir: str,
         reading_resource_path: str,
-        ambig_surf2lemmas_path: str,
+        jumandic_path: str,
+        # ambig_surf2lemmas_path: str,
         pred_filename: str = "predict",
         use_stdout: bool = False,
     ) -> None:
@@ -58,7 +60,9 @@ class WordModuleWriter(BasePredictionWriter):
         reading2id = get_reading2id(str(self.reading_resource_path / "vocab.txt"))
         self.id2reading = {v: k for k, v in reading2id.items()}
         self.jinf = Jinf()
-        with open(ambig_surf2lemmas_path, "rb") as f:
+        self.jumandic_path = Path(jumandic_path)
+        self.jumandic = JumanDIC(str(self.jumandic_path / "jumandic.dic"))
+        with open(str(self.jumandic_path / "ambig_surf2lemmas.pkl"), "rb") as f:
             self.ambig_surf2lemmas = pickle.load(f)
 
         self.destination: Union[Path, TextIO]

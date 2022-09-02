@@ -1,4 +1,3 @@
-import os
 import pickle
 import tempfile
 import textwrap
@@ -27,18 +26,25 @@ here = Path(__file__).absolute().parent
 reading_resource_path = here.parent / "datamodule/datasets/reading_files"
 
 
-def make_ambig_surf2lemmas():
-    f = tempfile.NamedTemporaryFile(delete=False)
-    f.write(pickle.dumps({"エ基本形": {"あええ": ["あおい"], "くれえ": ["くらい", "くろい"]}}))
-    f.close()
-    return f.name
+def make_dummy_jumandic():
+    jumandic_dir = tempfile.TemporaryDirectory()
+    with open(jumandic_dir.name + "/jumandic.dic", "w") as f:
+        dummy_dic = textwrap.dedent(
+            """\
+        (名詞 (普通名詞 ((読み あい)(見出し語 愛 あい)(意味情報 "代表表記:愛/あい 漢字読み:音 カテゴリ:抽象物"))))
+        (名詞 (普通名詞 ((読み あい)(見出し語 藍 あい)(意味情報 "代表表記:藍/あい カテゴリ:植物"))))"""
+        )
+        f.write(dummy_dic)
+    with open(jumandic_dir.name + "/ambig_surf2lemmas.pkl", "wb") as f:
+        f.write(pickle.dumps({"エ基本形": {"あええ": ["あおい"], "くれえ": ["くらい", "くろい"]}}))
+    return jumandic_dir
 
 
 def test_init():
     with tempfile.TemporaryDirectory() as tmp_dir:
-        ambig_surf2lemmas_path = make_ambig_surf2lemmas()
-        _ = WordModuleWriter(tmp_dir, str(reading_resource_path), ambig_surf2lemmas_path)
-        os.unlink(ambig_surf2lemmas_path)
+        jumandic_dir = make_dummy_jumandic()
+        _ = WordModuleWriter(tmp_dir, str(reading_resource_path), jumandic_dir.name)
+        jumandic_dir.cleanup()
 
 
 class MockTrainer:
@@ -164,10 +170,8 @@ def test_write_on_epoch_end():
     pred_filename = "test"
     with tempfile.TemporaryDirectory() as tmp_dir:
         # max_seq_length = 4 (今日, は, 晴れ, だ) + 7 (著者, 読者, 不特定:人, 不特定:物, [NULL], [NA], [ROOT])
-        ambig_surf2lemmas_path = make_ambig_surf2lemmas()
-        writer = WordModuleWriter(
-            tmp_dir, str(reading_resource_path), ambig_surf2lemmas_path, pred_filename=pred_filename
-        )
+        jumandic_dir = make_dummy_jumandic()
+        writer = WordModuleWriter(tmp_dir, str(reading_resource_path), jumandic_dir.name, pred_filename=pred_filename)
         exophora_referents = ["著者", "読者", "不特定:人", "不特定:物"]
         special_tokens = exophora_referents + ["[NULL]", "[NA]", "[ROOT]"]
         dataset = WordInferenceDataset(
@@ -199,4 +203,4 @@ def test_write_on_epoch_end():
             """
         )
         assert Path(tmp_dir).joinpath(f"{pred_filename}.knp").read_text() == expected_knp
-        os.unlink(ambig_surf2lemmas_path)
+        jumandic_dir.cleanup()
