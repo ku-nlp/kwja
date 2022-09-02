@@ -15,6 +15,9 @@ do_predict_after_train: True
 checkpoint_path: ""
 document_split_stride: 1
 
+# For word normalization
+denormalize_prob: 0.0
+
 # set monitor and mode for early_stopping and model_checkpoint
 monitor: valid/f1
 mode: max
