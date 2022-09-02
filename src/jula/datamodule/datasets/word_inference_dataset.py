@@ -132,10 +132,12 @@ class WordInferenceDataset(Dataset):
         for document in documents:
             encoding: Encoding = self.tokenizer(
                 [morpheme.text for morpheme in document.morphemes],
+                is_split_into_words=True,
                 padding=PaddingStrategy.MAX_LENGTH,
                 truncation=False,
-                max_length=self.max_seq_length,
+                max_length=self.max_seq_length - self.num_special_tokens,
             ).encodings[0]
+            print(encoding.ids, self.max_seq_length, self.num_special_tokens)
             if len(encoding.ids) > self.max_seq_length - self.num_special_tokens:
                 continue
 
