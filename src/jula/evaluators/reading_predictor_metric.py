@@ -24,4 +24,4 @@ class ReadingPredictorMetric(Metric):
         predictions = predictions[~ignore_indexes].cpu().numpy()
         labels = labels[~ignore_indexes].cpu().numpy()
         num_correct = sum(p == l and p != UNK_ID for p, l in zip(predictions, labels))
-        return {"reading_predictor_accuracy": num_correct / len(predictions)}
+        return {"reading_prediction_accuracy": num_correct / len(predictions)}
