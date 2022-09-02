@@ -1,4 +1,6 @@
+import logging
 from collections import defaultdict
+from dataclasses import dataclass
 
 import torch
 from omegaconf import ListConfig
@@ -13,6 +15,15 @@ from transformers.utils import PaddingStrategy
 
 from jula.datamodule.examples import CohesionTask
 from jula.datamodule.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class WordInferenceExample:
+    example_id: int
+    doc_id: str
+    encoding: Encoding
 
 
 class WordInferenceDataset(Dataset):
@@ -57,7 +68,8 @@ class WordInferenceDataset(Dataset):
                     morphemes.append(Morpheme(attributes, SemanticsDict(), FeatureDict()))
                 sentence.morphemes = morphemes
                 did2sentences[doc_id].append(sentence)
-        self.documents = [Document.from_sentences(sentences) for sentences in did2sentences.values()]
+        self.doc_id2document = {did: Document.from_sentences(sentences) for did, sentences in did2sentences.items()}
+        self.documents = list(self.doc_id2document.values())
 
         self.exophora_referents = [ExophoraReferent(s) for s in exophora_referents]
         self.special_tokens: list[str] = list(special_tokens)
@@ -83,6 +95,7 @@ class WordInferenceDataset(Dataset):
             CohesionTask.COREFERENCE: CoreferenceExtractor(self.exophora_referents, restrict_cohesion_target),
             CohesionTask.BRIDGING: BridgingExtractor(self.bar_rels, self.exophora_referents, restrict_cohesion_target),
         }
+        self.examples: list[WordInferenceExample] = self._load_examples(self.documents)
         self.special_encoding: Encoding = self.tokenizer(
             self.special_tokens,
             is_split_into_words=True,
@@ -108,19 +121,39 @@ class WordInferenceDataset(Dataset):
         return [t for ts in self.cohesion_task_to_rel_types.values() for t in ts]
 
     def __len__(self) -> int:
-        return len(self.documents)
+        return len(self.examples)
 
     def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
-        return self.encode(self.documents[index], index)
+        return self.encode(self.examples[index])
 
-    def encode(self, document: Document, example_id: int) -> dict[str, torch.Tensor]:
-        encoding: Encoding = self.tokenizer(
-            " ".join(m.text for m in document.morphemes),
-            truncation=True,
-            padding=PaddingStrategy.MAX_LENGTH,
-            max_length=self.max_seq_length - self.num_special_tokens,
-        ).encodings[0]
+    def _load_examples(self, documents: list[Document]) -> list[WordInferenceExample]:
+        examples = []
+        idx = 0
+        for document in documents:
+            encoding: Encoding = self.tokenizer(
+                [morpheme.text for morpheme in document.morphemes],
+                padding=PaddingStrategy.MAX_LENGTH,
+                truncation=False,
+                max_length=self.max_seq_length,
+            ).encodings[0]
+            if len(encoding.ids) > self.max_seq_length - self.num_special_tokens:
+                continue
 
+            examples.append(
+                WordInferenceExample(
+                    example_id=idx,
+                    doc_id=document.doc_id,
+                    encoding=encoding,
+                )
+            )
+            idx += 1
+
+        if len(examples) == 0:
+            logger.error("No examples to process. Make sure any texts are given and they are not too long.")
+        return examples
+
+    def encode(self, example: WordInferenceExample) -> dict[str, torch.Tensor]:
+        document = self.doc_id2document[example.doc_id]
         dependency_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
         for sentence in document.sentences:
             num_intra_morphemes = len(sentence.morphemes)
@@ -139,10 +172,10 @@ class WordInferenceDataset(Dataset):
             for special_index in self.cohesion_special_indices:
                 cohesion_mask[i][special_index] = True
 
-        merged_encoding: Encoding = Encoding.merge([encoding, self.special_encoding])
+        merged_encoding: Encoding = Encoding.merge([example.encoding, self.special_encoding])
 
         return {
-            "example_ids": torch.tensor(example_id, dtype=torch.long),
+            "example_ids": torch.tensor(example.example_id, dtype=torch.long),
             "input_ids": torch.tensor(merged_encoding.ids, dtype=torch.long),
             "attention_mask": torch.tensor(merged_encoding.attention_mask, dtype=torch.long),
             "subword_map": torch.tensor(self._gen_subword_map(merged_encoding), dtype=torch.bool),

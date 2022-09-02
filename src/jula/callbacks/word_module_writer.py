@@ -75,9 +75,9 @@ class WordModuleWriter(BasePredictionWriter):
         sentences: list[Sentence] = []
         dataloaders = trainer.predict_dataloaders
         for prediction in predictions:
-            idx = 0
             for batch_pred in prediction:
                 batch_tokens = batch_pred["tokens"]
+                batch_example_ids = batch_pred["example_ids"]
                 dataloader_idx: int = batch_pred["dataloader_idx"]
                 dataset: Union[WordDataset, WordInferenceDataset] = dataloaders[dataloader_idx].dataset
                 batch_reading_subword_map = batch_pred["reading_subword_map"]
@@ -106,6 +106,7 @@ class WordModuleWriter(BasePredictionWriter):
                 batch_discourse_parsing_preds = torch.argmax(batch_pred["discourse_parsing_logits"], dim=3)
                 for (
                     tokens,
+                    example_id,
                     reading_subword_map,
                     reading_preds,
                     pos_preds,
@@ -121,6 +122,7 @@ class WordModuleWriter(BasePredictionWriter):
                     discourse_parsing_preds,
                 ) in zip(
                     batch_tokens,
+                    batch_example_ids,
                     batch_reading_subword_map.tolist(),
                     batch_reading_preds.tolist(),
                     batch_pos_preds,
@@ -135,11 +137,13 @@ class WordModuleWriter(BasePredictionWriter):
                     batch_cohesion_preds.tolist(),
                     batch_discourse_parsing_preds.tolist(),
                 ):
+                    example = dataset.examples[example_id]
+                    document = dataset.doc_id2document[example.doc_id]
                     # TODO: get word-level reading predictions
                     readings = [self.id2reading[pred] for pred in reading_preds]
                     word_reading_preds = get_word_level_readings(readings, tokens.split(), reading_subword_map)
                     morphemes = self._create_morphemes(
-                        [m.text for m in dataset.documents[idx].morphemes],
+                        [m.text for m in document.morphemes],
                         word_reading_preds,
                         pos_preds,
                         subpos_preds,
@@ -163,7 +167,6 @@ class WordModuleWriter(BasePredictionWriter):
                     document.doc_id = doc_id
                     self._add_discourse(document, discourse_parsing_preds)
                     sentences += extract_target_sentences(document)
-                    idx += 1
 
         output_string = "".join(sentence.to_knp() for sentence in sentences)
         if isinstance(self.destination, Path):
