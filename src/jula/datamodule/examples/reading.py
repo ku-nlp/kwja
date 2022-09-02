@@ -21,6 +21,6 @@ class ReadingExample:
             self.readings = []
             for _, reading in aligner.align(document):
                 self.readings.append(reading)
-        except ValueError as e:
+        except Exception as e:
             logger.warning(e)
             self.readings = None
