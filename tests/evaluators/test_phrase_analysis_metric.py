@@ -125,9 +125,13 @@ base_phrase_feature_predictions = torch.tensor(
                 0,
                 0,
                 0,
+                0,
+                0,
             ],
             # が
             [
+                0,
+                0,
                 0,
                 0,
                 0,
@@ -209,6 +213,8 @@ base_phrase_feature_predictions = torch.tensor(
                 0,
                 0,
                 0,
+                0,
+                0,
                 1,
                 0,
                 0,
@@ -258,6 +264,8 @@ base_phrase_feature_predictions = torch.tensor(
             ],
             # ので (IGNORE)
             [
+                0,
+                0,
                 0,
                 0,
                 0,
@@ -385,9 +393,13 @@ base_phrase_feature_predictions = torch.tensor(
                 0,
                 0,
                 0,
+                0,
+                0,
             ],
             # を (IGNORE)
             [
+                0,
+                0,
                 0,
                 0,
                 0,
@@ -454,6 +466,8 @@ base_phrase_feature_predictions = torch.tensor(
             # 食べ (<モダリティ-勧誘>ではなく<モダリティ-命令>、<敬語:丁寧表現>ではなく<敬語:謙譲表現>と間違って予測)
             [
                 1,
+                0,
+                0,
                 0,
                 0,
                 0,
@@ -580,9 +594,13 @@ base_phrase_feature_predictions = torch.tensor(
                 0,
                 0,
                 0,
+                0,
+                0,
             ],
             # 。 (IGNORE)
             [
+                0,
+                0,
                 0,
                 0,
                 0,
@@ -717,12 +735,16 @@ base_phrase_features = torch.tensor(
                 0,
                 0,
                 0,
+                0,
+                0,
             ],
             # が
             [IGNORE_INDEX] * len(BASE_PHRASE_FEATURES),
             # 空いた
             [
                 1,
+                0,
+                0,
                 0,
                 0,
                 0,
@@ -851,12 +873,16 @@ base_phrase_features = torch.tensor(
                 0,
                 0,
                 0,
+                0,
+                0,
             ],
             # を (IGNORE)
             [IGNORE_INDEX] * len(BASE_PHRASE_FEATURES),
             # 食べ
             [
                 1,
+                0,
+                0,
                 0,
                 0,
                 0,
@@ -947,7 +973,7 @@ results = phrase_analysis_metric.compute()
 
 
 def test_phrase_analysis_metric():
-    epsilon = 1e-6
+    epsilon = 1e-8
 
     # word features
     # prec, rec = 5 / 5, 5 / 5

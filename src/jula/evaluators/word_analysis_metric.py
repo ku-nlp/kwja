@@ -1,5 +1,3 @@
-from typing import Union
-
 import torch
 from torchmetrics import Metric
 from torchmetrics.functional import f1_score
@@ -46,34 +44,34 @@ class WordAnalysisMetric(Metric):
         converted_labels = torch.masked_select(labels, ignore_index_pos)
         return converted_preds, converted_labels
 
-    def compute(self) -> dict[str, Union[torch.Tensor, float]]:
-        metrics: dict[str, Union[torch.Tensor, float]] = dict()
+    def compute(self) -> dict[str, float]:
+        metrics: dict[str, float] = {}
         pos_preds, pos_labels = self._convert(preds=self.pos_preds, labels=self.pos_labels)
         metrics["pos_f1"] = f1_score(
             preds=pos_preds,
             target=pos_labels,
-        )
+        ).item()
         subpos_preds, subpos_labels = self._convert(preds=self.subpos_preds, labels=self.subpos_labels)
         metrics["subpos_f1"] = f1_score(
             preds=subpos_preds,
             target=subpos_labels,
-        )
+        ).item()
         conjtype_preds, conjtype_labels = self._convert(preds=self.conjtype_preds, labels=self.conjtype_labels)
         metrics["conjtype_f1"] = f1_score(
             preds=conjtype_preds,
             target=conjtype_labels,
-        )
+        ).item()
         conjform_preds, conjform_labels = self._convert(preds=self.conjform_preds, labels=self.conjform_labels)
         metrics["conjform_f1"] = f1_score(
             preds=conjform_preds,
             target=conjform_labels,
-        )
-        f1s: list[torch.Tensor] = [
+        ).item()
+        f1s: list[float] = [
             metrics["pos_f1"],
             metrics["subpos_f1"],
             metrics["conjtype_f1"],
             metrics["conjform_f1"],
         ]
-        metrics["word_analysis_f1"] = float(torch.stack(f1s).mean())
+        metrics["word_analysis_f1"] = sum(f1s) / len(f1s)
 
         return metrics

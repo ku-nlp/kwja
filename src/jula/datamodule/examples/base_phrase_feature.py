@@ -1,14 +1,11 @@
-import re
-
 from rhoknp import Document
 
-from jula.utils.constants import BASE_PHRASE_FEATURES
+from jula.utils.constants import BASE_PHRASE_FEATURES, IGNORE_VALUE_FEATURE_PAT
+from jula.utils.sub_document import extract_target_sentences
 
 
 class BasePhraseFeatureExample:
     """A single training/test example for base phrase feature prediction."""
-
-    PAT = re.compile(r"節-(前向き)?機能疑?")
 
     def __init__(self) -> None:
         self.doc_id: str = ""
@@ -17,11 +14,12 @@ class BasePhraseFeatureExample:
 
     def load(self, document: Document) -> None:
         self.doc_id = document.doc_id
+
         target_feature_set = set(BASE_PHRASE_FEATURES)
-        for base_phrase in document.base_phrases:
+        for base_phrase in [bp for sent in extract_target_sentences(document) for bp in sent.base_phrases]:
             self.heads.append(base_phrase.head.global_index)
             features = {
-                k + (f":{v}" if isinstance(v, str) and self.PAT.match(k) is None else "")
+                k + (f":{v}" if isinstance(v, str) and IGNORE_VALUE_FEATURE_PAT.match(k) is None else "")
                 for k, v in base_phrase.features.items()
             }
             self.features.append(features & target_feature_set)

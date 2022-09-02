@@ -1,22 +1,20 @@
 import logging
-from typing import Optional, Union
+import math
+from typing import Optional
 
 import hydra
 import pytorch_lightning as pl
 import transformers.utils.logging as hf_logging
 import wandb
 from dotenv import load_dotenv
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig, ListConfig, OmegaConf
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.loggers import LightningLoggerBase
 
 from jula.datamodule.datamodule import DataModule
-from jula.models.char_module import CharModule
-from jula.models.typo_module import TypoModule
-from jula.models.word_module import WordModule
 
 hf_logging.set_verbosity(hf_logging.ERROR)
-logging.getLogger("rhoknp").setLevel(logging.WARNING)
+logging.getLogger("rhoknp").setLevel(logging.ERROR)
 OmegaConf.register_new_resolver("concat", lambda x, y: x + y)
 
 
@@ -34,6 +32,18 @@ def main(cfg: DictConfig):
     logger: Optional[LightningLoggerBase] = hydra.utils.instantiate(cfg.logger) if not is_debug else None
     callbacks: list[Callback] = list(map(hydra.utils.instantiate, cfg.get("callbacks", {}).values()))
 
+    # Calculate gradient_accumulation_steps assuming DDP
+    num_devices: int = len(cfg.devices) if isinstance(cfg.devices, (list, ListConfig)) else cfg.devices
+    cfg.trainer.accumulate_grad_batches = math.ceil(
+        cfg.effective_batch_size / (cfg.max_batches_per_device * num_devices)
+    )
+    batches_per_device = cfg.effective_batch_size // (num_devices * cfg.trainer.accumulate_grad_batches)
+    # if effective_batch_size % (accumulate_grad_batches * num_devices) != 0, then
+    # error of at most accumulate_grad_batches * num_devices compared to the original effective_batch_size
+    # otherwise, no error
+    cfg.effective_batch_size = batches_per_device * num_devices * cfg.trainer.accumulate_grad_batches
+    cfg.datamodule.batch_size = batches_per_device
+
     trainer: pl.Trainer = hydra.utils.instantiate(
         cfg.trainer,
         logger=logger,
@@ -43,15 +53,7 @@ def main(cfg: DictConfig):
 
     datamodule = DataModule(cfg=cfg.datamodule)
 
-    model: Union[TypoModule, CharModule, WordModule]
-    if cfg.config_name in cfg.module.typo:
-        model = TypoModule(hparams=cfg)
-    elif cfg.config_name in cfg.module.char:
-        model = CharModule(hparams=cfg)
-    elif cfg.config_name in cfg.module.word:
-        model = WordModule(hparams=cfg)
-    else:
-        raise ValueError(f"invalid config name: `{cfg.config_name}`")
+    model: pl.LightningModule = hydra.utils.instantiate(cfg.module.cls, hparams=cfg, _recursive_=False)
 
     trainer.fit(model=model, datamodule=datamodule)
     trainer.test(model=model, datamodule=datamodule, ckpt_path="best" if not is_debug else None)

@@ -1,5 +1,5 @@
 from itertools import chain
-from typing import Literal, Union
+from typing import Literal
 
 import numpy as np
 import torch
@@ -33,7 +33,7 @@ class PhraseAnalysisMetric(Metric):
         self.base_phrase_feature_predictions.append(base_phrase_feature_predictions)
         self.base_phrase_features.append(base_phrase_features)
 
-    def compute(self) -> dict[str, Union[torch.Tensor, float]]:
+    def compute(self) -> dict[str, float]:
         sorted_indices = self.unique(self.example_ids)
         # (num_base_phrase_features, b, seq)
         (word_feature_predictions, word_features, base_phrase_feature_predictions, base_phrase_features,) = map(

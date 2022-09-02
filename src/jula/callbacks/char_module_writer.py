@@ -8,7 +8,7 @@ import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks import BasePredictionWriter
 
-from jula.datamodule.datasets.char_dataset import CharDataset
+from jula.datamodule.datasets import CharDataset
 from jula.utils.constants import INDEX2SEG_TYPE
 
 
@@ -26,7 +26,7 @@ class CharModuleWriter(BasePredictionWriter):
             self.destination = sys.stdout
         else:
             self.destination = Path(f"{output_dir}/{pred_filename}.txt")
-            self.destination.parent.mkdir(exist_ok=True)
+            self.destination.parent.mkdir(exist_ok=True, parents=True)
             if self.destination.exists():
                 os.remove(str(self.destination))
 

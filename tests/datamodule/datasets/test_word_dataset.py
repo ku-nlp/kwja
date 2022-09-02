@@ -11,9 +11,10 @@ from jula.datamodule.datasets.word_dataset import WordDataset, WordExampleSet
 from jula.datamodule.examples import (
     BasePhraseFeatureExample,
     CohesionExample,
+    CohesionTask,
     DependencyExample,
     DiscourseExample,
-    Task,
+    ReadingExample,
     WordFeatureExample,
 )
 from jula.datamodule.extractors import PasAnnotation
@@ -33,17 +34,21 @@ here = Path(__file__).absolute().parent
 path = here.joinpath("knp_files")
 data_dir = here.parent.parent / "data"
 
+reading_resource_path = here / "reading_files"
+
 exophora_referents = ["著者", "読者", "不特定:人", "不特定:物"]
 special_tokens = exophora_referents + ["[NULL]", "[NA]", "[ROOT]"]
-word_dataset_kwargs = {
-    "cases": ListConfig(["ガ", "ヲ", "ニ", "ガ２"]),
-    "bar_rels": ListConfig(["ノ"]),
-    "exophora_referents": ListConfig(exophora_referents),
-    "cohesion_tasks": ListConfig(["pas_analysis", "bridging", "coreference"]),
-    "special_tokens": ListConfig(special_tokens),
-    "restrict_cohesion_target": True,
-    "tokenizer_kwargs": {"additional_special_tokens": special_tokens},
-}
+word_dataset_kwargs = dict(
+    pas_cases=ListConfig(["ガ", "ヲ", "ニ", "ガ２"]),
+    bar_rels=ListConfig(["ノ"]),
+    exophora_referents=ListConfig(exophora_referents),
+    cohesion_tasks=ListConfig(["pas_analysis", "bridging", "coreference"]),
+    special_tokens=ListConfig(special_tokens),
+    restrict_cohesion_target=True,
+    tokenizer_kwargs={"additional_special_tokens": special_tokens},
+    reading_resource_path=str(reading_resource_path),
+    document_split_stride=1,
+)
 
 
 def test_init():
@@ -61,6 +66,8 @@ def test_getitem():
         assert "input_ids" in item
         assert "attention_mask" in item
         assert "subword_map" in item
+        assert "reading_subword_map" in item
+        assert "reading_ids" in item
         assert "mrph_types" in item
         assert "word_features" in item
         assert "base_phrase_features" in item
@@ -70,11 +77,16 @@ def test_getitem():
         assert "discourse_relations" in item
         assert "cohesion_target" in item
         assert "cohesion_mask" in item
+        assert "texts" in item
+        assert "tokens" in item
         assert item["example_ids"] == i
         assert item["input_ids"].shape == (max_seq_length,)
         assert item["attention_mask"].shape == (max_seq_length,)
         assert item["subword_map"].shape == (max_seq_length, max_seq_length)
         assert (item["subword_map"].sum(dim=1) != 0).sum() == len(document.morphemes) + dataset.num_special_tokens
+        assert item["reading_subword_map"].shape == (max_seq_length, max_seq_length)
+        assert (item["reading_subword_map"].sum(dim=1) != 0).sum() == len(document.morphemes)
+        assert item["reading_ids"].shape == (max_seq_length,)
         assert item["mrph_types"].shape == (max_seq_length, 4)
         assert item["word_features"].shape == (max_seq_length, len(WORD_FEATURES))
         assert item["base_phrase_features"].shape == (max_seq_length, len(BASE_PHRASE_FEATURES))
@@ -127,6 +139,8 @@ def test_encode():
         truncation=False,
         max_length=dataset.max_seq_length - dataset.num_special_tokens,
     ).encodings[0]
+    reading_example = ReadingExample()
+    reading_example.load(document, dataset.reading_aligner)
     word_feature_example = WordFeatureExample()
     word_feature_example.load(document)
     base_phrase_feature_example = BasePhraseFeatureExample()
@@ -142,6 +156,7 @@ def test_encode():
         doc_id="",
         text=text,
         encoding=encoding,
+        reading_example=reading_example,
         word_feature_example=word_feature_example,
         base_phrase_feature_example=base_phrase_feature_example,
         dependency_example=dependency_example,
@@ -149,6 +164,24 @@ def test_encode():
         discourse_example=discourse_example,
     )
     encoding = dataset.encode(example)
+
+    reading_ids = [IGNORE_INDEX for _ in range(max_seq_length)]
+    # reading_ids[0]: CLS
+    reading_ids[1] = dataset.reading2id["かぜ"]  # 風
+    reading_ids[2] = dataset.reading2id["[ID]"]  # が
+    reading_ids[3] = dataset.reading2id["ふく"]  # 吹く
+    reading_ids[4] = dataset.reading2id["[ID]"]  # 。
+    reading_ids[5] = dataset.reading2id["[ID]"]  # する
+    reading_ids[6] = dataset.reading2id["[ID]"]  # と
+    reading_ids[7] = dataset.reading2id["[ID]"]  # _
+    reading_ids[8] = dataset.reading2id["おけ"]  # 桶
+    reading_ids[9] = dataset.reading2id["や"]  # 屋
+    reading_ids[10] = dataset.reading2id["[ID]"]  # が
+    reading_ids[11] = dataset.reading2id["[ID]"]  # _
+    reading_ids[12] = dataset.reading2id["もう"]  # 儲
+    reading_ids[13] = dataset.reading2id["[ID]"]  # か
+    reading_ids[14] = dataset.reading2id["[ID]"]  # る
+    reading_ids[15] = dataset.reading2id["[ID]"]  # 。
 
     mrph_types = [[IGNORE_INDEX] * 4 for _ in range(max_seq_length)]
     # 0: 風
@@ -307,25 +340,23 @@ def test_encode():
     discourse_relations[7][7] = DISCOURSE_RELATIONS.index("談話関係なし")
     assert encoding["discourse_relations"].tolist() == discourse_relations
 
+    assert encoding["texts"] == "風 が 吹く 。 すると 桶屋 が 儲かる 。"
+
 
 def test_pas():
     max_seq_length = 512
-    dataset = WordDataset(
-        str(data_dir / "knp"),
-        max_seq_length=max_seq_length,
-        **word_dataset_kwargs,
-    )
+    dataset = WordDataset(str(data_dir / "knp"), max_seq_length=max_seq_length, **word_dataset_kwargs)
     example = [e for e in dataset.examples if e.doc_id == "w201106-0000060560"][0].cohesion_example
     example_expected = json.loads((data_dir / "expected/example/0.json").read_text())
     mrphs_exp = example_expected["mrphs"]
-    annotation: PasAnnotation = example.annotations[Task.PAS_ANALYSIS]
-    phrases = example.phrases[Task.PAS_ANALYSIS]
-    mrphs = example.mrphs[Task.PAS_ANALYSIS]
+    annotation: PasAnnotation = example.annotations[CohesionTask.PAS_ANALYSIS]
+    phrases = example.phrases[CohesionTask.PAS_ANALYSIS]
+    mrphs = example.mrphs[CohesionTask.PAS_ANALYSIS]
 
     assert len(mrphs) == len(mrphs_exp)
     for phrase in phrases:
         arguments: dict[str, list[str]] = annotation.arguments_set[phrase.dtid]
-        for case in dataset.cases:
+        for case in dataset.pas_cases:
             arg_strings = [arg[:-2] if arg[-2:] in ("%C", "%N", "%O") else arg for arg in arguments[case]]
             arg_strings = [(s if s in dataset.special_to_index else str(phrases[int(s)].dmid)) for s in arg_strings]
             assert set(arg_strings) == set(mrphs_exp[phrase.dmid]["arguments"][case])
@@ -333,8 +364,8 @@ def test_pas():
             mrph = mrphs[dmid]
             mrph_exp = mrphs_exp[dmid]
             assert mrph.surf == mrph_exp["surf"]
-            if mrph.is_target or example.mrphs[Task.BRIDGING][dmid].is_target:
+            if mrph.is_target or example.mrphs[CohesionTask.BRIDGING][dmid].is_target:
                 candidates = set(phrases[i].dmid for i in phrase.candidates)
-                bar_phrases = example.phrases[Task.BRIDGING]
+                bar_phrases = example.phrases[CohesionTask.BRIDGING]
                 candidates |= set(bar_phrases[i].dmid for i in bar_phrases[phrase.dtid].candidates)
                 assert candidates == set(mrph_exp["arg_candidates"])

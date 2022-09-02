@@ -1,4 +1,5 @@
 prediction_writer:
   _target_: jula.callbacks.word_module_writer.WordModuleWriter
   output_dir: ${run_dir}
+  reading_resource_path: ${dataset.reading_resource_path}
   pred_filename: "predict"

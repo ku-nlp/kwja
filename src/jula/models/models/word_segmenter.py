@@ -25,10 +25,10 @@ class WordSegmenter(nn.Module):
         output: dict[str, torch.Tensor] = dict()
         logits = self.cls(encoder_output)  # (b, seq_len, seg_label_num)
         output["logits"] = logits
-        if "seg_labels" in inputs:
+        if "seg_types" in inputs:
             seg_loss = F.cross_entropy(
                 input=logits.reshape(-1, self.num_labels),
-                target=inputs["seg_labels"].view(-1),
+                target=inputs["seg_types"].view(-1),
                 ignore_index=IGNORE_INDEX,
             )
             output["loss"] = seg_loss

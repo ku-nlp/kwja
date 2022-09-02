@@ -6,12 +6,14 @@ from omegaconf import DictConfig
 from pytorch_lightning.trainer.states import TrainerFn
 from torch.utils.data import ConcatDataset, DataLoader, Dataset
 
-from jula.datamodule.datasets.char_dataset import CharDataset
-from jula.datamodule.datasets.char_inference_dataset import CharInferenceDataset
-from jula.datamodule.datasets.typo_dataset import TypoDataset
-from jula.datamodule.datasets.typo_inference_dataset import TypoInferenceDataset
-from jula.datamodule.datasets.word_dataset import WordDataset
-from jula.datamodule.datasets.word_inference_dataset import WordInferenceDataset
+from jula.datamodule.datasets import (
+    CharDataset,
+    CharInferenceDataset,
+    TypoDataset,
+    TypoInferenceDataset,
+    WordDataset,
+    WordInferenceDataset,
+)
 
 
 class DataModule(pl.LightningDataModule):
@@ -22,11 +24,11 @@ class DataModule(pl.LightningDataModule):
         self.num_workers: int = cfg.num_workers
 
         self.train_dataset: Optional[ConcatDataset] = None
-        self.valid_datasets: dict[str, Union[CharDataset, TypoDataset, WordDataset]] = {}
-        self.test_datasets: dict[str, Union[CharDataset, TypoDataset, WordDataset]] = {}
+        self.valid_datasets: dict[str, Union[TypoDataset, CharDataset, WordDataset]] = {}
+        self.test_datasets: dict[str, Union[TypoDataset, CharDataset, WordDataset]] = {}
         self.predict_dataset: Optional[
             Union[
-                CharDataset, TypoDataset, WordDataset, CharInferenceDataset, TypoInferenceDataset, WordInferenceDataset
+                TypoDataset, CharDataset, WordDataset, TypoInferenceDataset, CharInferenceDataset, WordInferenceDataset
             ]
         ] = None
 
@@ -36,15 +38,9 @@ class DataModule(pl.LightningDataModule):
     def setup(self, stage: Optional[str] = None) -> None:
         if stage in (TrainerFn.FITTING, TrainerFn.TUNING):
             self.train_dataset = ConcatDataset(hydra.utils.instantiate(config) for config in self.cfg.train.values())
-        if stage in (
-            TrainerFn.FITTING,
-            TrainerFn.TUNING,
-            TrainerFn.VALIDATING,
-            TrainerFn.TESTING,
-            TrainerFn.PREDICTING,
-        ):
+        if stage in (TrainerFn.FITTING, TrainerFn.TUNING, TrainerFn.VALIDATING, TrainerFn.TESTING):
             self.valid_datasets = {corpus: hydra.utils.instantiate(config) for corpus, config in self.cfg.valid.items()}
-        if stage in (TrainerFn.TESTING, TrainerFn.PREDICTING):
+        if stage in (TrainerFn.TESTING,):
             self.test_datasets = {corpus: hydra.utils.instantiate(config) for corpus, config in self.cfg.test.items()}
         if stage in (TrainerFn.PREDICTING,):
             self.predict_dataset = hydra.utils.instantiate(self.cfg.predict)

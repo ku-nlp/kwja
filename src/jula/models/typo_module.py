@@ -4,7 +4,7 @@ import hydra
 import torch
 from omegaconf import DictConfig
 from pytorch_lightning.core.lightning import LightningModule
-from transformers import AutoTokenizer, PretrainedConfig, PreTrainedTokenizerBase
+from transformers import PretrainedConfig
 
 from jula.evaluators.typo_correction_metric import TypoCorrectionMetric
 from jula.models.models.char_encoder import CharEncoder
@@ -17,16 +17,12 @@ class TypoModule(LightningModule):
         self.hparams.update(hparams)
         self.save_hyperparameters()
 
-        tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-            hparams.model.model_name_or_path,
-            **hydra.utils.instantiate(hparams.dataset.tokenizer_kwargs),
-        )
-        self.char_encoder: CharEncoder = CharEncoder(hparams, vocab_size=len(tokenizer.get_vocab()))
+        self.char_encoder: CharEncoder = CharEncoder(hparams)
+
         pretrained_model_config: PretrainedConfig = self.char_encoder.pretrained_model.config
         self.model: TypoCorrector = TypoCorrector(
             hparams=hparams,
             pretrained_model_config=pretrained_model_config,
-            tokenizer=self.tokenizer,
         )
         self.metrics: TypoCorrectionMetric = TypoCorrectionMetric()
 

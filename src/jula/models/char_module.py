@@ -5,7 +5,7 @@ import torch
 from omegaconf import DictConfig
 from pytorch_lightning.core.lightning import LightningModule
 from pytorch_lightning.utilities.types import STEP_OUTPUT
-from transformers import AutoTokenizer, PretrainedConfig, PreTrainedTokenizerBase
+from transformers import PretrainedConfig
 
 from jula.evaluators.word_normalization_metric import WordNormalizationMetric
 from jula.evaluators.word_segmentation_metric import WordSegmentationMetric
@@ -23,11 +23,7 @@ class CharModule(LightningModule):
         self.valid_corpora = list(hparams.datamodule.valid.keys())
         self.test_corpora = list(hparams.datamodule.test.keys())
 
-        tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-            hparams.model.model_name_or_path,
-            **hydra.utils.instantiate(hparams.dataset.tokenizer_kwargs),
-        )
-        self.char_encoder = CharEncoder(hparams, vocab_size=len(tokenizer.get_vocab()))
+        self.char_encoder: CharEncoder = CharEncoder(hparams)
 
         pretrained_model_config: PretrainedConfig = self.char_encoder.pretrained_model.config
 
@@ -69,7 +65,7 @@ class CharModule(LightningModule):
         corpus = self.valid_corpora[dataloader_idx or 0]
         word_segmenter_args = {
             "seg_preds": torch.argmax(outputs["word_segmenter_outputs"]["logits"], dim=-1),
-            "seg_labels": batch["seg_labels"],
+            "seg_types": batch["seg_types"],
         }
         self.valid_word_segmenter_metrics[corpus].update(**word_segmenter_args)
         self.log("valid/word_segmenter_loss", outputs["word_segmenter_outputs"]["loss"])
@@ -107,7 +103,7 @@ class CharModule(LightningModule):
         corpus = self.test_corpora[dataloader_idx or 0]
         word_segmenter_args = {
             "seg_preds": torch.argmax(outputs["word_segmenter_outputs"]["logits"], dim=-1),
-            "seg_labels": batch["seg_labels"],
+            "seg_types": batch["seg_types"],
         }
         self.test_word_segmenter_metrics[corpus].update(**word_segmenter_args)
         self.log("test/word_segmenter_loss", outputs["word_segmenter_outputs"]["loss"])

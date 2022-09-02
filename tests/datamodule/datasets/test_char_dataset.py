@@ -4,25 +4,28 @@ from pathlib import Path
 from rhoknp import Document
 
 from jula.datamodule.datasets.char_dataset import CharDataset
-from jula.utils.constants import ENE_TYPE_BIES, IGNORE_INDEX
+from jula.utils.constants import IGNORE_INDEX, SEG_TYPES
 
 here = Path(__file__).absolute().parent
 path = here.joinpath("knp_files")
-wiki_ene_dic_path = here.joinpath("wiki_ene_dic")
 
 
 def test_init():
-    _ = CharDataset(path=str(path), wiki_ene_dic_path=str(wiki_ene_dic_path), max_seq_length=512)
+    _ = CharDataset(
+        path=str(path),
+        document_split_stride=1,
+        model_name_or_path="cl-tohoku/bert-base-japanese-char",
+        max_seq_length=512,
+        tokenizer_kwargs={"do_word_tokenize": False},
+    )
 
 
 def test_getitem():
     max_seq_length = 512
-    max_ene_num = 3
     # TODO: use roberta
     dataset = CharDataset(
         path=str(path),
-        wiki_ene_dic_path=str(wiki_ene_dic_path),
-        max_ene_num=max_ene_num,
+        document_split_stride=1,
         model_name_or_path="cl-tohoku/bert-base-japanese-char",
         max_seq_length=max_seq_length,
         tokenizer_kwargs={"do_word_tokenize": False},
@@ -30,28 +33,21 @@ def test_getitem():
     for i in range(len(dataset)):
         item = dataset[i]
         assert isinstance(item, dict)
+        assert "example_ids" in item
         assert "input_ids" in item
         assert "attention_mask" in item
-        assert "ene_ids" in item
-        assert "seg_labels" in item
+        assert "seg_types" in item
+        assert item["example_ids"] == i
         assert item["input_ids"].shape == (max_seq_length,)
         assert item["attention_mask"].shape == (max_seq_length,)
-        assert item["ene_ids"].shape == (max_ene_num, max_seq_length)
-        assert item["seg_labels"].shape == (max_seq_length,)
-
-        cls_token_position = item["input_ids"].tolist().index(dataset.tokenizer.cls_token_id)
-        sep_token_position = item["input_ids"].tolist().index(dataset.tokenizer.sep_token_id)
-        assert item["seg_labels"][cls_token_position].tolist() == IGNORE_INDEX
-        assert item["seg_labels"][sep_token_position].tolist() == IGNORE_INDEX
+        assert item["seg_types"].shape == (max_seq_length,)
 
 
 def test_encode():
     max_seq_length = 20
-    max_ene_num = 3
     dataset = CharDataset(
         path=str(path),
-        wiki_ene_dic_path=str(wiki_ene_dic_path),
-        max_ene_num=max_ene_num,
+        document_split_stride=1,
         model_name_or_path="cl-tohoku/bert-base-japanese-char",
         max_seq_length=max_seq_length,
         tokenizer_kwargs={"do_word_tokenize": False},
@@ -81,24 +77,40 @@ def test_encode():
             """
         )
     )
-    encoding = dataset.encode(document)
+    examples = dataset._load_examples([document])
+    encoding = dataset.encode(examples[0])
 
-    ene_ids = [[ENE_TYPE_BIES.index("PAD")] * max_seq_length for _ in range(max_ene_num)]
-    # 0: 大学
-    ene_ids[0][1] = ENE_TYPE_BIES.index("B-0")
-    ene_ids[0][2] = ENE_TYPE_BIES.index("E-0")
-    # 1: 進学
-    ene_ids[0][3] = ENE_TYPE_BIES.index("B-0")
-    ene_ids[0][4] = ENE_TYPE_BIES.index("E-0")
-    ene_ids[1][4] = ENE_TYPE_BIES.index("I-0")
-    # 2: 率
-    ene_ids[0][5] = ENE_TYPE_BIES.index("E-0")
-    # 3: は
-    # 4: ５４・４
-    # 5: ％
-    # 6: に
-    # 7: 達した
-    # 8: 。
-    assert encoding["ene_ids"].tolist() == ene_ids
-
-    assert len(list(filter(lambda x: x == 0, encoding["word_norm_labels"]))) == 16
+    seg_types = [IGNORE_INDEX for _ in range(max_seq_length)]
+    # 1: 大
+    seg_types[1] = SEG_TYPES.index("B")
+    # 2: 学
+    seg_types[2] = SEG_TYPES.index("I")
+    # 3: 進
+    seg_types[3] = SEG_TYPES.index("B")
+    # 4: 学
+    seg_types[4] = SEG_TYPES.index("I")
+    # 5: 率
+    seg_types[5] = SEG_TYPES.index("B")
+    # 6: は
+    seg_types[6] = SEG_TYPES.index("B")
+    # 7: ５
+    seg_types[7] = SEG_TYPES.index("B")
+    # 8: ４
+    seg_types[8] = SEG_TYPES.index("I")
+    # 9: ・
+    seg_types[9] = SEG_TYPES.index("I")
+    # 10: ４
+    seg_types[10] = SEG_TYPES.index("I")
+    # 11: ％
+    seg_types[11] = SEG_TYPES.index("B")
+    # 12: に
+    seg_types[12] = SEG_TYPES.index("B")
+    # 13: 達
+    seg_types[13] = SEG_TYPES.index("B")
+    # 14: し
+    seg_types[14] = SEG_TYPES.index("I")
+    # 15: た
+    seg_types[15] = SEG_TYPES.index("I")
+    # 16: 。
+    seg_types[16] = SEG_TYPES.index("B")
+    assert encoding["seg_types"].tolist() == seg_types

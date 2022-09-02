@@ -23,9 +23,6 @@ run_id: ${seed}
 run_dir: ${exp_dir}/${run_id}
 config_name: ${hydra:job.config_name}
 
-num_workers: 0
-batch_size: ${batch_size}
-
 hydra:
   run:
     dir: ${exp_dir}
@@ -47,3 +44,5 @@ hydra:
           - devices
           - num_workers
           - checkpoint_path
+          - logger
+          - max_batches_per_device

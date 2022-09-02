@@ -21,7 +21,7 @@ class RelationAnalyzer(nn.Module):
         )
         self.cohesion_analyzer = CohesionAnalyzer(
             pretrained_model_config=pretrained_model_config,
-            num_rels=int("pas_analysis" in hparams.cohesion_tasks) * len(hparams.cases)
+            num_rels=int("pas_analysis" in hparams.cohesion_tasks) * len(hparams.pas_cases)
             + int("coreference" in hparams.cohesion_tasks)
             + int("bridging" in hparams.cohesion_tasks),
         )
@@ -86,10 +86,7 @@ class RelationAnalyzer(nn.Module):
             }
         )
         if "discourse_relations" in batch:
-            num_labels = torch.masked_select(
-                batch["discourse_relations"],
-                batch["discourse_relations"] != IGNORE_INDEX,
-            ).numel()
+            num_labels = (batch["discourse_relations"] != IGNORE_INDEX).sum().item()
             if num_labels:
                 discourse_parsing_loss = F.cross_entropy(
                     input=discourse_parsing_logits.view(-1, discourse_parsing_logits.size(3)),
