@@ -26,7 +26,7 @@ class CharInferenceDataset(Dataset):
         doc_id_width = len(str(len(self.documents)))
         sent_id_width = max(len(str(len(doc.sentences))) for doc in self.documents)
         for doc_idx, document in enumerate(self.documents):
-            document.doc_id = f"{doc_id_prefix}{doc_idx:0{doc_id_width}}"
+            document.doc_id = f"{doc_id_prefix}-{doc_idx:0{doc_id_width}}"
             for sent_idx, sentence in enumerate(document.sentences):
                 sentence.sid = f"{document.doc_id}-{sent_idx:0{sent_id_width}}"
         self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
