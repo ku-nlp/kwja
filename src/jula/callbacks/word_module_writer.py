@@ -15,8 +15,9 @@ from rhoknp.cohesion.discourse_relation import DiscourseRelationTag
 from rhoknp.props import DepType, FeatureDict, NamedEntity, NamedEntityCategory, NETagList, SemanticsDict
 from rhoknp.units.morpheme import MorphemeAttributes
 
-import jula
 from jula.datamodule.datasets import WordDataset, WordInferenceDataset
+from jula.datamodule.datasets.word_dataset import WordExampleSet
+from jula.datamodule.datasets.word_inference_dataset import WordInferenceExample
 from jula.datamodule.examples import CohesionTask
 from jula.datamodule.extractors.base import Extractor
 from jula.utils.constants import (
@@ -137,7 +138,7 @@ class WordModuleWriter(BasePredictionWriter):
                     batch_cohesion_preds.tolist(),
                     batch_discourse_parsing_preds.tolist(),
                 ):
-                    example = dataset.examples[example_id]
+                    example: Union[WordExampleSet, WordInferenceExample] = dataset.examples[example_id]
                     document = dataset.doc_id2document[example.doc_id]
                     # TODO: get word-level reading predictions
                     readings = [self.id2reading[pred] for pred in reading_preds]
@@ -150,7 +151,7 @@ class WordModuleWriter(BasePredictionWriter):
                         conjtype_preds,
                         conjform_preds,
                     )
-                    document = self._chunk_morphemes(morphemes, word_feature_preds)
+                    document = self._chunk_morphemes(document, morphemes, word_feature_preds)
                     self._add_base_phrase_features(document, base_phrase_feature_preds)
                     self._add_named_entities(document, ne_tag_preds)
                     self._add_dependency(document, dependency_preds, dependency_type_preds, dataset.special_to_index)
@@ -262,57 +263,62 @@ class WordModuleWriter(BasePredictionWriter):
         return batch_pos_preds, refined_batch_subpos_preds, batch_conjtype_preds, refined_batch_conjform_preds
 
     @staticmethod
-    def _chunk_morphemes(morphemes: list[Morpheme], word_feature_preds: list[list[float]]) -> Document:
-        phrases_buff = []
-        base_phrases_buff = []
-        morphemes_buff = []
+    def _chunk_morphemes(
+        document: Document, morphemes: list[Morpheme], word_feature_preds: list[list[float]]
+    ) -> Document:
         assert len(morphemes) <= len(word_feature_preds)
-        for i, (morpheme, word_feature_pred) in enumerate(zip(morphemes, word_feature_preds)):
-            morphemes_buff.append(morpheme)
-            # follows jula.utils.constants.WORD_FEATURES
-            (
-                base_phrase_head_prob,
-                base_phrase_end_prob,
-                phrase_end_prob,
-                declinable_word_surf_head,
-                declinable_word_surf_end,
-            ) = word_feature_pred
-            if base_phrase_head_prob >= 0.5:
-                morpheme.features["基本句-主辞"] = True
-            # TODO: refactor & set strict condition
-            if declinable_word_surf_head >= 0.5:
-                morpheme.features["用言表記先頭"] = True
-            if declinable_word_surf_end >= 0.5:
-                morpheme.features["用言表記末尾"] = True
-            # even if base_phrase_end_prob is low, if phrase_end_prob is high enough, create chunk here
-            if base_phrase_end_prob >= 0.5 or base_phrase_end_prob + phrase_end_prob >= 1.0:
+        sentences = []
+        for sentence in document.sentences:
+            phrases_buff = []
+            base_phrases_buff = []
+            morphemes_buff = []
+            for i in [m.global_index for m in sentence.morphemes]:
+                morpheme = morphemes[i]
+                morphemes_buff.append(morpheme)
+                # follows jula.utils.constants.WORD_FEATURES
+                (
+                    base_phrase_head_prob,
+                    base_phrase_end_prob,
+                    phrase_end_prob,
+                    declinable_word_surf_head,
+                    declinable_word_surf_end,
+                ) = word_feature_preds[i]
+                if base_phrase_head_prob >= 0.5:
+                    morpheme.features["基本句-主辞"] = True
+                # TODO: refactor & set strict condition
+                if declinable_word_surf_head >= 0.5:
+                    morpheme.features["用言表記先頭"] = True
+                if declinable_word_surf_end >= 0.5:
+                    morpheme.features["用言表記末尾"] = True
+                # even if base_phrase_end_prob is low, if phrase_end_prob is high enough, create chunk here
+                if base_phrase_end_prob >= 0.5 or base_phrase_end_prob + phrase_end_prob >= 1.0:
+                    base_phrase = BasePhrase(
+                        None, None, FeatureDict(), RelTagList(), NETagList(), DiscourseRelationTag()
+                    )
+                    base_phrase.morphemes = morphemes_buff
+                    morphemes_buff = []
+                    base_phrases_buff.append(base_phrase)
+                # even if phrase_end_prob is high, if base_phrase_end_prob is not high enough, do not create chunk here
+                if phrase_end_prob >= 0.5 and base_phrase_end_prob + phrase_end_prob >= 1.0:
+                    phrase = Phrase(None, None, FeatureDict())
+                    phrase.base_phrases = base_phrases_buff
+                    base_phrases_buff = []
+                    phrases_buff.append(phrase)
+
+            # clear buffers
+            if morphemes_buff:
                 base_phrase = BasePhrase(None, None, FeatureDict(), RelTagList(), NETagList(), DiscourseRelationTag())
                 base_phrase.morphemes = morphemes_buff
-                morphemes_buff = []
                 base_phrases_buff.append(base_phrase)
-            # even if phrase_end_prob is high, if base_phrase_end_prob is not high enough, do not create chunk here
-            if phrase_end_prob >= 0.5 and base_phrase_end_prob + phrase_end_prob >= 1.0:
+            if base_phrases_buff:
                 phrase = Phrase(None, None, FeatureDict())
                 phrase.base_phrases = base_phrases_buff
-                base_phrases_buff = []
                 phrases_buff.append(phrase)
 
-        # clear buffers
-        if morphemes_buff:
-            base_phrase = BasePhrase(None, None, FeatureDict(), RelTagList(), NETagList(), DiscourseRelationTag())
-            base_phrase.morphemes = morphemes_buff
-            base_phrases_buff.append(base_phrase)
-        if base_phrases_buff:
-            phrase = Phrase(None, None, FeatureDict())
-            phrase.base_phrases = base_phrases_buff
-            phrases_buff.append(phrase)
-
-        sentence = Sentence()
-        sentence.sid = "1"
-        sentence.misc_comment = f"jula:{jula.__version__}"
-        sentence.phrases = phrases_buff
-        # TODO: support document with multiple sentences
-        return Document.from_sentences([sentence])
+            sentence = sentence.reparse()
+            sentence.phrases = phrases_buff
+            sentences.append(sentence)
+        return Document.from_sentences(sentences)
 
     @staticmethod
     def _add_base_phrase_features(document: Document, base_phrase_feature_preds: list[list[int]]) -> None:

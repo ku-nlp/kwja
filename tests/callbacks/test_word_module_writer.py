@@ -167,18 +167,19 @@ def test_write_on_epoch_end():
             cohesion_tasks=ListConfig(["pas_analysis", "bridging", "coreference"]),
             special_tokens=ListConfig(special_tokens),
             restrict_cohesion_target=True,
+            doc_id_prefix="test",
         )
         trainer = MockTrainer([DataLoader(dataset)])
         writer.write_on_epoch_end(trainer, ..., predictions)
         expected_knp = textwrap.dedent(
             f"""\
-            # S-ID:1 jula:{jula.__version__}
+            # S-ID:test-0-0 jula:{jula.__version__}
             * 1D
             + 1D <体言>
             今日 きょう 今日 名詞 6 時相名詞 10 * 0 * 0 <基本句-主辞>
             は は は 助詞 9 副助詞 2 * 0 * 0
             * -1D
-            + -1D <rel type="ガ" target="今日" sid="1" id="0"/><NE:DATE:晴れ><用言:判><時制:非過去><節-主辞><節-区切><レベル:C><状態述語><談話関係:1/1/原因・理由>
+            + -1D <rel type="ガ" target="今日" sid="test-0-0" id="0"/><NE:DATE:晴れ><用言:判><時制:非過去><節-主辞><節-区切><レベル:C><状態述語><談話関係:test-0-0/1/原因・理由>
             晴れ はれ 晴れ 名詞 6 普通名詞 1 * 0 * 0 <基本句-主辞><用言表記先頭><用言表記末尾>
             だ だ だ 判定詞 4 * 0 判定詞 25 基本形 2
             EOS
