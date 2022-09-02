@@ -1,6 +1,11 @@
+from collections import defaultdict
+
 import torch
 from omegaconf import ListConfig
+from rhoknp import Document, Morpheme, Sentence
 from rhoknp.cohesion import ExophoraReferent
+from rhoknp.props import FeatureDict, SemanticsDict
+from rhoknp.units.morpheme import MorphemeAttributes
 from tokenizers import Encoding
 from torch.utils.data import Dataset
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
@@ -25,7 +30,35 @@ class WordInferenceDataset(Dataset):
         tokenizer_kwargs: dict = None,
         **_,
     ) -> None:
-        self.texts = [text.strip() for text in texts]
+        did2sentences = defaultdict(list)
+        doc_id, sid = "", ""
+        for text in texts:
+            if text.startswith("#"):
+                sentence = Sentence.from_raw_text(text)
+                doc_id, sid = sentence.doc_id, sentence.sid
+            else:
+                sentence = Sentence()
+                sentence.doc_id, sentence.sid = doc_id, sid
+                morphemes = []
+                for word in text.split(" "):
+                    attributes = MorphemeAttributes(
+                        surf=word,
+                        reading="null",
+                        lemma="null",
+                        pos="null",
+                        pos_id=0,
+                        subpos="null",
+                        subpos_id=0,
+                        conjtype="null",
+                        conjtype_id=0,
+                        conjform="null",
+                        conjform_id=0,
+                    )
+                    morphemes.append(Morpheme(attributes, SemanticsDict(), FeatureDict()))
+                sentence.morphemes = morphemes
+                did2sentences[doc_id].append(sentence)
+        self.documents = [Document.from_sentences(sentences) for sentences in did2sentences.values()]
+
         self.exophora_referents = [ExophoraReferent(s) for s in exophora_referents]
         self.special_tokens: list[str] = list(special_tokens)
         self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
@@ -75,23 +108,24 @@ class WordInferenceDataset(Dataset):
         return [t for ts in self.cohesion_task_to_rel_types.values() for t in ts]
 
     def __len__(self) -> int:
-        return len(self.texts)
+        return len(self.documents)
 
     def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
-        return self.encode(self.texts[index], index)
+        return self.encode(self.documents[index], index)
 
-    def encode(self, text: str, example_id: int) -> dict[str, torch.Tensor]:
+    def encode(self, document: Document, example_id: int) -> dict[str, torch.Tensor]:
         encoding: Encoding = self.tokenizer(
-            text,
+            " ".join(m.text for m in document.morphemes),
             truncation=True,
             padding=PaddingStrategy.MAX_LENGTH,
             max_length=self.max_seq_length - self.num_special_tokens,
         ).encodings[0]
 
+        # FIXME
         intra_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
-        num_morphemes = len(text.split(" "))
-        for i in range(0, num_morphemes):
-            for j in range(0, num_morphemes):
+        num_morphemes = len(document.morphemes)
+        for i in range(num_morphemes):
+            for j in range(num_morphemes):
                 if i != j:
                     intra_mask[i][j] = True
             intra_mask[i][-1] = True
@@ -113,7 +147,6 @@ class WordInferenceDataset(Dataset):
             "cohesion_mask": torch.tensor(cohesion_mask, dtype=torch.bool)
             .view(1, 1, -1)
             .expand(len(self.cohesion_rel_types), self.max_seq_length, self.max_seq_length),
-            "texts": text,
             "tokens": " ".join(self.tokenizer.decode(id_) for id_ in merged_encoding.ids),
         }
 

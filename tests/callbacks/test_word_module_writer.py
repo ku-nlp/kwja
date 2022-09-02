@@ -130,7 +130,6 @@ def test_write_on_epoch_end():
     predictions = [
         [
             {
-                "texts": texts,
                 "tokens": tokens,
                 "dataloader_idx": 0,
                 "reading_subword_map": reading_subword_map,

@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 class WordExampleSet:
     example_id: int
     doc_id: str
-    text: str  # space-delimited word sequence
+    text: str  # space-delimited word sequence. deprecated
     encoding: Encoding
     reading_example: ReadingExample
     word_feature_example: WordFeatureExample
@@ -322,7 +322,6 @@ class WordDataset(BaseDataset):
             "discourse_relations": torch.tensor(discourse_relations, dtype=torch.long),
             "cohesion_target": torch.tensor(cohesion_target, dtype=torch.int),
             "cohesion_mask": torch.tensor(cohesion_mask, dtype=torch.bool),
-            "texts": example.text,
             "tokens": " ".join(self.tokenizer.decode(id_) for id_ in merged_encoding.ids),
         }
 

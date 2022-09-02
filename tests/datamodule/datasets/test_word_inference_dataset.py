@@ -21,6 +21,11 @@ def test_init():
 
 def test_len():
     dataset = WordInferenceDataset(["テスト", "テスト"], **word_dataset_kwargs)
+    assert len(dataset) == 1
+
+
+def test_len_multi_doc():
+    dataset = WordInferenceDataset(["# S-ID:0-0", "テスト", "# S-ID:1-0", "テスト"], **word_dataset_kwargs)
     assert len(dataset) == 2
 
 

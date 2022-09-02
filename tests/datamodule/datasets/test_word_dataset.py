@@ -77,7 +77,6 @@ def test_getitem():
         assert "discourse_relations" in item
         assert "cohesion_target" in item
         assert "cohesion_mask" in item
-        assert "texts" in item
         assert "tokens" in item
         assert item["example_ids"] == i
         assert item["input_ids"].shape == (max_seq_length,)
@@ -163,7 +162,7 @@ def test_encode():
         cohesion_example=cohesion_example,
         discourse_example=discourse_example,
     )
-    encoding = dataset.encode(example)
+    features = dataset.encode(example)
 
     reading_ids = [IGNORE_INDEX for _ in range(max_seq_length)]
     # reading_ids[0]: CLS
@@ -229,7 +228,7 @@ def test_encode():
     mrph_types[8][1] = SUBPOS_TYPES.index("句点")
     mrph_types[8][2] = CONJTYPE_TYPES.index("*")
     mrph_types[8][3] = CONJFORM_TYPES.index("*")
-    assert encoding["mrph_types"].tolist() == mrph_types
+    assert features["mrph_types"].tolist() == mrph_types
 
     word_features = [[0] * len(WORD_FEATURES) for _ in range(max_seq_length)]
     # 0: 風
@@ -289,7 +288,7 @@ def test_encode():
     base_phrase_features[7][BASE_PHRASE_FEATURES.index("時制:非過去")] = 1
     base_phrase_features[7][BASE_PHRASE_FEATURES.index("レベル:C")] = 1
     base_phrase_features[7][BASE_PHRASE_FEATURES.index("動態述語")] = 1
-    assert encoding["base_phrase_features"].tolist() == base_phrase_features
+    assert features["base_phrase_features"].tolist() == base_phrase_features
 
     dependencies = [IGNORE_INDEX for _ in range(max_seq_length)]
     # 0: 風 -> 2: 吹く
@@ -310,7 +309,7 @@ def test_encode():
     dependencies[7] = max_seq_length - 1
     # 8: 。 -> 7: 儲かる
     dependencies[8] = 7
-    assert encoding["dependencies"].tolist() == dependencies
+    assert features["dependencies"].tolist() == dependencies
 
     dependency_types = [IGNORE_INDEX for _ in range(max_seq_length)]
     # 0: 風 -> 2: 吹く
@@ -331,16 +330,14 @@ def test_encode():
     dependency_types[7] = DEPENDENCY_TYPE2INDEX[DepType.DEPENDENCY]
     # 8: 。 -> 7: 儲かる
     dependency_types[8] = DEPENDENCY_TYPE2INDEX[DepType.DEPENDENCY]
-    assert encoding["dependency_types"].tolist() == dependency_types
+    assert features["dependency_types"].tolist() == dependency_types
 
     discourse_relations = [[IGNORE_INDEX] * max_seq_length for _ in range(max_seq_length)]
     discourse_relations[2][2] = DISCOURSE_RELATIONS.index("談話関係なし")
     discourse_relations[2][7] = DISCOURSE_RELATIONS.index("条件")
     discourse_relations[7][2] = DISCOURSE_RELATIONS.index("談話関係なし")
     discourse_relations[7][7] = DISCOURSE_RELATIONS.index("談話関係なし")
-    assert encoding["discourse_relations"].tolist() == discourse_relations
-
-    assert encoding["texts"] == "風 が 吹く 。 すると 桶屋 が 儲かる 。"
+    assert features["discourse_relations"].tolist() == discourse_relations
 
 
 def test_pas():
