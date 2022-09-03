@@ -12,26 +12,27 @@ word_dataset_kwargs = dict(
     special_tokens=ListConfig(special_tokens),
     tokenizer_kwargs={"additional_special_tokens": special_tokens},
     restrict_cohesion_target=True,
+    document_split_stride=1,
 )
 
 
 def test_init():
-    _ = WordInferenceDataset(["テスト", "テスト"], **word_dataset_kwargs)
+    _ = WordInferenceDataset(ListConfig(["テスト", "テスト"]), **word_dataset_kwargs)
 
 
 def test_len():
-    dataset = WordInferenceDataset(["テスト", "テスト"], **word_dataset_kwargs)
+    dataset = WordInferenceDataset(ListConfig(["テスト", "テスト"]), **word_dataset_kwargs)
     assert len(dataset) == 1
 
 
 def test_len_multi_doc():
-    dataset = WordInferenceDataset(["# S-ID:0-0", "テスト", "# S-ID:1-0", "テスト"], **word_dataset_kwargs)
+    dataset = WordInferenceDataset(ListConfig(["# S-ID:0-0", "テスト", "# S-ID:1-0", "テスト"]), **word_dataset_kwargs)
     assert len(dataset) == 2
 
 
 def test_getitem():
     max_seq_length = 512
-    dataset = WordInferenceDataset(["テスト", "テスト"], **word_dataset_kwargs)
+    dataset = WordInferenceDataset(ListConfig(["テスト", "テスト"]), **word_dataset_kwargs)
     for i in range(len(dataset)):
         item = dataset[i]
         assert isinstance(item, dict)

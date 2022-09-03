@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import torch
-from omegaconf import ListConfig
+from omegaconf import DictConfig, ListConfig
 from rhoknp import Document
 from rhoknp.cohesion import ExophoraReferent
 from scipy.special import softmax
@@ -68,16 +68,17 @@ class WordDataset(BaseDataset):
         document_split_stride: int,
         model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
         max_seq_length: int = 512,
-        tokenizer_kwargs: dict = None,
+        tokenizer_kwargs: DictConfig = None,
     ) -> None:
-        self.special_tokens: list[str] = list(special_tokens)
+        self.path = Path(path)
         super().__init__(
-            path,
+            self.path,
             document_split_stride,
             model_name_or_path,
             max_seq_length,
-            tokenizer_kwargs,
+            dict(tokenizer_kwargs or {}),
         )
+        self.special_tokens: list[str] = list(special_tokens)
         self.exophora_referents = [ExophoraReferent(s) for s in exophora_referents]
         self.cohesion_tasks: list[CohesionTask] = [CohesionTask(t) for t in cohesion_tasks]
         self.pas_cases: list[str] = list(pas_cases)

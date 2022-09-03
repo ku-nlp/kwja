@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Union
 
 import torch
+from omegaconf import DictConfig
 from torch.utils.data import Dataset
 from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
@@ -17,7 +18,7 @@ class TypoDataset(Dataset):
         extended_vocab_path: str,
         model_name_or_path: str = "cl-tohoku/bert-base-japanese-char",
         max_seq_length: int = 512,
-        tokenizer_kwargs: dict = None,
+        tokenizer_kwargs: DictConfig = None,
     ) -> None:
         self.path = Path(path)
         assert self.path.is_dir()

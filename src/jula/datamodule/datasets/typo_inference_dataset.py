@@ -1,4 +1,5 @@
 import torch
+from omegaconf import DictConfig
 from torch.utils.data import Dataset
 from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
@@ -12,7 +13,7 @@ class TypoInferenceDataset(Dataset):
         texts: list[str],
         model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
         max_seq_length: int = 512,
-        tokenizer_kwargs: dict = None,
+        tokenizer_kwargs: DictConfig = None,
         **_,  # accept `extended_vocab_path` as a keyword argument
     ) -> None:
         self.texts = [text.strip() for text in texts]

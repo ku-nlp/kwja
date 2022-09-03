@@ -1,6 +1,7 @@
 import logging
 from functools import cached_property
 from pathlib import Path
+from typing import Union
 
 from rhoknp import Document
 from torch.utils.data import Dataset
@@ -14,24 +15,24 @@ logger = logging.getLogger(__name__)
 class BaseDataset(Dataset):
     def __init__(
         self,
-        path: str,
+        source: Union[Path, list[Document]],
         document_split_stride: int,
         model_name_or_path: str,
-        max_seq_length: int = 512,
-        tokenizer_kwargs: dict = None,
+        max_seq_length: int,
+        tokenizer_kwargs: dict,
         ext: str = "knp",
-        **kwargs,
     ) -> None:
-        self.path = Path(path)
-        assert self.path.is_dir()
-
         self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             model_name_or_path,
-            **(tokenizer_kwargs or {}),
+            **tokenizer_kwargs,
         )
         self.max_seq_length = max_seq_length
-
-        self.orig_documents: list[Document] = self._load_documents(self.path, ext)
+        self.orig_documents: list[Document]
+        if isinstance(source, Path):
+            assert source.is_dir()
+            self.orig_documents = self._load_documents(source, ext)
+        else:
+            self.orig_documents = source
         self.doc_id2document: dict[str, Document] = {}
         for orig_document in self.orig_documents:
             self.doc_id2document.update(
@@ -44,7 +45,11 @@ class BaseDataset(Dataset):
                     )
                 }
             )
-        assert len(self.documents) != 0
+        assert len(self.documents) > 0, "No documents are loaded."
+
+    @cached_property
+    def documents(self) -> list[Document]:
+        return list(self.doc_id2document.values())
 
     @staticmethod
     def _load_documents(document_dir: Path, ext: str = "knp") -> list[Document]:
@@ -56,10 +61,6 @@ class BaseDataset(Dataset):
             except AssertionError:
                 logger.warning(f"{path} is not a valid knp file.")
         return documents
-
-    @cached_property
-    def documents(self) -> list[Document]:
-        return list(self.doc_id2document.values())
 
     def _split_document(self, document: Document, max_token_length: int, stride: int) -> list[Document]:
         cum_lens = [0]

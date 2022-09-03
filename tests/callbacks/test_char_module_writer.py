@@ -22,6 +22,7 @@ def test_write_on_epoch_end():
         writer = CharModuleWriter(tmp_dir)
         dataset = CharInferenceDataset(
             texts=["今日は晴れ"],
+            document_split_stride=1,
             model_name_or_path="cl-tohoku/bert-base-japanese-char",
             doc_id_prefix="test",
         )

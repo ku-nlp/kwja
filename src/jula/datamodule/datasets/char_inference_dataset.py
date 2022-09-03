@@ -2,41 +2,29 @@ from datetime import datetime
 from typing import Optional
 
 import torch
+from omegaconf import DictConfig, ListConfig
 from rhoknp import Document, RegexSenter
-from torch.utils.data import Dataset
-from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizerBase
+from transformers import BatchEncoding
 from transformers.utils import PaddingStrategy
 
 import jula
+from jula.datamodule.datasets.base_dataset import BaseDataset
 
 
-class CharInferenceDataset(Dataset):
+class CharInferenceDataset(BaseDataset):
     def __init__(
         self,
-        texts: list[str],
-        model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
+        texts: ListConfig,
+        document_split_stride: int,
+        model_name_or_path: str = "cl-tohoku/bert-base-japanese-char",
         max_seq_length: int = 512,
-        tokenizer_kwargs: dict = None,
+        tokenizer_kwargs: DictConfig = None,
         doc_id_prefix: Optional[str] = None,
-        **_,
     ) -> None:
-        senter = RegexSenter()
-        # split text into sentences
-        self.documents: list[Document] = [senter.apply_to_document(text) for text in texts]
-        if doc_id_prefix is None:
-            doc_id_prefix = datetime.now().strftime("%Y%m%d%H%M")
-        doc_id_width = len(str(len(self.documents)))
-        sent_id_width = max(len(str(len(doc.sentences))) for doc in self.documents)
-        for doc_idx, document in enumerate(self.documents):
-            document.doc_id = f"{doc_id_prefix}-{doc_idx:0{doc_id_width}}"
-            for sent_idx, sentence in enumerate(document.sentences):
-                sentence.sid = f"{document.doc_id}-{sent_idx:0{sent_id_width}}"
-                sentence.misc_comment = f"jula:{jula.__version__}"
-        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-            model_name_or_path,
-            **(tokenizer_kwargs or {}),
+        documents = self._create_documents_from_texts(list(texts), doc_id_prefix)
+        super().__init__(
+            documents, document_split_stride, model_name_or_path, max_seq_length, dict(tokenizer_kwargs or {})
         )
-        self.max_seq_length = max_seq_length
 
     def __len__(self) -> int:
         return len(self.documents)
@@ -57,3 +45,19 @@ class CharInferenceDataset(Dataset):
             "input_ids": torch.tensor(input_ids, dtype=torch.long),
             "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
         }
+
+    @staticmethod
+    def _create_documents_from_texts(texts: list[str], doc_id_prefix: Optional[str]) -> list[Document]:
+        senter = RegexSenter()
+        # split text into sentences
+        documents: list[Document] = [senter.apply_to_document(text) for text in texts]
+        if doc_id_prefix is None:
+            doc_id_prefix = datetime.now().strftime("%Y%m%d%H%M")
+        doc_id_width = len(str(len(documents)))
+        sent_id_width = max(len(str(len(doc.sentences))) for doc in documents)
+        for doc_idx, document in enumerate(documents):
+            document.doc_id = f"{doc_id_prefix}-{doc_idx:0{doc_id_width}}"
+            for sent_idx, sentence in enumerate(document.sentences):
+                sentence.sid = f"{document.doc_id}-{sent_idx:0{sent_id_width}}"
+                sentence.misc_comment = f"jula:{jula.__version__}"
+        return documents

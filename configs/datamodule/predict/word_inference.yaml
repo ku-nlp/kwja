@@ -4,3 +4,4 @@ defaults:
 
 _target_: jula.datamodule.datasets.word_inference_dataset.WordInferenceDataset
 texts: []
+doc_id_prefix: null

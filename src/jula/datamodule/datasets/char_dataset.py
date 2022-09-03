@@ -1,7 +1,9 @@
 import logging
 from dataclasses import dataclass
+from pathlib import Path
 
 import torch
+from omegaconf import DictConfig
 from rhoknp import Document
 from tqdm import tqdm
 from transformers import BatchEncoding
@@ -30,14 +32,15 @@ class CharDataset(BaseDataset):
         document_split_stride: int,
         model_name_or_path: str = "cl-tohoku/bert-base-japanese-char",
         max_seq_length: int = 512,
-        tokenizer_kwargs: dict = None,
+        tokenizer_kwargs: DictConfig = None,
     ) -> None:
+        self.path = Path(path)
         super().__init__(
-            path,
+            self.path,
             document_split_stride,
             model_name_or_path,
             max_seq_length,
-            tokenizer_kwargs,
+            dict(tokenizer_kwargs or {}),
         )
         self.examples: list[CharExampleSet] = self._load_examples(self.documents)
 

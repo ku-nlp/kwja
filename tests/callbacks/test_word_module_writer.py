@@ -167,6 +167,7 @@ def test_write_on_epoch_end():
             cohesion_tasks=ListConfig(["pas_analysis", "bridging", "coreference"]),
             special_tokens=ListConfig(special_tokens),
             restrict_cohesion_target=True,
+            document_split_stride=1,
             doc_id_prefix="test",
         )
         trainer = MockTrainer([DataLoader(dataset)])
