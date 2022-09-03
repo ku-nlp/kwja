@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Union
 
 import torch
-from omegaconf import DictConfig, ListConfig
+from omegaconf import ListConfig
 from rhoknp import Document, Sentence
 from rhoknp.cohesion import ExophoraReferent
 from scipy.special import softmax
@@ -69,7 +69,7 @@ class WordDataset(BaseDataset):
         document_split_stride: int,
         model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
         max_seq_length: int = 512,
-        tokenizer_kwargs: DictConfig = None,
+        tokenizer_kwargs: dict = None,
     ) -> None:
         self.path = Path(path)
         super().__init__(
@@ -77,7 +77,7 @@ class WordDataset(BaseDataset):
             document_split_stride,
             model_name_or_path,
             max_seq_length,
-            dict(tokenizer_kwargs or {}),
+            tokenizer_kwargs or {},
         )
         self.special_tokens: list[str] = list(special_tokens)
         self.exophora_referents = [ExophoraReferent(s) for s in exophora_referents]

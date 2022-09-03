@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Optional, Union
 
 import torch
-from omegaconf import DictConfig, ListConfig
+from omegaconf import ListConfig
 from rhoknp import Document, Morpheme, Sentence
 from rhoknp.cohesion import ExophoraReferent
 from rhoknp.props import FeatureDict, SemanticsDict
@@ -41,13 +41,11 @@ class WordInferenceDataset(BaseDataset):
         document_split_stride: int,
         model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
         max_seq_length: int = 512,
-        tokenizer_kwargs: DictConfig = None,
+        tokenizer_kwargs: dict = None,
         doc_id_prefix: Optional[str] = None,
     ) -> None:
         documents = self._create_documents_from_texts(list(texts), doc_id_prefix)
-        super().__init__(
-            documents, document_split_stride, model_name_or_path, max_seq_length, dict(tokenizer_kwargs or {})
-        )
+        super().__init__(documents, document_split_stride, model_name_or_path, max_seq_length, tokenizer_kwargs or {})
 
         self.exophora_referents = [ExophoraReferent(s) for s in exophora_referents]
         self.special_tokens: list[str] = list(special_tokens)

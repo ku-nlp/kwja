@@ -1,6 +1,7 @@
 import tempfile
 
 import torch
+from omegaconf import ListConfig
 from torch.utils.data import DataLoader
 
 from jula.callbacks.char_module_writer import CharModuleWriter
@@ -21,7 +22,7 @@ def test_write_on_epoch_end():
     with tempfile.TemporaryDirectory() as tmp_dir:
         writer = CharModuleWriter(tmp_dir)
         dataset = CharInferenceDataset(
-            texts=["今日は晴れ"],
+            texts=ListConfig(["今日は晴れ"]),
             document_split_stride=1,
             model_name_or_path="cl-tohoku/bert-base-japanese-char",
             doc_id_prefix="test",

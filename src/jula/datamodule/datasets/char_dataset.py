@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Union
 
 import torch
-from omegaconf import DictConfig
 from rhoknp import Document, Sentence
 from tqdm import tqdm
 from transformers import BatchEncoding
@@ -33,7 +32,7 @@ class CharDataset(BaseDataset):
         document_split_stride: int,
         model_name_or_path: str = "cl-tohoku/bert-base-japanese-char",
         max_seq_length: int = 512,
-        tokenizer_kwargs: DictConfig = None,
+        tokenizer_kwargs: dict = None,
     ) -> None:
         self.path = Path(path)
         super().__init__(
@@ -41,7 +40,7 @@ class CharDataset(BaseDataset):
             document_split_stride,
             model_name_or_path,
             max_seq_length,
-            dict(tokenizer_kwargs or {}),
+            tokenizer_kwargs or {},
         )
         self.examples: list[CharExampleSet] = self._load_examples(self.documents)
 

@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional, Union
 
 import torch
-from omegaconf import DictConfig, ListConfig
+from omegaconf import ListConfig
 from rhoknp import Document, RegexSenter, Sentence
 from transformers import BatchEncoding
 from transformers.utils import PaddingStrategy
@@ -18,13 +18,11 @@ class CharInferenceDataset(BaseDataset):
         document_split_stride: int,
         model_name_or_path: str = "cl-tohoku/bert-base-japanese-char",
         max_seq_length: int = 512,
-        tokenizer_kwargs: DictConfig = None,
+        tokenizer_kwargs: dict = None,
         doc_id_prefix: Optional[str] = None,
     ) -> None:
         documents = self._create_documents_from_texts(list(texts), doc_id_prefix)
-        super().__init__(
-            documents, document_split_stride, model_name_or_path, max_seq_length, dict(tokenizer_kwargs or {})
-        )
+        super().__init__(documents, document_split_stride, model_name_or_path, max_seq_length, tokenizer_kwargs or {})
 
     def __len__(self) -> int:
         return len(self.documents)
