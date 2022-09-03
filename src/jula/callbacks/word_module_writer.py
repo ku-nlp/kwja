@@ -17,6 +17,7 @@ from rhoknp.cohesion import ExophoraReferent, RelTag, RelTagList
 from rhoknp.cohesion.discourse_relation import DiscourseRelationTag
 from rhoknp.props import DepType, FeatureDict, NamedEntity, NamedEntityCategory, NETagList, SemanticsDict
 from rhoknp.units.morpheme import MorphemeAttributes
+from tinydb import Query
 
 from jula.datamodule.datasets import WordDataset, WordInferenceDataset
 from jula.datamodule.datasets.word_dataset import WordExampleSet
@@ -230,6 +231,17 @@ class WordModuleWriter(BasePredictionWriter):
                     else:
                         logger.warning(f"failed to get lemma for {word}")
                         lemma = word
+            q = Query()
+            # TODO: on-kun based disambiguation
+            matches = self.jumandic.search(
+                (q.pos == pos) & (q.subpos == subpos) & (q.conjtype == conjtype) & (q.surf.any(lemma))
+            )
+            if len(matches) > 0:
+                entry = matches[0]
+                semantics.update(SemanticsDict.from_sstring('"' + entry.semantics + '"'))
+                if len(matches) > 1:
+                    # TODO: homograph
+                    pass
             attributes = MorphemeAttributes(
                 surf=word,
                 reading=reading,
