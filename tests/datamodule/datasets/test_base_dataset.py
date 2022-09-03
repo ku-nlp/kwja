@@ -35,8 +35,16 @@ def test_load_documents():
 
 
 def test_split_document():
-    dataset = BaseDataset(path, max_seq_length=13, **base_dataset_kwargs)
+    dataset = BaseDataset(path, **(base_dataset_kwargs | {"max_seq_length": 13}))
     assert len(dataset.orig_documents) == 2
     assert [doc.doc_id for doc in dataset.orig_documents] == ["000", "1"]
     assert len(dataset.documents) == 3
     assert [doc.doc_id for doc in dataset.documents] == ["000-split100", "000-split101", "1"]
+
+
+def test_split_document_overflow():
+    dataset = BaseDataset(path, **(base_dataset_kwargs | {"max_seq_length": 3}))
+    assert len(dataset.orig_documents) == 2
+    assert [doc.doc_id for doc in dataset.orig_documents] == ["000", "1"]
+    assert len(dataset.documents) == 3
+    assert [doc.doc_id for doc in dataset.documents] == ["000-split100", "000-split101", "1-split100"]

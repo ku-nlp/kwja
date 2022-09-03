@@ -3,7 +3,7 @@ from functools import cached_property
 from pathlib import Path
 from typing import Union
 
-from rhoknp import Document
+from rhoknp import Document, Sentence
 from torch.utils.data import Dataset
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class BaseDataset(Dataset):
     def __init__(
         self,
-        source: Union[Path, list[Document]],
+        source: Union[Path, str, list[Document]],
         document_split_stride: int,
         model_name_or_path: str,
         max_seq_length: int,
@@ -28,7 +28,8 @@ class BaseDataset(Dataset):
         )
         self.max_seq_length = max_seq_length
         self.orig_documents: list[Document]
-        if isinstance(source, Path):
+        if isinstance(source, (Path, str)):
+            source = Path(source)
             assert source.is_dir()
             self.orig_documents = self._load_documents(source, ext)
         else:
@@ -65,7 +66,7 @@ class BaseDataset(Dataset):
     def _split_document(self, document: Document, max_token_length: int, stride: int) -> list[Document]:
         cum_lens = [0]
         for sentence in document.sentences:
-            num_tokens = len(self.tokenizer.tokenize(" ".join(morpheme.surf for morpheme in sentence.morphemes)))
+            num_tokens = self._get_tokenized_len(sentence)
             cum_lens.append(cum_lens[-1] + num_tokens)
         if cum_lens[-1] <= max_token_length:
             return [document]
@@ -77,13 +78,13 @@ class BaseDataset(Dataset):
 
         sub_documents: list[Document] = []
         sub_idx = 0
-        while end < len(document.sentences) + 1:
+        while end <= len(document.sentences):
             start = 0
             # start を探索
             while cum_lens[end] - cum_lens[start] > max_token_length:
-                start += 1
                 if start == end - 1:
                     break
+                start += 1
 
             sub_document = Document.from_sentences(document.sentences[start:end])
             sub_document.doc_id = to_sub_doc_id(document.doc_id, sub_idx, stride=stride)
@@ -91,3 +92,10 @@ class BaseDataset(Dataset):
             sub_idx += 1
             end += stride
         return sub_documents
+
+    def _get_tokenized_len(self, source: Union[Document, Sentence]) -> int:
+        return len(
+            self.tokenizer([m.text for m in source.morphemes], add_special_tokens=False, is_split_into_words=True)[
+                "input_ids"
+            ]
+        )

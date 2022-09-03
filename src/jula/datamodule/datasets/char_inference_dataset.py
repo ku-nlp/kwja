@@ -1,9 +1,9 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union
 
 import torch
 from omegaconf import DictConfig, ListConfig
-from rhoknp import Document, RegexSenter
+from rhoknp import Document, RegexSenter, Sentence
 from transformers import BatchEncoding
 from transformers.utils import PaddingStrategy
 
@@ -61,3 +61,6 @@ class CharInferenceDataset(BaseDataset):
                 sentence.sid = f"{document.doc_id}-{sent_idx:0{sent_id_width}}"
                 sentence.misc_comment = f"jula:{jula.__version__}"
         return documents
+
+    def _get_tokenized_len(self, source: Union[Document, Sentence]) -> int:
+        return len(self.tokenizer(source.text, add_special_tokens=False)["input_ids"])

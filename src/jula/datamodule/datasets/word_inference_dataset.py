@@ -2,7 +2,7 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union
 
 import torch
 from omegaconf import DictConfig, ListConfig
@@ -206,3 +206,10 @@ class WordInferenceDataset(BaseDataset):
             for special_index in self.special_indices:
                 subword_map[special_index][special_index] = True
         return subword_map
+
+    def _get_tokenized_len(self, source: Union[Document, Sentence]) -> int:
+        return len(
+            self.tokenizer([m.text for m in source.morphemes], add_special_tokens=False, is_split_into_words=True)[
+                "input_ids"
+            ]
+        )

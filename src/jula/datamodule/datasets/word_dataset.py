@@ -1,10 +1,11 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Union
 
 import torch
 from omegaconf import DictConfig, ListConfig
-from rhoknp import Document
+from rhoknp import Document, Sentence
 from rhoknp.cohesion import ExophoraReferent
 from scipy.special import softmax
 from tokenizers import Encoding
@@ -412,3 +413,10 @@ class WordDataset(BaseDataset):
                 candidates_set[mrph.dmid] = word_level_candidates
 
         return scores_set, candidates_set  # word level
+
+    def _get_tokenized_len(self, source: Union[Document, Sentence]) -> int:
+        return len(
+            self.tokenizer([m.text for m in source.morphemes], add_special_tokens=False, is_split_into_words=True)[
+                "input_ids"
+            ]
+        )

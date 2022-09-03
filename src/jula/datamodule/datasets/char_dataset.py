@@ -1,10 +1,11 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Union
 
 import torch
 from omegaconf import DictConfig
-from rhoknp import Document
+from rhoknp import Document, Sentence
 from tqdm import tqdm
 from transformers import BatchEncoding
 from transformers.utils import PaddingStrategy
@@ -97,3 +98,6 @@ class CharDataset(BaseDataset):
             "attention_mask": torch.tensor(example.encoding.attention_mask, dtype=torch.long),
             "seg_types": torch.tensor(seg_types, dtype=torch.long),
         }
+
+    def _get_tokenized_len(self, source: Union[Document, Sentence]) -> int:
+        return len(self.tokenizer(source.text, add_special_tokens=False)["input_ids"])
