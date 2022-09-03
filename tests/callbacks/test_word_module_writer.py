@@ -36,7 +36,7 @@ def make_dummy_jumandic():
         )
         f.write(dummy_dic)
     with open(jumandic_dir.name + "/ambig_surf2lemmas.pkl", "wb") as f:
-        f.write(pickle.dumps({"エ基本形": {"あええ": ["あおい"], "くれえ": ["くらい", "くろい"]}}))
+        f.write(pickle.dumps({"形容詞:*:イ形容詞アウオ段:エ基本形": {"あええ": ["あおい"], "くれえ": ["くらい", "くろい"]}}))
     return jumandic_dir
 
 

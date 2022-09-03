@@ -1,3 +1,4 @@
+import logging
 import pickle
 import sys
 from argparse import ArgumentParser
@@ -5,6 +6,9 @@ from pathlib import Path
 
 from jinf import Jinf
 from jumandic import JumanDIC
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s: %(message)s", level=logging.DEBUG)
 
 
 def main():
@@ -37,27 +41,38 @@ def main():
     # TODO: externalize this
     ambig_surf_specs = [
         {
-            "conjtypes": ["イ形容詞アウオ段", "イ形容詞イ段", "イ形容詞イ段特殊"],
+            "conjtype": "イ形容詞アウオ段",
+            "conjform": "エ基本形",
+        },
+        {
+            "conjtype": "イ形容詞イ段",
+            "conjform": "エ基本形",
+        },
+        {
+            "conjtype": "イ形容詞イ段特殊",
             "conjform": "エ基本形",
         },
     ]
-    jumandic = JumanDIC(args.input_dir)
-    jumandic.export(str(outdir / "jumandic.dic"))
+    dic = JumanDIC(args.input_dir)
+    dic.export(str(outdir / "jumandic.dic"))
 
-    # conjtype -> surf -> list of lemmas
+    # pos:subpos:conjtype:conjform -> surf -> list of lemmas
     ambig_surf2lemmas: dict[str, dict[str, list[str]]] = {}
-    for ambig_surf_spec in ambig_surf_specs:
-        ambig_surf2lemmas[ambig_surf_spec["conjform"]] = {}
     jinf = Jinf()
-    for entry in jumandic:
+    for entry in dic:
         for ambig_surf_spec in ambig_surf_specs:
-            if entry.conjtype in ambig_surf_spec["conjtypes"]:
-                surf2lemmas = ambig_surf2lemmas[ambig_surf_spec["conjform"]]
+            if entry.conjtype == ambig_surf_spec["conjtype"]:
+                conjform = ambig_surf_spec["conjform"]
+                signature = f"{entry.pos}:{entry.subpos}:{entry.conjtype}:{conjform}"
+                if signature in ambig_surf2lemmas:
+                    surf2lemmas = ambig_surf2lemmas[signature]
+                else:
+                    surf2lemmas = ambig_surf2lemmas[signature] = {}
                 for baseform in entry.surf:
                     try:
-                        surf = jinf(baseform, entry.conjtype, "基本形", ambig_surf_spec["conjform"])
+                        surf = jinf(baseform, entry.conjtype, "基本形", conjform)
                     except IndexError:
-                        # いい
+                        logger.warning(f"failed to convert {baseform} to {conjform}")
                         pass
                     if surf in surf2lemmas:
                         for baseform2 in surf2lemmas[surf]:
@@ -65,7 +80,7 @@ def main():
                                 break
                         else:
                             surf2lemmas[surf].append(baseform)
-                            print(surf2lemmas[surf])
+                            logger.info("ambiguity: {}".format(surf2lemmas[surf]))
                     else:
                         surf2lemmas[surf] = [baseform]
     with (outdir / "ambig_surf2lemmas.pkl").open("wb") as f:

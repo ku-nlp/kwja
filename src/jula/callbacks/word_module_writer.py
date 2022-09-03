@@ -211,23 +211,25 @@ class WordModuleWriter(BasePredictionWriter):
             # TODO: replace word with norm
             if conjtype == "*":
                 lemma = word
-            elif conjform not in self.ambig_surf2lemmas:
-                try:
-                    lemma = self.jinf(word, conjtype, conjform, "基本形")
-                except ValueError as e:
-                    logger.warning(f"failed to get lemma for {word}: ({e})")
-                    lemma = word
             else:
-                surf2lemmas = self.ambig_surf2lemmas[conjform]
-                if word in surf2lemmas:
-                    lemma = surf2lemmas[word][0]
-                    if len(surf2lemmas[word]) > 1:
-                        # ambiguous
-                        for lemma2 in surf2lemmas[word][1:]:
-                            homographs.append({"lemma": lemma2})
+                signature = f"{pos}:{subpos}:{conjtype}:{conjform}"
+                if conjform not in self.ambig_surf2lemmas:
+                    try:
+                        lemma = self.jinf(word, conjtype, conjform, "基本形")
+                    except ValueError as e:
+                        logger.warning(f"failed to get lemma for {word}: ({e})")
+                        lemma = word
                 else:
-                    logger.warning(f"failed to get lemma for {word}")
-                    lemma = word
+                    surf2lemmas = self.ambig_surf2lemmas[signature]
+                    if word in surf2lemmas:
+                        lemma = surf2lemmas[word][0]
+                        if len(surf2lemmas[word]) > 1:
+                            # ambiguous
+                            for lemma2 in surf2lemmas[word][1:]:
+                                homographs.append({"lemma": lemma2})
+                    else:
+                        logger.warning(f"failed to get lemma for {word}")
+                        lemma = word
             attributes = MorphemeAttributes(
                 surf=word,
                 reading=reading,
