@@ -1,13 +1,32 @@
+import logging
+from collections import defaultdict
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Optional
+
 import torch
 from omegaconf import ListConfig
+from rhoknp import Document, Morpheme, Sentence
 from rhoknp.cohesion import ExophoraReferent
+from rhoknp.props import FeatureDict, SemanticsDict
+from rhoknp.units.morpheme import MorphemeAttributes
 from tokenizers import Encoding
 from torch.utils.data import Dataset
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
+import jula
 from jula.datamodule.examples import CohesionTask
 from jula.datamodule.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class WordInferenceExample:
+    example_id: int
+    doc_id: str
+    encoding: Encoding
 
 
 class WordInferenceDataset(Dataset):
@@ -23,9 +42,42 @@ class WordInferenceDataset(Dataset):
         model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
         max_seq_length: int = 512,
         tokenizer_kwargs: dict = None,
+        doc_id_prefix: Optional[str] = None,
         **_,
     ) -> None:
-        self.texts = [text.strip() for text in texts]
+        did2sentences = defaultdict(list)
+        if doc_id_prefix is None:
+            doc_id_prefix = datetime.now().strftime("%Y%m%d%H%M")
+        doc_id, sid = f"{doc_id_prefix}-0", f"{doc_id_prefix}-0-0"
+        for text in texts:
+            if text.startswith("#"):
+                sentence = Sentence.from_raw_text(text)
+                doc_id, sid = sentence.doc_id, sentence.sid
+            else:
+                sentence = Sentence()
+                sentence.doc_id, sentence.sid = doc_id, sid
+                sentence.misc_comment = f"jula:{jula.__version__}"
+                morphemes = []
+                for word in text.split(" "):
+                    attributes = MorphemeAttributes(
+                        surf=word,
+                        reading="null",
+                        lemma="null",
+                        pos="null",
+                        pos_id=0,
+                        subpos="null",
+                        subpos_id=0,
+                        conjtype="null",
+                        conjtype_id=0,
+                        conjform="null",
+                        conjform_id=0,
+                    )
+                    morphemes.append(Morpheme(attributes, SemanticsDict(), FeatureDict()))
+                sentence.morphemes = morphemes
+                did2sentences[doc_id].append(sentence)
+        self.doc_id2document = {did: Document.from_sentences(sentences) for did, sentences in did2sentences.items()}
+        self.documents = list(self.doc_id2document.values())
+
         self.exophora_referents = [ExophoraReferent(s) for s in exophora_referents]
         self.special_tokens: list[str] = list(special_tokens)
         self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
@@ -50,6 +102,7 @@ class WordInferenceDataset(Dataset):
             CohesionTask.COREFERENCE: CoreferenceExtractor(self.exophora_referents, restrict_cohesion_target),
             CohesionTask.BRIDGING: BridgingExtractor(self.bar_rels, self.exophora_referents, restrict_cohesion_target),
         }
+        self.examples: list[WordInferenceExample] = self._load_examples(self.documents)
         self.special_encoding: Encoding = self.tokenizer(
             self.special_tokens,
             is_split_into_words=True,
@@ -75,45 +128,72 @@ class WordInferenceDataset(Dataset):
         return [t for ts in self.cohesion_task_to_rel_types.values() for t in ts]
 
     def __len__(self) -> int:
-        return len(self.texts)
+        return len(self.examples)
 
     def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
-        return self.encode(self.texts[index], index)
+        return self.encode(self.examples[index])
 
-    def encode(self, text: str, example_id: int) -> dict[str, torch.Tensor]:
-        encoding: Encoding = self.tokenizer(
-            text,
-            truncation=True,
-            padding=PaddingStrategy.MAX_LENGTH,
-            max_length=self.max_seq_length - self.num_special_tokens,
-        ).encodings[0]
+    def _load_examples(self, documents: list[Document]) -> list[WordInferenceExample]:
+        examples = []
+        idx = 0
+        for document in documents:
+            encoding: Encoding = self.tokenizer(
+                [morpheme.text for morpheme in document.morphemes],
+                is_split_into_words=True,
+                padding=PaddingStrategy.MAX_LENGTH,
+                truncation=False,
+                max_length=self.max_seq_length - self.num_special_tokens,
+            ).encodings[0]
+            if len(encoding.ids) > self.max_seq_length - self.num_special_tokens:
+                continue
 
-        intra_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
-        num_morphemes = len(text.split(" "))
-        for i in range(0, num_morphemes):
-            for j in range(0, num_morphemes):
+            examples.append(
+                WordInferenceExample(
+                    example_id=idx,
+                    doc_id=document.doc_id,
+                    encoding=encoding,
+                )
+            )
+            idx += 1
+
+        if len(examples) == 0:
+            logger.error("No examples to process. Make sure any texts are given and they are not too long.")
+        return examples
+
+    def encode(self, example: WordInferenceExample) -> dict[str, torch.Tensor]:
+        document = self.doc_id2document[example.doc_id]
+        dependency_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
+        for sentence in document.sentences:
+            num_intra_morphemes = len(sentence.morphemes)
+            for i in range(num_intra_morphemes):
+                for j in range(num_intra_morphemes):
+                    if i != j:
+                        dependency_mask[i][j] = True
+                dependency_mask[i][self.special_to_index["[ROOT]"]] = True
+
+        cohesion_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
+        num_morphemes = len(document.morphemes)
+        for i in range(num_morphemes):
+            for j in range(num_morphemes):
                 if i != j:
-                    intra_mask[i][j] = True
-            intra_mask[i][-1] = True
-        cohesion_mask = [True] * num_morphemes + [False] * (self.max_seq_length - num_morphemes)
-        for special_index in self.cohesion_special_indices:
-            cohesion_mask[special_index] = True
+                    cohesion_mask[i][j] = True
+            for special_index in self.cohesion_special_indices:
+                cohesion_mask[i][special_index] = True
 
-        merged_encoding: Encoding = Encoding.merge([encoding, self.special_encoding])
+        merged_encoding: Encoding = Encoding.merge([example.encoding, self.special_encoding])
 
         return {
-            "example_ids": torch.tensor(example_id, dtype=torch.long),
+            "example_ids": torch.tensor(example.example_id, dtype=torch.long),
             "input_ids": torch.tensor(merged_encoding.ids, dtype=torch.long),
             "attention_mask": torch.tensor(merged_encoding.attention_mask, dtype=torch.long),
             "subword_map": torch.tensor(self._gen_subword_map(merged_encoding), dtype=torch.bool),
             "reading_subword_map": torch.tensor(
                 self._gen_subword_map(merged_encoding, include_additional_words=False), dtype=torch.bool
             ),
-            "intra_mask": torch.tensor(intra_mask, dtype=torch.bool),
+            "intra_mask": torch.tensor(dependency_mask, dtype=torch.bool),
             "cohesion_mask": torch.tensor(cohesion_mask, dtype=torch.bool)
-            .view(1, 1, -1)
+            .unsqueeze(0)
             .expand(len(self.cohesion_rel_types), self.max_seq_length, self.max_seq_length),
-            "texts": text,
             "tokens": " ".join(self.tokenizer.decode(id_) for id_ in merged_encoding.ids),
         }
 
