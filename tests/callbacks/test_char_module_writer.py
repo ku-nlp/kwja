@@ -46,6 +46,7 @@ def test_write_on_epoch_end():
         predictions = [
             [
                 {
+                    "example_ids": [0],
                     "dataloader_idx": 0,
                     "input_ids": input_ids,
                     "word_segmenter_logits": word_segmenter_logits,
