@@ -43,6 +43,7 @@ class WordInferenceDataset(BaseDataset):
         max_seq_length: int = 512,
         tokenizer_kwargs: dict = None,
         doc_id_prefix: Optional[str] = None,
+        **_,  # accept reading_resource_path
     ) -> None:
         documents = self._create_documents_from_texts(list(texts), doc_id_prefix)
         super().__init__(documents, document_split_stride, model_name_or_path, max_seq_length, tokenizer_kwargs or {})
