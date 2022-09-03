@@ -8,7 +8,7 @@ import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks import BasePredictionWriter
 
-from jula.datamodule.datasets import CharDataset
+from jula.datamodule.datasets import CharDataset, CharInferenceDataset
 from jula.utils.constants import INDEX2SEG_TYPE
 
 
@@ -41,22 +41,30 @@ class CharModuleWriter(BasePredictionWriter):
         dataloaders = trainer.predict_dataloaders
         for prediction in predictions:
             for batch_pred in prediction:
-                dataset: CharDataset = dataloaders[batch_pred["dataloader_idx"]].dataset
+                dataset: Union[CharDataset, CharInferenceDataset] = dataloaders[batch_pred["dataloader_idx"]].dataset
                 batch_size = len(batch_pred["input_ids"])
                 for i in range(batch_size):
                     input_ids = batch_pred["input_ids"][i].cpu().tolist()  # (seq_len,)
                     pred_logits = batch_pred["word_segmenter_logits"][i]  # (seq_len, len(INDEX2SEG_TYPE))
                     pred_ids = torch.argmax(pred_logits, dim=1).cpu().tolist()  # (seq_len,)
-                    pred_types = [INDEX2SEG_TYPE[id_] for id_ in pred_ids]  # (seq_len,)
-                    assert len(input_ids) == len(pred_types)
-                    result = ""
-                    for input_id, pred_type in zip(input_ids, pred_types):
-                        if input_id in dataset.tokenizer.all_special_ids:
-                            continue
-                        if pred_type == "B":
-                            result += " "
-                        result += dataset.tokenizer.decode(input_id)
-                    results.append(result.strip())
+                    assert len(input_ids) == len(pred_ids)
+
+                    pred_types = [
+                        INDEX2SEG_TYPE[pred_id]
+                        for input_id, pred_id in zip(input_ids, pred_ids)
+                        if input_id not in dataset.tokenizer.all_special_ids
+                    ]
+                    char_idx = 0
+                    document = dataset.documents[i]
+                    for sentence in document.sentences:
+                        results.append(sentence.comment)
+                        result = ""
+                        for char in sentence.text:
+                            if pred_types[char_idx] == "B" and result:
+                                result += " "
+                            result += char
+                            char_idx += 1
+                        results.append(result)
 
         output_string: str = "\n".join(results) + "\n"
         if isinstance(self.destination, Path):

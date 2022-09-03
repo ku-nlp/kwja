@@ -23,6 +23,7 @@ def test_write_on_epoch_end():
         dataset = CharInferenceDataset(
             texts=["今日は晴れ"],
             model_name_or_path="cl-tohoku/bert-base-japanese-char",
+            doc_id_prefix="test",
         )
         trainer = MockTrainer([DataLoader(dataset)])
         input_ids = dataset.tokenizer("今日は晴れ", return_tensors="pt")["input_ids"]
@@ -50,5 +51,4 @@ def test_write_on_epoch_end():
             ]
         ]
         writer.write_on_epoch_end(trainer, ..., predictions)
-        with open(writer.destination) as f:
-            assert f.read().strip() == "今日 は 晴れ"
+        assert writer.destination.read_text() == "# S-ID:test-0-0 jula:0.1.0\n今日 は 晴れ\n"
