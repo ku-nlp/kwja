@@ -9,6 +9,8 @@ import torch
 from pytorch_lightning.callbacks import BasePredictionWriter
 
 from jula.datamodule.datasets import CharDataset, CharInferenceDataset
+from jula.datamodule.datasets.char_dataset import CharExampleSet
+from jula.datamodule.datasets.char_inference_dataset import CharInferenceExample
 from jula.utils.constants import INDEX2SEG_TYPE
 
 
@@ -44,6 +46,9 @@ class CharModuleWriter(BasePredictionWriter):
                 dataset: Union[CharDataset, CharInferenceDataset] = dataloaders[batch_pred["dataloader_idx"]].dataset
                 batch_size = len(batch_pred["input_ids"])
                 for i in range(batch_size):
+                    example: Union[CharExampleSet, CharInferenceExample] = dataset.examples[
+                        batch_pred["example_ids"][i]
+                    ]
                     input_ids = batch_pred["input_ids"][i].cpu().tolist()  # (seq_len,)
                     pred_logits = batch_pred["word_segmenter_logits"][i]  # (seq_len, len(INDEX2SEG_TYPE))
                     pred_ids = torch.argmax(pred_logits, dim=1).cpu().tolist()  # (seq_len,)
@@ -55,7 +60,7 @@ class CharModuleWriter(BasePredictionWriter):
                         if input_id not in dataset.tokenizer.all_special_ids
                     ]
                     char_idx = 0
-                    document = dataset.documents[i]
+                    document = dataset.doc_id2document[example.doc_id]
                     for sentence in document.sentences:
                         results.append(sentence.comment)
                         result = ""

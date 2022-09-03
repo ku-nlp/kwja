@@ -1,3 +1,5 @@
+import logging
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, Union
 
@@ -9,6 +11,15 @@ from transformers.utils import PaddingStrategy
 
 import jula
 from jula.datamodule.datasets.base_dataset import BaseDataset
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class CharInferenceExample:
+    example_id: int
+    doc_id: str
+    encoding: BatchEncoding
 
 
 class CharInferenceDataset(BaseDataset):
@@ -23,23 +34,48 @@ class CharInferenceDataset(BaseDataset):
     ) -> None:
         documents = self._create_documents_from_texts(list(texts), doc_id_prefix)
         super().__init__(documents, document_split_stride, model_name_or_path, max_seq_length, tokenizer_kwargs or {})
+        self.examples: list[CharInferenceExample] = self._load_examples(self.documents)
 
     def __len__(self) -> int:
-        return len(self.documents)
+        return len(self.examples)
 
     def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
-        return self.encode(self.documents[index])
+        return self.encode(self.examples[index])
 
-    def encode(self, document: Document) -> dict[str, torch.Tensor]:
-        encoding: BatchEncoding = self.tokenizer(
-            document.text,
-            truncation=True,
-            padding=PaddingStrategy.MAX_LENGTH,
-            max_length=self.max_seq_length,
-        )
-        input_ids = encoding["input_ids"]
-        attention_mask = encoding["attention_mask"]
+    def _load_examples(self, documents: list[Document]) -> list[CharInferenceExample]:
+        examples = []
+        idx = 0
+        for document in documents:
+            encoding: BatchEncoding = self.tokenizer(
+                document.text,
+                truncation=False,
+                padding=PaddingStrategy.MAX_LENGTH,
+                max_length=self.max_seq_length,
+            )
+            if len(encoding["input_ids"]) > self.max_seq_length:
+                continue
+            if len(document.text) != self._get_tokenized_len(document):
+                logger.warning(f"Document length and tokenized length mismatch: {document.text}")
+                continue
+
+            examples.append(
+                CharInferenceExample(
+                    example_id=idx,
+                    doc_id=document.doc_id,
+                    encoding=encoding,
+                )
+            )
+            idx += 1
+        if len(examples) == 0:
+            logger.error("No examples to process. Make sure any texts are given and they are not too long.")
+        return examples
+
+    @staticmethod
+    def encode(example: CharInferenceExample) -> dict[str, torch.Tensor]:
+        input_ids = example.encoding["input_ids"]
+        attention_mask = example.encoding["attention_mask"]
         return {
+            "example_ids": torch.tensor(example.example_id, dtype=torch.long),
             "input_ids": torch.tensor(input_ids, dtype=torch.long),
             "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
         }
