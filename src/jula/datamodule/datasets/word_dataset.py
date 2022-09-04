@@ -45,7 +45,6 @@ logger = logging.getLogger(__name__)
 class WordExampleSet:
     example_id: int
     doc_id: str
-    text: str  # space-delimited word sequence
     encoding: Encoding
     reading_example: ReadingExample
     word_feature_example: WordFeatureExample
@@ -130,9 +129,8 @@ class WordDataset(BaseDataset):
         examples = []
         idx = 0
         for document in tqdm(documents, dynamic_ncols=True):
-            words = [morpheme.text for morpheme in document.morphemes]
             encoding: Encoding = self.tokenizer(
-                words,
+                [morpheme.text for morpheme in document.morphemes],
                 is_split_into_words=True,
                 padding=PaddingStrategy.MAX_LENGTH,
                 truncation=False,
@@ -173,7 +171,6 @@ class WordDataset(BaseDataset):
                 WordExampleSet(
                     example_id=idx,
                     doc_id=document.doc_id,
-                    text=" ".join(words),
                     encoding=encoding,
                     reading_example=reading_example,
                     word_feature_example=word_feature_example,
@@ -322,7 +319,6 @@ class WordDataset(BaseDataset):
             "discourse_relations": torch.tensor(discourse_relations, dtype=torch.long),
             "cohesion_target": torch.tensor(cohesion_target, dtype=torch.int),
             "cohesion_mask": torch.tensor(cohesion_mask, dtype=torch.bool),
-            "texts": example.text,
             "tokens": " ".join(self.tokenizer.decode(id_) for id_ in merged_encoding.ids),
         }
 
@@ -374,6 +370,8 @@ class WordDataset(BaseDataset):
         subword_map = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
         for token_id, word_id in enumerate(encoding.word_ids):
             if word_id is not None:
+                if include_additional_words is False and token_id in self.special_indices:
+                    continue
                 subword_map[word_id][token_id] = True
         if include_additional_words:
             for special_index in self.special_indices:
