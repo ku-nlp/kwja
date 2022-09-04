@@ -203,6 +203,9 @@ class WordInferenceDataset(BaseDataset):
                 if include_additional_words is False and token_id in self.special_indices:
                     continue
                 subword_map[word_id][token_id] = True
+        if include_additional_words:
+            for special_index in self.special_indices:
+                subword_map[special_index][special_index] = True
         return subword_map
 
     def _get_tokenized_len(self, source: Union[Document, Sentence]) -> int:

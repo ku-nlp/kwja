@@ -11,7 +11,8 @@ from pytorch_lightning.callbacks import BasePredictionWriter
 from jula.datamodule.datasets import CharDataset, CharInferenceDataset
 from jula.datamodule.datasets.char_dataset import CharExampleSet
 from jula.datamodule.datasets.char_inference_dataset import CharInferenceExample
-from jula.utils.constants import INDEX2SEG_TYPE
+from jula.utils.constants import INDEX2SEG_TYPE, INDEX2WORD_NORM_TYPE
+from jula.utils.word_normalize import get_normalized
 
 
 class CharModuleWriter(BasePredictionWriter):
@@ -39,6 +40,7 @@ class CharModuleWriter(BasePredictionWriter):
         predictions: Sequence[Any],
         batch_indices: Optional[Sequence[Any]] = None,
     ) -> None:
+        # TODO: Write out results with the original surface form
         results = []
         dataloaders = trainer.predict_dataloaders
         for prediction in predictions:
@@ -50,25 +52,42 @@ class CharModuleWriter(BasePredictionWriter):
                         batch_pred["example_ids"][i]
                     ]
                     input_ids = batch_pred["input_ids"][i].cpu().tolist()  # (seq_len,)
-                    pred_logits = batch_pred["word_segmenter_logits"][i]  # (seq_len, len(INDEX2SEG_TYPE))
-                    pred_ids = torch.argmax(pred_logits, dim=1).cpu().tolist()  # (seq_len,)
-                    assert len(input_ids) == len(pred_ids)
+                    word_segmenter_logits = batch_pred["word_segmenter_logits"][i]  # (seq_len, len(INDEX2SEG_TYPE))
+                    word_segmenter_preds = torch.argmax(word_segmenter_logits, dim=1).cpu().tolist()  # (seq_len,)
+                    word_normalizer_logits = batch_pred["word_normalizer_logits"][i]  # (seq_len, len(INDEX2SEG_TYPE))
+                    word_normalizer_preds = torch.argmax(word_normalizer_logits, dim=1).cpu().tolist()  # (seq_len,)
+                    assert len(input_ids) == len(word_segmenter_preds) == len(word_normalizer_preds)
 
-                    pred_types = [
+                    word_segmenter_types = [
                         INDEX2SEG_TYPE[pred_id]
-                        for input_id, pred_id in zip(input_ids, pred_ids)
+                        for input_id, pred_id in zip(input_ids, word_segmenter_preds)
+                        if input_id not in dataset.tokenizer.all_special_ids
+                    ]
+                    word_normalizer_types = [
+                        INDEX2WORD_NORM_TYPE[pred_id]
+                        for input_id, pred_id in zip(input_ids, word_normalizer_preds)
                         if input_id not in dataset.tokenizer.all_special_ids
                     ]
                     char_idx = 0
                     document = dataset.doc_id2document[example.doc_id]
                     for sentence in document.sentences:
                         results.append(sentence.comment)
-                        result = ""
+                        result: str = ""
+                        word_surf: str = ""
+                        word_norm_ops: list[str] = []
                         for char in sentence.text:
-                            if pred_types[char_idx] == "B" and result:
-                                result += " "
-                            result += char
+                            if word_segmenter_types[char_idx] == "B" and word_surf:
+                                if result:
+                                    result += " "
+                                result += get_normalized(word_surf, word_norm_ops)
+                                word_surf = ""
+                                word_norm_ops = []
+                            word_surf += char
+                            word_norm_ops.append(word_normalizer_types[char_idx])
                             char_idx += 1
+                        if result:
+                            result += " "
+                        result += get_normalized(word_surf, word_norm_ops)
                         results.append(result)
 
         output_string: str = "\n".join(results) + "\n"
