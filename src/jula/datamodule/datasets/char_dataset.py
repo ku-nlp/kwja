@@ -10,6 +10,7 @@ from transformers.utils import PaddingStrategy
 from jula.datamodule.datasets.base_dataset import BaseDataset
 from jula.datamodule.examples.char_feature import CharFeatureExample
 from jula.utils.constants import IGNORE_INDEX
+from jula.utils.word_normalize import SentenceDenormalizer
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,7 @@ class CharDataset(BaseDataset):
         model_name_or_path: str = "cl-tohoku/bert-base-japanese-char",
         max_seq_length: int = 512,
         tokenizer_kwargs: dict = None,
+        denormalize_prob: float = 0.0,
     ) -> None:
         super().__init__(
             path,
@@ -39,6 +41,8 @@ class CharDataset(BaseDataset):
             max_seq_length,
             tokenizer_kwargs,
         )
+        self.denormalizer: SentenceDenormalizer = SentenceDenormalizer()
+        self.denormalize_prob: float = denormalize_prob
         self.examples: list[CharExampleSet] = self._load_examples(self.documents)
 
     def __len__(self) -> int:
@@ -51,6 +55,8 @@ class CharDataset(BaseDataset):
         examples = []
         idx = 0
         for document in tqdm(documents, dynamic_ncols=True):
+            for sentence in document.sentences:
+                self.denormalizer.denormalize(sentence, self.denormalize_prob)
             encoding: BatchEncoding = self.tokenizer(
                 document.text,
                 padding=PaddingStrategy.MAX_LENGTH,
@@ -85,12 +91,17 @@ class CharDataset(BaseDataset):
         char_feature_example = example.char_feature_example
         seg_types: list[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
         for i, seg_label in char_feature_example.seg_types.items():
-            # 先頭のCLSトークンをIGNORE_INDEXにするため＋1
+            # 先頭のCLSトークンをIGNORE_INDEXにするため+1
             seg_types[i + 1] = seg_label
+        norm_types: list[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
+        for i, norm_label in char_feature_example.norm_types.items():
+            # 先頭のCLSトークンをIGNORE_INDEXにするため+1
+            norm_types[i + 1] = norm_label
 
         return {
             "example_ids": torch.tensor(example.example_id, dtype=torch.long),
             "input_ids": torch.tensor(example.encoding.input_ids, dtype=torch.long),
             "attention_mask": torch.tensor(example.encoding.attention_mask, dtype=torch.long),
             "seg_types": torch.tensor(seg_types, dtype=torch.long),
+            "norm_types": torch.tensor(norm_types, dtype=torch.long),
         }
