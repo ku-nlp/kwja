@@ -163,9 +163,10 @@ class WordInferenceDataset(BaseDataset):
         document = self.doc_id2document[example.doc_id]
         dependency_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
         for sentence in document.sentences:
-            num_intra_morphemes = len(sentence.morphemes)
-            for i in range(num_intra_morphemes):
-                for j in range(num_intra_morphemes):
+            morpheme_global_indices = [morpheme.global_index for morpheme in sentence.morphemes]
+            start, stop = min(morpheme_global_indices), max(morpheme_global_indices) + 1
+            for i in range(start, stop):
+                for j in range(start, stop):
                     if i != j:
                         dependency_mask[i][j] = True
                 dependency_mask[i][self.special_to_index["[ROOT]"]] = True
