@@ -1,18 +1,20 @@
+from omegaconf import ListConfig
+
 from jula.datamodule.datasets.char_inference_dataset import CharInferenceDataset
 
 
 def test_init():
-    _ = CharInferenceDataset(["テスト", "テスト"])
+    _ = CharInferenceDataset(ListConfig(["テスト", "テスト"]), document_split_stride=1)
 
 
 def test_len():
-    dataset = CharInferenceDataset(["テスト", "テスト"])
+    dataset = CharInferenceDataset(ListConfig(["テスト", "テスト"]), document_split_stride=1)
     assert len(dataset) == 2
 
 
 def test_getitem():
     max_seq_length = 512
-    dataset = CharInferenceDataset(["テスト", "テスト"])
+    dataset = CharInferenceDataset(ListConfig(["テスト", "テスト"]), document_split_stride=1)
     for i in range(len(dataset)):
         item = dataset[i]
         assert isinstance(item, dict)

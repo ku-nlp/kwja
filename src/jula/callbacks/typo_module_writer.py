@@ -6,6 +6,7 @@ from typing import Any, Optional, Sequence, TextIO, Union
 
 import pytorch_lightning as pl
 import torch
+from omegaconf import DictConfig
 from pytorch_lightning.callbacks import BasePredictionWriter
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
@@ -20,7 +21,7 @@ class TypoModuleWriter(BasePredictionWriter):
         confidence_threshold: float = 0.0,
         pred_filename: str = "predict",
         model_name_or_path: str = "cl-tohoku/bert-base-japanese-char",
-        tokenizer_kwargs: dict = None,
+        tokenizer_kwargs: DictConfig = None,
         use_stdout: bool = False,
     ) -> None:
         super().__init__(write_interval="epoch")

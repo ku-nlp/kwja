@@ -157,7 +157,7 @@ def test_write_on_epoch_end():
         exophora_referents = ["著者", "読者", "不特定:人", "不特定:物"]
         special_tokens = exophora_referents + ["[NULL]", "[NA]", "[ROOT]"]
         dataset = WordInferenceDataset(
-            texts=texts,
+            texts=ListConfig(texts),
             model_name_or_path="nlp-waseda/roberta-base-japanese",
             max_seq_length=13,
             tokenizer_kwargs={"additional_special_tokens": special_tokens},
@@ -167,6 +167,7 @@ def test_write_on_epoch_end():
             cohesion_tasks=ListConfig(["pas_analysis", "bridging", "coreference"]),
             special_tokens=ListConfig(special_tokens),
             restrict_cohesion_target=True,
+            document_split_stride=1,
             doc_id_prefix="test",
         )
         trainer = MockTrainer([DataLoader(dataset)])

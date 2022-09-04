@@ -1,8 +1,10 @@
 import logging
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Union
 
 import torch
-from rhoknp import Document
+from rhoknp import Document, Sentence
 from tqdm import tqdm
 from transformers import BatchEncoding
 from transformers.utils import PaddingStrategy
@@ -34,12 +36,13 @@ class CharDataset(BaseDataset):
         tokenizer_kwargs: dict = None,
         denormalize_prob: float = 0.0,
     ) -> None:
+        self.path = Path(path)
         super().__init__(
-            path,
+            self.path,
             document_split_stride,
             model_name_or_path,
             max_seq_length,
-            tokenizer_kwargs,
+            tokenizer_kwargs or {},
         )
         self.denormalizer: SentenceDenormalizer = SentenceDenormalizer()
         self.denormalize_prob: float = denormalize_prob
@@ -105,3 +108,6 @@ class CharDataset(BaseDataset):
             "seg_types": torch.tensor(seg_types, dtype=torch.long),
             "norm_types": torch.tensor(norm_types, dtype=torch.long),
         }
+
+    def _get_tokenized_len(self, source: Union[Document, Sentence]) -> int:
+        return len(self.tokenizer(source.text, add_special_tokens=False)["input_ids"])

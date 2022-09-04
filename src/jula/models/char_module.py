@@ -140,6 +140,7 @@ class CharModule(LightningModule):
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Any:
         outputs: dict[str, dict[str, torch.Tensor]] = self(**batch)
         return {
+            "example_ids": batch["example_ids"],
             "dataloader_idx": dataloader_idx or 0,
             "input_ids": batch["input_ids"],
             "word_segmenter_logits": outputs["word_segmenter_outputs"]["logits"],
