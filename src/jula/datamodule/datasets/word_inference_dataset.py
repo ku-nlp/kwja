@@ -200,10 +200,9 @@ class WordInferenceDataset(BaseDataset):
     def _gen_subword_map(self, encoding: Encoding, include_additional_words: bool = True) -> list[list[bool]]:
         subword_map = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
         for token_id, word_id in enumerate(encoding.word_ids):
-            if word_id is not None:
-                if include_additional_words is False and token_id in self.special_indices:
-                    continue
-                subword_map[word_id][token_id] = True
+            if word_id is None or token_id in self.special_indices:
+                continue
+            subword_map[word_id][token_id] = True
         if include_additional_words:
             for special_index in self.special_indices:
                 subword_map[special_index][special_index] = True
