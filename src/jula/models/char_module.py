@@ -143,6 +143,7 @@ class CharModule(LightningModule):
             "dataloader_idx": dataloader_idx or 0,
             "input_ids": batch["input_ids"],
             "word_segmenter_logits": outputs["word_segmenter_outputs"]["logits"],
+            "word_normalizer_logits": outputs["word_normalizer_outputs"]["logits"],
         }
 
     def configure_optimizers(self):
