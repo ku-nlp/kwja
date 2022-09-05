@@ -125,7 +125,7 @@ class WordDataset(BaseDataset):
 
     @property
     def cohesion_rel_types(self) -> list[str]:
-        return [t for ts in self.cohesion_task_to_rel_types.values() for t in ts]
+        return [t for task in self.cohesion_tasks for t in self.cohesion_task_to_rel_types[task]]
 
     def _load_examples(self, documents: list[Document]) -> list[WordExampleSet]:
         examples = []
