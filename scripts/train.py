@@ -60,7 +60,7 @@ def main(cfg: DictConfig):
     if cfg.do_predict_after_train:
         trainer.predict(
             model=model,
-            datamodule=datamodule,
+            dataloaders=datamodule.val_dataloader(),
             ckpt_path=trainer.checkpoint_callback.best_model_path if trainer.checkpoint_callback else "best",
         )
 

@@ -46,7 +46,6 @@ class BaseDataset(Dataset):
                     )
                 }
             )
-        assert len(self.documents) > 0, "No documents are loaded."
 
     @cached_property
     def documents(self) -> list[Document]:
