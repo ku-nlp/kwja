@@ -139,7 +139,8 @@ class WordModuleWriter(BasePredictionWriter):
                     batch_discourse_parsing_preds.tolist(),
                 ):
                     example: Union[WordExampleSet, WordInferenceExample] = dataset.examples[example_id]
-                    document = dataset.doc_id2document[example.doc_id]
+                    doc_id = example.doc_id
+                    document = dataset.doc_id2document[doc_id]
                     # TODO: get word-level reading predictions
                     readings = [self.id2reading[pred] for pred in reading_preds]
                     word_reading_preds = get_word_level_readings(readings, tokens.split(), reading_subword_map)
@@ -152,6 +153,7 @@ class WordModuleWriter(BasePredictionWriter):
                         conjform_preds,
                     )
                     document = self._chunk_morphemes(document, morphemes, word_feature_preds)
+                    document.doc_id = doc_id
                     self._add_base_phrase_features(document, base_phrase_feature_preds)
                     self._add_named_entities(document, ne_tag_preds)
                     self._add_dependency(document, dependency_preds, dependency_type_preds, dataset.special_to_index)
@@ -163,7 +165,6 @@ class WordModuleWriter(BasePredictionWriter):
                         dataset.index_to_special,
                         dataset.extractors,
                     )
-                    doc_id = document.doc_id
                     document = document.reparse()  # reparse to get clauses
                     document.doc_id = doc_id
                     self._add_discourse(document, discourse_parsing_preds)
