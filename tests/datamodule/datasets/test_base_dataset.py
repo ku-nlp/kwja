@@ -1,5 +1,4 @@
 from pathlib import Path
-from tempfile import TemporaryDirectory
 
 import pytest
 
@@ -25,9 +24,6 @@ def test_init_error():
         _ = BaseDataset(path / "xxx", **base_dataset_kwargs)  # no such file or directory
     with pytest.raises(AssertionError):
         _ = BaseDataset(path / "000.knp", **base_dataset_kwargs)  # not a directory
-    with TemporaryDirectory() as temporary_path:
-        with pytest.raises(AssertionError):
-            _ = BaseDataset(temporary_path, **base_dataset_kwargs)  # directory with not KNP file
 
 
 def test_load_documents():
