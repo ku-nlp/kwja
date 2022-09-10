@@ -2,7 +2,7 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union
 
 import torch
 from omegaconf import ListConfig
@@ -11,11 +11,10 @@ from rhoknp.cohesion import ExophoraReferent
 from rhoknp.props import FeatureDict, SemanticsDict
 from rhoknp.units.morpheme import MorphemeAttributes
 from tokenizers import Encoding
-from torch.utils.data import Dataset
-from transformers import AutoTokenizer, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
 import jula
+from jula.datamodule.datasets.base_dataset import BaseDataset
 from jula.datamodule.examples import CohesionTask
 from jula.datamodule.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
 
@@ -29,62 +28,28 @@ class WordInferenceExample:
     encoding: Encoding
 
 
-class WordInferenceDataset(Dataset):
+class WordInferenceDataset(BaseDataset):
     def __init__(
         self,
-        texts: list[str],
+        texts: ListConfig,
         pas_cases: ListConfig,
         bar_rels: ListConfig,
         exophora_referents: ListConfig,
         cohesion_tasks: ListConfig,
         special_tokens: ListConfig,
         restrict_cohesion_target: bool,
+        document_split_stride: int,
         model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
         max_seq_length: int = 512,
         tokenizer_kwargs: dict = None,
         doc_id_prefix: Optional[str] = None,
-        **_,
+        **_,  # accept reading_resource_path
     ) -> None:
-        did2sentences = defaultdict(list)
-        if doc_id_prefix is None:
-            doc_id_prefix = datetime.now().strftime("%Y%m%d%H%M")
-        doc_id, sid = f"{doc_id_prefix}-0", f"{doc_id_prefix}-0-0"
-        for text in texts:
-            if text.startswith("#"):
-                sentence = Sentence.from_raw_text(text)
-                doc_id, sid = sentence.doc_id, sentence.sid
-            else:
-                sentence = Sentence()
-                sentence.doc_id, sentence.sid = doc_id, sid
-                sentence.misc_comment = f"jula:{jula.__version__}"
-                morphemes = []
-                for word in text.split(" "):
-                    attributes = MorphemeAttributes(
-                        surf=word,
-                        reading="null",
-                        lemma="null",
-                        pos="null",
-                        pos_id=0,
-                        subpos="null",
-                        subpos_id=0,
-                        conjtype="null",
-                        conjtype_id=0,
-                        conjform="null",
-                        conjform_id=0,
-                    )
-                    morphemes.append(Morpheme(attributes, SemanticsDict(), FeatureDict()))
-                sentence.morphemes = morphemes
-                did2sentences[doc_id].append(sentence)
-        self.doc_id2document = {did: Document.from_sentences(sentences) for did, sentences in did2sentences.items()}
-        self.documents = list(self.doc_id2document.values())
+        documents = self._create_documents_from_texts(list(texts), doc_id_prefix)
+        super().__init__(documents, document_split_stride, model_name_or_path, max_seq_length, tokenizer_kwargs or {})
 
         self.exophora_referents = [ExophoraReferent(s) for s in exophora_referents]
         self.special_tokens: list[str] = list(special_tokens)
-        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-            model_name_or_path,
-            **(tokenizer_kwargs or {}),
-        )
-        self.max_seq_length = max_seq_length
         self.special_to_index: dict[str, int] = {
             token: self.max_seq_length - len(self.special_tokens) + i for i, token in enumerate(self.special_tokens)
         }
@@ -127,6 +92,40 @@ class WordInferenceDataset(Dataset):
     def cohesion_rel_types(self) -> list[str]:
         return [t for ts in self.cohesion_task_to_rel_types.values() for t in ts]
 
+    @staticmethod
+    def _create_documents_from_texts(texts: list[str], doc_id_prefix: Optional[str]) -> list[Document]:
+        did2sentences = defaultdict(list)
+        if doc_id_prefix is None:
+            doc_id_prefix = datetime.now().strftime("%Y%m%d%H%M")
+        doc_id, sid = f"{doc_id_prefix}-0", f"{doc_id_prefix}-0-0"
+        for text in texts:
+            if text.startswith("#"):
+                sentence = Sentence.from_raw_text(text)
+                doc_id, sid = sentence.doc_id, sentence.sid
+            else:
+                sentence = Sentence()
+                sentence.doc_id, sentence.sid = doc_id, sid
+                sentence.misc_comment = f"jula:{jula.__version__}"
+                morphemes = []
+                for word in text.split(" "):
+                    attributes = MorphemeAttributes(
+                        surf=word,
+                        reading="null",
+                        lemma="null",
+                        pos="null",
+                        pos_id=0,
+                        subpos="null",
+                        subpos_id=0,
+                        conjtype="null",
+                        conjtype_id=0,
+                        conjform="null",
+                        conjform_id=0,
+                    )
+                    morphemes.append(Morpheme(attributes, SemanticsDict(), FeatureDict()))
+                sentence.morphemes = morphemes
+                did2sentences[doc_id].append(sentence)
+        return [Document.from_sentences(sentences) for sentences in did2sentences.values()]
+
     def __len__(self) -> int:
         return len(self.examples)
 
@@ -164,9 +163,10 @@ class WordInferenceDataset(Dataset):
         document = self.doc_id2document[example.doc_id]
         dependency_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
         for sentence in document.sentences:
-            num_intra_morphemes = len(sentence.morphemes)
-            for i in range(num_intra_morphemes):
-                for j in range(num_intra_morphemes):
+            morpheme_global_indices = [morpheme.global_index for morpheme in sentence.morphemes]
+            start, stop = min(morpheme_global_indices), max(morpheme_global_indices) + 1
+            for i in range(start, stop):
+                for j in range(start, stop):
                     if i != j:
                         dependency_mask[i][j] = True
                 dependency_mask[i][self.special_to_index["[ROOT]"]] = True
@@ -200,11 +200,17 @@ class WordInferenceDataset(Dataset):
     def _gen_subword_map(self, encoding: Encoding, include_additional_words: bool = True) -> list[list[bool]]:
         subword_map = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
         for token_id, word_id in enumerate(encoding.word_ids):
-            if word_id is not None:
-                if include_additional_words is False and token_id in self.special_indices:
-                    continue
-                subword_map[word_id][token_id] = True
+            if word_id is None or token_id in self.special_indices:
+                continue
+            subword_map[word_id][token_id] = True
         if include_additional_words:
             for special_index in self.special_indices:
                 subword_map[special_index][special_index] = True
         return subword_map
+
+    def _get_tokenized_len(self, source: Union[Document, Sentence]) -> int:
+        return len(
+            self.tokenizer([m.text for m in source.morphemes], add_special_tokens=False, is_split_into_words=True)[
+                "input_ids"
+            ]
+        )

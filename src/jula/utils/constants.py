@@ -3,6 +3,8 @@ import re
 
 from rhoknp.props import DepType, NamedEntityCategory
 
+IGNORE_INDEX = -100
+
 TYPO_OPN2TOKEN = {
     "K": "<k>",
     "D": "<d>",
@@ -16,6 +18,10 @@ SEG_TYPES = (
     "I",
 )
 INDEX2SEG_TYPE: dict[int, str] = {index: seg_type for index, seg_type in enumerate(SEG_TYPES)}
+
+WORD_NORM_TYPES = ("K", "D", "V", "S", "P", "E")
+INDEX2WORD_NORM_TYPE = {index: word_norm_type for index, word_norm_type in enumerate(WORD_NORM_TYPES)}
+IGNORE_WORD_NORM_TYPE = "_"
 
 # 品詞
 POS_TYPE2ID = {

@@ -9,27 +9,22 @@ from jula.utils.constants import IGNORE_INDEX, SEG_TYPES
 here = Path(__file__).absolute().parent
 path = here.joinpath("knp_files")
 
+# TODO: use roberta
+char_dataset_kwargs = dict(
+    document_split_stride=1,
+    model_name_or_path="cl-tohoku/bert-base-japanese-char",
+    max_seq_length=512,
+    tokenizer_kwargs={"do_word_tokenize": False},
+)
+
 
 def test_init():
-    _ = CharDataset(
-        path=str(path),
-        document_split_stride=1,
-        model_name_or_path="cl-tohoku/bert-base-japanese-char",
-        max_seq_length=512,
-        tokenizer_kwargs={"do_word_tokenize": False},
-    )
+    _ = CharDataset(str(path), **char_dataset_kwargs)
 
 
 def test_getitem():
-    max_seq_length = 512
-    # TODO: use roberta
-    dataset = CharDataset(
-        path=str(path),
-        document_split_stride=1,
-        model_name_or_path="cl-tohoku/bert-base-japanese-char",
-        max_seq_length=max_seq_length,
-        tokenizer_kwargs={"do_word_tokenize": False},
-    )
+    max_seq_length: int = char_dataset_kwargs["max_seq_length"]
+    dataset = CharDataset(str(path), **char_dataset_kwargs)
     for i in range(len(dataset)):
         item = dataset[i]
         assert isinstance(item, dict)
@@ -45,13 +40,7 @@ def test_getitem():
 
 def test_encode():
     max_seq_length = 20
-    dataset = CharDataset(
-        path=str(path),
-        document_split_stride=1,
-        model_name_or_path="cl-tohoku/bert-base-japanese-char",
-        max_seq_length=max_seq_length,
-        tokenizer_kwargs={"do_word_tokenize": False},
-    )
+    dataset = CharDataset(str(path), **(char_dataset_kwargs | {"max_seq_length": max_seq_length}))
     document = Document.from_knp(
         textwrap.dedent(
             """\

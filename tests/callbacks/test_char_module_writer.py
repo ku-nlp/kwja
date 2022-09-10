@@ -1,6 +1,7 @@
 import tempfile
 
 import torch
+from omegaconf import ListConfig
 from torch.utils.data import DataLoader
 
 from jula.callbacks.char_module_writer import CharModuleWriter
@@ -21,12 +22,13 @@ def test_write_on_epoch_end():
     with tempfile.TemporaryDirectory() as tmp_dir:
         writer = CharModuleWriter(tmp_dir)
         dataset = CharInferenceDataset(
-            texts=["今日は晴れ"],
+            texts=ListConfig(["今日は晴れだぁ"]),
+            document_split_stride=1,
             model_name_or_path="cl-tohoku/bert-base-japanese-char",
             doc_id_prefix="test",
         )
         trainer = MockTrainer([DataLoader(dataset)])
-        input_ids = dataset.tokenizer("今日は晴れ", return_tensors="pt")["input_ids"]
+        input_ids = dataset.tokenizer("今日は晴れだぁ", return_tensors="pt")["input_ids"]
         word_segmenter_logits = torch.tensor(
             [
                 [
@@ -36,7 +38,25 @@ def test_write_on_epoch_end():
                     [1.0, 0.0],  # は
                     [1.0, 0.0],  # 晴
                     [0.0, 1.0],  # れ
+                    [1.0, 0.0],  # だ
+                    [0.0, 1.0],  # ぁ
                     [0.0, 0.0],  # SEP
+                ]
+            ],
+            dtype=torch.float,
+        )
+        word_normalizer_logits = torch.tensor(
+            [
+                [
+                    [1.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # CLS
+                    [1.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # 今
+                    [1.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # 日
+                    [1.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # は
+                    [1.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # 晴
+                    [1.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # れ
+                    [1.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # だ
+                    [0.0, 1.0, 0.0, 0.0, 0.0, 0.0],  # ぁ
+                    [1.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # SEP
                 ]
             ],
             dtype=torch.float,
@@ -44,11 +64,13 @@ def test_write_on_epoch_end():
         predictions = [
             [
                 {
+                    "example_ids": [0],
                     "dataloader_idx": 0,
                     "input_ids": input_ids,
                     "word_segmenter_logits": word_segmenter_logits,
+                    "word_normalizer_logits": word_normalizer_logits,
                 }
             ]
         ]
         writer.write_on_epoch_end(trainer, ..., predictions)
-        assert writer.destination.read_text() == "# S-ID:test-0-0 jula:0.1.0\n今日 は 晴れ\n"
+        assert writer.destination.read_text() == "# S-ID:test-0-0 jula:0.1.0\n今日 は 晴れ だ\n"

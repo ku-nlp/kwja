@@ -41,6 +41,7 @@ restrict_cohesion_target: True
 monitor: valid/aggregated_word_metrics
 mode: max
 aggregating_metrics: [
+  "reading_prediction_accuracy",
   "word_analysis_f1",
   "ner_f1",
   "macro_word_feature_f1",

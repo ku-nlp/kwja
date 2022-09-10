@@ -1,10 +1,11 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Union
 
 import torch
 from omegaconf import ListConfig
-from rhoknp import Document
+from rhoknp import Document, Sentence
 from rhoknp.cohesion import ExophoraReferent
 from scipy.special import softmax
 from tokenizers import Encoding
@@ -70,14 +71,15 @@ class WordDataset(BaseDataset):
         max_seq_length: int = 512,
         tokenizer_kwargs: dict = None,
     ) -> None:
-        self.special_tokens: list[str] = list(special_tokens)
+        self.path = Path(path)
         super().__init__(
-            path,
+            self.path,
             document_split_stride,
             model_name_or_path,
             max_seq_length,
-            tokenizer_kwargs,
+            tokenizer_kwargs or {},
         )
+        self.special_tokens: list[str] = list(special_tokens)
         self.exophora_referents = [ExophoraReferent(s) for s in exophora_referents]
         self.cohesion_tasks: list[CohesionTask] = [CohesionTask(t) for t in cohesion_tasks]
         self.pas_cases: list[str] = list(pas_cases)
@@ -123,7 +125,7 @@ class WordDataset(BaseDataset):
 
     @property
     def cohesion_rel_types(self) -> list[str]:
-        return [t for ts in self.cohesion_task_to_rel_types.values() for t in ts]
+        return [t for task in self.cohesion_tasks for t in self.cohesion_task_to_rel_types[task]]
 
     def _load_examples(self, documents: list[Document]) -> list[WordExampleSet]:
         examples = []
@@ -369,10 +371,9 @@ class WordDataset(BaseDataset):
     def _gen_subword_map(self, encoding: Encoding, include_additional_words: bool = True) -> list[list[bool]]:
         subword_map = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
         for token_id, word_id in enumerate(encoding.word_ids):
-            if word_id is not None:
-                if include_additional_words is False and token_id in self.special_indices:
-                    continue
-                subword_map[word_id][token_id] = True
+            if word_id is None or token_id in self.special_indices:
+                continue
+            subword_map[word_id][token_id] = True
         if include_additional_words:
             for special_index in self.special_indices:
                 subword_map[special_index][special_index] = True
@@ -413,3 +414,10 @@ class WordDataset(BaseDataset):
                 candidates_set[mrph.dmid] = word_level_candidates
 
         return scores_set, candidates_set  # word level
+
+    def _get_tokenized_len(self, source: Union[Document, Sentence]) -> int:
+        return len(
+            self.tokenizer([m.text for m in source.morphemes], add_special_tokens=False, is_split_into_words=True)[
+                "input_ids"
+            ]
+        )
