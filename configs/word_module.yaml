@@ -58,5 +58,5 @@ effective_batch_size: 16
 
 # environment dependent settings
 devices: ${oc.env:GPUS,0}
-max_batches_per_device: 2
+max_batches_per_device: 1
 num_workers: 0
