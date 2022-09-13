@@ -2,7 +2,7 @@ model_checkpoint:
   _target_: pytorch_lightning.callbacks.ModelCheckpoint
   dirpath: ${run_dir}
   filename: "{epoch}-{step}"
-  auto_insert_metric_name: False
+  auto_insert_metric_name: false
   monitor: ${monitor}
   mode: ${mode}
   save_top_k: 1
