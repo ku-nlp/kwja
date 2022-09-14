@@ -1,7 +1,7 @@
 _target_: pytorch_lightning.Trainer
 gradient_clip_val: 0.5
 fast_dev_run: 3
-accumulate_grad_batches: ${accumulate_grad_batches}
+accumulate_grad_batches: null
 max_epochs: 2
 min_epochs: 1
 #limit_train_batches: 10

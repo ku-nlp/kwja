@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-from rhoknp import BasePhrase, Document, Sentence
-from rhoknp.rel import ExophoraReferent, ExophoraReferentType
+from rhoknp import BasePhrase, Document
+from rhoknp.cohesion import ExophoraReferent, ExophoraReferentType
 
 
 @dataclass(frozen=True)
@@ -30,20 +30,10 @@ class Extractor:
     def __init__(
         self,
         exophora_referents: list[ExophoraReferent],
-        kc: bool = False,
+        restrict_target: bool = False,
     ) -> None:
-        self.kc = kc
         self.exophora_referents = exophora_referents
-
-    def _kc_skip_sentence(self, sentence: Sentence, document: Document) -> bool:
-        # do not skip sentences not from Kyoto Corpus
-        if self.kc is False:
-            return False
-        # do not skip the first sentence
-        if document.doc_id.split("-")[-1] == "00":
-            return False
-        last_sent = document.sentences[-1] if len(document.sentences) > 0 else None
-        return sentence is not last_sent
+        self.restrict_target = restrict_target
 
     @staticmethod
     def _relax_exophora_referent(

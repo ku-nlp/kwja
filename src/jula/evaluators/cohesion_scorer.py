@@ -11,8 +11,7 @@ from typing import Any, Optional, TextIO, Union
 
 import pandas as pd
 from rhoknp import BasePhrase, Document
-from rhoknp.rel import ExophoraReferent
-from rhoknp.rel.pas import Argument, ArgumentType, BaseArgument, Predicate, SpecialArgument
+from rhoknp.cohesion import Argument, ArgumentType, EndophoraArgument, ExophoraArgument, ExophoraReferent, Predicate
 
 from jula.datamodule.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
 
@@ -161,6 +160,7 @@ class SubScorer:
         self.bridgings_pred: list[Predicate] = []
         self.mentions_pred: list[BasePhrase] = []
         for bp in document_pred.base_phrases:
+            assert bp.pas is not None, "pas has not been set"
             if PasExtractor.is_pas_target(
                 bp,
                 verbal=(pas_target in ("pred", "all")),
@@ -175,6 +175,7 @@ class SubScorer:
         self.bridgings_gold: list[Predicate] = []
         self.mentions_gold: list[BasePhrase] = []
         for bp in document_gold.base_phrases:
+            assert bp.pas is not None, "pas has not been set"
             if PasExtractor.is_pas_target(
                 bp,
                 verbal=(pas_target in ("pred", "all")),
@@ -219,7 +220,7 @@ class SubScorer:
                     args_pred = predicate_pred.pas.get_arguments(case, relax=False)
                 else:
                     args_pred = []
-                # Our analyzer predicts one argument for one predicate
+                # this project predicts one argument for one predicate
                 assert len(args_pred) in (0, 1)
 
                 if global_index in global_index2predicate_gold:
@@ -239,8 +240,8 @@ class SubScorer:
                     arg = args_pred[0]
                     if arg in args_gold_relaxed:
                         # use dep_type of gold argument if possible
-                        arg_gold = args_gold_relaxed[args_gold_relaxed.index(arg)]
-                        analysis = Scorer.DEPTYPE2ANALYSIS[arg_gold.type]
+                        arg_gold_prec = args_gold_relaxed[args_gold_relaxed.index(arg)]
+                        analysis = Scorer.DEPTYPE2ANALYSIS[arg_gold_prec.type]
                         self.comp_result[key] = analysis
                         measures.at[case, analysis].correct += 1
                     else:
@@ -253,13 +254,13 @@ class SubScorer:
                 # 正解が複数ある場合、そのうち一つが当てられていればそれを正解に採用
                 # いずれも当てられていなければ、relax されていない項から一つを選び正解に採用
                 if args_gold or (self.comp_result.get(key, None) in Scorer.DEPTYPE2ANALYSIS.values()):
-                    arg_gold = None
+                    arg_gold_rec: Optional[Argument] = None
                     for arg in args_gold_relaxed:
                         if arg in args_pred:
-                            arg_gold = arg  # 予測されている項を優先して正解の項に採用
+                            arg_gold_rec = arg  # 予測されている項を優先して正解の項に採用
                             break
-                    if arg_gold is not None:
-                        analysis = Scorer.DEPTYPE2ANALYSIS[arg_gold.type]
+                    if arg_gold_rec is not None:
+                        analysis = Scorer.DEPTYPE2ANALYSIS[arg_gold_rec.type]
                         assert self.comp_result[key] == analysis
                     else:
                         analysis = Scorer.DEPTYPE2ANALYSIS[args_gold[0].type]
@@ -270,16 +271,16 @@ class SubScorer:
                     measures.at[case, analysis].denom_gold += 1
         return measures
 
-    def _filter_args(self, args: list[BaseArgument], predicate: Predicate) -> list[BaseArgument]:
+    def _filter_args(self, args: list[Argument], predicate: Predicate) -> list[Argument]:
         filtered_args = []
         for arg in args:
-            if isinstance(arg, SpecialArgument):
+            if isinstance(arg, ExophoraArgument):
                 if arg.exophora_referent not in self.exophora_referents:  # filter out non-target exophors
                     continue
                 arg.exophora_referent.index = None  # 「不特定:人１」なども「不特定:人」として扱う
             else:
-                assert isinstance(arg, Argument)
-                # filter out self-anaphora and cataphoras
+                assert isinstance(arg, EndophoraArgument)
+                # filter out self-anaphora and cataphora
                 if predicate.base_phrase == arg.base_phrase:
                     continue
                 if (
@@ -303,22 +304,20 @@ class SubScorer:
         for global_index in range(len(self.document_pred.base_phrases)):
             if global_index in global_index2anaphor_pred:
                 anaphor_pred = global_index2anaphor_pred[global_index]
-                antecedents_pred: list[BaseArgument] = self._filter_args(
+                antecedents_pred: list[Argument] = self._filter_args(
                     anaphor_pred.pas.get_arguments("ノ", relax=False), anaphor_pred
                 )
             else:
                 antecedents_pred = []
-            assert len(antecedents_pred) in (
-                0,
-                1,
-            )  # in bert_pas_analysis, predict one argument for one predicate
+            # this project predicts one argument for one predicate
+            assert len(antecedents_pred) in (0, 1)
 
             if global_index in global_index2anaphor_gold:
                 anaphor_gold: Predicate = global_index2anaphor_gold[global_index]
-                antecedents_gold: list[BaseArgument] = self._filter_args(
+                antecedents_gold: list[Argument] = self._filter_args(
                     anaphor_gold.pas.get_arguments("ノ", relax=False), anaphor_gold
                 )
-                antecedents_gold_relaxed: list[BaseArgument] = anaphor_gold.pas.get_arguments("ノ", relax=True)
+                antecedents_gold_relaxed: list[Argument] = anaphor_gold.pas.get_arguments("ノ", relax=True)
                 antecedents_gold_relaxed += anaphor_gold.pas.get_arguments("ノ？", relax=True)
                 antecedents_gold_relaxed = self._filter_args(antecedents_gold_relaxed, anaphor_gold)
             else:
@@ -331,8 +330,8 @@ class SubScorer:
                 antecedent_pred = antecedents_pred[0]
                 if antecedent_pred in antecedents_gold_relaxed:
                     # use dep_type of gold antecedent if possible
-                    antecedent_gold = antecedents_gold_relaxed[antecedents_gold_relaxed.index(antecedent_pred)]
-                    analysis = Scorer.DEPTYPE2ANALYSIS[antecedent_gold.type]
+                    antecedent_gold_prec = antecedents_gold_relaxed[antecedents_gold_relaxed.index(antecedent_pred)]
+                    analysis = Scorer.DEPTYPE2ANALYSIS[antecedent_gold_prec.type]
                     if analysis == "overt":
                         analysis = "dep"
                     self.comp_result[key] = analysis
@@ -346,13 +345,13 @@ class SubScorer:
 
             # calculate recall
             if antecedents_gold or (self.comp_result.get(key, None) in Scorer.DEPTYPE2ANALYSIS.values()):
-                antecedent_gold = None
+                antecedent_gold_rec: Optional[Argument] = None
                 for ant in antecedents_gold_relaxed:
                     if ant in antecedents_pred:
-                        antecedent_gold = ant  # 予測されている先行詞を優先して正解の先行詞に採用
+                        antecedent_gold_rec = ant  # 予測されている先行詞を優先して正解の先行詞に採用
                         break
-                if antecedent_gold is not None:
-                    analysis = Scorer.DEPTYPE2ANALYSIS[antecedent_gold.type]
+                if antecedent_gold_rec is not None:
+                    analysis = Scorer.DEPTYPE2ANALYSIS[antecedent_gold_rec.type]
                     if analysis == "overt":
                         analysis = "dep"
                     assert self.comp_result[key] == analysis
@@ -435,7 +434,7 @@ class ScoreResult:
             df_pas: pd.DataFrame = self.measures_pas.copy()
             df_pas["zero"] = df_pas["zero_endophora"] + df_pas["zero_exophora"]
             df_pas["dep_zero"] = df_pas["zero"] + df_pas["dep"]
-            df_pas["all"] = df_pas["dep_zero"] + df_pas["overt"]
+            df_pas["pas"] = df_pas["dep_zero"] + df_pas["overt"]
             df_all = pd.concat([df_pas, df_all])
             df_all.loc["all_case"] = df_pas.sum(axis=0)
 
@@ -445,8 +444,8 @@ class ScoreResult:
             df_bar["zero"] = df_bar["zero_endophora"] + df_bar["zero_exophora"]
             df_bar["dep_zero"] = df_bar["zero"] + df_bar["dep"]
             assert df_bar["overt"] == Measure()  # No overt in BAR
-            df_bar["all"] = df_bar["dep_zero"]
-            df_all.at["all_case", "bridging"] = df_bar["all"]
+            df_bar["pas"] = df_bar["dep_zero"]
+            df_all.at["all_case", "bridging"] = df_bar["pas"]
 
         if self.coreference:
             assert self.measure_coref is not None

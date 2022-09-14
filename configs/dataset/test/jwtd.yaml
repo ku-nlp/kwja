@@ -1,5 +1,0 @@
-defaults:
-  - /datamodule/typo@jwtd
-
-jwtd:
-  path: ${oc.env:DATA_DIR}/typo_correction/test

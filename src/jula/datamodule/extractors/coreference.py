@@ -2,9 +2,10 @@ import logging
 from dataclasses import dataclass
 
 from rhoknp import BasePhrase, Document
-from rhoknp.rel import ExophoraReferent
+from rhoknp.cohesion import ExophoraReferent
 
-from .base import Extractor, Phrase
+from jula.datamodule.extractors.base import Extractor, Phrase
+from jula.utils.sub_document import extract_target_sentences
 
 logger = logging.getLogger(__name__)
 
@@ -18,9 +19,9 @@ class CoreferenceExtractor(Extractor):
     def __init__(
         self,
         exophors: list[ExophoraReferent],
-        kc: bool = False,
+        restrict_target: bool,
     ) -> None:
-        super().__init__(exophors, kc)
+        super().__init__(exophors, restrict_target=restrict_target)
 
     def extract(
         self,
@@ -29,15 +30,13 @@ class CoreferenceExtractor(Extractor):
     ) -> CoreferenceAnnotation:
         bp_list = document.base_phrases
         mentions_set: list[list[str]] = [[] for _ in bp_list]
-        for sentence in document.sentences:
-            for mention in sentence.base_phrases:
-                is_target_phrase: bool = self.is_target(mention) and self._kc_skip_sentence(sentence, document) is False
-                phrases[mention.global_index].is_target = is_target_phrase
-                if is_target_phrase is False:
-                    continue
-                candidates: list[int] = [bp.global_index for bp in bp_list if self.is_candidate(bp, mention) is True]
-                phrases[mention.global_index].candidates = candidates
-                mentions_set[mention.global_index] = self._get_mentions(mention, candidates)
+        for mention in [bp for sent in extract_target_sentences(document) for bp in sent.base_phrases]:
+            if self.is_target(mention) is False:
+                continue
+            phrases[mention.global_index].is_target = True
+            candidates: list[int] = [bp.global_index for bp in bp_list if self.is_candidate(bp, mention) is True]
+            phrases[mention.global_index].candidates = candidates
+            mentions_set[mention.global_index] = self._get_mentions(mention, candidates)
 
         return CoreferenceAnnotation(mentions_set)
 
@@ -67,7 +66,7 @@ class CoreferenceExtractor(Extractor):
             return ["[NA]"]
 
     def is_target(self, bp: BasePhrase) -> bool:
-        return self.is_coreference_target(bp)
+        return self.restrict_target is False or self.is_coreference_target(bp)
 
     @staticmethod
     def is_coreference_target(bp: BasePhrase) -> bool:

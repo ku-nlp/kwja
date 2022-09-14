@@ -3,4 +3,4 @@ early_stopping:
   monitor: ${monitor}
   patience: 3
   mode: ${mode}
-  verbose: True
+  verbose: true

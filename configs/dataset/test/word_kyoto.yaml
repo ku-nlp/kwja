@@ -1,5 +1,0 @@
-defaults:
-  - /datamodule/word@kyoto
-
-kyoto:
-  path: ${oc.env:DATA_DIR}/kyoto/test

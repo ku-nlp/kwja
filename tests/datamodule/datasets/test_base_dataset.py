@@ -1,5 +1,4 @@
 from pathlib import Path
-from tempfile import TemporaryDirectory
 
 import pytest
 
@@ -8,25 +7,40 @@ from jula.datamodule.datasets.base_dataset import BaseDataset
 here = Path(__file__).absolute().parent
 path = here.joinpath("knp_files")
 
+base_dataset_kwargs = dict(
+    document_split_stride=1,
+    model_name_or_path="nlp-waseda/roberta-base-japanese",
+    max_seq_length=128,
+    tokenizer_kwargs={},
+)
+
 
 def test_init():
-    _ = BaseDataset(str(path))
+    _ = BaseDataset(path, **base_dataset_kwargs)
 
 
 def test_init_error():
     with pytest.raises(AssertionError):
-        _ = BaseDataset(str(path / "xxx"))  # no such file or directory
+        _ = BaseDataset(path / "xxx", **base_dataset_kwargs)  # no such file or directory
     with pytest.raises(AssertionError):
-        _ = BaseDataset(str(path / "000.knp"))  # not a directory
-    with TemporaryDirectory() as temporary_path:
-        with pytest.raises(AssertionError):
-            _ = BaseDataset(temporary_path)  # directory with not KNP file
+        _ = BaseDataset(path / "000.knp", **base_dataset_kwargs)  # not a directory
 
 
 def test_load_documents():
-    _ = BaseDataset.load_documents(path)
+    _ = BaseDataset._load_documents(path)
 
 
-def test_len():
-    dataset = BaseDataset(str(path))
-    assert len(dataset) == 2
+def test_split_document():
+    dataset = BaseDataset(path, **(base_dataset_kwargs | {"max_seq_length": 13}))
+    assert len(dataset.orig_documents) == 2
+    assert [doc.doc_id for doc in dataset.orig_documents] == ["000", "1"]
+    assert len(dataset.documents) == 3
+    assert [doc.doc_id for doc in dataset.documents] == ["000-split100", "000-split101", "1"]
+
+
+def test_split_document_overflow():
+    dataset = BaseDataset(path, **(base_dataset_kwargs | {"max_seq_length": 3}))
+    assert len(dataset.orig_documents) == 2
+    assert [doc.doc_id for doc in dataset.orig_documents] == ["000", "1"]
+    assert len(dataset.documents) == 3
+    assert [doc.doc_id for doc in dataset.documents] == ["000-split100", "000-split101", "1-split100"]

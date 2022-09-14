@@ -2,17 +2,19 @@ import json
 import textwrap
 from pathlib import Path
 
+from omegaconf import ListConfig
 from rhoknp import Document
-from rhoknp.units.utils import DepType
+from rhoknp.props import DepType
 from transformers.utils import PaddingStrategy
 
 from jula.datamodule.datasets.word_dataset import WordDataset, WordExampleSet
 from jula.datamodule.examples import (
     BasePhraseFeatureExample,
     CohesionExample,
+    CohesionTask,
     DependencyExample,
     DiscourseExample,
-    Task,
+    ReadingExample,
     WordFeatureExample,
 )
 from jula.datamodule.extractors import PasAnnotation
@@ -32,12 +34,21 @@ here = Path(__file__).absolute().parent
 path = here.joinpath("knp_files")
 data_dir = here.parent.parent / "data"
 
-word_dataset_kwargs = {
-    "cases": ["ガ", "ヲ", "ニ", "ガ２"],
-    "bar_rels": ["ノ"],
-    "exophora_referents": ["著者", "読者", "不特定:人", "不特定:物"],
-    "cohesion_tasks": ["pas_analysis", "bridging", "coreference"],
-}
+reading_resource_path = here / "reading_files"
+
+exophora_referents = ["著者", "読者", "不特定:人", "不特定:物"]
+special_tokens = exophora_referents + ["[NULL]", "[NA]", "[ROOT]"]
+word_dataset_kwargs = dict(
+    pas_cases=ListConfig(["ガ", "ヲ", "ニ", "ガ２"]),
+    bar_rels=ListConfig(["ノ"]),
+    exophora_referents=ListConfig(exophora_referents),
+    cohesion_tasks=ListConfig(["pas_analysis", "bridging", "coreference"]),
+    special_tokens=ListConfig(special_tokens),
+    restrict_cohesion_target=True,
+    tokenizer_kwargs={"additional_special_tokens": special_tokens},
+    reading_resource_path=str(reading_resource_path),
+    document_split_stride=1,
+)
 
 
 def test_init():
@@ -55,6 +66,8 @@ def test_getitem():
         assert "input_ids" in item
         assert "attention_mask" in item
         assert "subword_map" in item
+        assert "reading_subword_map" in item
+        assert "reading_ids" in item
         assert "mrph_types" in item
         assert "word_features" in item
         assert "base_phrase_features" in item
@@ -64,11 +77,15 @@ def test_getitem():
         assert "discourse_relations" in item
         assert "cohesion_target" in item
         assert "cohesion_mask" in item
+        assert "tokens" in item
         assert item["example_ids"] == i
         assert item["input_ids"].shape == (max_seq_length,)
         assert item["attention_mask"].shape == (max_seq_length,)
         assert item["subword_map"].shape == (max_seq_length, max_seq_length)
         assert (item["subword_map"].sum(dim=1) != 0).sum() == len(document.morphemes) + dataset.num_special_tokens
+        assert item["reading_subword_map"].shape == (max_seq_length, max_seq_length)
+        assert (item["reading_subword_map"].sum(dim=1) != 0).sum() == len(document.morphemes)
+        assert item["reading_ids"].shape == (max_seq_length,)
         assert item["mrph_types"].shape == (max_seq_length, 4)
         assert item["word_features"].shape == (max_seq_length, len(WORD_FEATURES))
         assert item["base_phrase_features"].shape == (max_seq_length, len(BASE_PHRASE_FEATURES))
@@ -112,15 +129,15 @@ def test_encode():
             """
         )
     )
-    words = [morpheme.text for morpheme in document.morphemes]
-    text = " ".join(words)
     encoding = dataset.tokenizer(
-        words,
+        [morpheme.text for morpheme in document.morphemes],
         is_split_into_words=True,
         padding=PaddingStrategy.MAX_LENGTH,
         truncation=False,
         max_length=dataset.max_seq_length - dataset.num_special_tokens,
     ).encodings[0]
+    reading_example = ReadingExample()
+    reading_example.load(document, dataset.reading_aligner)
     word_feature_example = WordFeatureExample()
     word_feature_example.load(document)
     base_phrase_feature_example = BasePhraseFeatureExample()
@@ -134,15 +151,33 @@ def test_encode():
     example = WordExampleSet(
         example_id=0,
         doc_id="",
-        text=text,
         encoding=encoding,
+        reading_example=reading_example,
         word_feature_example=word_feature_example,
         base_phrase_feature_example=base_phrase_feature_example,
         dependency_example=dependency_example,
         cohesion_example=cohesion_example,
         discourse_example=discourse_example,
     )
-    encoding = dataset.encode(example)
+    features = dataset.encode(example)
+
+    reading_ids = [IGNORE_INDEX for _ in range(max_seq_length)]
+    # reading_ids[0]: CLS
+    reading_ids[1] = dataset.reading2id["かぜ"]  # 風
+    reading_ids[2] = dataset.reading2id["[ID]"]  # が
+    reading_ids[3] = dataset.reading2id["ふく"]  # 吹く
+    reading_ids[4] = dataset.reading2id["[ID]"]  # 。
+    reading_ids[5] = dataset.reading2id["[ID]"]  # する
+    reading_ids[6] = dataset.reading2id["[ID]"]  # と
+    reading_ids[7] = dataset.reading2id["[ID]"]  # _
+    reading_ids[8] = dataset.reading2id["おけ"]  # 桶
+    reading_ids[9] = dataset.reading2id["や"]  # 屋
+    reading_ids[10] = dataset.reading2id["[ID]"]  # が
+    reading_ids[11] = dataset.reading2id["[ID]"]  # _
+    reading_ids[12] = dataset.reading2id["もう"]  # 儲
+    reading_ids[13] = dataset.reading2id["[ID]"]  # か
+    reading_ids[14] = dataset.reading2id["[ID]"]  # る
+    reading_ids[15] = dataset.reading2id["[ID]"]  # 。
 
     mrph_types = [[IGNORE_INDEX] * 4 for _ in range(max_seq_length)]
     # 0: 風
@@ -190,7 +225,7 @@ def test_encode():
     mrph_types[8][1] = SUBPOS_TYPES.index("句点")
     mrph_types[8][2] = CONJTYPE_TYPES.index("*")
     mrph_types[8][3] = CONJFORM_TYPES.index("*")
-    assert encoding["mrph_types"].tolist() == mrph_types
+    assert features["mrph_types"].tolist() == mrph_types
 
     word_features = [[0] * len(WORD_FEATURES) for _ in range(max_seq_length)]
     # 0: 風
@@ -200,6 +235,8 @@ def test_encode():
     word_features[1][WORD_FEATURES.index("文節-区切")] = 1
     # 2: 吹く
     word_features[2][WORD_FEATURES.index("基本句-主辞")] = 1
+    word_features[2][WORD_FEATURES.index("用言表記先頭")] = 1
+    word_features[2][WORD_FEATURES.index("用言表記末尾")] = 1
     # 3: 。
     word_features[3][WORD_FEATURES.index("基本句-区切")] = 1
     word_features[3][WORD_FEATURES.index("文節-区切")] = 1
@@ -214,6 +251,8 @@ def test_encode():
     word_features[6][WORD_FEATURES.index("文節-区切")] = 1
     # 7: 儲かる
     word_features[7][WORD_FEATURES.index("基本句-主辞")] = 1
+    word_features[2][WORD_FEATURES.index("用言表記先頭")] = 1
+    word_features[2][WORD_FEATURES.index("用言表記末尾")] = 1
     # 8: 。
     word_features[8][WORD_FEATURES.index("基本句-区切")] = 1
     word_features[8][WORD_FEATURES.index("文節-区切")] = 1
@@ -232,6 +271,11 @@ def test_encode():
     base_phrase_features[2][BASE_PHRASE_FEATURES.index("節-区切")] = 1
     base_phrase_features[2][BASE_PHRASE_FEATURES.index("節-主辞")] = 1
     base_phrase_features[2][BASE_PHRASE_FEATURES.index("時制:非過去")] = 1
+    base_phrase_features[2][BASE_PHRASE_FEATURES.index("レベル:C")] = 1
+    base_phrase_features[2][BASE_PHRASE_FEATURES.index("動態述語")] = 1
+    # 4: すると
+    base_phrase_features[4][BASE_PHRASE_FEATURES.index("修飾")] = 1
+    base_phrase_features[4][BASE_PHRASE_FEATURES.index("節-前向き機能-条件")] = 1
     # 5: 桶屋
     base_phrase_features[5][BASE_PHRASE_FEATURES.index("体言")] = 1
     # 7: 儲かる
@@ -239,7 +283,9 @@ def test_encode():
     base_phrase_features[7][BASE_PHRASE_FEATURES.index("節-区切")] = 1
     base_phrase_features[7][BASE_PHRASE_FEATURES.index("節-主辞")] = 1
     base_phrase_features[7][BASE_PHRASE_FEATURES.index("時制:非過去")] = 1
-    assert encoding["base_phrase_features"].tolist() == base_phrase_features
+    base_phrase_features[7][BASE_PHRASE_FEATURES.index("レベル:C")] = 1
+    base_phrase_features[7][BASE_PHRASE_FEATURES.index("動態述語")] = 1
+    assert features["base_phrase_features"].tolist() == base_phrase_features
 
     dependencies = [IGNORE_INDEX for _ in range(max_seq_length)]
     # 0: 風 -> 2: 吹く
@@ -260,7 +306,7 @@ def test_encode():
     dependencies[7] = max_seq_length - 1
     # 8: 。 -> 7: 儲かる
     dependencies[8] = 7
-    assert encoding["dependencies"].tolist() == dependencies
+    assert features["dependencies"].tolist() == dependencies
 
     dependency_types = [IGNORE_INDEX for _ in range(max_seq_length)]
     # 0: 風 -> 2: 吹く
@@ -281,34 +327,30 @@ def test_encode():
     dependency_types[7] = DEPENDENCY_TYPE2INDEX[DepType.DEPENDENCY]
     # 8: 。 -> 7: 儲かる
     dependency_types[8] = DEPENDENCY_TYPE2INDEX[DepType.DEPENDENCY]
-    assert encoding["dependency_types"].tolist() == dependency_types
+    assert features["dependency_types"].tolist() == dependency_types
 
     discourse_relations = [[IGNORE_INDEX] * max_seq_length for _ in range(max_seq_length)]
     discourse_relations[2][2] = DISCOURSE_RELATIONS.index("談話関係なし")
     discourse_relations[2][7] = DISCOURSE_RELATIONS.index("条件")
     discourse_relations[7][2] = DISCOURSE_RELATIONS.index("談話関係なし")
     discourse_relations[7][7] = DISCOURSE_RELATIONS.index("談話関係なし")
-    assert encoding["discourse_relations"].tolist() == discourse_relations
+    assert features["discourse_relations"].tolist() == discourse_relations
 
 
 def test_pas():
     max_seq_length = 512
-    dataset = WordDataset(
-        str(data_dir / "knp"),
-        max_seq_length=max_seq_length,
-        **word_dataset_kwargs,
-    )
+    dataset = WordDataset(str(data_dir / "knp"), max_seq_length=max_seq_length, **word_dataset_kwargs)
     example = [e for e in dataset.examples if e.doc_id == "w201106-0000060560"][0].cohesion_example
     example_expected = json.loads((data_dir / "expected/example/0.json").read_text())
     mrphs_exp = example_expected["mrphs"]
-    annotation: PasAnnotation = example.annotations[Task.PAS_ANALYSIS]
-    phrases = example.phrases[Task.PAS_ANALYSIS]
-    mrphs = example.mrphs[Task.PAS_ANALYSIS]
+    annotation: PasAnnotation = example.annotations[CohesionTask.PAS_ANALYSIS]
+    phrases = example.phrases[CohesionTask.PAS_ANALYSIS]
+    mrphs = example.mrphs[CohesionTask.PAS_ANALYSIS]
 
     assert len(mrphs) == len(mrphs_exp)
     for phrase in phrases:
         arguments: dict[str, list[str]] = annotation.arguments_set[phrase.dtid]
-        for case in dataset.cases:
+        for case in dataset.pas_cases:
             arg_strings = [arg[:-2] if arg[-2:] in ("%C", "%N", "%O") else arg for arg in arguments[case]]
             arg_strings = [(s if s in dataset.special_to_index else str(phrases[int(s)].dmid)) for s in arg_strings]
             assert set(arg_strings) == set(mrphs_exp[phrase.dmid]["arguments"][case])
@@ -316,8 +358,8 @@ def test_pas():
             mrph = mrphs[dmid]
             mrph_exp = mrphs_exp[dmid]
             assert mrph.surf == mrph_exp["surf"]
-            if mrph.is_target or example.mrphs[Task.BRIDGING][dmid].is_target:
+            if mrph.is_target or example.mrphs[CohesionTask.BRIDGING][dmid].is_target:
                 candidates = set(phrases[i].dmid for i in phrase.candidates)
-                bar_phrases = example.phrases[Task.BRIDGING]
+                bar_phrases = example.phrases[CohesionTask.BRIDGING]
                 candidates |= set(bar_phrases[i].dmid for i in bar_phrases[phrase.dtid].candidates)
                 assert candidates == set(mrph_exp["arg_candidates"])

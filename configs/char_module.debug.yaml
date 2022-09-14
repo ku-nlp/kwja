@@ -1,0 +1,32 @@
+defaults:
+  - base
+  - callbacks: [early_stopping, model_checkpoint, model_summary, progress_bar]
+  - datamodule: char
+  - dataset: char
+  - logger: wandb
+  - model: char_roberta_base
+  - module: char
+  - optimizer: adamw
+  - scheduler: constant_schedule_with_warmup
+  - trainer: debug
+  - _self_
+
+do_predict_after_train: false
+checkpoint_path: ""
+document_split_stride: 1
+
+# For word normalization
+denormalize_prob: 0.0
+
+# set monitor and mode for early_stopping and model_checkpoint
+monitor: valid/f1
+mode: max
+
+# hyper-parameters to be tuned
+warmup_steps: 100
+effective_batch_size: 16
+
+# environment dependent settings
+devices: ${oc.env:GPUS,0}
+max_batches_per_device: 2
+num_workers: 0

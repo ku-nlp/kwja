@@ -1,0 +1,6 @@
+_target_: jula.datamodule.datasets.char_dataset.CharDataset
+model_name_or_path: ${model.model_name_or_path}
+max_seq_length: ${model.max_seq_length}
+tokenizer_kwargs: ${dataset.tokenizer_kwargs}
+document_split_stride: ${document_split_stride}
+denormalize_prob: ${denormalize_prob}

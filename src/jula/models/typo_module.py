@@ -4,9 +4,9 @@ import hydra
 import torch
 from omegaconf import DictConfig
 from pytorch_lightning.core.lightning import LightningModule
-from transformers import AutoTokenizer, PretrainedConfig, PreTrainedTokenizerBase
+from transformers import PretrainedConfig
 
-from jula.evaluators.typo_corrector import TypoCorrectorMetric
+from jula.evaluators.typo_correction_metric import TypoCorrectionMetric
 from jula.models.models.char_encoder import CharEncoder
 from jula.models.models.typo_corrector import TypoCorrector
 
@@ -17,19 +17,14 @@ class TypoModule(LightningModule):
         self.hparams.update(hparams)
         self.save_hyperparameters()
 
-        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-            hparams.model.model_name_or_path,
-            **hydra.utils.instantiate(hparams.dataset.tokenizer_kwargs, _convert_="partial"),
-        )
+        self.char_encoder: CharEncoder = CharEncoder(hparams)
 
-        self.char_encoder: CharEncoder = CharEncoder(hparams, self.tokenizer)
         pretrained_model_config: PretrainedConfig = self.char_encoder.pretrained_model.config
         self.model: TypoCorrector = TypoCorrector(
             hparams=hparams,
             pretrained_model_config=pretrained_model_config,
-            tokenizer=self.tokenizer,
         )
-        self.metrics: TypoCorrectorMetric = TypoCorrectorMetric()
+        self.metrics: TypoCorrectionMetric = TypoCorrectionMetric()
 
     def forward(self, **kwargs):
         encoder_output = self.char_encoder(kwargs)  # (b, seq_len, h)
@@ -59,10 +54,17 @@ class TypoModule(LightningModule):
 
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Any:
         outputs: dict[str, torch.Tensor] = self(**batch)
+        # the prediction of the first token (= [CLS]) is excluded.
+        kdr_probs = torch.softmax(outputs["kdr_logits"][:, 1:, :], dim=-1)  # (b, seq_len - 1, kdr_label_num)
+        kdr_values, kdr_indices = torch.max(kdr_probs, dim=-1)
+        ins_probs = torch.softmax(outputs["ins_logits"][:, 1:, :], dim=-1)  # (b, seq_len - 1, ins_label_num)
+        ins_values, ins_indices = torch.max(ins_probs, dim=-1)
         return {
             "texts": batch["texts"],
-            "kdr_logits": outputs["kdr_logits"],
-            "ins_logits": outputs["ins_logits"],
+            "kdr_values": kdr_values,
+            "kdr_indices": kdr_indices,
+            "ins_values": ins_values,
+            "ins_indices": ins_indices,
         }
 
     def configure_optimizers(self):

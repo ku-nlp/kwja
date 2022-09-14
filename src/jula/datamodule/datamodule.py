@@ -4,12 +4,16 @@ import hydra
 import pytorch_lightning as pl
 from omegaconf import DictConfig
 from pytorch_lightning.trainer.states import TrainerFn
-from torch.utils.data import DataLoader
+from torch.utils.data import ConcatDataset, DataLoader, Dataset
 
-from jula.datamodule.datasets.char_dataset import CharDataset
-from jula.datamodule.datasets.custom_concat_dataset import CustomConcatDataset
-from jula.datamodule.datasets.typo_dataset import TypoDataset
-from jula.datamodule.datasets.word_dataset import WordDataset
+from jula.datamodule.datasets import (
+    CharDataset,
+    CharInferenceDataset,
+    TypoDataset,
+    TypoInferenceDataset,
+    WordDataset,
+    WordInferenceDataset,
+)
 
 
 class DataModule(pl.LightningDataModule):
@@ -19,46 +23,41 @@ class DataModule(pl.LightningDataModule):
         self.batch_size: int = cfg.batch_size
         self.num_workers: int = cfg.num_workers
 
-        self.train_dataset: CustomConcatDataset = None
-        self.valid_datasets: dict[str, Union[CharDataset, TypoDataset, WordDataset]] = {}
-        self.test_datasets: dict[str, Union[CharDataset, TypoDataset, WordDataset]] = {}
+        self.train_dataset: Optional[ConcatDataset] = None
+        self.valid_datasets: dict[str, Union[TypoDataset, CharDataset, WordDataset]] = {}
+        self.test_datasets: dict[str, Union[TypoDataset, CharDataset, WordDataset]] = {}
+        self.predict_dataset: Optional[
+            Union[
+                TypoDataset, CharDataset, WordDataset, TypoInferenceDataset, CharInferenceDataset, WordInferenceDataset
+            ]
+        ] = None
 
     def prepare_data(self):
         pass
 
     def setup(self, stage: Optional[str] = None) -> None:
         if stage in (TrainerFn.FITTING, TrainerFn.TUNING):
-            self.train_dataset = CustomConcatDataset(
-                [hydra.utils.instantiate(config) for config in self.cfg.dataset.train.values()]
-            )
-        if stage in (
-            TrainerFn.FITTING,
-            TrainerFn.TUNING,
-            TrainerFn.VALIDATING,
-            TrainerFn.TESTING,
-            TrainerFn.PREDICTING,
-        ):
-            self.valid_datasets = {
-                corpus: hydra.utils.instantiate(config) for corpus, config in self.cfg.dataset.valid.items()
-            }
-        if stage in (TrainerFn.TESTING, TrainerFn.PREDICTING):
-            self.test_datasets = {
-                corpus: hydra.utils.instantiate(config) for corpus, config in self.cfg.dataset.test.items()
-            }
+            self.train_dataset = ConcatDataset(hydra.utils.instantiate(config) for config in self.cfg.train.values())
+        if stage in (TrainerFn.FITTING, TrainerFn.TUNING, TrainerFn.VALIDATING, TrainerFn.TESTING):
+            self.valid_datasets = {corpus: hydra.utils.instantiate(config) for corpus, config in self.cfg.valid.items()}
+        if stage in (TrainerFn.TESTING,):
+            self.test_datasets = {corpus: hydra.utils.instantiate(config) for corpus, config in self.cfg.test.items()}
+        if stage in (TrainerFn.PREDICTING,):
+            self.predict_dataset = hydra.utils.instantiate(self.cfg.predict)
 
     def train_dataloader(self) -> DataLoader:
         return self._get_dataloader(dataset=self.train_dataset, shuffle=True)
 
-    def val_dataloader(self) -> DataLoader:
+    def val_dataloader(self) -> list[DataLoader]:
         return [self._get_dataloader(dataset, shuffle=False) for dataset in self.valid_datasets.values()]
 
-    def test_dataloader(self) -> DataLoader:
+    def test_dataloader(self) -> list[DataLoader]:
         return [self._get_dataloader(dataset, shuffle=False) for dataset in self.test_datasets.values()]
 
     def predict_dataloader(self) -> DataLoader:
-        return [self._get_dataloader(dataset, shuffle=False) for dataset in self.test_datasets.values()]
+        return self._get_dataloader(self.predict_dataset, shuffle=False)
 
-    def _get_dataloader(self, dataset: Union[CharDataset, TypoDataset, WordDataset], shuffle: bool) -> DataLoader:
+    def _get_dataloader(self, dataset: Dataset, shuffle: bool) -> DataLoader:
         return DataLoader(
             dataset=dataset,
             batch_size=self.batch_size,
