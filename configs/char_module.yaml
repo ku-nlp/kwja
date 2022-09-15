@@ -11,7 +11,7 @@ defaults:
   - trainer: default
   - _self_
 
-do_predict_after_train: True
+do_predict_after_train: true
 checkpoint_path: ""
 document_split_stride: 1
 

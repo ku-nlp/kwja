@@ -31,7 +31,7 @@ hydra:
     subdir: ${name}-${hydra:job.num}
   job:
     env_set:
-      TOKENIZERS_PARALLELISM: False
+      TOKENIZERS_PARALLELISM: false
     config:
       override_dirname:
         kv_sep: '-'
