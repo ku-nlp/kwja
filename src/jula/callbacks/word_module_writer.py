@@ -1,4 +1,5 @@
 import copy
+import itertools
 import logging
 import os
 import pickle
@@ -208,7 +209,7 @@ class WordModuleWriter(BasePredictionWriter):
             conjform = INDEX2CONJFORM_TYPE[conjform_index]
             conjform_id = CONJTYPE_CONJFORM_TYPE2ID[conjtype][conjform]
             semantics: dict[str, Union[str, bool]] = {}
-            homographs = []
+            homograph_ops = []
             # create lemma using surf, conjtype and conjform
             # TODO: replace word with norm
             if conjtype == "*":
@@ -227,13 +228,17 @@ class WordModuleWriter(BasePredictionWriter):
                         lemma = surf2lemmas[word][0]
                         if len(surf2lemmas[word]) > 1:
                             # ambiguous
-                            for lemma2 in surf2lemmas[word][1:]:
-                                homographs.append({"lemma": lemma2})
+                            homograph_ops.append(
+                                {
+                                    "type": "lemma",
+                                    "values": surf2lemmas[word][1:],
+                                }
+                            )
                     else:
                         logger.warning(f"failed to get lemma for {word}")
                         lemma = word
             q = Query()
-            # TODO: on-kun based disambiguation
+            # TODO: on-kun based disambiguation / loose-matching of yomi?
             matches = self.jumandic.search(
                 (q.pos == pos) & (q.subpos == subpos) & (q.conjtype == conjtype) & (q.surf.any(lemma))
             )
@@ -241,8 +246,18 @@ class WordModuleWriter(BasePredictionWriter):
                 entry = matches[0]
                 semantics.update(SemanticsDict.from_sstring('"' + entry.semantics + '"'))
                 if len(matches) > 1:
-                    # TODO: homograph
-                    pass
+                    # homograph
+                    semantics_list = []
+                    for entry2 in matches[1:]:
+                        semantics2: dict[str, Union[str, bool]] = {}
+                        semantics2.update(SemanticsDict.from_sstring('"' + entry2.semantics + '"'))
+                        semantics_list.append(semantics2)
+                    homograph_ops.append(
+                        {
+                            "type": "semantics",
+                            "values": semantics_list,
+                        }
+                    )
             attributes = MorphemeAttributes(
                 surf=word,
                 reading=reading,
@@ -258,16 +273,37 @@ class WordModuleWriter(BasePredictionWriter):
             )
             morpheme = Morpheme(attributes, SemanticsDict(semantics), FeatureDict(semantics))
             morphemes.append(morpheme)
-            if len(homographs) >= 1:
-                for homograph_struct in homographs:
+            if len(homograph_ops) >= 1:
+                range_list = []
+                for homograph_op in homograph_ops:
+                    range_list.append(range(len(homograph_op["values"])))
+                for op_idx_list in itertools.product(*range_list):
                     attributes2 = copy.deepcopy(attributes)
                     semantics2 = copy.deepcopy(semantics)
-                    for k, v in homograph_struct.items():
-                        setattr(attributes2, k, v)
+                    for i, j in enumerate(op_idx_list):
+                        homograph_op = homograph_ops[i]
+                        v = homograph_op["values"][j]
+                        if homograph_op["type"] == "lemma":
+                            setattr(attributes2, "lemma", v)
+                        elif homograph_op["type"] == "semantics":
+                            semantics2 = v
+                        else:
+                            raise NotImplementedError
                     morpheme2 = Morpheme(
                         attributes2, SemanticsDict(semantics2), FeatureDict(semantics2), homograph=True
                     )
-                    morpheme.homographs.append(morpheme2)
+                    alt_feature = "ALT-{}-{}-{}-{}-{}-{}-{}-".format(
+                        morpheme2.surf,
+                        morpheme2.reading,
+                        morpheme2.lemma,
+                        pos_id,
+                        subpos_id,
+                        conjtype_id,
+                        conjform_id,
+                    )
+                    alt_feature += f"{morpheme2.semantics}"
+                    morpheme.features[alt_feature] = True
+                    # morpheme.homographs.append(morpheme2)
         return morphemes
 
     @staticmethod
