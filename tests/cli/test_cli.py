@@ -10,5 +10,4 @@ def test_app_with_text_input():
 
 
 def test_app_with_file_input():
-    # print(path.name)
     _ = runner.invoke(app, args=["--filename", "./sample.txt"])
