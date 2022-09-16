@@ -1,3 +1,4 @@
+import pickle
 import tempfile
 import textwrap
 from pathlib import Path
@@ -25,9 +26,26 @@ here = Path(__file__).absolute().parent
 reading_resource_path = here.parent / "datamodule/datasets/reading_files"
 
 
+def make_dummy_jumandic():
+    jumandic_dir = tempfile.TemporaryDirectory()
+    with open(jumandic_dir.name + "/jumandic.dic", "w") as f:
+        dummy_dic = textwrap.dedent(
+            """\
+        (名詞 (時相名詞 ((読み きょう)(見出し語 今日 きょう)(意味情報 "代表表記:今日/きょう カテゴリ:時間"))))
+        (名詞 (普通名詞 ((読み あい)(見出し語 愛 あい)(意味情報 "代表表記:愛/あい 漢字読み:音 カテゴリ:抽象物"))))
+        (名詞 (普通名詞 ((読み あい)(見出し語 藍 あい)(意味情報 "代表表記:藍/あい カテゴリ:植物"))))"""
+        )
+        f.write(dummy_dic)
+    with open(jumandic_dir.name + "/ambig_surf2lemmas.pkl", "wb") as f:
+        f.write(pickle.dumps({"形容詞:*:イ形容詞アウオ段:エ基本形": {"あええ": ["あおい"], "くれえ": ["くらい", "くろい"]}}))
+    return jumandic_dir
+
+
 def test_init():
     with tempfile.TemporaryDirectory() as tmp_dir:
-        _ = WordModuleWriter(tmp_dir, str(reading_resource_path))
+        jumandic_dir = make_dummy_jumandic()
+        _ = WordModuleWriter(tmp_dir, str(reading_resource_path), jumandic_dir.name)
+        jumandic_dir.cleanup()
 
 
 class MockTrainer:
@@ -153,7 +171,8 @@ def test_write_on_epoch_end():
     pred_filename = "test"
     with tempfile.TemporaryDirectory() as tmp_dir:
         # max_seq_length = 6 ([CLS], 今日, は, 晴れ, だ, [SEP]) + 7 (著者, 読者, 不特定:人, 不特定:物, [NULL], [NA], [ROOT])
-        writer = WordModuleWriter(tmp_dir, str(reading_resource_path), pred_filename=pred_filename)
+        jumandic_dir = make_dummy_jumandic()
+        writer = WordModuleWriter(tmp_dir, str(reading_resource_path), jumandic_dir.name, pred_filename=pred_filename)
         exophora_referents = ["著者", "読者", "不特定:人", "不特定:物"]
         special_tokens = exophora_referents + ["[NULL]", "[NA]", "[ROOT]"]
         dataset = WordInferenceDataset(
@@ -177,7 +196,7 @@ def test_write_on_epoch_end():
             # S-ID:test-0-0 jula:{jula.__version__}
             * 1D
             + 1D <体言>
-            今日 きょう 今日 名詞 6 時相名詞 10 * 0 * 0 <基本句-主辞>
+            今日 きょう 今日 名詞 6 時相名詞 10 * 0 * 0 "代表表記:今日/きょう カテゴリ:時間" <代表表記:今日/きょう><カテゴリ:時間><基本句-主辞>
             は は は 助詞 9 副助詞 2 * 0 * 0
             * -1D
             + -1D <rel type="ガ" target="今日" sid="test-0-0" id="0"/><NE:DATE:晴れ><用言:判><時制:非過去><節-主辞><節-区切><レベル:C><状態述語><談話関係:test-0-0/1/原因・理由>
@@ -187,3 +206,4 @@ def test_write_on_epoch_end():
             """
         )
         assert Path(tmp_dir).joinpath(f"{pred_filename}.knp").read_text() == expected_knp
+        jumandic_dir.cleanup()
