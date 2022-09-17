@@ -2,7 +2,7 @@ from typing import Any, Optional, Union
 
 import hydra
 import torch
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning.core.lightning import LightningModule
 from transformers import PretrainedConfig
 
@@ -14,8 +14,8 @@ from jula.models.models.typo_corrector import TypoCorrector
 class TypoModule(LightningModule):
     def __init__(self, hparams: DictConfig) -> None:
         super().__init__()
-        self.hparams.update(hparams)
-        self.save_hyperparameters()
+        OmegaConf.resolve(hparams)
+        self.save_hyperparameters(hparams)
 
         self.char_encoder: CharEncoder = CharEncoder(hparams)
 

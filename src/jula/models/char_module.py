@@ -2,7 +2,7 @@ from typing import Any, Optional
 
 import hydra
 import torch
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning.core.lightning import LightningModule
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 from transformers import PretrainedConfig
@@ -17,8 +17,8 @@ from jula.models.models.word_segmenter import WordSegmenter
 class CharModule(LightningModule):
     def __init__(self, hparams: DictConfig) -> None:
         super().__init__()
-        self.hparams.update(hparams)
-        self.save_hyperparameters()
+        OmegaConf.resolve(hparams)
+        self.save_hyperparameters(hparams)
 
         self.valid_corpora = list(hparams.datamodule.valid.keys())
         self.test_corpora = list(hparams.datamodule.test.keys())

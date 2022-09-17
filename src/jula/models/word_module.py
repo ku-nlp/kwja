@@ -5,7 +5,7 @@ from typing import Any, Optional
 
 import hydra
 import torch
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning.core.lightning import LightningModule
 from transformers import PretrainedConfig
 
@@ -39,8 +39,8 @@ class WordTask(Enum):
 class WordModule(LightningModule):
     def __init__(self, hparams: DictConfig) -> None:
         super().__init__()
-        self.hparams.update(hparams)
-        self.save_hyperparameters()
+        OmegaConf.resolve(hparams)
+        self.save_hyperparameters(hparams)
         self.training_tasks = list(map(WordTask, self.hparams.training_tasks))
 
         self.valid_corpora = list(hparams.datamodule.valid.keys())
