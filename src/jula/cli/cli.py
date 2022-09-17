@@ -7,12 +7,14 @@ import hydra
 import pytorch_lightning as pl
 import typer
 from dotenv import load_dotenv
-from hydra import compose, initialize
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import OmegaConf
 from pytorch_lightning.trainer.states import TrainerFn
 
 from jula.cli.utils import suppress_debug_info
 from jula.datamodule.datamodule import DataModule
+from jula.models.char_module import CharModule
+from jula.models.typo_module import TypoModule
+from jula.models.word_module import WordModule
 
 suppress_debug_info()
 OmegaConf.register_new_resolver("concat", lambda x, y: x + y)
@@ -47,8 +49,8 @@ def main(
     tmp_dir: TemporaryDirectory = TemporaryDirectory()
 
     # typo
-    with initialize(version_base=None, config_path="../../../configs"):
-        typo_cfg: DictConfig = compose(config_name="typo_module")
+    typo_model: TypoModule = TypoModule.load_from_checkpoint(str((model_dir / "typo.ckpt").resolve()))
+    typo_cfg = typo_model.hparams
     typo_trainer: pl.Trainer = pl.Trainer(
         logger=None,
         enable_progress_bar=False,
@@ -61,9 +63,6 @@ def main(
         ],
         devices=1,
     )
-    typo_cfg.module.load_from_checkpoint.checkpoint_path = str((model_dir / "typo.ckpt").resolve())
-    typo_model: pl.LightningModule = hydra.utils.call(typo_cfg.module.load_from_checkpoint)
-
     typo_cfg.datamodule.predict.texts = input_texts
     typo_datamodule = DataModule(cfg=typo_cfg.datamodule)
     typo_datamodule.setup(stage=TrainerFn.PREDICTING)
@@ -71,8 +70,8 @@ def main(
     del typo_model
 
     # char
-    with initialize(version_base=None, config_path="../../../configs"):
-        char_cfg: DictConfig = compose(config_name="char_module")
+    char_model: CharModule = CharModule.load_from_checkpoint(str((model_dir / "char.ckpt").resolve()))
+    char_cfg = char_model.hparams
     char_trainer: pl.Trainer = pl.Trainer(
         logger=None,
         enable_progress_bar=False,
@@ -85,8 +84,6 @@ def main(
         ],
         devices=1,
     )
-    char_cfg.module.load_from_checkpoint.checkpoint_path = str((model_dir / "char.ckpt").resolve())
-    char_model: pl.LightningModule = hydra.utils.call(char_cfg.module.load_from_checkpoint)
     with open(f"{tmp_dir.name}/predict_typo.txt") as f:
         typo_results = [line.strip() for line in f]
     char_cfg.datamodule.predict.texts = typo_results
@@ -96,8 +93,8 @@ def main(
     del char_model
 
     # word
-    with initialize(version_base=None, config_path="../../../configs"):
-        word_cfg: DictConfig = compose(config_name="word_module")
+    word_model: WordModule = WordModule.load_from_checkpoint(str((model_dir / "word.ckpt").resolve()))
+    word_cfg = word_model.hparams
     word_trainer: pl.Trainer = pl.Trainer(
         logger=None,
         enable_progress_bar=False,
@@ -111,9 +108,6 @@ def main(
         ],
         devices=1,
     )
-    word_cfg.module.load_from_checkpoint.checkpoint_path = str((model_dir / "word.ckpt").resolve())
-    word_model: pl.LightningModule = hydra.utils.call(word_cfg.module.load_from_checkpoint)
-
     with open(f"{tmp_dir.name}/predict_char.txt") as f:
         char_results = [line.strip() for line in f]
     word_cfg.datamodule.predict.texts = [x for i, x in enumerate(char_results) if i % 2 == 1]
