@@ -1,3 +1,4 @@
+import json
 import pickle
 import tempfile
 import textwrap
@@ -28,14 +29,42 @@ reading_resource_path = here.parent / "datamodule/datasets/reading_files"
 
 def make_dummy_jumandic():
     jumandic_dir = tempfile.TemporaryDirectory()
+    dummy_dic = {
+        "_default": {
+            "1": {
+                "surf": "今日",
+                "reading": "きょう",
+                "lemma": "今日",
+                "pos": "名詞",
+                "subpos": "時相名詞",
+                "conjtype": "*",
+                "conjform": "*",
+                "semantics": "代表表記:今日/きょう カテゴリ:時間",
+            },
+            "2": {
+                "surf": "あい",
+                "reading": "あい",
+                "lemma": "あい",
+                "pos": "名詞",
+                "subpos": "普通名詞",
+                "conjtype": "*",
+                "conjform": "*",
+                "semantics": "代表表記:愛/あい 漢字読み:音 カテゴリ:抽象物",
+            },
+            "3": {
+                "surf": "あい",
+                "reading": "あい",
+                "lemma": "あい",
+                "pos": "名詞",
+                "subpos": "普通名詞",
+                "conjtype": "*",
+                "conjform": "*",
+                "semantics": "代表表記:藍/あい カテゴリ:植物",
+            },
+        }
+    }
     with open(jumandic_dir.name + "/jumandic.dic", "w") as f:
-        dummy_dic = textwrap.dedent(
-            """\
-        (名詞 (時相名詞 ((読み きょう)(見出し語 今日 きょう)(意味情報 "代表表記:今日/きょう カテゴリ:時間"))))
-        (名詞 (普通名詞 ((読み あい)(見出し語 愛 あい)(意味情報 "代表表記:愛/あい 漢字読み:音 カテゴリ:抽象物"))))
-        (名詞 (普通名詞 ((読み あい)(見出し語 藍 あい)(意味情報 "代表表記:藍/あい カテゴリ:植物"))))"""
-        )
-        f.write(dummy_dic)
+        f.write(json.dumps(dummy_dic))
     with open(jumandic_dir.name + "/ambig_surf2lemmas.pkl", "wb") as f:
         f.write(pickle.dumps({"形容詞:*:イ形容詞アウオ段:エ基本形": {"あええ": ["あおい"], "くれえ": ["くらい", "くろい"]}}))
     return jumandic_dir

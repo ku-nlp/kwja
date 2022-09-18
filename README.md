@@ -42,7 +42,13 @@ Options:
 - `--output-dir, -o`: path to directory to save. Default: `./data`
 - `--save-filtered-results, -s`: whether to create an intermediate file to save the filtering results.
 
-For morphological analysis, you need to convert JumanDIC in advance with the following command.
+For morphological analysis, you need to convert JumanDIC in advance with the following commands.
+```shell
+cd /path/to/JumanDIC
+git checkout kwja
+make kwja
+```
+and
 ```shell
 poetry run python src/jula/preprocessors/preprocess_jumandic.py
   --input-dir /path/to/JumanDIC
