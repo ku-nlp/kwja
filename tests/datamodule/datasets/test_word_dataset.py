@@ -65,6 +65,7 @@ def test_getitem():
         assert "example_ids" in item
         assert "input_ids" in item
         assert "attention_mask" in item
+        assert "target_mask" in item
         assert "subword_map" in item
         assert "reading_subword_map" in item
         assert "reading_ids" in item
@@ -81,6 +82,7 @@ def test_getitem():
         assert item["example_ids"] == i
         assert item["input_ids"].shape == (max_seq_length,)
         assert item["attention_mask"].shape == (max_seq_length,)
+        assert item["target_mask"].shape == (max_seq_length,)
         assert item["subword_map"].shape == (max_seq_length, max_seq_length)
         assert (item["subword_map"].sum(dim=1) != 0).sum() == len(document.morphemes) + dataset.num_special_tokens
         assert item["reading_subword_map"].shape == (max_seq_length, max_seq_length)
@@ -150,7 +152,7 @@ def test_encode():
     discourse_example.load(document)
     example = WordExampleSet(
         example_id=0,
-        doc_id="",
+        doc_id="000",
         encoding=encoding,
         reading_example=reading_example,
         word_feature_example=word_feature_example,
