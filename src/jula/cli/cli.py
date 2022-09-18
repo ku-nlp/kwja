@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Optional
@@ -6,15 +5,18 @@ from typing import Optional
 import hydra
 import pytorch_lightning as pl
 import typer
-from dotenv import load_dotenv
 from omegaconf import OmegaConf
 from pytorch_lightning.trainer.states import TrainerFn
 
-from jula.cli.utils import suppress_debug_info
+from jula.cli.utils import download_checkpoint_from_url, suppress_debug_info
 from jula.datamodule.datamodule import DataModule
 from jula.models.char_module import CharModule
 from jula.models.typo_module import TypoModule
 from jula.models.word_module import WordModule
+
+TYPO_CHECKPOINT_URL = "https://lotus.kuee.kyoto-u.ac.jp/kwja/typo_roberta-base-wwm_seq512.ckpt"
+CHAR_CHECKPOINT_URL = "https://lotus.kuee.kyoto-u.ac.jp/kwja/char_roberta-base-wwm_seq512.ckpt"
+WORD_CHECKPOINT_URL = "https://lotus.kuee.kyoto-u.ac.jp/kwja/word_roberta-base_seq256.ckpt"
 
 suppress_debug_info()
 OmegaConf.register_new_resolver("concat", lambda x, y: x + y)
@@ -39,20 +41,14 @@ def main(
         typer.echo("ERROR: Please provide text or filename")
         raise typer.Exit
 
-    load_dotenv()
-    env_model_dir: Optional[str] = os.getenv("MODEL_DIR")
-    if env_model_dir is None:
-        typer.echo("ERROR: Please set the MODEL_DIR environment variable")
-        raise typer.Exit()
-    model_dir: Path = Path(env_model_dir)
-
     tmp_dir: TemporaryDirectory = TemporaryDirectory()
 
     # typo
-    typo_model: TypoModule = TypoModule.load_from_checkpoint(str((model_dir / "typo.ckpt").resolve()))
+    typo_checkpoint_path: Path = download_checkpoint_from_url(TYPO_CHECKPOINT_URL)
+    typo_model: TypoModule = TypoModule.load_from_checkpoint(str(typo_checkpoint_path))
     typo_cfg = typo_model.hparams
     typo_trainer: pl.Trainer = pl.Trainer(
-        logger=None,
+        logger=False,
         enable_progress_bar=False,
         callbacks=[
             hydra.utils.instantiate(
@@ -70,10 +66,11 @@ def main(
     del typo_model
 
     # char
-    char_model: CharModule = CharModule.load_from_checkpoint(str((model_dir / "char.ckpt").resolve()))
+    char_checkpoint_path: Path = download_checkpoint_from_url(CHAR_CHECKPOINT_URL)
+    char_model: CharModule = CharModule.load_from_checkpoint(str(char_checkpoint_path))
     char_cfg = char_model.hparams
     char_trainer: pl.Trainer = pl.Trainer(
-        logger=None,
+        logger=False,
         enable_progress_bar=False,
         callbacks=[
             hydra.utils.instantiate(
@@ -84,19 +81,18 @@ def main(
         ],
         devices=1,
     )
-    with open(f"{tmp_dir.name}/predict_typo.txt") as f:
-        typo_results = [line.strip() for line in f]
-    char_cfg.datamodule.predict.texts = typo_results
+    char_cfg.datamodule.predict.texts = Path(f"{tmp_dir.name}/predict_typo.txt").read_text().splitlines()
     char_datamodule = DataModule(cfg=char_cfg.datamodule)
     char_datamodule.setup(stage=TrainerFn.PREDICTING)
     char_trainer.predict(model=char_model, dataloaders=char_datamodule.predict_dataloader())
     del char_model
 
     # word
-    word_model: WordModule = WordModule.load_from_checkpoint(str((model_dir / "word.ckpt").resolve()))
+    word_checkpoint_path: Path = download_checkpoint_from_url(WORD_CHECKPOINT_URL)
+    word_model: WordModule = WordModule.load_from_checkpoint(str(word_checkpoint_path))
     word_cfg = word_model.hparams
     word_trainer: pl.Trainer = pl.Trainer(
-        logger=None,
+        logger=False,
         enable_progress_bar=False,
         callbacks=[
             hydra.utils.instantiate(
