@@ -15,8 +15,7 @@ from jumandic import JumanDIC
 from pytorch_lightning.callbacks import BasePredictionWriter
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
 from rhoknp.cohesion import ExophoraReferent, RelTag, RelTagList
-from rhoknp.cohesion.discourse_relation import DiscourseRelationTag
-from rhoknp.props import DepType, FeatureDict, NamedEntity, NamedEntityCategory, NETagList, SemanticsDict
+from rhoknp.props import DepType, FeatureDict, NamedEntity, NamedEntityCategory, SemanticsDict
 from rhoknp.units.morpheme import MorphemeAttributes
 from tinydb import Query
 
@@ -259,7 +258,6 @@ class WordModuleWriter(BasePredictionWriter):
                         }
                     )
             attributes = MorphemeAttributes(
-                surf=word,
                 reading=reading,
                 lemma=lemma,
                 pos=pos,
@@ -271,7 +269,7 @@ class WordModuleWriter(BasePredictionWriter):
                 conjform=conjform,
                 conjform_id=conjform_id,
             )
-            morpheme = Morpheme(attributes, SemanticsDict(semantics), FeatureDict(semantics))
+            morpheme = Morpheme(word, attributes, SemanticsDict(semantics), FeatureDict(semantics))
             morphemes.append(morpheme)
             if len(homograph_ops) >= 1:
                 range_list = []
@@ -290,7 +288,7 @@ class WordModuleWriter(BasePredictionWriter):
                         else:
                             raise NotImplementedError
                     morpheme2 = Morpheme(
-                        attributes2, SemanticsDict(semantics2), FeatureDict(semantics2), homograph=True
+                        word, attributes2, SemanticsDict(semantics2), FeatureDict(semantics2), homograph=True
                     )
                     alt_feature = "ALT-{}-{}-{}-{}-{}-{}-{}-".format(
                         morpheme2.surf,
@@ -381,26 +379,24 @@ class WordModuleWriter(BasePredictionWriter):
                     morpheme.features["用言表記末尾"] = True
                 # even if base_phrase_end_prob is low, if phrase_end_prob is high enough, create chunk here
                 if base_phrase_end_prob >= 0.5 or base_phrase_end_prob + phrase_end_prob >= 1.0:
-                    base_phrase = BasePhrase(
-                        None, None, FeatureDict(), RelTagList(), NETagList(), DiscourseRelationTag()
-                    )
+                    base_phrase = BasePhrase(parent_index=None, dep_type=None)
                     base_phrase.morphemes = morphemes_buff
                     morphemes_buff = []
                     base_phrases_buff.append(base_phrase)
                 # even if phrase_end_prob is high, if base_phrase_end_prob is not high enough, do not create chunk here
                 if phrase_end_prob >= 0.5 and base_phrase_end_prob + phrase_end_prob >= 1.0:
-                    phrase = Phrase(None, None, FeatureDict())
+                    phrase = Phrase(parent_index=None, dep_type=None)
                     phrase.base_phrases = base_phrases_buff
                     base_phrases_buff = []
                     phrases_buff.append(phrase)
 
             # clear buffers
             if morphemes_buff:
-                base_phrase = BasePhrase(None, None, FeatureDict(), RelTagList(), NETagList(), DiscourseRelationTag())
+                base_phrase = BasePhrase(parent_index=None, dep_type=None)
                 base_phrase.morphemes = morphemes_buff
                 base_phrases_buff.append(base_phrase)
             if base_phrases_buff:
-                phrase = Phrase(None, None, FeatureDict())
+                phrase = Phrase(parent_index=None, dep_type=None)
                 phrase.base_phrases = base_phrases_buff
                 phrases_buff.append(phrase)
 
@@ -424,7 +420,7 @@ class WordModuleWriter(BasePredictionWriter):
             category = ""
             morphemes_buff = []
             for morpheme, ne_tag_pred in zip(morphemes, ne_tag_preds):
-                ne_tag = NE_TAGS[ne_tag_pred]
+                ne_tag: str = NE_TAGS[ne_tag_pred]
                 if ne_tag.startswith("B-"):
                     category = ne_tag[2:]
                     morphemes_buff.append(morpheme)
@@ -433,7 +429,10 @@ class WordModuleWriter(BasePredictionWriter):
                 else:
                     if morphemes_buff:
                         named_entity = NamedEntity(category=NamedEntityCategory(category), morphemes=morphemes_buff)
-                        sentence.named_entities.append(named_entity)
+                        # NE feature must be tagged to the last base phrase the named entity contains
+                        morphemes_buff[-1].base_phrase.features[
+                            "NE"
+                        ] = f"{named_entity.category.value}:{named_entity.text}"
                     category = ""
                     morphemes_buff = []
 
