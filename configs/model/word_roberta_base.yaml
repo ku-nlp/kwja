@@ -1,2 +1,2 @@
-model_name_or_path: ${oc.env:MODEL_DIR}/roberta-base-japanese
-max_seq_length: 256
+model_name_or_path: nlp-waseda/roberta-base-japanese
+max_seq_length: 128

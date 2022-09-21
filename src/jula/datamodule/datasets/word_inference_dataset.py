@@ -8,7 +8,6 @@ import torch
 from omegaconf import ListConfig
 from rhoknp import Document, Morpheme, Sentence
 from rhoknp.cohesion import ExophoraReferent
-from rhoknp.props import FeatureDict, SemanticsDict
 from rhoknp.units.morpheme import MorphemeAttributes
 from tokenizers import Encoding
 from transformers.utils import PaddingStrategy
@@ -109,7 +108,6 @@ class WordInferenceDataset(BaseDataset):
                 morphemes = []
                 for word in text.split(" "):
                     attributes = MorphemeAttributes(
-                        surf=word,
                         reading="null",
                         lemma="null",
                         pos="null",
@@ -121,7 +119,7 @@ class WordInferenceDataset(BaseDataset):
                         conjform="null",
                         conjform_id=0,
                     )
-                    morphemes.append(Morpheme(attributes, SemanticsDict(), FeatureDict()))
+                    morphemes.append(Morpheme(word, attributes))
                 sentence.morphemes = morphemes
                 did2sentences[doc_id].append(sentence)
         return [Document.from_sentences(sentences) for sentences in did2sentences.values()]
