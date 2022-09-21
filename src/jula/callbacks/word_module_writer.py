@@ -2,7 +2,6 @@ import copy
 import itertools
 import logging
 import os
-import pickle
 import sys
 from io import TextIOBase
 from pathlib import Path
@@ -53,7 +52,7 @@ class WordModuleWriter(BasePredictionWriter):
         output_dir: str,
         reading_resource_path: str,
         jumandic_path: str,
-        # ambig_surf2lemmas_path: str,
+        ambig_surf_specs: list[dict[str, str]],
         pred_filename: str = "predict",
         use_stdout: bool = False,
     ) -> None:
@@ -65,14 +64,12 @@ class WordModuleWriter(BasePredictionWriter):
         self.jinf = Jinf()
         self.jumandic_path = Path(jumandic_path)
         self.jumandic = TinyDB(
-            str(self.jumandic_path / "jumandic.dic"),
+            str(self.jumandic_path / "jumandic.json"),
             ensure_ascii=False,
             access_mode="r",
             storage=CachingMiddleware(JSONStorage),
         )
-        # self.jumandic = JumanDIC(str(self.jumandic_path / "jumandic.dic"))
-        with open(str(self.jumandic_path / "ambig_surf2lemmas.pkl"), "rb") as f:
-            self.ambig_surf2lemmas = pickle.load(f)
+        self.ambig_surf_specs = ambig_surf_specs
 
         self.destination: Union[Path, TextIO]
         if use_stdout is True:
@@ -215,33 +212,41 @@ class WordModuleWriter(BasePredictionWriter):
             conjform = INDEX2CONJFORM_TYPE[conjform_index]
             conjform_id = CONJTYPE_CONJFORM_TYPE2ID[conjtype][conjform]
             semantics: dict[str, Union[str, bool]] = {}
-            homograph_ops = []
+            homograph_ops: list[dict[str, Any]] = []
+
             # create lemma using surf, conjtype and conjform
             # TODO: replace word with norm
             if conjtype == "*":
                 lemma = word
             else:
-                signature = f"{pos}:{subpos}:{conjtype}:{conjform}"
-                if conjform not in self.ambig_surf2lemmas:
+                for ambig_surf_spec in self.ambig_surf_specs:
+                    if conjtype != ambig_surf_spec["conjtype"]:
+                        continue
+                    if conjform != ambig_surf_spec["conjform"]:
+                        continue
+                    # ambiguous: dictionary lookup to identify the lemma
+                    q = Query()
+                    matches = self.jumandic.search(
+                        (q.pos == pos) & (q.subpos == subpos) & (q.conjtype == conjtype) & (q.surf == word)
+                    )
+                    if len(matches) > 0:
+                        lemma_set: set[str] = set()
+                        for entry in matches:
+                            lemma_set.add(entry["lemma"])
+                        lemmas: list[str] = list(lemma_set)
+                        lemma = lemmas[0]
+                        if len(lemmas) > 1:
+                            homograph_ops.append({"type": "lemma", "values": lemmas[1:]})
+                    else:
+                        logger.warning(f"failed to get lemma for {word}")
+                        lemma = word
+                    break
+                else:
+                    # not ambiguous: use paradigm table to generate the lemma
                     try:
                         lemma = self.jinf(word, conjtype, conjform, "基本形")
                     except ValueError as e:
                         logger.warning(f"failed to get lemma for {word}: ({e})")
-                        lemma = word
-                else:
-                    surf2lemmas = self.ambig_surf2lemmas[signature]
-                    if word in surf2lemmas:
-                        lemma = surf2lemmas[word][0]
-                        if len(surf2lemmas[word]) > 1:
-                            # ambiguous
-                            homograph_ops.append(
-                                {
-                                    "type": "lemma",
-                                    "values": surf2lemmas[word][1:],
-                                }
-                            )
-                    else:
-                        logger.warning(f"failed to get lemma for {word}")
                         lemma = word
             q = Query()
             matches = self.jumandic.search(
@@ -300,18 +305,8 @@ class WordModuleWriter(BasePredictionWriter):
                     morpheme2 = Morpheme(
                         word, attributes2, SemanticsDict(semantics2), FeatureDict(semantics2), homograph=True
                     )
-                    # use KNP's ALT features to record homographs
-                    alt_feature = "ALT-{}-{}-{}-{}-{}-{}-{}-".format(
-                        morpheme2.surf,
-                        morpheme2.reading,
-                        morpheme2.lemma,
-                        pos_id,
-                        subpos_id,
-                        conjtype_id,
-                        conjform_id,
-                    )
-                    alt_feature += f"{morpheme2.semantics}"
-                    morpheme.features[alt_feature] = True
+                    # rhoknp coverts homographs into KNP's ALT features
+                    morpheme.homographs.append(morpheme2)
         return morphemes
 
     @staticmethod

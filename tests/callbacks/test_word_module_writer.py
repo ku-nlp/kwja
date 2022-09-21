@@ -1,5 +1,4 @@
 import json
-import pickle
 import tempfile
 import textwrap
 from pathlib import Path
@@ -63,17 +62,29 @@ def make_dummy_jumandic():
             },
         }
     }
-    with open(jumandic_dir.name + "/jumandic.dic", "w") as f:
+    with open(jumandic_dir.name + "/jumandic.json", "w") as f:
         f.write(json.dumps(dummy_dic))
-    with open(jumandic_dir.name + "/ambig_surf2lemmas.pkl", "wb") as f:
-        f.write(pickle.dumps({"形容詞:*:イ形容詞アウオ段:エ基本形": {"あええ": ["あおい"], "くれえ": ["くらい", "くろい"]}}))
-    return jumandic_dir
+    ambig_surf_specs = [
+        {
+            "conjtype": "イ形容詞アウオ段",
+            "conjform": "エ基本形",
+        },
+        {
+            "conjtype": "イ形容詞イ段",
+            "conjform": "エ基本形",
+        },
+        {
+            "conjtype": "イ形容詞イ段特殊",
+            "conjform": "エ基本形",
+        },
+    ]
+    return jumandic_dir, ambig_surf_specs
 
 
 def test_init():
     with tempfile.TemporaryDirectory() as tmp_dir:
-        jumandic_dir = make_dummy_jumandic()
-        _ = WordModuleWriter(tmp_dir, str(reading_resource_path), jumandic_dir.name)
+        jumandic_dir, ambig_surf_specs = make_dummy_jumandic()
+        _ = WordModuleWriter(tmp_dir, str(reading_resource_path), jumandic_dir.name, ambig_surf_specs)
         jumandic_dir.cleanup()
 
 
@@ -200,8 +211,10 @@ def test_write_on_epoch_end():
     pred_filename = "test"
     with tempfile.TemporaryDirectory() as tmp_dir:
         # max_seq_length = 6 ([CLS], 今日, は, 晴れ, だ, [SEP]) + 7 (著者, 読者, 不特定:人, 不特定:物, [NULL], [NA], [ROOT])
-        jumandic_dir = make_dummy_jumandic()
-        writer = WordModuleWriter(tmp_dir, str(reading_resource_path), jumandic_dir.name, pred_filename=pred_filename)
+        jumandic_dir, ambig_surf_specs = make_dummy_jumandic()
+        writer = WordModuleWriter(
+            tmp_dir, str(reading_resource_path), jumandic_dir.name, ambig_surf_specs, pred_filename=pred_filename
+        )
         exophora_referents = ["著者", "読者", "不特定:人", "不特定:物"]
         special_tokens = exophora_referents + ["[NULL]", "[NA]", "[ROOT]"]
         dataset = WordInferenceDataset(

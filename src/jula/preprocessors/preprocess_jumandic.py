@@ -1,7 +1,5 @@
-import copy
 import csv
 import logging
-import pickle
 import sys
 from argparse import ArgumentParser
 from pathlib import Path
@@ -48,22 +46,6 @@ def main():
     else:
         outdir.mkdir(parents=True)
 
-    # TODO: externalize this
-    ambig_surf_specs = [
-        {
-            "conjtype": "イ形容詞アウオ段",
-            "conjform": "エ基本形",
-        },
-        {
-            "conjtype": "イ形容詞イ段",
-            "conjform": "エ基本形",
-        },
-        {
-            "conjtype": "イ形容詞イ段特殊",
-            "conjform": "エ基本形",
-        },
-    ]
-
     with open(str(input_path)) as f:
         dicreader = csv.reader(f)
         rows = list(dicreader)
@@ -90,38 +72,11 @@ def main():
             }
         )
     rows = []
-    (outdir / "jumandic.dic").unlink(missing_ok=True)
+    (outdir / "jumandic.json").unlink(missing_ok=True)
     CachingMiddleware.WRITE_CACHE_SIZE = 1000000
-    with TinyDB(str(outdir / "jumandic.dic"), ensure_ascii=False, storage=CachingMiddleware(JSONStorage)) as dic:
+    with TinyDB(str(outdir / "jumandic.json"), ensure_ascii=False, storage=CachingMiddleware(JSONStorage)) as dic:
         dic.insert_multiple(entries)
     entries = []
-
-    dic = TinyDB(
-        str(outdir / "jumandic.dic"), ensure_ascii=False, access_mode="r", storage=CachingMiddleware(JSONStorage)
-    )
-    # pos:subpos:conjtype:conjform -> surf -> list of lemmas
-    ambig_surf2lemmas: dict[str, dict[str, list[str]]] = {}
-    for entry in dic:
-        for ambig_surf_spec in ambig_surf_specs:
-            if entry["conjtype"] == ambig_surf_spec["conjtype"] and entry["conjform"] == ambig_surf_spec["conjform"]:
-                signature = f"{entry['pos']}:{entry['subpos']}:{entry['conjtype']}:{entry['conjform']}"
-                if signature in ambig_surf2lemmas:
-                    surf2lemmas = ambig_surf2lemmas[signature]
-                else:
-                    surf2lemmas = ambig_surf2lemmas[signature] = {}
-                surf = entry["surf"]
-                if surf in surf2lemmas:
-                    for lemma2 in copy.copy(surf2lemmas[surf]):
-                        if entry["lemma"] == lemma2:
-                            logger.warning("duplicate: {}".format(surf2lemmas[surf]))
-                            break
-                        else:
-                            surf2lemmas[surf].append(entry["lemma"])
-                            logger.info("ambiguity: {}".format(surf2lemmas[surf]))
-                else:
-                    surf2lemmas[surf] = [entry["lemma"]]
-    with (outdir / "ambig_surf2lemmas.pkl").open("wb") as f:
-        f.write(pickle.dumps(ambig_surf2lemmas))
 
 
 if __name__ == "__main__":
