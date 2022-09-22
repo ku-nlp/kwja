@@ -28,3 +28,5 @@ effective_batch_size: 16
 devices: ${oc.env:GPUS,0}
 max_batches_per_device: 2
 num_workers: 0
+
+hparams_to_ignore_on_save: []

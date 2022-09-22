@@ -2,13 +2,14 @@ from typing import Any, Optional, Union
 
 import hydra
 import torch
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning.core.lightning import LightningModule
 from transformers import PretrainedConfig
 
 from jula.evaluators.typo_correction_metric import TypoCorrectionMetric
 from jula.models.models.char_encoder import CharEncoder
 from jula.models.models.typo_corrector import TypoCorrector
+from jula.utils.util import filter_dict_items
 
 
 class TypoModule(LightningModule):
@@ -106,3 +107,9 @@ class TypoModule(LightningModule):
                 "frequency": 1,
             },
         }
+
+    def on_save_checkpoint(self, checkpoint: dict[str, Any]) -> None:
+        hparams = checkpoint["hyper_parameters"]["hparams"]
+        OmegaConf.set_struct(hparams, False)
+        hparams = filter_dict_items(hparams, self.hparams.hparams_to_ignore_on_save)
+        checkpoint["hyper_parameters"] = {"hparams": hparams}

@@ -26,10 +26,9 @@ touch TASK_NAME.yaml TASK_NAME.debug.yaml
 ```
 Please refer to existing tasks when editing and add your task to `configs/module/default.yaml`
 
-3. Create a `.env` file and set `DATA_DIR` and `MODEL_DIR`.
+3. Create a `.env` file and set `DATA_DIR`.
 ```shell
 echo DATA_DIR="/path/to/data_dir" >> .env
-echo MODEL_DIR="/path/to/model_dir" >> .env
 ```
 
 ## Preprocessing
@@ -42,7 +41,13 @@ Options:
 - `--output-dir, -o`: path to directory to save. Default: `./data`
 - `--save-filtered-results, -s`: whether to create an intermediate file to save the filtering results.
 
-For morphological analysis, you need to convert JumanDIC in advance with the following command.
+For morphological analysis, you need to convert JumanDIC in advance with the following commands.
+```shell
+cd /path/to/JumanDIC
+git checkout kwja
+make kwja
+```
+and
 ```shell
 poetry run python src/jula/preprocessors/preprocess_jumandic.py
   --input-dir /path/to/JumanDIC
