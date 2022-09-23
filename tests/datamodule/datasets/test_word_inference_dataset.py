@@ -38,5 +38,7 @@ def test_getitem():
         assert isinstance(item, dict)
         assert "input_ids" in item
         assert "attention_mask" in item
+        assert "target_mask" in item
         assert item["input_ids"].shape == (max_seq_length,)
         assert item["attention_mask"].shape == (max_seq_length,)
+        assert item["target_mask"].shape == (max_seq_length,)
