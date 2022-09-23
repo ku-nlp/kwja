@@ -61,14 +61,8 @@ class PhraseAnalyzer(nn.Module):
 
     def forward(self, pooled_outputs: torch.Tensor, batch: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         outputs: dict[str, torch.Tensor] = {}
-        ne_logits = self.ne_head(pooled_outputs)  # (batch_size, seq_length, num_tags)
-        device, shape = map(lambda x: getattr(ne_logits, x), ["device", "shape"])
-        non_target = torch.full_like(ne_logits, -1024.0)
-        non_target[:, :, NE_TAGS.index("O")] = 0.0
-        emissions = torch.where(batch["target_mask"].unsqueeze(2).expand(shape), ne_logits, non_target)
-        decoded = torch.tensor(self.crf.decode(emissions), device=device).unsqueeze(2).expand(shape)
-        arrange = torch.ones_like(decoded) * torch.arange(shape[-1], device=device)
-        outputs["ne_logits"] = torch.where(decoded == arrange, torch.full_like(ne_logits, 1024.0), ne_logits)
+        ne_logits, emissions = self.compute_ne_logits(pooled_outputs, batch)
+        outputs["ne_logits"] = ne_logits
         word_feature_logits = self.word_feature_head(pooled_outputs)  # (batch_size, seq_length, num_word_features)
         outputs["word_feature_logits"] = word_feature_logits  # (batch_size, seq_length, num_base_phrase_features)
         base_phrase_feature_logits = self.base_phrase_feature_head(pooled_outputs)
@@ -94,6 +88,19 @@ class PhraseAnalyzer(nn.Module):
             )
             outputs["base_phrase_feature_loss"] = base_phrase_feature_loss
         return outputs
+
+    def compute_ne_logits(
+        self, pooled_outputs: torch.Tensor, batch: dict[str, torch.Tensor]
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        ne_logits = self.ne_head(pooled_outputs)  # (batch_size, seq_length, num_tags)
+        device, shape = map(lambda x: getattr(ne_logits, x), ["device", "shape"])
+        non_target = torch.full_like(ne_logits, -1024.0)
+        non_target[:, :, NE_TAGS.index("O")] = 0.0
+        emissions = torch.where(batch["target_mask"].unsqueeze(2).expand(shape), ne_logits, non_target)
+        decoded = torch.tensor(self.crf.decode(emissions), device=device).unsqueeze(2).expand(shape)
+        arrange = torch.ones_like(decoded) * torch.arange(shape[-1], device=device)
+        ne_logits = torch.where(decoded == arrange, torch.full_like(ne_logits, 1024.0), ne_logits)
+        return ne_logits, emissions
 
     @staticmethod
     def compute_loss(
@@ -136,12 +143,13 @@ class CRF(nn.Module):
     .. _Viterbi algorithm: https://en.wikipedia.org/wiki/Viterbi_algorithm
     """
 
-    def __init__(self, tags: tuple[str, ...], batch_first: bool = False) -> None:
+    def __init__(self, tags: tuple[str, ...], batch_first: bool = True) -> None:
         num_tags = len(tags)
         assert num_tags > 0, f"invalid number of tags: {num_tags}"
         super().__init__()
         self.num_tags = num_tags
         self.batch_first = batch_first
+
         self.start_transitions = nn.Parameter(torch.empty(num_tags))
         self.end_transitions = nn.Parameter(torch.empty(num_tags))
         self.transitions = nn.Parameter(torch.empty(num_tags, num_tags))
@@ -222,11 +230,13 @@ class CRF(nn.Module):
 
     def decode(self, emissions: torch.FloatTensor, mask: Optional[torch.ByteTensor] = None) -> list[list[int]]:
         """Find the most likely tag sequence using Viterbi algorithm.
+
         Args:
             emissions (`~torch.FloatTensor`): Emission score tensor of size ``(seq_length, batch_size, num_tags)`` or
                                               ``(batch_size, seq_length, num_tags)`` (if batch_first is True).
             mask (`~torch.ByteTensor`): Mask tensor of size ``(seq_length, batch_size)`` or
                                         ``(batch_size, seq_length)`` (if batch_first is True).
+
         Returns:
             `~list[list[int]]`: list of list containing the best tag sequence for each batch.
         """
@@ -296,8 +306,10 @@ class CRF(nn.Module):
             score += emissions[i, torch.arange(batch_size), tags[i]] * mask[i]  # (batch_size, )
 
         # End transition score
-        seq_ends = mask.long().sum(dim=0) - 1  # (batch_size, )
-        last_tags = tags[seq_ends, torch.arange(batch_size)]  # (batch_size, )
+        tags = tags.transpose(1, 0)
+        mask = mask.transpose(1, 0)
+        seq_ends = torch.amax(mask.long() * torch.arange(mask.shape[-1], device=mask.device), dim=1, keepdim=True)
+        last_tags = torch.gather(tags, 1, seq_ends).squeeze(1)
         score += self.end_transitions[last_tags]  # (batch_size, )
 
         return score
