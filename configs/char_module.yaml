@@ -40,7 +40,11 @@ hparams_to_ignore_on_save:
   - run_id
   - run_dir
   - config_name
-  - callbacks
+  - callbacks:
+    - early_stopping
+    - model_checkpoint
+    - model_summary
+    - progress_bar
   - datamodule:
     - train
     - valid
