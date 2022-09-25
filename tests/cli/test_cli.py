@@ -5,8 +5,9 @@ from jula.cli.cli import app
 runner = CliRunner()
 
 
-def test_app():
-    inp = "test"
-    result = runner.invoke(app, input=inp)
-    assert result.exit_code == 0
-    assert result.output == inp + "\n"
+def test_app_with_text_input():
+    _ = runner.invoke(app, args=["--text", "おはよう"])
+
+
+def test_app_with_file_input():
+    _ = runner.invoke(app, args=["--filename", "./sample.txt"])
