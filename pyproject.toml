@@ -11,6 +11,14 @@ authors = [
     "Daisuke Kawahara <dkw@waseda.jp>",
     "Sadao Kurohashi <kuro@i.kyoto-u.ac.jp>"
 ]
+keywords = ["natural language processing", "japanese"]
+
+packages = [
+    { include = "jula", from = "src" }
+]
+include = [
+    "jula/resource/**/*"
+]
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.11"
@@ -45,7 +53,7 @@ pytest-cov = "^3.0.0"
 jula = "jula.cli.cli:app"
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
+requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.black]
@@ -54,7 +62,7 @@ target-version = ["py39", "py310"]
 
 [tool.isort]
 line_length = 120
-py_version=39
+py_version = 39
 profile = "black"
 src_paths = ["src"]
 
