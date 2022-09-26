@@ -7,3 +7,4 @@ model_checkpoint:
   mode: ${mode}
   save_top_k: 1
   every_n_epochs: 1
+  save_weights_only: true

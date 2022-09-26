@@ -1,2 +1,2 @@
-model_name_or_path: ${oc.env:MODEL_DIR}/char-roberta-large
+model_name_or_path: ku-nlp/roberta-large-japanese-char-wwm
 max_seq_length: 512

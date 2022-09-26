@@ -1,3 +1,5 @@
+import copy
+import itertools
 import logging
 import os
 import sys
@@ -11,9 +13,11 @@ from jinf import Jinf
 from pytorch_lightning.callbacks import BasePredictionWriter
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
 from rhoknp.cohesion import ExophoraReferent, RelTag, RelTagList
-from rhoknp.cohesion.discourse_relation import DiscourseRelationTag
-from rhoknp.props import DepType, FeatureDict, NamedEntity, NamedEntityCategory, NETagList, SemanticsDict
+from rhoknp.props import DepType, FeatureDict, NamedEntity, NamedEntityCategory, SemanticsDict
 from rhoknp.units.morpheme import MorphemeAttributes
+from tinydb import Query, TinyDB
+from tinydb.middlewares import CachingMiddleware
+from tinydb.storages import JSONStorage
 
 from jula.datamodule.datasets import WordDataset, WordInferenceDataset
 from jula.datamodule.datasets.word_dataset import WordExampleSet
@@ -47,6 +51,8 @@ class WordModuleWriter(BasePredictionWriter):
         self,
         output_dir: str,
         reading_resource_path: str,
+        jumandic_path: str,
+        ambig_surf_specs: list[dict[str, str]],
         pred_filename: str = "predict",
         use_stdout: bool = False,
     ) -> None:
@@ -56,6 +62,14 @@ class WordModuleWriter(BasePredictionWriter):
         reading2id = get_reading2id(str(self.reading_resource_path / "vocab.txt"))
         self.id2reading = {v: k for k, v in reading2id.items()}
         self.jinf = Jinf()
+        self.jumandic_path = Path(jumandic_path)
+        self.jumandic = TinyDB(
+            str(self.jumandic_path / "jumandic.json"),
+            ensure_ascii=False,
+            access_mode="r",
+            storage=CachingMiddleware(JSONStorage),
+        )
+        self.ambig_surf_specs = ambig_surf_specs
 
         self.destination: Union[Path, TextIO]
         if use_stdout is True:
@@ -197,13 +211,68 @@ class WordModuleWriter(BasePredictionWriter):
             conjtype_id = conjtype_index
             conjform = INDEX2CONJFORM_TYPE[conjform_index]
             conjform_id = CONJTYPE_CONJFORM_TYPE2ID[conjtype][conjform]
-            try:
-                lemma = self.jinf(word, conjtype, conjform, "基本形")
-            except ValueError as e:
-                logger.warning(f"failed to get lemma for {word}: ({e})")
+            semantics: dict[str, Union[str, bool]] = {}
+            homograph_ops: list[dict[str, Any]] = []
+
+            # create lemma using surf, conjtype and conjform
+            # TODO: replace word with norm
+            if conjtype == "*":
                 lemma = word
+            else:
+                for ambig_surf_spec in self.ambig_surf_specs:
+                    if conjtype != ambig_surf_spec["conjtype"]:
+                        continue
+                    if conjform != ambig_surf_spec["conjform"]:
+                        continue
+                    # ambiguous: dictionary lookup to identify the lemma
+                    q = Query()
+                    matches = self.jumandic.search(
+                        (q.pos == pos) & (q.subpos == subpos) & (q.conjtype == conjtype) & (q.surf == word)
+                    )
+                    if len(matches) > 0:
+                        lemma_set: set[str] = set()
+                        for entry in matches:
+                            lemma_set.add(entry["lemma"])
+                        lemmas: list[str] = list(lemma_set)
+                        lemma = lemmas[0]
+                        if len(lemmas) > 1:
+                            homograph_ops.append({"type": "lemma", "values": lemmas[1:]})
+                    else:
+                        logger.warning(f"failed to get lemma for {word}")
+                        lemma = word
+                    break
+                else:
+                    # not ambiguous: use paradigm table to generate the lemma
+                    try:
+                        lemma = self.jinf(word, conjtype, conjform, "基本形")
+                    except ValueError as e:
+                        logger.warning(f"failed to get lemma for {word}: ({e})")
+                        lemma = word
+            q = Query()
+            matches = self.jumandic.search(
+                (q.pos == pos)
+                & (q.subpos == subpos)
+                & (q.conjtype == conjtype)
+                & (q.surf == word)
+                & (q.reading == reading)
+            )
+            if len(matches) > 0:
+                entry = matches[0]
+                semantics.update(SemanticsDict.from_sstring('"' + entry["semantics"] + '"'))
+                if len(matches) > 1:
+                    # homograph
+                    semantics_list = []
+                    for entry2 in matches[1:]:
+                        semantics2: dict[str, Union[str, bool]] = {}
+                        semantics2.update(SemanticsDict.from_sstring('"' + entry2["semantics"] + '"'))
+                        semantics_list.append(semantics2)
+                    homograph_ops.append(
+                        {
+                            "type": "semantics",
+                            "values": semantics_list,
+                        }
+                    )
             attributes = MorphemeAttributes(
-                surf=word,
                 reading=reading,
                 lemma=lemma,
                 pos=pos,
@@ -215,7 +284,29 @@ class WordModuleWriter(BasePredictionWriter):
                 conjform=conjform,
                 conjform_id=conjform_id,
             )
-            morphemes.append(Morpheme(attributes, SemanticsDict(), FeatureDict()))
+            morpheme = Morpheme(word, attributes, SemanticsDict(semantics), FeatureDict(semantics))
+            morphemes.append(morpheme)
+            if len(homograph_ops) >= 1:
+                range_list = []
+                for homograph_op in homograph_ops:
+                    range_list.append(range(len(homograph_op["values"])))
+                for op_idx_list in itertools.product(*range_list):
+                    attributes2 = copy.deepcopy(attributes)
+                    semantics2 = copy.deepcopy(semantics)
+                    for i, j in enumerate(op_idx_list):
+                        homograph_op = homograph_ops[i]
+                        v = homograph_op["values"][j]
+                        if homograph_op["type"] == "lemma":
+                            setattr(attributes2, "lemma", v)
+                        elif homograph_op["type"] == "semantics":
+                            semantics2 = v
+                        else:
+                            raise NotImplementedError
+                    morpheme2 = Morpheme(
+                        word, attributes2, SemanticsDict(semantics2), FeatureDict(semantics2), homograph=True
+                    )
+                    # rhoknp coverts homographs into KNP's ALT features
+                    morpheme.homographs.append(morpheme2)
         return morphemes
 
     @staticmethod
@@ -293,26 +384,24 @@ class WordModuleWriter(BasePredictionWriter):
                     morpheme.features["用言表記末尾"] = True
                 # even if base_phrase_end_prob is low, if phrase_end_prob is high enough, create chunk here
                 if base_phrase_end_prob >= 0.5 or base_phrase_end_prob + phrase_end_prob >= 1.0:
-                    base_phrase = BasePhrase(
-                        None, None, FeatureDict(), RelTagList(), NETagList(), DiscourseRelationTag()
-                    )
+                    base_phrase = BasePhrase(parent_index=None, dep_type=None)
                     base_phrase.morphemes = morphemes_buff
                     morphemes_buff = []
                     base_phrases_buff.append(base_phrase)
                 # even if phrase_end_prob is high, if base_phrase_end_prob is not high enough, do not create chunk here
                 if phrase_end_prob >= 0.5 and base_phrase_end_prob + phrase_end_prob >= 1.0:
-                    phrase = Phrase(None, None, FeatureDict())
+                    phrase = Phrase(parent_index=None, dep_type=None)
                     phrase.base_phrases = base_phrases_buff
                     base_phrases_buff = []
                     phrases_buff.append(phrase)
 
             # clear buffers
             if morphemes_buff:
-                base_phrase = BasePhrase(None, None, FeatureDict(), RelTagList(), NETagList(), DiscourseRelationTag())
+                base_phrase = BasePhrase(parent_index=None, dep_type=None)
                 base_phrase.morphemes = morphemes_buff
                 base_phrases_buff.append(base_phrase)
             if base_phrases_buff:
-                phrase = Phrase(None, None, FeatureDict())
+                phrase = Phrase(parent_index=None, dep_type=None)
                 phrase.base_phrases = base_phrases_buff
                 phrases_buff.append(phrase)
 
@@ -336,7 +425,7 @@ class WordModuleWriter(BasePredictionWriter):
             category = ""
             morphemes_buff = []
             for morpheme, ne_tag_pred in zip(morphemes, ne_tag_preds):
-                ne_tag = NE_TAGS[ne_tag_pred]
+                ne_tag: str = NE_TAGS[ne_tag_pred]
                 if ne_tag.startswith("B-"):
                     category = ne_tag[2:]
                     morphemes_buff.append(morpheme)
@@ -345,7 +434,10 @@ class WordModuleWriter(BasePredictionWriter):
                 else:
                     if morphemes_buff:
                         named_entity = NamedEntity(category=NamedEntityCategory(category), morphemes=morphemes_buff)
-                        sentence.named_entities.append(named_entity)
+                        # NE feature must be tagged to the last base phrase the named entity contains
+                        morphemes_buff[-1].base_phrase.features[
+                            "NE"
+                        ] = f"{named_entity.category.value}:{named_entity.text}"
                     category = ""
                     morphemes_buff = []
 

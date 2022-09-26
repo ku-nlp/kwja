@@ -10,9 +10,9 @@ word_dataset_kwargs = dict(
     exophora_referents=ListConfig(exophora_referents),
     cohesion_tasks=ListConfig(["pas_analysis", "bridging", "coreference"]),
     special_tokens=ListConfig(special_tokens),
-    tokenizer_kwargs={"additional_special_tokens": special_tokens},
     restrict_cohesion_target=True,
     document_split_stride=1,
+    tokenizer_kwargs={"additional_special_tokens": special_tokens},
 )
 
 
@@ -38,5 +38,7 @@ def test_getitem():
         assert isinstance(item, dict)
         assert "input_ids" in item
         assert "attention_mask" in item
+        assert "target_mask" in item
         assert item["input_ids"].shape == (max_seq_length,)
         assert item["attention_mask"].shape == (max_seq_length,)
+        assert item["target_mask"].shape == (max_seq_length,)

@@ -38,6 +38,7 @@ from jula.utils.constants import (
 )
 from jula.utils.kanjidic import KanjiDic
 from jula.utils.reading import ReadingAligner, get_reading2id
+from jula.utils.sub_document import extract_target_sentences
 
 logger = logging.getLogger(__name__)
 
@@ -200,6 +201,12 @@ class WordDataset(BaseDataset):
     def encode(self, example: WordExampleSet) -> dict[str, torch.Tensor]:
         merged_encoding: Encoding = Encoding.merge([example.encoding, self.special_encoding])
 
+        document = self.doc_id2document[example.doc_id]
+        target_mask = [False for _ in range(self.max_seq_length)]
+        for sentence in extract_target_sentences(document):
+            for morpheme in sentence.morphemes:
+                target_mask[morpheme.global_index] = True
+
         # reading prediction
         reading_example = example.reading_example
         reading_ids = [IGNORE_INDEX] * self.max_seq_length
@@ -306,6 +313,7 @@ class WordDataset(BaseDataset):
             "example_ids": torch.tensor(example.example_id, dtype=torch.long),
             "input_ids": torch.tensor(merged_encoding.ids, dtype=torch.long),
             "attention_mask": torch.tensor(merged_encoding.attention_mask, dtype=torch.long),
+            "target_mask": torch.tensor(target_mask, dtype=torch.bool),
             "subword_map": torch.tensor(self._gen_subword_map(merged_encoding), dtype=torch.bool),
             "reading_subword_map": torch.tensor(
                 self._gen_subword_map(merged_encoding, include_additional_words=False), dtype=torch.bool

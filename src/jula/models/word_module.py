@@ -5,7 +5,7 @@ from typing import Any, Optional
 
 import hydra
 import torch
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning.core.lightning import LightningModule
 from transformers import PretrainedConfig
 
@@ -23,6 +23,7 @@ from jula.models.models.relation_analyzer import RelationAnalyzer
 from jula.models.models.word_analyzer import WordAnalyzer
 from jula.models.models.word_encoder import WordEncoder
 from jula.utils.constants import DISCOURSE_RELATIONS
+from jula.utils.util import filter_dict_items
 
 
 class WordTask(Enum):
@@ -503,3 +504,9 @@ class WordModule(LightningModule):
             "optimizer": optimizer,
             "lr_scheduler": {"scheduler": lr_scheduler, "interval": "step", "frequency": 1},
         }
+
+    def on_save_checkpoint(self, checkpoint: dict[str, Any]) -> None:
+        hparams = checkpoint["hyper_parameters"]["hparams"]
+        OmegaConf.set_struct(hparams, False)
+        hparams = filter_dict_items(hparams, self.hparams.hparams_to_ignore_on_save)
+        checkpoint["hyper_parameters"] = {"hparams": hparams}
