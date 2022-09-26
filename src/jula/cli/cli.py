@@ -1,4 +1,5 @@
 import os
+from importlib import resources
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Optional
@@ -59,6 +60,9 @@ def main(
     # typo module
     typo_model: TypoModule = TypoModule.load_from_checkpoint(str((model_dir / "typo.ckpt").resolve()))
     typo_cfg = typo_model.hparams
+    typo_cfg.callbacks.prediction_writer.extended_vocab_path = (
+        resources.files("jula") / "resource/typo_correction/multi_char_vocab.txt"
+    )
     typo_trainer: pl.Trainer = pl.Trainer(
         logger=None,
         enable_progress_bar=False,
@@ -101,6 +105,8 @@ def main(
     # word module
     word_model: WordModule = WordModule.load_from_checkpoint(str((model_dir / "word.ckpt").resolve()))
     word_cfg = word_model.hparams
+    word_cfg.callbacks.prediction_writer.reading_resource_path = resources.files("jula") / "resource/reading_prediction"
+    word_cfg.callbacks.prediction_writer.jumandic_path = resources.files("jula") / "resource/jumandic"
     word_trainer: pl.Trainer = pl.Trainer(
         logger=None,
         enable_progress_bar=False,
