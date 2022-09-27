@@ -9,6 +9,7 @@ from typing import Any, Optional, Sequence, TextIO, Union
 
 import pytorch_lightning as pl
 import torch
+from BetterJSONStorage import BetterJSONStorage
 from jinf import Jinf
 from pytorch_lightning.callbacks import BasePredictionWriter
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
@@ -17,7 +18,6 @@ from rhoknp.props import DepType, FeatureDict, NamedEntity, NamedEntityCategory,
 from rhoknp.units.morpheme import MorphemeAttributes
 from tinydb import Query, TinyDB
 from tinydb.middlewares import CachingMiddleware
-from tinydb.storages import JSONStorage
 
 from jula.datamodule.datasets import WordDataset, WordInferenceDataset
 from jula.datamodule.datasets.word_dataset import WordExampleSet
@@ -64,10 +64,10 @@ class WordModuleWriter(BasePredictionWriter):
         self.jinf = Jinf()
         self.jumandic_path = Path(jumandic_path)
         self.jumandic = TinyDB(
-            str(self.jumandic_path / "jumandic.json"),
+            self.jumandic_path / "jumandic.db",
             ensure_ascii=False,
             access_mode="r",
-            storage=CachingMiddleware(JSONStorage),
+            storage=CachingMiddleware(BetterJSONStorage),
         )
         self.ambig_surf_specs = ambig_surf_specs
 

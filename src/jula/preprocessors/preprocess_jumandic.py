@@ -4,9 +4,9 @@ import sys
 from argparse import ArgumentParser
 from pathlib import Path
 
+from BetterJSONStorage import BetterJSONStorage
 from tinydb import TinyDB
 from tinydb.middlewares import CachingMiddleware
-from tinydb.storages import JSONStorage
 from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
@@ -72,9 +72,9 @@ def main():
             }
         )
     rows = []
-    (outdir / "jumandic.json").unlink(missing_ok=True)
+    (outdir / "jumandic.db").unlink(missing_ok=True)
     CachingMiddleware.WRITE_CACHE_SIZE = 1000000
-    with TinyDB(str(outdir / "jumandic.json"), ensure_ascii=False, storage=CachingMiddleware(JSONStorage)) as dic:
+    with TinyDB(outdir / "jumandic.db", access_mode="r+", storage=CachingMiddleware(BetterJSONStorage)) as dic:
         dic.insert_multiple(entries)
     entries = []
 

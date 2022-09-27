@@ -1,11 +1,12 @@
-import json
 import tempfile
 import textwrap
 from pathlib import Path
 
 import torch
+from BetterJSONStorage import BetterJSONStorage
 from omegaconf import ListConfig
 from rhoknp.props import DepType
+from tinydb import TinyDB
 from torch.utils.data import DataLoader
 
 import jula
@@ -28,9 +29,10 @@ reading_resource_path = here.parent / "datamodule/datasets/reading_files"
 
 def make_dummy_jumandic():
     jumandic_dir = tempfile.TemporaryDirectory()
-    dummy_dic = {
-        "_default": {
-            "1": {
+    path = Path(jumandic_dir.name + "/jumandic.db")
+    with TinyDB(path, access_mode="r+", storage=BetterJSONStorage) as db:
+        db.insert(
+            {
                 "surf": "今日",
                 "reading": "きょう",
                 "lemma": "今日",
@@ -39,8 +41,10 @@ def make_dummy_jumandic():
                 "conjtype": "*",
                 "conjform": "*",
                 "semantics": "代表表記:今日/きょう カテゴリ:時間",
-            },
-            "2": {
+            }
+        )
+        db.insert(
+            {
                 "surf": "あい",
                 "reading": "あい",
                 "lemma": "あい",
@@ -49,8 +53,10 @@ def make_dummy_jumandic():
                 "conjtype": "*",
                 "conjform": "*",
                 "semantics": "代表表記:愛/あい 漢字読み:音 カテゴリ:抽象物",
-            },
-            "3": {
+            }
+        )
+        db.insert(
+            {
                 "surf": "あい",
                 "reading": "あい",
                 "lemma": "あい",
@@ -59,11 +65,8 @@ def make_dummy_jumandic():
                 "conjtype": "*",
                 "conjform": "*",
                 "semantics": "代表表記:藍/あい カテゴリ:植物",
-            },
-        }
-    }
-    with open(jumandic_dir.name + "/jumandic.json", "w") as f:
-        f.write(json.dumps(dummy_dic))
+            }
+        )
     ambig_surf_specs = [
         {
             "conjtype": "イ形容詞アウオ段",
