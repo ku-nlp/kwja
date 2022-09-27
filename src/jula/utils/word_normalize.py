@@ -9,10 +9,11 @@ from jula.utils.constants import IGNORE_WORD_NORM_TYPE
 logger = logging.getLogger(__name__)
 
 # KATAKANA-HIRAGANA PROLONGED SOUND MARK (0x30fc)
-# "〜"(0x301C)  "⁓" (U+2053)、Full-width tilde:
-# "～" (U+FF5E)、tilde operator: "∼" (U+223C)
-# Half-widths HIRAGANA-KATAKANA PROLONGED SOUND MARK (U+FF70
-CHOON_SET = set(["ー", "〜", "～", "∼", "ｰ"])
+# "〜"(0x301C)  "⁓" (U+2053)
+# full-width tilde: "～" (U+FF5E) tilde operator: "∼" (U+223C)
+# half-widths HIRAGANA-KATAKANA PROLONGED SOUND MARK (U+FF70)
+# "~" (U+007E)、"-" (U+002D)
+CHOON_SET = set(["ー", "〜", "～", "∼", "ｰ", "~", "-"])
 
 HATSUON_SET = set(["っ", "ッ"])
 
