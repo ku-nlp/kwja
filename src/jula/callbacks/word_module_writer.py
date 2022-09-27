@@ -110,7 +110,7 @@ class WordModuleWriter(BasePredictionWriter):
                 )
                 batch_ne_tag_preds = torch.argmax(batch_pred["ne_logits"], dim=-1)
                 batch_word_feature_preds = batch_pred["word_feature_logits"]
-                batch_base_phrase_feature_preds = batch_pred["base_phrase_feature_logits"].ge(0.5).long()
+                batch_base_phrase_feature_preds = batch_pred["base_phrase_feature_logits"]
                 batch_dependency_preds = torch.topk(
                     batch_pred["dependency_logits"],
                     k=4,  # TODO
@@ -411,12 +411,27 @@ class WordModuleWriter(BasePredictionWriter):
         return Document.from_sentences(sentences)
 
     @staticmethod
-    def _add_base_phrase_features(document: Document, base_phrase_feature_preds: list[list[int]]) -> None:
-        for base_phrase in document.base_phrases:
+    def _add_base_phrase_features(document: Document, base_phrase_feature_preds: list[list[float]]) -> None:
+        base_phrases = document.base_phrases
+        clause_start_indices = [0]
+        for base_phrase in base_phrases:
             for feature, pred in zip(BASE_PHRASE_FEATURES, base_phrase_feature_preds[base_phrase.head.global_index]):
-                if pred == 1:
+                if feature != "節-主辞" and pred >= 0.5:
                     k, *vs = feature.split(":")
                     base_phrase.features[k] = ":".join(vs) or True
+                    if feature.startswith("節-区切"):
+                        clause_start_indices.append(base_phrase.global_index + 1)
+        if base_phrases[-1].features.get("節-区切", False) is False:
+            clause_start_indices.append(len(base_phrases))
+
+        for span in zip(clause_start_indices[:-1], clause_start_indices[1:]):
+            clauses = base_phrases[slice(*span)]
+            clause_head_scores = [
+                base_phrase_feature_preds[base_phrase.head.global_index][BASE_PHRASE_FEATURES.index("節-主辞")]
+                for base_phrase in clauses
+            ]
+            clause_head = clauses[clause_head_scores.index(max(clause_head_scores))]
+            clause_head.features["節-主辞"] = True
 
     @staticmethod
     def _add_named_entities(document: Document, ne_tag_preds: list[int]) -> None:
