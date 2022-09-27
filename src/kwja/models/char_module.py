@@ -21,8 +21,8 @@ class CharModule(LightningModule):
         self.hparams.update(hparams)
         self.save_hyperparameters()
 
-        self.valid_corpora = list(hparams.datamodule.valid.keys())
-        self.test_corpora = list(hparams.datamodule.test.keys())
+        self.valid_corpora = list(hparams.datamodule.valid.keys()) if "valid" in hparams.datamodule else []
+        self.test_corpora = list(hparams.datamodule.test.keys()) if "test" in hparams.datamodule else []
 
         self.char_encoder: CharEncoder = CharEncoder(hparams)
 
