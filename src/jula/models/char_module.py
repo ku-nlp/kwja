@@ -18,8 +18,8 @@ from jula.utils.util import filter_dict_items
 class CharModule(LightningModule):
     def __init__(self, hparams: DictConfig) -> None:
         super().__init__()
-        self.hparams.update(hparams)
-        self.save_hyperparameters()
+        OmegaConf.resolve(hparams)
+        self.save_hyperparameters(hparams)
 
         self.valid_corpora = list(hparams.datamodule.valid.keys()) if "valid" in hparams.datamodule else []
         self.test_corpora = list(hparams.datamodule.test.keys()) if "test" in hparams.datamodule else []

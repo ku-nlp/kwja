@@ -15,8 +15,8 @@ from jula.utils.util import filter_dict_items
 class TypoModule(LightningModule):
     def __init__(self, hparams: DictConfig) -> None:
         super().__init__()
-        self.hparams.update(hparams)
-        self.save_hyperparameters()
+        OmegaConf.resolve(hparams)
+        self.save_hyperparameters(hparams)
 
         self.char_encoder: CharEncoder = CharEncoder(hparams)
 
