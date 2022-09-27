@@ -425,12 +425,12 @@ class WordModuleWriter(BasePredictionWriter):
             clause_start_indices.append(len(base_phrases))
 
         for span in zip(clause_start_indices[:-1], clause_start_indices[1:]):
-            clauses = base_phrases[slice(*span)]
+            clause = base_phrases[slice(*span)]
             clause_head_scores = [
                 base_phrase_feature_preds[base_phrase.head.global_index][BASE_PHRASE_FEATURES.index("節-主辞")]
-                for base_phrase in clauses
+                for base_phrase in clause
             ]
-            clause_head = clauses[clause_head_scores.index(max(clause_head_scores))]
+            clause_head = clause[clause_head_scores.index(max(clause_head_scores))]
             clause_head.features["節-主辞"] = True
 
     @staticmethod

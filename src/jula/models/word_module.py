@@ -44,8 +44,8 @@ class WordModule(LightningModule):
         self.save_hyperparameters()
         self.training_tasks = list(map(WordTask, self.hparams.training_tasks))
 
-        self.valid_corpora = list(hparams.datamodule.valid.keys())
-        self.test_corpora = list(hparams.datamodule.test.keys())
+        self.valid_corpora = list(hparams.datamodule.valid.keys()) if "valid" in hparams.datamodule else []
+        self.test_corpora = list(hparams.datamodule.test.keys()) if "test" in hparams.datamodule else []
 
         self.word_encoder: WordEncoder = WordEncoder(hparams)
 
