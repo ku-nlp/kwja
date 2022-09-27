@@ -157,7 +157,7 @@ class WordModuleWriter(BasePredictionWriter):
                     document = dataset.doc_id2document[doc_id]
                     # TODO: get word-level reading predictions
                     readings = [self.id2reading[pred] for pred in reading_preds]
-                    word_reading_preds = get_word_level_readings(readings, tokens.split(), reading_subword_map)
+                    word_reading_preds = get_word_level_readings(readings, tokens.split(" "), reading_subword_map)
                     morphemes = self._create_morphemes(
                         [m.text for m in document.morphemes],
                         word_reading_preds,
