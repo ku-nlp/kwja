@@ -1,6 +1,6 @@
 import pytest
 
-from jula.evaluators.word_segmentation_metric import WordSegmentationMetric
+from kwja.evaluators.word_segmentation_metric import WordSegmentationMetric
 
 # TODO: uncomment here
 # @pytest.mark.parametrize(

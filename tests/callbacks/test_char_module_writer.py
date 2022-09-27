@@ -4,8 +4,8 @@ import torch
 from omegaconf import ListConfig
 from torch.utils.data import DataLoader
 
-from jula.callbacks.char_module_writer import CharModuleWriter
-from jula.datamodule.datasets.char_inference_dataset import CharInferenceDataset
+from kwja.callbacks.char_module_writer import CharModuleWriter
+from kwja.datamodule.datasets.char_inference_dataset import CharInferenceDataset
 
 
 def test_init():
@@ -73,4 +73,4 @@ def test_write_on_epoch_end():
             ]
         ]
         writer.write_on_epoch_end(trainer, ..., predictions)
-        assert writer.destination.read_text() == "# S-ID:test-0-0 jula:0.1.0\n今日 は 晴れ だ\n"
+        assert writer.destination.read_text() == "# S-ID:test-0-0 kwja:0.1.0\n今日 は 晴れ だ\n"

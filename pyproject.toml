@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "jula"
+name = "kwja"
 version = "0.1.0"
 description = "A unified language analyzer for Japanese"
 authors = [
@@ -14,10 +14,10 @@ authors = [
 keywords = ["natural language processing", "japanese"]
 
 packages = [
-    { include = "jula", from = "src" }
+    { include = "kwja", from = "src" }
 ]
 include = [
-    "jula/resource/**/*"
+    "kwja/resource/**/*"
 ]
 
 [tool.poetry.dependencies]
@@ -50,7 +50,7 @@ pytest = "^7.1"
 pytest-cov = "^3.0.0"
 
 [tool.poetry.scripts]
-jula = "jula.cli.cli:app"
+kwja = "kwja.cli.cli:app"
 
 [build-system]
 requires = ["poetry-core"]

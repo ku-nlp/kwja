@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from jula.datamodule.datasets.base_dataset import BaseDataset
+from kwja.datamodule.datasets.base_dataset import BaseDataset
 
 here = Path(__file__).absolute().parent
 path = here.joinpath("knp_files")

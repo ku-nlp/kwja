@@ -11,7 +11,7 @@ from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.loggers import LightningLoggerBase
 from pytorch_lightning.trainer.states import TrainerFn
 
-from jula.datamodule.datamodule import DataModule
+from kwja.datamodule.datamodule import DataModule
 
 hf_logging.set_verbosity(hf_logging.ERROR)
 logging.getLogger("rhoknp").setLevel(logging.ERROR)

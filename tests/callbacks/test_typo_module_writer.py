@@ -2,8 +2,8 @@ import tempfile
 
 import torch
 
-from jula.callbacks.typo_module_writer import TypoModuleWriter
-from jula.utils.constants import TYPO_OPN2TOKEN
+from kwja.callbacks.typo_module_writer import TypoModuleWriter
+from kwja.utils.constants import TYPO_OPN2TOKEN
 
 
 def test_init():

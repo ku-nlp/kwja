@@ -1,7 +1,7 @@
-# jula: A unified language analyzer for Japanese
+# KWJA: Kyoto-Waseda Japanese Analyzer
 
-[![test](https://github.com/ku-nlp/jula/actions/workflows/test.yml/badge.svg)](https://github.com/ku-nlp/jula/actions/workflows/test.yml)
-[![codecov](https://codecov.io/gh/ku-nlp/jula/branch/main/graph/badge.svg?token=A9FWWPLITO)](https://codecov.io/gh/ku-nlp/jula)
+[![test](https://github.com/ku-nlp/kwja/actions/workflows/test.yml/badge.svg)](https://github.com/ku-nlp/kwja/actions/workflows/test.yml)
+[![codecov](https://codecov.io/gh/ku-nlp/kwja/branch/main/graph/badge.svg?token=A9FWWPLITO)](https://codecov.io/gh/ku-nlp/kwja)
 
 ## Requirements
 
@@ -34,7 +34,7 @@ echo DATA_DIR="/path/to/data_dir" >> .env
 ## Preprocessing
 If you want to use the word segmenter, please prepare a word matcher in advance with the following command.
 ```shell
-poetry run python src/jula/preprocessors/wiki_ene_dic.py
+poetry run python src/kwja/preprocessors/wiki_ene_dic.py
   --input-json-path "/path/to/wiki_ene_json_file"
 ```
 Options:
@@ -49,7 +49,7 @@ make kwja
 ```
 and
 ```shell
-poetry run python src/jula/preprocessors/preprocess_jumandic.py
+poetry run python src/kwja/preprocessors/preprocess_jumandic.py
   --input-dir /path/to/JumanDIC
   --output-dir /path/to/dic_dir
 ```
@@ -60,7 +60,7 @@ Options:
 ## Build dataset for training typo module
 You must preprocess Japanese Wikipedia Typo Dataset.
 ```shell
-poetry run python src/jula/preprocessors/preprocess_typo.py
+poetry run python src/kwja/preprocessors/preprocess_typo.py
   --input-dir "/path/to/unzipped_typo_dataset_dir"
 ```
 Options:

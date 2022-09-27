@@ -1,6 +1,6 @@
 from omegaconf import ListConfig
 
-from jula.datamodule.datasets.word_inference_dataset import WordInferenceDataset
+from kwja.datamodule.datasets.word_inference_dataset import WordInferenceDataset
 
 exophora_referents = ["著者", "読者", "不特定:人", "不特定:物"]
 special_tokens = exophora_referents + ["[NULL]", "[NA]", "[ROOT]"]

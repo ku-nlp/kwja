@@ -2,7 +2,7 @@
 defaults:
   - _self_
 
-project: jula
+project: kwja
 
 # path to original working directory
 # hydra hijacks working directory by changing it to the current log directory,

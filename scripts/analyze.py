@@ -7,8 +7,8 @@ from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.trainer.states import TrainerFn
 
-from jula.cli.utils import suppress_debug_info
-from jula.datamodule.datamodule import DataModule
+from kwja.cli.utils import suppress_debug_info
+from kwja.datamodule.datamodule import DataModule
 
 suppress_debug_info()
 OmegaConf.register_new_resolver("concat", lambda x, y: x + y)

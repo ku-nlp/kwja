@@ -8,10 +8,10 @@ from omegaconf import ListConfig
 from rhoknp.props import DepType
 from torch.utils.data import DataLoader
 
-import jula
-from jula.callbacks.word_module_writer import WordModuleWriter
-from jula.datamodule.datasets.word_inference_dataset import WordInferenceDataset
-from jula.utils.constants import (
+import kwja
+from kwja.callbacks.word_module_writer import WordModuleWriter
+from kwja.datamodule.datasets.word_inference_dataset import WordInferenceDataset
+from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TYPES,
     CONJTYPE_TYPES,
@@ -235,7 +235,7 @@ def test_write_on_epoch_end():
         writer.write_on_epoch_end(trainer, ..., predictions)
         expected_knp = textwrap.dedent(
             f"""\
-            # S-ID:test-0-0 jula:{jula.__version__}
+            # S-ID:test-0-0 kwja:{kwja.__version__}
             * 1D
             + 1D <体言>
             今日 きょう 今日 名詞 6 時相名詞 10 * 0 * 0 "代表表記:今日/きょう カテゴリ:時間" <代表表記:今日/きょう><カテゴリ:時間><基本句-主辞>

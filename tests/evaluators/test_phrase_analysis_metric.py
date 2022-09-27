@@ -1,7 +1,7 @@
 import torch
 
-from jula.evaluators.phrase_analysis_metric import PhraseAnalysisMetric
-from jula.utils.constants import BASE_PHRASE_FEATURES, IGNORE_INDEX
+from kwja.evaluators.phrase_analysis_metric import PhraseAnalysisMetric
+from kwja.utils.constants import BASE_PHRASE_FEATURES, IGNORE_INDEX
 
 """  Example
 # S-ID:0-1

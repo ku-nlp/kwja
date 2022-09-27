@@ -1,4 +1,4 @@
-from jula.datamodule.datasets.typo_inference_dataset import TypoInferenceDataset
+from kwja.datamodule.datasets.typo_inference_dataset import TypoInferenceDataset
 
 tokenizer_kwargs = {"do_word_tokenize": False, "additional_special_tokens": ["<k>", "<d>", "<_>", "<dummy>"]}
 
