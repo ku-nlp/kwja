@@ -16,10 +16,10 @@ from jula.models.char_module import CharModule
 from jula.models.typo_module import TypoModule
 from jula.models.word_module import WordModule
 
-TYPO_CHECKPOINT_URL = "https://lotus.kuee.kyoto-u.ac.jp/kwja/typo_roberta-base-wwm_seq512.ckpt"
-CHAR_CHECKPOINT_URL = "https://lotus.kuee.kyoto-u.ac.jp/kwja/char_roberta-base-wwm_seq512.ckpt"
-WORD_CHECKPOINT_URL = "https://lotus.kuee.kyoto-u.ac.jp/kwja/word_roberta-base_seq256.ckpt"
-WORD_DISCOURSE_CHECKPOINT_URL = "https://lotus.kuee.kyoto-u.ac.jp/kwja/word_discourse_roberta-base_seq256.ckpt"
+TYPO_CHECKPOINT_URL = "https://lotus.kuee.kyoto-u.ac.jp/kwja/v1.0/typo_roberta-base-wwm_seq512.ckpt"
+CHAR_CHECKPOINT_URL = "https://lotus.kuee.kyoto-u.ac.jp/kwja/v1.0/char_roberta-base-wwm_seq512.ckpt"
+WORD_CHECKPOINT_URL = "https://lotus.kuee.kyoto-u.ac.jp/kwja/v1.0/word_roberta-base_seq256.ckpt"
+WORD_DISCOURSE_CHECKPOINT_URL = "https://lotus.kuee.kyoto-u.ac.jp/kwja/v1.0/word_discourse_roberta-base_seq256.ckpt"
 
 suppress_debug_info()
 OmegaConf.register_new_resolver("concat", lambda x, y: x + y)
