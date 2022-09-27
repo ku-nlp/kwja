@@ -2,7 +2,6 @@ import copy
 import itertools
 import logging
 import os
-import pickle
 import sys
 from io import TextIOBase
 from pathlib import Path
@@ -10,15 +9,15 @@ from typing import Any, Optional, Sequence, TextIO, Union
 
 import pytorch_lightning as pl
 import torch
+from BetterJSONStorage import BetterJSONStorage
 from jinf import Jinf
-from jumandic import JumanDIC
 from pytorch_lightning.callbacks import BasePredictionWriter
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
 from rhoknp.cohesion import ExophoraReferent, RelTag, RelTagList
-from rhoknp.cohesion.discourse_relation import DiscourseRelationTag
-from rhoknp.props import DepType, FeatureDict, NamedEntity, NamedEntityCategory, NETagList, SemanticsDict
+from rhoknp.props import DepType, FeatureDict, NamedEntity, NamedEntityCategory, SemanticsDict
 from rhoknp.units.morpheme import MorphemeAttributes
-from tinydb import Query
+from tinydb import Query, TinyDB
+from tinydb.middlewares import CachingMiddleware
 
 from jula.datamodule.datasets import WordDataset, WordInferenceDataset
 from jula.datamodule.datasets.word_dataset import WordExampleSet
@@ -53,7 +52,7 @@ class WordModuleWriter(BasePredictionWriter):
         output_dir: str,
         reading_resource_path: str,
         jumandic_path: str,
-        # ambig_surf2lemmas_path: str,
+        ambig_surf_specs: list[dict[str, str]],
         pred_filename: str = "predict",
         use_stdout: bool = False,
     ) -> None:
@@ -64,9 +63,13 @@ class WordModuleWriter(BasePredictionWriter):
         self.id2reading = {v: k for k, v in reading2id.items()}
         self.jinf = Jinf()
         self.jumandic_path = Path(jumandic_path)
-        self.jumandic = JumanDIC(str(self.jumandic_path / "jumandic.dic"))
-        with open(str(self.jumandic_path / "ambig_surf2lemmas.pkl"), "rb") as f:
-            self.ambig_surf2lemmas = pickle.load(f)
+        self.jumandic = TinyDB(
+            self.jumandic_path / "jumandic.db",
+            ensure_ascii=False,
+            access_mode="r",
+            storage=CachingMiddleware(BetterJSONStorage),
+        )
+        self.ambig_surf_specs = ambig_surf_specs
 
         self.destination: Union[Path, TextIO]
         if use_stdout is True:
@@ -107,7 +110,7 @@ class WordModuleWriter(BasePredictionWriter):
                 )
                 batch_ne_tag_preds = torch.argmax(batch_pred["ne_logits"], dim=-1)
                 batch_word_feature_preds = batch_pred["word_feature_logits"]
-                batch_base_phrase_feature_preds = batch_pred["base_phrase_feature_logits"].ge(0.5).long()
+                batch_base_phrase_feature_preds = batch_pred["base_phrase_feature_logits"]
                 batch_dependency_preds = torch.topk(
                     batch_pred["dependency_logits"],
                     k=4,  # TODO
@@ -209,48 +212,59 @@ class WordModuleWriter(BasePredictionWriter):
             conjform = INDEX2CONJFORM_TYPE[conjform_index]
             conjform_id = CONJTYPE_CONJFORM_TYPE2ID[conjtype][conjform]
             semantics: dict[str, Union[str, bool]] = {}
-            homograph_ops = []
+            homograph_ops: list[dict[str, Any]] = []
+
             # create lemma using surf, conjtype and conjform
             # TODO: replace word with norm
             if conjtype == "*":
                 lemma = word
             else:
-                signature = f"{pos}:{subpos}:{conjtype}:{conjform}"
-                if conjform not in self.ambig_surf2lemmas:
+                for ambig_surf_spec in self.ambig_surf_specs:
+                    if conjtype != ambig_surf_spec["conjtype"]:
+                        continue
+                    if conjform != ambig_surf_spec["conjform"]:
+                        continue
+                    # ambiguous: dictionary lookup to identify the lemma
+                    q = Query()
+                    matches = self.jumandic.search(
+                        (q.pos == pos) & (q.subpos == subpos) & (q.conjtype == conjtype) & (q.surf == word)
+                    )
+                    if len(matches) > 0:
+                        lemma_set: set[str] = set()
+                        for entry in matches:
+                            lemma_set.add(entry["lemma"])
+                        lemmas: list[str] = list(lemma_set)
+                        lemma = lemmas[0]
+                        if len(lemmas) > 1:
+                            homograph_ops.append({"type": "lemma", "values": lemmas[1:]})
+                    else:
+                        logger.warning(f"failed to get lemma for {word}")
+                        lemma = word
+                    break
+                else:
+                    # not ambiguous: use paradigm table to generate the lemma
                     try:
                         lemma = self.jinf(word, conjtype, conjform, "基本形")
                     except ValueError as e:
                         logger.warning(f"failed to get lemma for {word}: ({e})")
                         lemma = word
-                else:
-                    surf2lemmas = self.ambig_surf2lemmas[signature]
-                    if word in surf2lemmas:
-                        lemma = surf2lemmas[word][0]
-                        if len(surf2lemmas[word]) > 1:
-                            # ambiguous
-                            homograph_ops.append(
-                                {
-                                    "type": "lemma",
-                                    "values": surf2lemmas[word][1:],
-                                }
-                            )
-                    else:
-                        logger.warning(f"failed to get lemma for {word}")
-                        lemma = word
             q = Query()
-            # TODO: on-kun based disambiguation / loose-matching of yomi?
             matches = self.jumandic.search(
-                (q.pos == pos) & (q.subpos == subpos) & (q.conjtype == conjtype) & (q.surf.any(lemma))
+                (q.pos == pos)
+                & (q.subpos == subpos)
+                & (q.conjtype == conjtype)
+                & (q.surf == word)
+                & (q.reading == reading)
             )
             if len(matches) > 0:
                 entry = matches[0]
-                semantics.update(SemanticsDict.from_sstring('"' + entry.semantics + '"'))
+                semantics.update(SemanticsDict.from_sstring('"' + entry["semantics"] + '"'))
                 if len(matches) > 1:
                     # homograph
                     semantics_list = []
                     for entry2 in matches[1:]:
                         semantics2: dict[str, Union[str, bool]] = {}
-                        semantics2.update(SemanticsDict.from_sstring('"' + entry2.semantics + '"'))
+                        semantics2.update(SemanticsDict.from_sstring('"' + entry2["semantics"] + '"'))
                         semantics_list.append(semantics2)
                     homograph_ops.append(
                         {
@@ -259,7 +273,6 @@ class WordModuleWriter(BasePredictionWriter):
                         }
                     )
             attributes = MorphemeAttributes(
-                surf=word,
                 reading=reading,
                 lemma=lemma,
                 pos=pos,
@@ -271,7 +284,7 @@ class WordModuleWriter(BasePredictionWriter):
                 conjform=conjform,
                 conjform_id=conjform_id,
             )
-            morpheme = Morpheme(attributes, SemanticsDict(semantics), FeatureDict(semantics))
+            morpheme = Morpheme(word, attributes, SemanticsDict(semantics), FeatureDict(semantics))
             morphemes.append(morpheme)
             if len(homograph_ops) >= 1:
                 range_list = []
@@ -290,20 +303,10 @@ class WordModuleWriter(BasePredictionWriter):
                         else:
                             raise NotImplementedError
                     morpheme2 = Morpheme(
-                        attributes2, SemanticsDict(semantics2), FeatureDict(semantics2), homograph=True
+                        word, attributes2, SemanticsDict(semantics2), FeatureDict(semantics2), homograph=True
                     )
-                    alt_feature = "ALT-{}-{}-{}-{}-{}-{}-{}-".format(
-                        morpheme2.surf,
-                        morpheme2.reading,
-                        morpheme2.lemma,
-                        pos_id,
-                        subpos_id,
-                        conjtype_id,
-                        conjform_id,
-                    )
-                    alt_feature += f"{morpheme2.semantics}"
-                    morpheme.features[alt_feature] = True
-                    # morpheme.homographs.append(morpheme2)
+                    # rhoknp coverts homographs into KNP's ALT features
+                    morpheme.homographs.append(morpheme2)
         return morphemes
 
     @staticmethod
@@ -381,26 +384,24 @@ class WordModuleWriter(BasePredictionWriter):
                     morpheme.features["用言表記末尾"] = True
                 # even if base_phrase_end_prob is low, if phrase_end_prob is high enough, create chunk here
                 if base_phrase_end_prob >= 0.5 or base_phrase_end_prob + phrase_end_prob >= 1.0:
-                    base_phrase = BasePhrase(
-                        None, None, FeatureDict(), RelTagList(), NETagList(), DiscourseRelationTag()
-                    )
+                    base_phrase = BasePhrase(parent_index=None, dep_type=None)
                     base_phrase.morphemes = morphemes_buff
                     morphemes_buff = []
                     base_phrases_buff.append(base_phrase)
                 # even if phrase_end_prob is high, if base_phrase_end_prob is not high enough, do not create chunk here
                 if phrase_end_prob >= 0.5 and base_phrase_end_prob + phrase_end_prob >= 1.0:
-                    phrase = Phrase(None, None, FeatureDict())
+                    phrase = Phrase(parent_index=None, dep_type=None)
                     phrase.base_phrases = base_phrases_buff
                     base_phrases_buff = []
                     phrases_buff.append(phrase)
 
             # clear buffers
             if morphemes_buff:
-                base_phrase = BasePhrase(None, None, FeatureDict(), RelTagList(), NETagList(), DiscourseRelationTag())
+                base_phrase = BasePhrase(parent_index=None, dep_type=None)
                 base_phrase.morphemes = morphemes_buff
                 base_phrases_buff.append(base_phrase)
             if base_phrases_buff:
-                phrase = Phrase(None, None, FeatureDict())
+                phrase = Phrase(parent_index=None, dep_type=None)
                 phrase.base_phrases = base_phrases_buff
                 phrases_buff.append(phrase)
 
@@ -410,12 +411,27 @@ class WordModuleWriter(BasePredictionWriter):
         return Document.from_sentences(sentences)
 
     @staticmethod
-    def _add_base_phrase_features(document: Document, base_phrase_feature_preds: list[list[int]]) -> None:
-        for base_phrase in document.base_phrases:
+    def _add_base_phrase_features(document: Document, base_phrase_feature_preds: list[list[float]]) -> None:
+        base_phrases = document.base_phrases
+        clause_start_indices = [0]
+        for base_phrase in base_phrases:
             for feature, pred in zip(BASE_PHRASE_FEATURES, base_phrase_feature_preds[base_phrase.head.global_index]):
-                if pred == 1:
+                if feature != "節-主辞" and pred >= 0.5:
                     k, *vs = feature.split(":")
                     base_phrase.features[k] = ":".join(vs) or True
+                    if feature.startswith("節-区切"):
+                        clause_start_indices.append(base_phrase.global_index + 1)
+        if base_phrases[-1].features.get("節-区切", False) is False:
+            clause_start_indices.append(len(base_phrases))
+
+        for span in zip(clause_start_indices[:-1], clause_start_indices[1:]):
+            clause = base_phrases[slice(*span)]
+            clause_head_scores = [
+                base_phrase_feature_preds[base_phrase.head.global_index][BASE_PHRASE_FEATURES.index("節-主辞")]
+                for base_phrase in clause
+            ]
+            clause_head = clause[clause_head_scores.index(max(clause_head_scores))]
+            clause_head.features["節-主辞"] = True
 
     @staticmethod
     def _add_named_entities(document: Document, ne_tag_preds: list[int]) -> None:
@@ -424,7 +440,7 @@ class WordModuleWriter(BasePredictionWriter):
             category = ""
             morphemes_buff = []
             for morpheme, ne_tag_pred in zip(morphemes, ne_tag_preds):
-                ne_tag = NE_TAGS[ne_tag_pred]
+                ne_tag: str = NE_TAGS[ne_tag_pred]
                 if ne_tag.startswith("B-"):
                     category = ne_tag[2:]
                     morphemes_buff.append(morpheme)
@@ -433,7 +449,10 @@ class WordModuleWriter(BasePredictionWriter):
                 else:
                     if morphemes_buff:
                         named_entity = NamedEntity(category=NamedEntityCategory(category), morphemes=morphemes_buff)
-                        sentence.named_entities.append(named_entity)
+                        # NE feature must be tagged to the last base phrase the named entity contains
+                        morphemes_buff[-1].base_phrase.features[
+                            "NE"
+                        ] = f"{named_entity.category.value}:{named_entity.text}"
                     category = ""
                     morphemes_buff = []
 

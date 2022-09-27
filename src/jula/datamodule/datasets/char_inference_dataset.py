@@ -89,7 +89,7 @@ class CharInferenceDataset(BaseDataset):
         if doc_id_prefix is None:
             doc_id_prefix = datetime.now().strftime("%Y%m%d%H%M")
         doc_id_width = len(str(len(documents)))
-        sent_id_width = max(len(str(len(doc.sentences))) for doc in documents)
+        sent_id_width = max((len(str(len(doc.sentences))) for doc in documents), default=0)
         for doc_idx, document in enumerate(documents):
             document.doc_id = f"{doc_id_prefix}-{doc_idx:0{doc_id_width}}"
             for sent_idx, sentence in enumerate(document.sentences):

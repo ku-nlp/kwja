@@ -8,7 +8,6 @@ import torch
 from omegaconf import ListConfig
 from rhoknp import Document, Morpheme, Sentence
 from rhoknp.cohesion import ExophoraReferent
-from rhoknp.props import FeatureDict, SemanticsDict
 from rhoknp.units.morpheme import MorphemeAttributes
 from tokenizers import Encoding
 from transformers.utils import PaddingStrategy
@@ -17,6 +16,7 @@ import jula
 from jula.datamodule.datasets.base_dataset import BaseDataset
 from jula.datamodule.examples import CohesionTask
 from jula.datamodule.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
+from jula.utils.sub_document import extract_target_sentences
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +109,6 @@ class WordInferenceDataset(BaseDataset):
                 morphemes = []
                 for word in text.split(" "):
                     attributes = MorphemeAttributes(
-                        surf=word,
                         reading="null",
                         lemma="null",
                         pos="null",
@@ -121,7 +120,7 @@ class WordInferenceDataset(BaseDataset):
                         conjform="null",
                         conjform_id=0,
                     )
-                    morphemes.append(Morpheme(attributes, SemanticsDict(), FeatureDict()))
+                    morphemes.append(Morpheme(word, attributes))
                 sentence.morphemes = morphemes
                 did2sentences[doc_id].append(sentence)
         return [Document.from_sentences(sentences) for sentences in did2sentences.values()]
@@ -161,6 +160,12 @@ class WordInferenceDataset(BaseDataset):
 
     def encode(self, example: WordInferenceExample) -> dict[str, torch.Tensor]:
         document = self.doc_id2document[example.doc_id]
+
+        target_mask = [False for _ in range(self.max_seq_length)]
+        for sentence in extract_target_sentences(document):
+            for morpheme in sentence.morphemes:
+                target_mask[morpheme.global_index] = True
+
         dependency_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
         for sentence in document.sentences:
             morpheme_global_indices = [morpheme.global_index for morpheme in sentence.morphemes]
@@ -186,6 +191,7 @@ class WordInferenceDataset(BaseDataset):
             "example_ids": torch.tensor(example.example_id, dtype=torch.long),
             "input_ids": torch.tensor(merged_encoding.ids, dtype=torch.long),
             "attention_mask": torch.tensor(merged_encoding.attention_mask, dtype=torch.long),
+            "target_mask": torch.tensor(target_mask, dtype=torch.bool),
             "subword_map": torch.tensor(self._gen_subword_map(merged_encoding), dtype=torch.bool),
             "reading_subword_map": torch.tensor(
                 self._gen_subword_map(merged_encoding, include_additional_words=False), dtype=torch.bool

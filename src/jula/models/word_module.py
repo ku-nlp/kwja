@@ -23,6 +23,7 @@ from jula.models.models.relation_analyzer import RelationAnalyzer
 from jula.models.models.word_analyzer import WordAnalyzer
 from jula.models.models.word_encoder import WordEncoder
 from jula.utils.constants import DISCOURSE_RELATIONS
+from jula.utils.util import filter_dict_items
 
 
 class WordTask(Enum):
@@ -43,8 +44,8 @@ class WordModule(LightningModule):
         self.save_hyperparameters(hparams)
         self.training_tasks = list(map(WordTask, self.hparams.training_tasks))
 
-        self.valid_corpora = list(hparams.datamodule.valid.keys())
-        self.test_corpora = list(hparams.datamodule.test.keys())
+        self.valid_corpora = list(hparams.datamodule.valid.keys()) if "valid" in hparams.datamodule else []
+        self.test_corpora = list(hparams.datamodule.test.keys()) if "test" in hparams.datamodule else []
 
         self.word_encoder: WordEncoder = WordEncoder(hparams)
 
@@ -503,3 +504,9 @@ class WordModule(LightningModule):
             "optimizer": optimizer,
             "lr_scheduler": {"scheduler": lr_scheduler, "interval": "step", "frequency": 1},
         }
+
+    def on_save_checkpoint(self, checkpoint: dict[str, Any]) -> None:
+        hparams = checkpoint["hyper_parameters"]["hparams"]
+        OmegaConf.set_struct(hparams, False)
+        hparams = filter_dict_items(hparams, self.hparams.hparams_to_ignore_on_save)
+        checkpoint["hyper_parameters"] = {"hparams": hparams}

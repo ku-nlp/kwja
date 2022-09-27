@@ -13,3 +13,6 @@ exclude_lines =
 
 	# Do not complain about abstract methods:
 	@(abc\.)?abstractmethod
+
+[run]
+omit = tests/*
