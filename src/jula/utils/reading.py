@@ -16,7 +16,7 @@ from jula.utils.kanjidic import KanjiDic
 # "〜"(0x301C)  "⁓" (U+2053)、Full-width tilde:
 # "～" (U+FF5E)、tilde operator: "∼" (U+223C)
 # Half-widths HIRAGANA-KATAKANA PROLONGED SOUND MARK (U+FF70
-CHOON_SET: Final = {"ー", "〜", "～", "∼", "ｰ"}
+CHOON_SET: Final = {"～", "〜", "∼", "⁓", "~", "ー", "ｰ", "-"}
 
 HATSUON_SET: Final = {"っ", "ッ"}
 

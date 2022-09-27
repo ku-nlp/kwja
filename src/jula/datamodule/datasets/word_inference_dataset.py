@@ -144,6 +144,10 @@ class WordInferenceDataset(BaseDataset):
             ).encodings[0]
             if len(encoding.ids) > self.max_seq_length - self.num_special_tokens:
                 continue
+            num_tokenized_morphemes = len({word_id for word_id in encoding.word_ids if word_id is not None})
+            if len(document.morphemes) != num_tokenized_morphemes:
+                logger.warning(f"Document length and tokenized length mismatch: {document.text}")
+                continue
 
             examples.append(
                 WordInferenceExample(

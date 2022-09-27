@@ -12,9 +12,9 @@ logger = logging.getLogger(__name__)
 # tilde operator: "∼" (U+223C), "⁓" (U+2053), "~" (U+007E)
 # KATAKANA-HIRAGANA PROLONGED SOUND MARK: "ー" (0x30FC)
 # half-widths HIRAGANA-KATAKANA PROLONGED SOUND MARK: "ｰ" (U+FF70), "-" (U+002D)
-CHOON_SET = set(["～", "〜", "∼", "⁓", "~", "ー", "ｰ", "-"])
+CHOON_SET = {"～", "〜", "∼", "⁓", "~", "ー", "ｰ", "-"}
 
-HATSUON_SET = set(["っ", "ッ"])
+HATSUON_SET = {"っ", "ッ"}
 
 LOWER2UPPER = {
     "ぁ": "あ",

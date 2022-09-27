@@ -413,16 +413,17 @@ class WordModuleWriter(BasePredictionWriter):
     @staticmethod
     def _add_base_phrase_features(document: Document, base_phrase_feature_preds: list[list[float]]) -> None:
         base_phrases = document.base_phrases
-        clause_start_indices = [0]
+        clause_start_index_set: set[int] = {0}
         for base_phrase in base_phrases:
             for feature, pred in zip(BASE_PHRASE_FEATURES, base_phrase_feature_preds[base_phrase.head.global_index]):
                 if feature != "節-主辞" and pred >= 0.5:
                     k, *vs = feature.split(":")
                     base_phrase.features[k] = ":".join(vs) or True
                     if feature.startswith("節-区切"):
-                        clause_start_indices.append(base_phrase.global_index + 1)
+                        clause_start_index_set.add(base_phrase.global_index + 1)
         if base_phrases[-1].features.get("節-区切", False) is False:
-            clause_start_indices.append(len(base_phrases))
+            clause_start_index_set.add(len(base_phrases))
+        clause_start_indices: list[int] = sorted(clause_start_index_set)
 
         for span in zip(clause_start_indices[:-1], clause_start_indices[1:]):
             clause = base_phrases[slice(*span)]
