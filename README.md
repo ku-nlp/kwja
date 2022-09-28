@@ -41,11 +41,11 @@ $ kwja --file path/to/file.txt
 ## Citation
 
 ```bibtex
-@InProceedings{植田2022, 
-  author    = {植田 暢大 and 大村 和正 and 児玉 貴志 and 清丸 寛一 and 村脇 有吾 and 河原 大輔 and 黒橋 禎夫}, 
-  title     = {KWJA：汎用言語モデルに基づく日本語解析器}, 
-  booktitle = {第253回自然言語処理研究会}, 
-  year      = {2022}, 
-  address   = {京都}, 
+@InProceedings{植田2022,
+  author    = {植田 暢大 and 大村 和正 and 児玉 貴志 and 清丸 寛一 and 村脇 有吾 and 河原 大輔 and 黒橋 禎夫},
+  title     = {KWJA：汎用言語モデルに基づく日本語解析器},
+  booktitle = {第253回自然言語処理研究会},
+  year      = {2022},
+  address   = {京都},
 }
 ```
