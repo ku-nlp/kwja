@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 import transformers.utils.logging as hf_logging
 from torch.hub import download_url_to_file
 
-ENV_JULA_CACHE_DIR = "JULA_CACHE_DIR"
+ENV_KWJA_CACHE_DIR = "KWJA_CACHE_DIR"
 ENV_XDG_CACHE_HOME = "XDG_CACHE_HOME"
 DEFAULT_CACHE_DIR = Path.home() / ".cache"
 
@@ -38,7 +38,7 @@ def download_checkpoint_from_url(
     """
 
     if checkpoint_dir is None:
-        checkpoint_dir = _get_jula_cache_dir()
+        checkpoint_dir = _get_kwja_cache_dir()
     else:
         checkpoint_dir = Path(checkpoint_dir)
     checkpoint_dir.mkdir(exist_ok=True)
@@ -53,10 +53,10 @@ def download_checkpoint_from_url(
     return checkpoint_path
 
 
-def _get_jula_cache_dir() -> Path:
-    if path := os.getenv(ENV_JULA_CACHE_DIR):
+def _get_kwja_cache_dir() -> Path:
+    if path := os.getenv(ENV_KWJA_CACHE_DIR):
         return Path(path)
     cache_dir = DEFAULT_CACHE_DIR
     if path := os.getenv(ENV_XDG_CACHE_HOME):
         cache_dir = Path(path)
-    return cache_dir / "jula"
+    return cache_dir / "kwja"
