@@ -3,7 +3,7 @@ import textwrap
 import torch
 from rhoknp import Document
 
-from jula.evaluators.dependency_parsing_metric import DependencyParsingMetric
+from kwja.evaluators.dependency_parsing_metric import DependencyParsingMetric
 
 document = Document.from_knp(
     textwrap.dedent(

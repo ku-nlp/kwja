@@ -1,8 +1,8 @@
 import pytest
 import torch
 
-from jula.evaluators.discourse_parsing_metric import DiscourseParsingMetric
-from jula.utils.constants import DISCOURSE_RELATIONS, IGNORE_INDEX
+from kwja.evaluators.discourse_parsing_metric import DiscourseParsingMetric
+from kwja.utils.constants import DISCOURSE_RELATIONS, IGNORE_INDEX
 
 discourse_parsing_predictions = torch.tensor(
     [

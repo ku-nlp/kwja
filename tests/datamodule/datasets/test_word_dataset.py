@@ -7,8 +7,8 @@ from rhoknp import Document
 from rhoknp.props import DepType
 from transformers.utils import PaddingStrategy
 
-from jula.datamodule.datasets.word_dataset import WordDataset, WordExampleSet
-from jula.datamodule.examples import (
+from kwja.datamodule.datasets.word_dataset import WordDataset, WordExampleSet
+from kwja.datamodule.examples import (
     BasePhraseFeatureExample,
     CohesionExample,
     CohesionTask,
@@ -17,8 +17,8 @@ from jula.datamodule.examples import (
     ReadingExample,
     WordFeatureExample,
 )
-from jula.datamodule.extractors import PasAnnotation
-from jula.utils.constants import (
+from kwja.datamodule.extractors import PasAnnotation
+from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TYPES,
     CONJTYPE_TYPES,

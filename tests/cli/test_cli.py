@@ -2,7 +2,7 @@
 
 # from typer.testing import CliRunner
 #
-# from jula.cli.cli import app
+# from kwja.cli.cli import app
 #
 # runner = CliRunner()
 #

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from jula.datamodule.datasets.typo_dataset import TypoDataset
+from kwja.datamodule.datasets.typo_dataset import TypoDataset
 
 here = Path(__file__).absolute().parent
 path = here.joinpath("typo_files")
