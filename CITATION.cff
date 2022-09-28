@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "KWJA: Kyoto-Waseda Japanese Analyzer"
+authors:
+  - family-names: Ueda
+    given-names: Nobuhiro
+  - family-names: Omura
+    given-names: Kazumasa
+  - family-names: Kodama
+    given-names: Takashi
+  - family-names: Kiyomaru
+    given-names: Hirokazu
+  - family-names: Murawaki
+    given-names: Yugo
+  - family-names: Kawahara
+    given-names: Daisuke
+  - family-names: Kurohashi
+    given-names: Sadao
+version: 1.0.0
+repository-code: "https://github.com/ku-nlp/kwja"
+date-released: 2022-09-28
