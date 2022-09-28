@@ -1,4 +1,3 @@
-import os
 from importlib import resources
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -6,22 +5,28 @@ from typing import Optional
 
 import hydra
 import pytorch_lightning as pl
+import torch
 import typer
-from dotenv import load_dotenv
 from omegaconf import OmegaConf
 from pytorch_lightning.trainer.states import TrainerFn
 from rhoknp import Document
 
-from kwja.cli.utils import suppress_debug_info
+from kwja.cli.utils import download_checkpoint_from_url, suppress_debug_info
 from kwja.datamodule.datamodule import DataModule
 from kwja.models.char_module import CharModule
 from kwja.models.typo_module import TypoModule
 from kwja.models.word_module import WordModule
 
+_CHECKPOINT_BASE_URL = "https://lotus.kuee.kyoto-u.ac.jp/kwja"
+TYPO_CHECKPOINT_URL = f"{_CHECKPOINT_BASE_URL}/v1.0/typo_roberta-base-wwm_seq512.ckpt"
+CHAR_CHECKPOINT_URL = f"{_CHECKPOINT_BASE_URL}/v1.0/char_roberta-base-wwm_seq512.ckpt"
+WORD_CHECKPOINT_URL = f"{_CHECKPOINT_BASE_URL}/v1.0/word_roberta-base_seq128.ckpt"
+WORD_DISCOURSE_CHECKPOINT_URL = f"{_CHECKPOINT_BASE_URL}/v1.0/disc_roberta-base_seq128.ckpt"
+
 suppress_debug_info()
 OmegaConf.register_new_resolver("concat", lambda x, y: x + y)
 
-app = typer.Typer()
+app = typer.Typer(pretty_exceptions_show_locals=False)
 
 
 @app.command()
@@ -44,13 +49,6 @@ def main(
         typer.echo("ERROR: Please provide text or filename")
         raise typer.Exit
 
-    load_dotenv()
-    env_model_dir: Optional[str] = os.getenv("MODEL_DIR")
-    if env_model_dir is None:
-        typer.echo("ERROR: Please set the MODEL_DIR environment variable")
-        raise typer.Exit()
-    model_dir: Path = Path(env_model_dir)
-
     tmp_dir: TemporaryDirectory = TemporaryDirectory()
     typo_path: Path = tmp_dir.name / Path("predict_typo.txt")
     char_path: Path = tmp_dir.name / Path("predict_char.txt")
@@ -58,13 +56,15 @@ def main(
     word_discourse_path: Path = tmp_dir.name / Path("predict_word_discourse.knp")
 
     # typo module
-    typo_model: TypoModule = TypoModule.load_from_checkpoint(str((model_dir / "typo.ckpt").resolve()))
+    typo_checkpoint_path: Path = download_checkpoint_from_url(TYPO_CHECKPOINT_URL)
+    typo_model: TypoModule = TypoModule.load_from_checkpoint(str(typo_checkpoint_path))
     typo_cfg = typo_model.hparams
-    typo_cfg.callbacks.prediction_writer.extended_vocab_path = (
-        resources.files("kwja") / "resource/typo_correction/multi_char_vocab.txt"
-    )
+    extended_vocab_path = resources.files("kwja") / "resource/typo_correction/multi_char_vocab.txt"
+    typo_cfg.datamodule.predict.extended_vocab_path = str(extended_vocab_path)
+    typo_cfg.dataset.extended_vocab_path = str(extended_vocab_path)
+    typo_cfg.callbacks.prediction_writer.extended_vocab_path = str(extended_vocab_path)
     typo_trainer: pl.Trainer = pl.Trainer(
-        logger=None,
+        logger=False,
         enable_progress_bar=False,
         callbacks=[
             hydra.utils.instantiate(
@@ -82,10 +82,11 @@ def main(
     del typo_model
 
     # char module
-    char_model: CharModule = CharModule.load_from_checkpoint(str((model_dir / "char.ckpt").resolve()))
+    char_checkpoint_path: Path = download_checkpoint_from_url(CHAR_CHECKPOINT_URL)
+    char_model: CharModule = CharModule.load_from_checkpoint(str(char_checkpoint_path))
     char_cfg = char_model.hparams
     char_trainer: pl.Trainer = pl.Trainer(
-        logger=None,
+        logger=False,
         enable_progress_bar=False,
         callbacks=[
             hydra.utils.instantiate(
@@ -103,12 +104,23 @@ def main(
     del char_model
 
     # word module
-    word_model: WordModule = WordModule.load_from_checkpoint(str((model_dir / "word.ckpt").resolve()))
+    word_checkpoint_path: Path = download_checkpoint_from_url(WORD_CHECKPOINT_URL)
+    hparams = torch.load(str(word_checkpoint_path), map_location=lambda storage, loc: storage)["hyper_parameters"][
+        "hparams"
+    ]
+    reading_resource_path = resources.files("kwja") / "resource/reading_prediction"
+    hparams.datamodule.predict.reading_resource_path = reading_resource_path
+    hparams.dataset.reading_resource_path = reading_resource_path
+    hparams.callbacks.prediction_writer.reading_resource_path = reading_resource_path
+    hparams.callbacks.prediction_writer.jumandic_path = resources.files("kwja") / "resource/jumandic"
+    word_model: WordModule = WordModule.load_from_checkpoint(str(word_checkpoint_path), hparams=hparams)
     word_cfg = word_model.hparams
-    word_cfg.callbacks.prediction_writer.reading_resource_path = resources.files("kwja") / "resource/reading_prediction"
+    word_cfg.datamodule.predict.reading_resource_path = reading_resource_path
+    word_cfg.dataset.reading_resource_path = reading_resource_path
+    word_cfg.callbacks.prediction_writer.reading_resource_path = reading_resource_path
     word_cfg.callbacks.prediction_writer.jumandic_path = resources.files("kwja") / "resource/jumandic"
     word_trainer: pl.Trainer = pl.Trainer(
-        logger=None,
+        logger=False,
         enable_progress_bar=False,
         callbacks=[
             hydra.utils.instantiate(
@@ -130,9 +142,8 @@ def main(
         print(document.to_knp())
     else:
         # word module (discourse)
-        word_discourse_model: WordModule = WordModule.load_from_checkpoint(
-            str((model_dir / "word_discourse.ckpt").resolve())
-        )
+        word_discourse_checkpoint_path: Path = download_checkpoint_from_url(WORD_DISCOURSE_CHECKPOINT_URL)
+        word_discourse_model: WordModule = WordModule.load_from_checkpoint(str(word_discourse_checkpoint_path))
         word_discourse_cfg = word_discourse_model.hparams
         word_discourse_trainer: pl.Trainer = pl.Trainer(
             logger=None,
