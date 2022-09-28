@@ -139,7 +139,7 @@ def main(
     del word_model
     document: Document = Document.from_knp(word_path.read_text())
     if not discourse:
-        print(document.to_knp())
+        print(document.to_knp(), end="")
     else:
         # word module (discourse)
         word_discourse_checkpoint_path: Path = download_checkpoint_from_url(WORD_DISCOURSE_CHECKPOINT_URL)
@@ -169,5 +169,5 @@ def main(
             base_phrase.discourse_relation_tag = discourse_document.base_phrases[
                 base_phrase.index
             ].discourse_relation_tag
-        print(document.to_knp())
+        print(document.to_knp(), end="")
     tmp_dir.cleanup()
