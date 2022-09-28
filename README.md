@@ -46,5 +46,6 @@ $ kwja --file path/to/file.txt
   title     = {KWJA：汎用言語モデルに基づく日本語解析器}, 
   booktitle = {第253回自然言語処理研究会}, 
   year      = {2022}, 
+  address   = {京都}, 
 }
 ```
