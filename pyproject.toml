@@ -11,7 +11,26 @@ authors = [
     "Daisuke Kawahara <dkw@waseda.jp>",
     "Sadao Kurohashi <kuro@i.kyoto-u.ac.jp>"
 ]
+maintainers = [
+    "Hirokazu Kiyomaru <kiyomaru@i.kyoto-u.ac.jp>",
+    "Nobuhiro Ueda <ueda@nlp.i.kyoto-u.ac.jp>",
+    "Kazumasa Omura <omura@nlp.i.kyoto-u.ac.jp>",
+    "Takashi Kodama <kodama@nlp.i.kyoto-u.ac.jp>",
+    "Yugo Murawaki <murawaki@i.kyoto-u.ac.jp>"
+]
+readme = "README.md"
+repository = "https://github.com/ku-nlp/kwja"
 keywords = ["natural language processing", "japanese"]
+classifiers = [
+    "Environment :: GPU",
+    "Environment :: MacOS X",
+    "Natural Language :: Japanese",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Text Processing",
+]
 
 packages = [
     { include = "kwja", from = "src" }
