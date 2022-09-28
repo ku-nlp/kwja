@@ -46,6 +46,11 @@ class CharModuleWriter(BasePredictionWriter):
         for prediction in predictions:
             for batch_pred in prediction:
                 dataset: Union[CharDataset, CharInferenceDataset] = dataloaders[batch_pred["dataloader_idx"]].dataset
+                special_ids = {
+                    special_id
+                    for special_id in dataset.tokenizer.all_special_ids
+                    if special_id != dataset.tokenizer.unk_token_id
+                }
                 batch_size = len(batch_pred["input_ids"])
                 for i in range(batch_size):
                     example: Union[CharExampleSet, CharInferenceExample] = dataset.examples[
@@ -61,12 +66,12 @@ class CharModuleWriter(BasePredictionWriter):
                     word_segmenter_types = [
                         INDEX2SEG_TYPE[pred_id]
                         for input_id, pred_id in zip(input_ids, word_segmenter_preds)
-                        if input_id not in dataset.tokenizer.all_special_ids
+                        if input_id not in special_ids
                     ]
                     word_normalizer_types = [
                         INDEX2WORD_NORM_TYPE[pred_id]
                         for input_id, pred_id in zip(input_ids, word_normalizer_preds)
-                        if input_id not in dataset.tokenizer.all_special_ids
+                        if input_id not in special_ids
                     ]
                     char_idx = 0
                     document = dataset.doc_id2document[example.doc_id]
@@ -79,7 +84,7 @@ class CharModuleWriter(BasePredictionWriter):
                             if word_segmenter_types[char_idx] == "B" and word_surf:
                                 if result:
                                     result += " "
-                                result += get_normalized(word_surf, word_norm_ops)
+                                result += get_normalized(word_surf, word_norm_ops, strict=False)
                                 word_surf = ""
                                 word_norm_ops = []
                             word_surf += char
@@ -87,7 +92,7 @@ class CharModuleWriter(BasePredictionWriter):
                             char_idx += 1
                         if result:
                             result += " "
-                        result += get_normalized(word_surf, word_norm_ops)
+                        result += get_normalized(word_surf, word_norm_ops, strict=False)
                         results.append(result)
 
         output_string: str = "\n".join(results) + "\n"
