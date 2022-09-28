@@ -7,8 +7,8 @@ from rhoknp import Document
 from rhoknp.props import DepType
 from transformers.utils import PaddingStrategy
 
-from jula.datamodule.datasets.word_dataset import WordDataset, WordExampleSet
-from jula.datamodule.examples import (
+from kwja.datamodule.datasets.word_dataset import WordDataset, WordExampleSet
+from kwja.datamodule.examples import (
     BasePhraseFeatureExample,
     CohesionExample,
     CohesionTask,
@@ -17,8 +17,8 @@ from jula.datamodule.examples import (
     ReadingExample,
     WordFeatureExample,
 )
-from jula.datamodule.extractors import PasAnnotation
-from jula.utils.constants import (
+from kwja.datamodule.extractors import PasAnnotation
+from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TYPES,
     CONJTYPE_TYPES,
@@ -65,6 +65,7 @@ def test_getitem():
         assert "example_ids" in item
         assert "input_ids" in item
         assert "attention_mask" in item
+        assert "target_mask" in item
         assert "subword_map" in item
         assert "reading_subword_map" in item
         assert "reading_ids" in item
@@ -81,6 +82,7 @@ def test_getitem():
         assert item["example_ids"] == i
         assert item["input_ids"].shape == (max_seq_length,)
         assert item["attention_mask"].shape == (max_seq_length,)
+        assert item["target_mask"].shape == (max_seq_length,)
         assert item["subword_map"].shape == (max_seq_length, max_seq_length)
         assert (item["subword_map"].sum(dim=1) != 0).sum() == len(document.morphemes) + dataset.num_special_tokens
         assert item["reading_subword_map"].shape == (max_seq_length, max_seq_length)
@@ -150,7 +152,7 @@ def test_encode():
     discourse_example.load(document)
     example = WordExampleSet(
         example_id=0,
-        doc_id="",
+        doc_id="000",
         encoding=encoding,
         reading_example=reading_example,
         word_feature_example=word_feature_example,

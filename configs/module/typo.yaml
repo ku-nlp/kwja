@@ -1,5 +1,5 @@
 cls:
-  _target_: jula.models.typo_module.TypoModule
+  _target_: kwja.models.typo_module.TypoModule
 
 load_from_checkpoint:
   _target_: ${module.cls._target_}.load_from_checkpoint

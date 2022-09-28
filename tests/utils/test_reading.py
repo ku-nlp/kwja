@@ -1,4 +1,4 @@
-from jula.utils.reading import get_word_level_readings
+from kwja.utils.reading import get_word_level_readings
 
 
 def test_get_word_level_readings():

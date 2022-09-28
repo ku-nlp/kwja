@@ -1,6 +1,6 @@
 from omegaconf import ListConfig
 
-from jula.datamodule.datasets.char_inference_dataset import CharInferenceDataset
+from kwja.datamodule.datasets.char_inference_dataset import CharInferenceDataset
 
 
 def test_init():

@@ -3,8 +3,8 @@ from pathlib import Path
 
 from rhoknp import Document
 
-from jula.datamodule.datasets.char_dataset import CharDataset
-from jula.utils.constants import IGNORE_INDEX, SEG_TYPES
+from kwja.datamodule.datasets.char_dataset import CharDataset
+from kwja.utils.constants import IGNORE_INDEX, SEG_TYPES
 
 here = Path(__file__).absolute().parent
 path = here.joinpath("knp_files")

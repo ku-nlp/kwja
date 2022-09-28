@@ -1,7 +1,7 @@
 import torch
 
-from jula.evaluators.ner_metric import NERMetric
-from jula.utils.constants import NE_TAGS
+from kwja.evaluators.ner_metric import NERMetric
+from kwja.utils.constants import NE_TAGS
 
 ne_tag_predictions = torch.tensor(
     [

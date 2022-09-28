@@ -7,10 +7,10 @@ from dotenv import load_dotenv
 from omegaconf import DictConfig, OmegaConf
 from rich import print
 
-from jula.datamodule.datamodule import DataModule
-from jula.datamodule.datasets.word_dataset import WordDataset
-from jula.utils.constants import IGNORE_INDEX
-from jula.utils.reading import UNK_ID
+from kwja.datamodule.datamodule import DataModule
+from kwja.datamodule.datasets.word_dataset import WordDataset
+from kwja.utils.constants import IGNORE_INDEX
+from kwja.utils.reading import UNK_ID
 
 hf_logging.set_verbosity(hf_logging.ERROR)
 logging.getLogger("rhoknp").setLevel(logging.WARNING)

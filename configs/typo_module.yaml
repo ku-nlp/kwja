@@ -28,3 +28,24 @@ effective_batch_size: 16
 devices: ${oc.env:GPUS,0}
 max_batches_per_device: 2
 num_workers: 0
+
+hparams_to_ignore_on_save:
+  - project
+  - work_dir
+  - seed
+  - name
+  - exp_dir
+  - run_id
+  - run_dir
+  - config_name
+  - callbacks:
+    - early_stopping
+    - model_checkpoint
+    - model_summary
+    - progress_bar
+  - datamodule:
+    - train
+    - valid
+    - test
+  - logger
+  - hparams_to_ignore_on_save

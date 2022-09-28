@@ -3,14 +3,16 @@ import textwrap
 from pathlib import Path
 
 import torch
+from BetterJSONStorage import BetterJSONStorage
 from omegaconf import ListConfig
 from rhoknp.props import DepType
+from tinydb import TinyDB
 from torch.utils.data import DataLoader
 
-import jula
-from jula.callbacks.word_module_writer import WordModuleWriter
-from jula.datamodule.datasets.word_inference_dataset import WordInferenceDataset
-from jula.utils.constants import (
+import kwja
+from kwja.callbacks.word_module_writer import WordModuleWriter
+from kwja.datamodule.datasets.word_inference_dataset import WordInferenceDataset
+from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TYPES,
     CONJTYPE_TYPES,
@@ -25,9 +27,68 @@ here = Path(__file__).absolute().parent
 reading_resource_path = here.parent / "datamodule/datasets/reading_files"
 
 
+def make_dummy_jumandic():
+    jumandic_dir = tempfile.TemporaryDirectory()
+    path = Path(jumandic_dir.name + "/jumandic.db")
+    with TinyDB(path, access_mode="r+", storage=BetterJSONStorage) as db:
+        db.insert(
+            {
+                "surf": "今日",
+                "reading": "きょう",
+                "lemma": "今日",
+                "pos": "名詞",
+                "subpos": "時相名詞",
+                "conjtype": "*",
+                "conjform": "*",
+                "semantics": "代表表記:今日/きょう カテゴリ:時間",
+            }
+        )
+        db.insert(
+            {
+                "surf": "あい",
+                "reading": "あい",
+                "lemma": "あい",
+                "pos": "名詞",
+                "subpos": "普通名詞",
+                "conjtype": "*",
+                "conjform": "*",
+                "semantics": "代表表記:愛/あい 漢字読み:音 カテゴリ:抽象物",
+            }
+        )
+        db.insert(
+            {
+                "surf": "あい",
+                "reading": "あい",
+                "lemma": "あい",
+                "pos": "名詞",
+                "subpos": "普通名詞",
+                "conjtype": "*",
+                "conjform": "*",
+                "semantics": "代表表記:藍/あい カテゴリ:植物",
+            }
+        )
+    ambig_surf_specs = [
+        {
+            "conjtype": "イ形容詞アウオ段",
+            "conjform": "エ基本形",
+        },
+        {
+            "conjtype": "イ形容詞イ段",
+            "conjform": "エ基本形",
+        },
+        {
+            "conjtype": "イ形容詞イ段特殊",
+            "conjform": "エ基本形",
+        },
+    ]
+    return jumandic_dir, ambig_surf_specs
+
+
 def test_init():
     with tempfile.TemporaryDirectory() as tmp_dir:
-        _ = WordModuleWriter(tmp_dir, str(reading_resource_path))
+        jumandic_dir, ambig_surf_specs = make_dummy_jumandic()
+        _ = WordModuleWriter(tmp_dir, str(reading_resource_path), jumandic_dir.name, ambig_surf_specs)
+        jumandic_dir.cleanup()
 
 
 class MockTrainer:
@@ -153,7 +214,10 @@ def test_write_on_epoch_end():
     pred_filename = "test"
     with tempfile.TemporaryDirectory() as tmp_dir:
         # max_seq_length = 6 ([CLS], 今日, は, 晴れ, だ, [SEP]) + 7 (著者, 読者, 不特定:人, 不特定:物, [NULL], [NA], [ROOT])
-        writer = WordModuleWriter(tmp_dir, str(reading_resource_path), pred_filename=pred_filename)
+        jumandic_dir, ambig_surf_specs = make_dummy_jumandic()
+        writer = WordModuleWriter(
+            tmp_dir, str(reading_resource_path), jumandic_dir.name, ambig_surf_specs, pred_filename=pred_filename
+        )
         exophora_referents = ["著者", "読者", "不特定:人", "不特定:物"]
         special_tokens = exophora_referents + ["[NULL]", "[NA]", "[ROOT]"]
         dataset = WordInferenceDataset(
@@ -174,16 +238,17 @@ def test_write_on_epoch_end():
         writer.write_on_epoch_end(trainer, ..., predictions)
         expected_knp = textwrap.dedent(
             f"""\
-            # S-ID:test-0-0 jula:{jula.__version__}
+            # S-ID:test-0-0 kwja:{kwja.__version__}
             * 1D
             + 1D <体言>
-            今日 きょう 今日 名詞 6 時相名詞 10 * 0 * 0 <基本句-主辞>
+            今日 きょう 今日 名詞 6 時相名詞 10 * 0 * 0 "代表表記:今日/きょう カテゴリ:時間" <代表表記:今日/きょう><カテゴリ:時間><基本句-主辞>
             は は は 助詞 9 副助詞 2 * 0 * 0
             * -1D
-            + -1D <rel type="ガ" target="今日" sid="test-0-0" id="0"/><NE:DATE:晴れ><用言:判><時制:非過去><節-主辞><節-区切><レベル:C><状態述語><談話関係:test-0-0/1/原因・理由>
+            + -1D <rel type="ガ" target="今日" sid="test-0-0" id="0"/><用言:判><時制:非過去><節-区切><レベル:C><状態述語><節-主辞><NE:DATE:晴れ><談話関係:test-0-0/1/原因・理由>
             晴れ はれ 晴れ 名詞 6 普通名詞 1 * 0 * 0 <基本句-主辞><用言表記先頭><用言表記末尾>
             だ だ だ 判定詞 4 * 0 判定詞 25 基本形 2
             EOS
             """
         )
         assert Path(tmp_dir).joinpath(f"{pred_filename}.knp").read_text() == expected_knp
+        jumandic_dir.cleanup()
