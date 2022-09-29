@@ -38,6 +38,22 @@ $ kwja --text "月が綺麗ですね。死んでもいいわ。"
 $ kwja --file path/to/file.txt
 ```
 
+## Usage from Python
+
+Install [rhoknp](ku-nlp/rhoknp)
+
+```shell
+$ pip install rhoknp
+```
+
+Perform language analysis with the `kwja` instance:
+
+```python
+from rhoknp import KWJA
+kwja = KWJA()
+analyzed_document = kwja.apply("月が綺麗ですね。死んでもいいわ。")
+```
+
 ## Citation
 
 ```bibtex
