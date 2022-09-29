@@ -3,134 +3,72 @@
 [![test](https://github.com/ku-nlp/kwja/actions/workflows/test.yml/badge.svg)](https://github.com/ku-nlp/kwja/actions/workflows/test.yml)
 [![codecov](https://codecov.io/gh/ku-nlp/kwja/branch/main/graph/badge.svg?token=A9FWWPLITO)](https://codecov.io/gh/ku-nlp/kwja)
 
+KWJA is a Japanese language analyzer based on pre-trained language models.
+KWJA performs many language analysis tasks, including:
+- Typo correction
+- Tokenization
+- Morphological analysis
+- Named entity recognition
+- Dependency parsing
+- PAS analysis
+- Coreference resolution
+- Discourse relation analysis
+- etc.
+
 ## Requirements
 
 - Python: 3.9+
 - Dependencies: See [pyproject.toml](./pyproject.toml).
 
-## Installation
+## Getting Started
 
-To prepare the Python environment of our project, we do:
-```shell
-poetry install
-```
-
-You must prepare config files and a `.env` file:
-1. Copy base config file and edit `work_dir`
-```shell
-cp configs/base_template.yaml configs/base.yaml
-```
-2. Create config file for the task you want to do:
-```shell
-touch TASK_NAME.yaml TASK_NAME.debug.yaml
-```
-Please refer to existing tasks when editing and add your task to `configs/module/default.yaml`
-
-3. Create a `.env` file and set `DATA_DIR`.
-```shell
-echo DATA_DIR="/path/to/data_dir" >> .env
-```
-
-## Preprocessing
-If you want to use the word segmenter, please prepare a word matcher in advance with the following command.
-```shell
-poetry run python src/kwja/preprocessors/wiki_ene_dic.py
-  --input-json-path "/path/to/wiki_ene_json_file"
-```
-Options:
-- `--output-dir, -o`: path to directory to save. Default: `./data`
-- `--save-filtered-results, -s`: whether to create an intermediate file to save the filtering results.
-
-For morphological analysis, you need to convert JumanDIC in advance with the following commands.
-```shell
-cd /path/to/JumanDIC
-git checkout kwja
-make kwja
-```
-and
-```shell
-poetry run python src/kwja/preprocessors/preprocess_jumandic.py
-  --input-dir /path/to/JumanDIC
-  --output-dir /path/to/dic_dir
-```
-Options:
-- `--input-dir, -i`: path to the JumanDIC dir.
-- `--output-dir, -o`: path to a directory where processed data are saved.
-
-## Build dataset for training typo module
-You must preprocess Japanese Wikipedia Typo Dataset.
-```shell
-poetry run python src/kwja/preprocessors/preprocess_typo.py
-  --input-dir "/path/to/unzipped_typo_dataset_dir"
-```
-Options:
-- `--output-dir, -o`: path to directory to save. Default: `./data`
-- `--num-valid-samples, -n`: number of validation data. Default: `1000`
-
-## Build datasets for training word module
-"build_datasets.sh" performs formatting KWDLC and annotated FKC corpus.
-```shell
-./scripts/build_datasets.sh
-  -a $(poetry run echo $VIRTUAL_ENV)/bin/activate
-  -w /path/to/work_dir
-  -s $(realpath ./scripts)
-  -j 2
-  -o /path/to/output_dir
-```
-Options:
-- `-a`: path to activator
-- `-w`: path to working directory
-- `-s`: path to scripts
-- `-j`: number of jobs
-- `-o`: path to output directory
-
-NOTE:
-To train word module on Kyoto University Text Corpus, you must have access to it and IREX CRL named entity data.
-If you have both access, you can format the corpus with the following commands.
-(You may need preprocessing to format IREX CRL named entity data.)
-```shell
-poetry run python scripts/add_features_to_raw_corpus.py
-  KyotoCorpus/knp
-  kyoto/knp
-  --ne-tags IREX_CRL_NE_data.jmn
-  -j 2
-poetry run kyoto idsplit \
-  --corpus-dir kyoto/knp \
-  --output-dir kyoto \
-  --train KyotoCorpus/id/full/train.id \
-  --valid KyotoCorpus/id/full/dev.id \
-  --test KyotoCorpus/id/full/test.id
-```
-
-## Training and evaluation
-You can train and test the models in the following command:
-```shell
-# For training and evaluating word segmenter
-poetry run python scripts/train.py -cn char_module devices=[0,1]
-```
-
-If you only want to do evaluation after training, please use the following command:
-```shell
-# For evaluating word segmenter
-poetry run python scripts/predict.py -cn char_module devices=[0] checkpoint_path="/path/to/checkpoint"
-```
-
-## Debugging
-You can do debugging on local and server environments:
-
-Local environment (using CPU):
-```shell
-# For debugging word segmenter
-poetry run python scripts/train.py -cn char_module.debug devices=1
-```
-Server environment (using GPU):
-```shell
-# For debugging word segmenter
-poetry run python scripts/train.py -cn char_module.debug devices=[0]
-```
-
-## Unit tests
+Install KWJA with pip:
 
 ```shell
-poetry run pytest
+$ pip install kwja
+```
+
+Perform language analysis with the `kwja` command (the result is in the KNP format):
+
+```shell
+# Analyze a text
+$ kwja --text "月が綺麗ですね。死んでもいいわ。"
+
+# Analyze a text file
+$ kwja --file path/to/file.txt
+```
+
+## Usage from Python
+
+Make sure you have `kwja` command in your path:
+
+```shell
+$ which kwja
+/path/to/kwja
+```
+
+Install [rhoknp](https://github.com/ku-nlp/rhoknp):
+
+```shell
+$ pip install rhoknp
+```
+
+Perform language analysis with the `kwja` instance:
+
+```python
+from rhoknp import KWJA
+kwja = KWJA()
+analyzed_document = kwja.apply("月が綺麗ですね。死んでもいいわ。")
+```
+
+## Citation
+
+```bibtex
+@InProceedings{植田2022,
+  author    = {植田 暢大 and 大村 和正 and 児玉 貴志 and 清丸 寛一 and 村脇 有吾 and 河原 大輔 and 黒橋 禎夫},
+  title     = {KWJA：汎用言語モデルに基づく日本語解析器},
+  booktitle = {第253回自然言語処理研究会},
+  year      = {2022},
+  address   = {京都},
+}
 ```

@@ -49,7 +49,6 @@ def download_checkpoint_from_url(
     if checkpoint_path.exists() is False:
         sys.stderr.write(f'Downloading: "{url}" to {checkpoint_path}\n')
         download_url_to_file(url, str(checkpoint_path), None, progress=progress)
-    print(checkpoint_dir, checkpoint_path)
     return checkpoint_path
 
 
