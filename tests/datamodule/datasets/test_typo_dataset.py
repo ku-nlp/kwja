@@ -16,7 +16,7 @@ def test_getitem():
     dataset = TypoDataset(
         path=str(path),
         extended_vocab_path=f"{path}/extended_vocab.txt",
-        model_name_or_path="cl-tohoku/bert-base-japanese-char",
+        model_name_or_path="ku-nlp/roberta-base-japanese-char-wwm",
         max_seq_length=max_seq_length,
         tokenizer_kwargs={
             "do_word_tokenize": False,

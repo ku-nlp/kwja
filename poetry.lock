@@ -246,18 +246,6 @@ ssh = ["paramiko"]
 tqdm = ["tqdm"]
 
 [[package]]
-name = "fugashi"
-version = "1.2.0"
-description = "A Cython MeCab wrapper for fast, pythonic Japanese tokenization."
-category = "main"
-optional = false
-python-versions = ">=3.7"
-
-[package.extras]
-unidic = ["unidic"]
-unidic-lite = ["unidic-lite"]
-
-[[package]]
 name = "gitdb"
 version = "4.0.9"
 description = "Git Object Database"
@@ -1337,7 +1325,7 @@ testing = ["func-timeout", "jaraco.itertools", "pytest (>=6)", "pytest-black (>=
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.9,<3.11"
-content-hash = "7c37ac99f08310437e7301e881b5f865203708084e5a6c91840b0aa05116919f"
+content-hash = "3eab804fa3051b6973ceba8403699c46cd7eb4ddb0bdf1e52ce96618091ac208"
 
 [metadata.files]
 absl-py = [
@@ -1669,27 +1657,6 @@ frozenlist = [
 fsspec = [
     {file = "fsspec-2022.8.2-py3-none-any.whl", hash = "sha256:6374804a2c0d24f225a67d009ee1eabb4046ad00c793c3f6df97e426c890a1d9"},
     {file = "fsspec-2022.8.2.tar.gz", hash = "sha256:7f12b90964a98a7e921d27fb36be536ea036b73bf3b724ac0b0bd7b8e39c7c18"},
-]
-fugashi = [
-    {file = "fugashi-1.2.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:38852a40a3d6c8afaa047fe59db11473dbc68aa42c9d75aecb9e38649d6c6522"},
-    {file = "fugashi-1.2.0-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:82b32d4a6eeedee7c32076877f54664b583873d39edc42fd8002ec8c7278862a"},
-    {file = "fugashi-1.2.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b9eb4106eb74aab3aa84f91ac80e293cc2c5f6ec7449700737e8c0afb78bc888"},
-    {file = "fugashi-1.2.0-cp310-cp310-win_amd64.whl", hash = "sha256:93dcfb812652d1a44a7317cb7debd56d65d41a021c1d910d1b6f2409da599ccc"},
-    {file = "fugashi-1.2.0-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:c02aa08bfa9f794ffe99d8e5b466850143535a226edf0cd28159b305e7e8967c"},
-    {file = "fugashi-1.2.0-cp37-cp37m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:5e0ab05c2404ab336e340c3910213ad410b71523dc1cf1efaab53655ca828da5"},
-    {file = "fugashi-1.2.0-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:09325e53526da127f3e6aaa692adc2aa5311806dde46599aadae0e4350c4e40f"},
-    {file = "fugashi-1.2.0-cp37-cp37m-win_amd64.whl", hash = "sha256:3e0a99197a57127be1d309c0d613ef7d6fad68015a11ddd8f74144190e6ba8bc"},
-    {file = "fugashi-1.2.0-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:1ae9366ff79d8dce88d85c08844a40e7ed679c4508bab048a0beed0d89c79bef"},
-    {file = "fugashi-1.2.0-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:c8d14514466ef7ff89984f73174427b1207c230f628b453eb16281434f5c1791"},
-    {file = "fugashi-1.2.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b909aea97f9158df038624e7d7416811425304adc29898aa75b3b8c11ec56773"},
-    {file = "fugashi-1.2.0-cp38-cp38-win_amd64.whl", hash = "sha256:d08997693c2df3b848dfead04e04a70c98232637bc76a6230c5c73834c652741"},
-    {file = "fugashi-1.2.0-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:7235cfcae91f7fe7a25abcd5fbbb106b6d1ea93c3f0be6ee3ab2673779115293"},
-    {file = "fugashi-1.2.0-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:079f5316298db69394c46390feeacfc88972ea9082e5995ce28a63cc4e6da974"},
-    {file = "fugashi-1.2.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:eff90b7cc76f33d8afebb4aa96cb049971d068da7079ee18fec2f54267d23973"},
-    {file = "fugashi-1.2.0-cp39-cp39-win_amd64.whl", hash = "sha256:e3ac14292ce4ccaef76666b81eab00ac029b8b4c1bbc27690454684210ef16a1"},
-    {file = "fugashi-1.2.0-pp37-pypy37_pp73-macosx_10_9_x86_64.whl", hash = "sha256:d50176a0947fc7754772aade0ddde8b56583c06100c0aa2e95e7131702ad2c76"},
-    {file = "fugashi-1.2.0-pp38-pypy38_pp73-macosx_10_9_x86_64.whl", hash = "sha256:fa97c4f763e4e02a1fd4e74558c530efc89e0c960293d9b01aa500dec74274e2"},
-    {file = "fugashi-1.2.0.tar.gz", hash = "sha256:032ced442f3e5988c086d4544f133187802071d8d7d7c62756e4d27cef0b169f"},
 ]
 gitdb = [
     {file = "gitdb-4.0.9-py3-none-any.whl", hash = "sha256:8033ad4e853066ba6ca92050b9df2f89301b8fc8bf7e9324d412a63f8bf1a8fd"},
@@ -2111,34 +2078,12 @@ py = [
     {file = "py-1.11.0.tar.gz", hash = "sha256:51c75c4126074b472f746a24399ad32f6053d1b34b68d2fa41e558e6f4a98719"},
 ]
 pyasn1 = [
-    {file = "pyasn1-0.4.8-py2.4.egg", hash = "sha256:fec3e9d8e36808a28efb59b489e4528c10ad0f480e57dcc32b4de5c9d8c9fdf3"},
-    {file = "pyasn1-0.4.8-py2.5.egg", hash = "sha256:0458773cfe65b153891ac249bcf1b5f8f320b7c2ce462151f8fa74de8934becf"},
-    {file = "pyasn1-0.4.8-py2.6.egg", hash = "sha256:5c9414dcfede6e441f7e8f81b43b34e834731003427e5b09e4e00e3172a10f00"},
-    {file = "pyasn1-0.4.8-py2.7.egg", hash = "sha256:6e7545f1a61025a4e58bb336952c5061697da694db1cae97b116e9c46abcf7c8"},
     {file = "pyasn1-0.4.8-py2.py3-none-any.whl", hash = "sha256:39c7e2ec30515947ff4e87fb6f456dfc6e84857d34be479c9d4a4ba4bf46aa5d"},
-    {file = "pyasn1-0.4.8-py3.1.egg", hash = "sha256:78fa6da68ed2727915c4767bb386ab32cdba863caa7dbe473eaae45f9959da86"},
-    {file = "pyasn1-0.4.8-py3.2.egg", hash = "sha256:08c3c53b75eaa48d71cf8c710312316392ed40899cb34710d092e96745a358b7"},
-    {file = "pyasn1-0.4.8-py3.3.egg", hash = "sha256:03840c999ba71680a131cfaee6fab142e1ed9bbd9c693e285cc6aca0d555e576"},
-    {file = "pyasn1-0.4.8-py3.4.egg", hash = "sha256:7ab8a544af125fb704feadb008c99a88805126fb525280b2270bb25cc1d78a12"},
-    {file = "pyasn1-0.4.8-py3.5.egg", hash = "sha256:e89bf84b5437b532b0803ba5c9a5e054d21fec423a89952a74f87fa2c9b7bce2"},
-    {file = "pyasn1-0.4.8-py3.6.egg", hash = "sha256:014c0e9976956a08139dc0712ae195324a75e142284d5f87f1a87ee1b068a359"},
-    {file = "pyasn1-0.4.8-py3.7.egg", hash = "sha256:99fcc3c8d804d1bc6d9a099921e39d827026409a58f2a720dcdb89374ea0c776"},
     {file = "pyasn1-0.4.8.tar.gz", hash = "sha256:aef77c9fb94a3ac588e87841208bdec464471d9871bd5050a287cc9a475cd0ba"},
 ]
 pyasn1-modules = [
     {file = "pyasn1-modules-0.2.8.tar.gz", hash = "sha256:905f84c712230b2c592c19470d3ca8d552de726050d1d1716282a1f6146be65e"},
-    {file = "pyasn1_modules-0.2.8-py2.4.egg", hash = "sha256:0fe1b68d1e486a1ed5473f1302bd991c1611d319bba158e98b106ff86e1d7199"},
-    {file = "pyasn1_modules-0.2.8-py2.5.egg", hash = "sha256:fe0644d9ab041506b62782e92b06b8c68cca799e1a9636ec398675459e031405"},
-    {file = "pyasn1_modules-0.2.8-py2.6.egg", hash = "sha256:a99324196732f53093a84c4369c996713eb8c89d360a496b599fb1a9c47fc3eb"},
-    {file = "pyasn1_modules-0.2.8-py2.7.egg", hash = "sha256:0845a5582f6a02bb3e1bde9ecfc4bfcae6ec3210dd270522fee602365430c3f8"},
     {file = "pyasn1_modules-0.2.8-py2.py3-none-any.whl", hash = "sha256:a50b808ffeb97cb3601dd25981f6b016cbb3d31fbf57a8b8a87428e6158d0c74"},
-    {file = "pyasn1_modules-0.2.8-py3.1.egg", hash = "sha256:f39edd8c4ecaa4556e989147ebf219227e2cd2e8a43c7e7fcb1f1c18c5fd6a3d"},
-    {file = "pyasn1_modules-0.2.8-py3.2.egg", hash = "sha256:b80486a6c77252ea3a3e9b1e360bc9cf28eaac41263d173c032581ad2f20fe45"},
-    {file = "pyasn1_modules-0.2.8-py3.3.egg", hash = "sha256:65cebbaffc913f4fe9e4808735c95ea22d7a7775646ab690518c056784bc21b4"},
-    {file = "pyasn1_modules-0.2.8-py3.4.egg", hash = "sha256:15b7c67fabc7fc240d87fb9aabf999cf82311a6d6fb2c70d00d3d0604878c811"},
-    {file = "pyasn1_modules-0.2.8-py3.5.egg", hash = "sha256:426edb7a5e8879f1ec54a1864f16b882c2837bfd06eee62f2c982315ee2473ed"},
-    {file = "pyasn1_modules-0.2.8-py3.6.egg", hash = "sha256:cbac4bc38d117f2a49aeedec4407d23e8866ea4ac27ff2cf7fb3e5b570df19e0"},
-    {file = "pyasn1_modules-0.2.8-py3.7.egg", hash = "sha256:c29a5e5cc7a3f05926aff34e097e84f8589cd790ce0ed41b67aed6857b26aafd"},
 ]
 pydeprecate = [
     {file = "pyDeprecate-0.3.2-py3-none-any.whl", hash = "sha256:ed86b68ed837e6465245904a3de2f59bf9eef78ac7a2502ee280533d04802457"},

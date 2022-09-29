@@ -20,7 +20,7 @@ class TypoModuleWriter(BasePredictionWriter):
         extended_vocab_path: str,
         confidence_threshold: float = 0.0,
         pred_filename: str = "predict",
-        model_name_or_path: str = "cl-tohoku/bert-base-japanese-char",
+        model_name_or_path: str = "ku-nlp/roberta-base-japanese-char-wwm",
         tokenizer_kwargs: DictConfig = None,
         use_stdout: bool = False,
     ) -> None:

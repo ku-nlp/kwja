@@ -15,7 +15,7 @@ class TypoDataset(Dataset):
         self,
         path: str,
         extended_vocab_path: str,
-        model_name_or_path: str = "cl-tohoku/bert-base-japanese-char",
+        model_name_or_path: str = "ku-nlp/roberta-base-japanese-char-wwm",
         max_seq_length: int = 512,
         tokenizer_kwargs: dict = None,
     ) -> None:

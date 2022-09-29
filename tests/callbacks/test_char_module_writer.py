@@ -25,7 +25,7 @@ def test_write_on_epoch_end():
         dataset = CharInferenceDataset(
             texts=ListConfig(["今日は晴れだぁ"]),
             document_split_stride=1,
-            model_name_or_path="cl-tohoku/bert-base-japanese-char",
+            model_name_or_path="ku-nlp/roberta-base-japanese-char-wwm",
             doc_id_prefix="test",
         )
         trainer = MockTrainer([DataLoader(dataset)])

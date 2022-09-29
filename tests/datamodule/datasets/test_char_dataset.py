@@ -12,7 +12,7 @@ path = here.joinpath("knp_files")
 # TODO: use roberta
 char_dataset_kwargs = dict(
     document_split_stride=1,
-    model_name_or_path="cl-tohoku/bert-base-japanese-char",
+    model_name_or_path="ku-nlp/roberta-base-japanese-char-wwm",
     max_seq_length=512,
     tokenizer_kwargs={"do_word_tokenize": False},
 )
