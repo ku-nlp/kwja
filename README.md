@@ -40,7 +40,7 @@ $ kwja --file path/to/file.txt
 
 ## Usage from Python
 
-Make sure you have `kaja` command in your path:
+Make sure you have `kwja` command in your path:
 
 ```shell
 $ which kwja
