@@ -42,7 +42,7 @@ class DependencyParser(nn.Module):
         pooled_outputs = pooled_outputs.unsqueeze(2)
         batch_size, sequence_len, k, hidden_size = pooled_outputs.shape
         if dependencies is not None:
-            # gather_indexにINGORE(=-100)を渡すことはできないので、0に上書き
+            # gather_indexにIGNORE(=-100)を渡すことはできないので、0に上書き
             dependencies = (dependencies * dependencies.ne(IGNORE_INDEX)).unsqueeze(2).unsqueeze(3)
         else:
             dependencies = torch.topk(dependency_logits, self.k, dim=2).indices.unsqueeze(3)

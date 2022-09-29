@@ -257,7 +257,7 @@ def get_normalized(surf: str, ops: list[str], strict: bool = True) -> str:
                     raise ValueError(f"not a small kana {c} in {surf}")
                 normalized += c
         elif op == "P":
-            # NOTE: in cannonical ops, P and E must follow K
+            # NOTE: in canonical ops, P and E must follow K
             # but we do not check this constraint here
             if len(normalized) <= 0:
                 if strict:
@@ -273,7 +273,7 @@ def get_normalized(surf: str, ops: list[str], strict: bool = True) -> str:
                     normalized += PROLONGED_MAP[p]
                 else:
                     if strict:
-                        raise ValueError(f"not a valid precding kana {p} in {surf}")
+                        raise ValueError(f"not a valid preceding kana {p} in {surf}")
                     normalized += c
         elif op == "E":
             if len(normalized) <= 0:
@@ -290,7 +290,7 @@ def get_normalized(surf: str, ops: list[str], strict: bool = True) -> str:
                     normalized += PROLONGED_MAP_FOR_EROW[p]
                 else:
                     if strict:
-                        raise ValueError(f"not a valid precding kana {p} in {surf}")
+                        raise ValueError(f"not a valid preceding kana {p} in {surf}")
                     normalized += c
         else:
             raise NotImplementedError(f"unknown op {op}")
