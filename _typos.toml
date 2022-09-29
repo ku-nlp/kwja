@@ -1,0 +1,14 @@
+# Files for typos
+# Instruction:  https://github.com/marketplace/actions/typos-action#getting-started
+
+[default.extend-identifiers]
+nd="nd"
+
+[default.extend-words]
+ment="ment"
+CLAS="CLAS"
+Alignd="Alignd" #AligndAcc
+
+
+[files]
+extend-exclude = ["*dic"]
