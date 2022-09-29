@@ -40,14 +40,14 @@ $ kwja --file path/to/file.txt
 
 ## Usage from Python
 
-Make sure you have `kaja` command in your path.
+Make sure you have `kaja` command in your path:
 
 ```shell
 $ which kwja
 /path/to/kwja
 ```
 
-Install [rhoknp](ku-nlp/rhoknp)
+Install [rhoknp](https://github.com/ku-nlp/rhoknp):
 
 ```shell
 $ pip install rhoknp
