@@ -105,9 +105,8 @@ def main(
 
     # word module
     word_checkpoint_path: Path = download_checkpoint_from_url(WORD_CHECKPOINT_URL)
-    hparams = torch.load(str(word_checkpoint_path), map_location=lambda storage, loc: storage)["hyper_parameters"][
-        "hparams"
-    ]
+    word_checkpoint = torch.load(str(word_checkpoint_path), map_location=lambda storage, loc: storage)
+    hparams = word_checkpoint["hyper_parameters"]["hparams"]
     reading_resource_path = resources.files("kwja") / "resource/reading_prediction"
     hparams.datamodule.predict.reading_resource_path = reading_resource_path
     hparams.dataset.reading_resource_path = reading_resource_path
@@ -142,6 +141,9 @@ def main(
     for idx, sentence in enumerate(document.sentences):
         sentence.comment = comments[idx]
     if not discourse:
+        for base_phrase in document.base_phrases:
+            if "談話関係" in base_phrase.features:
+                del base_phrase.features["談話関係"]
         print(document.to_knp(), end="")
     else:
         # word module (discourse)
@@ -168,9 +170,8 @@ def main(
             dataloaders=word_discourse_datamodule.predict_dataloader(),
         )
         discourse_document: Document = Document.from_knp(word_discourse_path.read_text())
-        for base_phrase in document.base_phrases:
-            base_phrase.discourse_relation_tag = discourse_document.base_phrases[
-                base_phrase.index
-            ].discourse_relation_tag
+        for base_phrase in discourse_document.base_phrases:
+            if feature := base_phrase.features.get("談話関係", False):
+                document.base_phrases[base_phrase.global_index].features["談話関係"] = feature
         print(document.to_knp(), end="")
     tmp_dir.cleanup()

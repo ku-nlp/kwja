@@ -2,6 +2,8 @@
 
 [![test](https://github.com/ku-nlp/kwja/actions/workflows/test.yml/badge.svg)](https://github.com/ku-nlp/kwja/actions/workflows/test.yml)
 [![codecov](https://codecov.io/gh/ku-nlp/kwja/branch/main/graph/badge.svg?token=A9FWWPLITO)](https://codecov.io/gh/ku-nlp/kwja)
+[![PyPI](https://img.shields.io/pypi/v/kwja)](https://pypi.org/project/kwja/)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/kwja)
 
 KWJA is a Japanese language analyzer based on pre-trained language models.
 KWJA performs many language analysis tasks, including:
@@ -32,7 +34,7 @@ Perform language analysis with the `kwja` command (the result is in the KNP form
 
 ```shell
 # Analyze a text
-$ kwja --text "月が綺麗ですね。死んでもいいわ。"
+$ kwja --text "KWJAは日本語の統合解析ツールです。汎用言語モデルを利用し、様々な言語解析を統一的な方法で解いています。"
 
 # Analyze a text file
 $ kwja --file path/to/file.txt
@@ -58,7 +60,9 @@ Perform language analysis with the `kwja` instance:
 ```python
 from rhoknp import KWJA
 kwja = KWJA()
-analyzed_document = kwja.apply("月が綺麗ですね。死んでもいいわ。")
+analyzed_document = kwja.apply(
+    "KWJAは日本語の統合解析ツールです。汎用言語モデルを利用し、様々な言語解析を統一的な方法で解いています。"
+)
 ```
 
 ## Citation
