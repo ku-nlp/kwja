@@ -34,7 +34,7 @@ def main(
     text: Optional[str] = typer.Option(None, help="Text to be analyzed."),
     filename: Optional[Path] = typer.Option(None, help="File to be analyzed."),
     discourse: Optional[bool] = typer.Option(
-        True, help="Whether to use a single model for discourse relation analysis"
+        False, help="Whether to use a single model for discourse relation analysis"
     ),
 ) -> None:
     if text is not None and filename is not None:
