@@ -131,12 +131,15 @@ def main(
         devices=1,
     )
     char_results: list[str] = char_path.read_text().splitlines()
+    comments: list[str] = [x for i, x in enumerate(char_results) if i % 2 == 0]
     word_cfg.datamodule.predict.texts = [x for i, x in enumerate(char_results) if i % 2 == 1]
     word_datamodule = DataModule(cfg=word_cfg.datamodule)
     word_datamodule.setup(stage=TrainerFn.PREDICTING)
     word_trainer.predict(model=word_model, dataloaders=word_datamodule.predict_dataloader())
     del word_model
     document: Document = Document.from_knp(word_path.read_text())
+    for idx, sentence in enumerate(document.sentences):
+        sentence.comment = comments[idx]
     if not discourse:
         for base_phrase in document.base_phrases:
             if "談話関係" in base_phrase.features:
