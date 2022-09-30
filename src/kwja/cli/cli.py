@@ -11,6 +11,7 @@ from omegaconf import OmegaConf
 from pytorch_lightning.trainer.states import TrainerFn
 from rhoknp import Document
 
+from kwja.callbacks.word_module_writer import WordModuleWriter
 from kwja.cli.utils import download_checkpoint_from_url, suppress_debug_info
 from kwja.datamodule.datamodule import DataModule
 from kwja.models.char_module import CharModule
@@ -136,6 +137,8 @@ def main(
     word_datamodule = DataModule(cfg=word_cfg.datamodule)
     word_datamodule.setup(stage=TrainerFn.PREDICTING)
     word_trainer.predict(model=word_model, dataloaders=word_datamodule.predict_dataloader())
+    word_module_writer: WordModuleWriter = word_trainer.callbacks[0]
+    word_module_writer.jumandic.close()  # word module (discourse) cannot be initialized unless this is written because multiple tinyDBs cannot be opened.
     del word_model
     document: Document = Document.from_knp(word_path.read_text())
     for idx, sentence in enumerate(document.sentences):
@@ -148,10 +151,26 @@ def main(
     else:
         # word module (discourse)
         word_discourse_checkpoint_path: Path = download_checkpoint_from_url(WORD_DISCOURSE_CHECKPOINT_URL)
-        word_discourse_model: WordModule = WordModule.load_from_checkpoint(str(word_discourse_checkpoint_path))
+        word_discourse_checkpoint = torch.load(
+            str(word_discourse_checkpoint_path), map_location=lambda storage, loc: storage
+        )
+        hparams = word_discourse_checkpoint["hyper_parameters"]["hparams"]
+        reading_resource_path = resources.files("kwja") / "resource/reading_prediction"
+        hparams.datamodule.predict.reading_resource_path = reading_resource_path
+        hparams.dataset.reading_resource_path = reading_resource_path
+        hparams.callbacks.prediction_writer.reading_resource_path = reading_resource_path
+        hparams.callbacks.prediction_writer.jumandic_path = resources.files("kwja") / "resource/jumandic"
+        word_discourse_model: WordModule = WordModule.load_from_checkpoint(
+            str(word_discourse_checkpoint_path), hparams=hparams
+        )
         word_discourse_cfg = word_discourse_model.hparams
+        word_discourse_cfg.datamodule.predict.reading_resource_path = reading_resource_path
+        word_discourse_cfg.dataset.reading_resource_path = reading_resource_path
+        word_discourse_cfg.callbacks.prediction_writer.reading_resource_path = reading_resource_path
+        word_discourse_cfg.callbacks.prediction_writer.jumandic_path = resources.files("kwja") / "resource/jumandic"
+
         word_discourse_trainer: pl.Trainer = pl.Trainer(
-            logger=None,
+            logger=False,
             enable_progress_bar=False,
             callbacks=[
                 hydra.utils.instantiate(
