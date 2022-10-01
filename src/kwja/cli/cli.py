@@ -191,10 +191,6 @@ def main(
         for idx, sentence in enumerate(discourse_document.sentences):
             sentence.comment = comments[idx]
         print(discourse_document.to_knp(), end="")
-        # for base_phrase in discourse_document.base_phrases:
-        #     if feature := base_phrase.features.get("談話関係", False):
-        #         document.base_phrases[base_phrase.global_index].features["談話関係"] = feature
-        # print(document.to_knp(), end="")
     tmp_dir.cleanup()
 
 
