@@ -35,8 +35,9 @@ app = typer.Typer(pretty_exceptions_show_locals=False)
 def main(
     text: Optional[str] = typer.Option(None, help="Text to be analyzed."),
     filename: Optional[Path] = typer.Option(None, help="File to be analyzed."),
-    discourse: Optional[bool] = typer.Option(
-        False, help="Whether to use a single model for discourse relation analysis"
+    exclude_discourse: Optional[bool] = typer.Option(
+        False,
+        help="Whether to exclude the results of discourse relation analysis. Set to true if you don't need the results of the discourse relation analysis.",
     ),
 ) -> None:
     if text is not None and filename is not None:
@@ -144,7 +145,7 @@ def main(
     document: Document = Document.from_knp(word_path.read_text())
     for idx, sentence in enumerate(document.sentences):
         sentence.comment = comments[idx]
-    if not discourse:
+    if exclude_discourse:
         for base_phrase in document.base_phrases:
             if "談話関係" in base_phrase.features:
                 del base_phrase.features["談話関係"]
