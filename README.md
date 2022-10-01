@@ -5,17 +5,22 @@
 [![PyPI](https://img.shields.io/pypi/v/kwja)](https://pypi.org/project/kwja/)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/kwja)
 
+[[Paper]](https://ipsj.ixsq.nii.ac.jp/ej/?action=pages_view_main&active_action=repository_view_main_item_detail&item_id=220232&item_no=1&page_id=13&block_id=8)
+[[Slides]](https://speakerdeck.com/nobug/kyoto-waseda-japanese-analyzer)
+
 KWJA is a Japanese language analyzer based on pre-trained language models.
 KWJA performs many language analysis tasks, including:
 - Typo correction
 - Tokenization
+- Word normalization
 - Morphological analysis
 - Named entity recognition
+- Word feature tagging
 - Dependency parsing
 - PAS analysis
+- Bridging reference resolution
 - Coreference resolution
 - Discourse relation analysis
-- etc.
 
 ## Requirements
 
@@ -36,9 +41,36 @@ Perform language analysis with the `kwja` command (the result is in the KNP form
 # Analyze a text
 $ kwja --text "KWJAは日本語の統合解析ツールです。汎用言語モデルを利用し、様々な言語解析を統一的な方法で解いています。"
 
-# Analyze a text file
-$ kwja --file path/to/file.txt
+# Analyze a text file and write the result to a file
+$ kwja --file path/to/file.txt > path/to/analyzed.knp
 ```
+
+The output is in the KNP format, like the following:
+
+```
+# S-ID:202210010000-0-0 kwja:1.0.2
+* 2D
++ 5D <rel type="=" target="ツール" sid="202210011918-0-0" id="5"/><体言><NE:ARTIFACT:KWJA>
+KWJA ＫWＪＡ KWJA 名詞 6 固有名詞 3 * 0 * 0 <基本句-主辞>
+は は は 助詞 9 副助詞 2 * 0 * 0 "代表表記:は/は" <代表表記:は/は>
+* 2D
++ 2D <体言>
+日本 にほん 日本 名詞 6 地名 4 * 0 * 0 "代表表記:日本/にほん 地名:国" <代表表記:日本/にほん><地名:国><基本句-主辞>
++ 4D <体言><係:ノ格>
+語 ご 語 名詞 6 普通名詞 1 * 0 * 0 "代表表記:語/ご 漢字読み:音 カテゴリ:抽象物" <代表表記:語/ご><漢字読み:音><カテゴリ:抽象物><基本句-主辞>
+の の の 助詞 9 接続助詞 3 * 0 * 0 "代表表記:の/の" <代表表記:の/の>
+...
+```
+
+You can read a KNP format file with [rhoknp](https://github.com/ku-nlp/rhoknp).
+
+```python
+from rhoknp import Document
+with open("analyzed.knp") as f:
+    parsed_document = Document.from_knp(f.read())
+```
+
+For more details about KNP format, see [Reference](#reference).
 
 ## Usage from Python
 
@@ -76,3 +108,7 @@ analyzed_document = kwja.apply(
   address   = {京都},
 }
 ```
+
+## Reference
+
+- [KNP format](http://cr.fvcrc.i.nagoya-u.ac.jp/~sasano/knp/format.html)
