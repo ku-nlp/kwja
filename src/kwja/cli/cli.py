@@ -35,10 +35,7 @@ app = typer.Typer(pretty_exceptions_show_locals=False)
 def main(
     text: Optional[str] = typer.Option(None, help="Text to be analyzed."),
     filename: Optional[Path] = typer.Option(None, help="File to be analyzed."),
-    exclude_discourse: Optional[bool] = typer.Option(
-        False,
-        help="Whether to exclude the results of discourse relation analysis. Set to true if you don't need the results of the discourse relation analysis.",
-    ),
+    discourse: Optional[bool] = typer.Option(True, help="Whether to perform discourse relation analysis."),
 ) -> None:
     if text is not None and filename is not None:
         typer.echo("ERROR: Please provide text or filename, not both")
@@ -140,15 +137,17 @@ def main(
     word_datamodule.setup(stage=TrainerFn.PREDICTING)
     word_trainer.predict(model=word_model, dataloaders=word_datamodule.predict_dataloader())
     word_module_writer: WordModuleWriter = word_trainer.callbacks[0]
-    word_module_writer.jumandic.close()  # word module (discourse) cannot be initialized unless this is written because multiple tinyDBs cannot be opened.
+    # word module (discourse) cannot be initialized unless this is written because multiple tinyDBs cannot be opened.
+    word_module_writer.jumandic.close()
     del word_model
     document: Document = Document.from_knp(word_path.read_text())
     for idx, sentence in enumerate(document.sentences):
         sentence.comment = comments[idx]
-    if exclude_discourse:
-        for base_phrase in document.base_phrases:
-            if "談話関係" in base_phrase.features:
-                del base_phrase.features["談話関係"]
+    # Remove the result of discourse relation analysis by the jointly learned model.
+    for base_phrase in document.base_phrases:
+        if "談話関係" in base_phrase.features:
+            del base_phrase.features["談話関係"]
+    if not discourse:
         print(document.to_knp(), end="")
     else:
         # word module (discourse)
