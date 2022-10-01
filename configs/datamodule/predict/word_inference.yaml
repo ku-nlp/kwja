@@ -4,4 +4,5 @@ defaults:
 
 _target_: kwja.datamodule.datasets.word_inference_dataset.WordInferenceDataset
 texts: []
+knp_file: null
 doc_id_prefix: null
