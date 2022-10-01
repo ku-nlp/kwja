@@ -11,6 +11,7 @@ from omegaconf import OmegaConf
 from pytorch_lightning.trainer.states import TrainerFn
 from rhoknp import Document
 
+from kwja.callbacks.word_module_discourse_writer import WordModuleDiscourseWriter
 from kwja.callbacks.word_module_writer import WordModuleWriter
 from kwja.cli.utils import download_checkpoint_from_url, suppress_debug_info
 from kwja.datamodule.datamodule import DataModule
@@ -166,22 +167,19 @@ def main(
         word_discourse_cfg = word_discourse_model.hparams
         word_discourse_cfg.datamodule.predict.reading_resource_path = reading_resource_path
         word_discourse_cfg.dataset.reading_resource_path = reading_resource_path
-        word_discourse_cfg.callbacks.prediction_writer.reading_resource_path = reading_resource_path
-        word_discourse_cfg.callbacks.prediction_writer.jumandic_path = resources.files("kwja") / "resource/jumandic"
 
         word_discourse_trainer: pl.Trainer = pl.Trainer(
             logger=False,
             enable_progress_bar=False,
             callbacks=[
-                hydra.utils.instantiate(
-                    word_discourse_cfg.callbacks.prediction_writer,
+                WordModuleDiscourseWriter(
                     output_dir=str(tmp_dir.name),
                     pred_filename=word_discourse_path.stem,
                 )
             ],
             devices=1,
         )
-        word_discourse_cfg.datamodule.predict.texts = [x for i, x in enumerate(char_results) if i % 2 == 1]
+        word_discourse_cfg.datamodule.predict.knp_file = word_path
         word_discourse_datamodule = DataModule(cfg=word_discourse_cfg.datamodule)
         word_discourse_datamodule.setup(stage=TrainerFn.PREDICTING)
         word_discourse_trainer.predict(
@@ -189,8 +187,15 @@ def main(
             dataloaders=word_discourse_datamodule.predict_dataloader(),
         )
         discourse_document: Document = Document.from_knp(word_discourse_path.read_text())
-        for base_phrase in discourse_document.base_phrases:
-            if feature := base_phrase.features.get("談話関係", False):
-                document.base_phrases[base_phrase.global_index].features["談話関係"] = feature
-        print(document.to_knp(), end="")
+        for idx, sentence in enumerate(discourse_document.sentences):
+            sentence.comment = comments[idx]
+        print(discourse_document.to_knp(), end="")
+        # for base_phrase in discourse_document.base_phrases:
+        #     if feature := base_phrase.features.get("談話関係", False):
+        #         document.base_phrases[base_phrase.global_index].features["談話関係"] = feature
+        # print(document.to_knp(), end="")
     tmp_dir.cleanup()
+
+
+if __name__ == "__main__":
+    typer.run(main)

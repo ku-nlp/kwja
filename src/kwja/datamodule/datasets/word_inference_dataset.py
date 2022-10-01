@@ -2,6 +2,7 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from typing import Optional, Union
 
 import torch
@@ -43,9 +44,13 @@ class WordInferenceDataset(BaseDataset):
         max_seq_length: int = 512,
         tokenizer_kwargs: dict = None,
         doc_id_prefix: Optional[str] = None,
+        knp_file: Optional[Path] = None,
         **_,  # accept reading_resource_path
     ) -> None:
-        documents = self._create_documents_from_texts(list(texts), doc_id_prefix)
+        if knp_file is None:
+            documents = self._create_documents_from_texts(list(texts), doc_id_prefix)
+        else:
+            documents = [Document.from_knp(knp_file.read_text())]
         super().__init__(documents, document_split_stride, model_name_or_path, max_seq_length, tokenizer_kwargs or {})
 
         self.exophora_referents = [ExophoraReferent(s) for s in exophora_referents]
