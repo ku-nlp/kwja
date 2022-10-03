@@ -31,7 +31,7 @@ class CharModuleWriter(BasePredictionWriter):
         if use_stdout is True:
             self.destination = sys.stdout
         else:
-            self.destination = Path(f"{output_dir}/{pred_filename}.txt")
+            self.destination = Path(f"{output_dir}/{pred_filename}.juman")
             self.destination.parent.mkdir(exist_ok=True, parents=True)
             if self.destination.exists():
                 os.remove(str(self.destination))
