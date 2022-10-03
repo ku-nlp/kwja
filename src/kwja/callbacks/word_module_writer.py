@@ -159,6 +159,7 @@ class WordModuleWriter(BasePredictionWriter):
                     word_reading_preds = get_word_level_readings(readings, tokens.split(" "), reading_subword_map)
                     morphemes = self._create_morphemes(
                         [m.text for m in document.morphemes],
+                        [m.lemma if m.attributes is not None else m.text for m in document.morphemes],
                         word_reading_preds,
                         pos_preds,
                         subpos_preds,
@@ -192,6 +193,7 @@ class WordModuleWriter(BasePredictionWriter):
     def _create_morphemes(
         self,
         words: list[str],
+        norms: list[str],
         reading_preds: list[str],
         pos_preds: list[int],
         subpos_preds: list[int],
@@ -199,8 +201,8 @@ class WordModuleWriter(BasePredictionWriter):
         conjform_preds: list[int],
     ) -> list[Morpheme]:
         morphemes = []
-        for word, reading, pos_index, subpos_index, conjtype_index, conjform_index in zip(
-            words, reading_preds, pos_preds, subpos_preds, conjtype_preds, conjform_preds
+        for norm, norm, reading, pos_index, subpos_index, conjtype_index, conjform_index in zip(
+            words, norms, reading_preds, pos_preds, subpos_preds, conjtype_preds, conjform_preds
         ):
             pos = INDEX2POS_TYPE[pos_index]
             pos_id = POS_TYPE2ID[pos]
@@ -214,9 +216,8 @@ class WordModuleWriter(BasePredictionWriter):
             homograph_ops: list[dict[str, Any]] = []
 
             # create lemma using surf, conjtype and conjform
-            # TODO: replace word with norm
             if conjtype == "*":
-                lemma = word
+                lemma = norm
             else:
                 for ambig_surf_spec in self.ambig_surf_specs:
                     if conjtype != ambig_surf_spec["conjtype"]:
@@ -226,7 +227,7 @@ class WordModuleWriter(BasePredictionWriter):
                     # ambiguous: dictionary lookup to identify the lemma
                     q = Query()
                     matches = self.jumandic.search(
-                        (q.pos == pos) & (q.subpos == subpos) & (q.conjtype == conjtype) & (q.surf == word)
+                        (q.pos == pos) & (q.subpos == subpos) & (q.conjtype == conjtype) & (q.surf == norm)
                     )
                     if len(matches) > 0:
                         lemma_set: set[str] = set()
@@ -237,22 +238,22 @@ class WordModuleWriter(BasePredictionWriter):
                         if len(lemmas) > 1:
                             homograph_ops.append({"type": "lemma", "values": lemmas[1:]})
                     else:
-                        logger.warning(f"failed to get lemma for {word}")
-                        lemma = word
+                        logger.warning(f"failed to get lemma for {norm}")
+                        lemma = norm
                     break
                 else:
                     # not ambiguous: use paradigm table to generate the lemma
                     try:
-                        lemma = self.jinf(word, conjtype, conjform, "基本形")
+                        lemma = self.jinf(norm, conjtype, conjform, "基本形")
                     except ValueError as e:
-                        logger.warning(f"failed to get lemma for {word}: ({e})")
-                        lemma = word
+                        logger.warning(f"failed to get lemma for {norm}: ({e})")
+                        lemma = norm
             q = Query()
             matches = self.jumandic.search(
                 (q.pos == pos)
                 & (q.subpos == subpos)
                 & (q.conjtype == conjtype)
-                & (q.surf == word)
+                & (q.surf == norm)
                 & (q.reading == reading)
             )
             if len(matches) > 0:
@@ -283,7 +284,7 @@ class WordModuleWriter(BasePredictionWriter):
                 conjform=conjform,
                 conjform_id=conjform_id,
             )
-            morpheme = Morpheme(word, attributes, SemanticsDict(semantics), FeatureDict(semantics))
+            morpheme = Morpheme(norm, attributes, SemanticsDict(semantics), FeatureDict(semantics))
             morphemes.append(morpheme)
             if len(homograph_ops) >= 1:
                 range_list = []
@@ -302,7 +303,7 @@ class WordModuleWriter(BasePredictionWriter):
                         else:
                             raise NotImplementedError
                     morpheme2 = Morpheme(
-                        word, attributes2, SemanticsDict(semantics2), FeatureDict(semantics2), homograph=True
+                        norm, attributes2, SemanticsDict(semantics2), FeatureDict(semantics2), homograph=True
                     )
                     # rhoknp coverts homographs into KNP's ALT features
                     morpheme.homographs.append(morpheme2)

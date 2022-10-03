@@ -51,7 +51,7 @@ def main(
 
     tmp_dir: TemporaryDirectory = TemporaryDirectory()
     typo_path: Path = tmp_dir.name / Path("predict_typo.txt")
-    char_path: Path = tmp_dir.name / Path("predict_char.txt")
+    char_path: Path = tmp_dir.name / Path("predict_char.juman")
     word_path: Path = tmp_dir.name / Path("predict_word.knp")
     word_discourse_path: Path = tmp_dir.name / Path("predict_word_discourse.knp")
 
@@ -130,9 +130,7 @@ def main(
         ],
         devices=1,
     )
-    char_results: list[str] = char_path.read_text().splitlines()
-    comments: list[str] = [x for i, x in enumerate(char_results) if i % 2 == 0]
-    word_cfg.datamodule.predict.texts = [x for i, x in enumerate(char_results) if i % 2 == 1]
+    word_cfg.datamodule.predict.juman_file = char_path
     word_datamodule = DataModule(cfg=word_cfg.datamodule)
     word_datamodule.setup(stage=TrainerFn.PREDICTING)
     word_trainer.predict(model=word_model, dataloaders=word_datamodule.predict_dataloader())
@@ -141,8 +139,6 @@ def main(
     word_module_writer.jumandic.close()
     del word_model
     document: Document = Document.from_knp(word_path.read_text())
-    for idx, sentence in enumerate(document.sentences):
-        sentence.comment = comments[idx]
     # Remove the result of discourse relation analysis by the jointly learned model.
     for base_phrase in document.base_phrases:
         if "談話関係" in base_phrase.features:
@@ -187,8 +183,6 @@ def main(
             dataloaders=word_discourse_datamodule.predict_dataloader(),
         )
         discourse_document: Document = Document.from_knp(word_discourse_path.read_text())
-        for idx, sentence in enumerate(discourse_document.sentences):
-            sentence.comment = comments[idx]
         print(discourse_document.to_knp(), end="")
     tmp_dir.cleanup()
 

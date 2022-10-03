@@ -44,13 +44,16 @@ class WordInferenceDataset(BaseDataset):
         max_seq_length: int = 512,
         tokenizer_kwargs: dict = None,
         doc_id_prefix: Optional[str] = None,
+        juman_file: Optional[Path] = None,
         knp_file: Optional[Path] = None,
         **_,  # accept reading_resource_path
     ) -> None:
-        if knp_file is None:
-            documents = self._create_documents_from_texts(list(texts), doc_id_prefix)
-        else:
+        if knp_file is not None:
             documents = [Document.from_knp(knp_file.read_text())]
+        elif juman_file is not None:
+            documents = [Document.from_jumanpp(juman_file.read_text())]
+        else:
+            documents = self._create_documents_from_texts(list(texts), doc_id_prefix)
         super().__init__(documents, document_split_stride, model_name_or_path, max_seq_length, tokenizer_kwargs or {})
 
         self.exophora_referents = [ExophoraReferent(s) for s in exophora_referents]
