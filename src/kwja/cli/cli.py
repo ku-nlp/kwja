@@ -38,7 +38,7 @@ def main(
     discourse: Optional[bool] = typer.Option(True, help="Whether to perform discourse relation analysis."),
 ) -> None:
     if text is not None and filename is not None:
-        typer.echo("ERROR: Please provide text or filename, not both")
+        typer.echo("ERROR: Please provide text or filename, not both", err=True)
         raise typer.Exit()
     elif text is not None:
         input_texts: list[str] = text.splitlines()
@@ -46,7 +46,7 @@ def main(
         with Path(filename).open() as f:
             input_texts = [line.strip() for line in f]
     else:
-        typer.echo("ERROR: Please provide text or filename")
+        typer.echo("ERROR: Please provide text or filename", err=True)
         raise typer.Exit
 
     tmp_dir: TemporaryDirectory = TemporaryDirectory()
