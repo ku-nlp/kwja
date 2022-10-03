@@ -1,11 +1,11 @@
-name: test
+name: Test
 
 on: [push, pull_request]
 
 jobs:
   test:
     name: Run tests with pytest
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
