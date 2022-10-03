@@ -201,7 +201,7 @@ class WordModuleWriter(BasePredictionWriter):
         conjform_preds: list[int],
     ) -> list[Morpheme]:
         morphemes = []
-        for norm, norm, reading, pos_index, subpos_index, conjtype_index, conjform_index in zip(
+        for word, norm, reading, pos_index, subpos_index, conjtype_index, conjform_index in zip(
             words, norms, reading_preds, pos_preds, subpos_preds, conjtype_preds, conjform_preds
         ):
             pos = INDEX2POS_TYPE[pos_index]
@@ -215,7 +215,7 @@ class WordModuleWriter(BasePredictionWriter):
             semantics: dict[str, Union[str, bool]] = {}
             homograph_ops: list[dict[str, Any]] = []
 
-            # create lemma using surf, conjtype and conjform
+            # create lemma using norm, conjtype and conjform
             if conjtype == "*":
                 lemma = norm
             else:
@@ -284,7 +284,7 @@ class WordModuleWriter(BasePredictionWriter):
                 conjform=conjform,
                 conjform_id=conjform_id,
             )
-            morpheme = Morpheme(norm, attributes, SemanticsDict(semantics), FeatureDict(semantics))
+            morpheme = Morpheme(word, attributes, SemanticsDict(semantics), FeatureDict(semantics))
             morphemes.append(morpheme)
             if len(homograph_ops) >= 1:
                 range_list = []
@@ -303,7 +303,7 @@ class WordModuleWriter(BasePredictionWriter):
                         else:
                             raise NotImplementedError
                     morpheme2 = Morpheme(
-                        norm, attributes2, SemanticsDict(semantics2), FeatureDict(semantics2), homograph=True
+                        word, attributes2, SemanticsDict(semantics2), FeatureDict(semantics2), homograph=True
                     )
                     # rhoknp coverts homographs into KNP's ALT features
                     morpheme.homographs.append(morpheme2)
