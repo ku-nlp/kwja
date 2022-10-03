@@ -11,6 +11,7 @@ from omegaconf import OmegaConf
 from pytorch_lightning.trainer.states import TrainerFn
 from rhoknp import Document
 
+import kwja
 from kwja.callbacks.word_module_discourse_writer import WordModuleDiscourseWriter
 from kwja.callbacks.word_module_writer import WordModuleWriter
 from kwja.cli.utils import download_checkpoint_from_url, suppress_debug_info
@@ -31,12 +32,20 @@ OmegaConf.register_new_resolver("concat", lambda x, y: x + y)
 app = typer.Typer(pretty_exceptions_show_locals=False)
 
 
+def version_callback(value: bool) -> None:
+    if value is True:
+        typer.echo(f"KWJA {kwja.__version__}")
+        raise typer.Exit()
+
+
 @app.command()
 def main(
     text: Optional[str] = typer.Option(None, help="Text to be analyzed."),
     filename: Optional[Path] = typer.Option(None, help="File to be analyzed."),
     discourse: Optional[bool] = typer.Option(True, help="Whether to perform discourse relation analysis."),
+    version: Optional[bool] = typer.Option(None, "--version", callback=version_callback, is_eager=True),
 ) -> None:
+    assert version is None
     if text is not None and filename is not None:
         typer.echo("ERROR: Please provide text or filename, not both")
         raise typer.Exit()
