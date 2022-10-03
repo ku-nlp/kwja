@@ -155,7 +155,6 @@ class WordModuleWriter(BasePredictionWriter):
                     example: Union[WordExampleSet, WordInferenceExample] = dataset.examples[example_id]
                     doc_id = example.doc_id
                     document = dataset.doc_id2document[doc_id]
-                    # TODO: get word-level reading predictions
                     readings = [self.id2reading[pred] for pred in reading_preds]
                     word_reading_preds = get_word_level_readings(readings, tokens.split(" "), reading_subword_map)
                     morphemes = self._create_morphemes(
