@@ -72,6 +72,9 @@ pytest-cov = "^3.0.0"
 [tool.poetry.scripts]
 kwja = "kwja.cli.cli:app"
 
+[tool.poetry.group.dev.dependencies]
+pytest-profiling = "^1.7.0"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
