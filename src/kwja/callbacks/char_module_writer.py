@@ -7,11 +7,14 @@ from typing import Any, Optional, Sequence, TextIO, Union
 import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks import BasePredictionWriter
+from rhoknp import Morpheme, Sentence
+from rhoknp.units.morpheme import MorphemeAttributes
 
 from kwja.datamodule.datasets import CharDataset, CharInferenceDataset
 from kwja.datamodule.datasets.char_dataset import CharExampleSet
 from kwja.datamodule.datasets.char_inference_dataset import CharInferenceExample
 from kwja.utils.constants import INDEX2SEG_TYPE, INDEX2WORD_NORM_TYPE
+from kwja.utils.sub_document import extract_target_sentences
 from kwja.utils.word_normalize import get_normalized
 
 
@@ -28,7 +31,7 @@ class CharModuleWriter(BasePredictionWriter):
         if use_stdout is True:
             self.destination = sys.stdout
         else:
-            self.destination = Path(f"{output_dir}/{pred_filename}.txt")
+            self.destination = Path(f"{output_dir}/{pred_filename}.juman")
             self.destination.parent.mkdir(exist_ok=True, parents=True)
             if self.destination.exists():
                 os.remove(str(self.destination))
@@ -40,8 +43,7 @@ class CharModuleWriter(BasePredictionWriter):
         predictions: Sequence[Any],
         batch_indices: Optional[Sequence[Any]] = None,
     ) -> None:
-        # TODO: Write out results with the original surface form
-        results = []
+        sentences: list[Sentence] = []
         dataloaders = trainer.predict_dataloaders
         for prediction in predictions:
             for batch_pred in prediction:
@@ -76,26 +78,25 @@ class CharModuleWriter(BasePredictionWriter):
                     char_idx = 0
                     document = dataset.doc_id2document[example.doc_id]
                     for sentence in document.sentences:
-                        results.append(sentence.comment)
-                        result: str = ""
+                        Morpheme.count = 0
+                        morphemes: list[Morpheme] = []
                         word_surf: str = ""
                         word_norm_ops: list[str] = []
                         for char in sentence.text:
                             if word_segmenter_types[char_idx] == "B" and word_surf:
-                                if result:
-                                    result += " "
-                                result += get_normalized(word_surf, word_norm_ops, strict=False)
+                                word_norm = get_normalized(word_surf, word_norm_ops, strict=False)
+                                morphemes.append(self.create_morpheme(word_surf, word_norm))
                                 word_surf = ""
                                 word_norm_ops = []
                             word_surf += char
                             word_norm_ops.append(word_normalizer_types[char_idx])
                             char_idx += 1
-                        if result:
-                            result += " "
-                        result += get_normalized(word_surf, word_norm_ops, strict=False)
-                        results.append(result)
+                        word_norm = get_normalized(word_surf, word_norm_ops, strict=False)
+                        morphemes.append(self.create_morpheme(word_surf, word_norm))
+                        sentence.morphemes = morphemes
+                    sentences += extract_target_sentences(document)
 
-        output_string: str = "\n".join(results) + "\n"
+        output_string: str = "".join(sentence.to_jumanpp() for sentence in sentences)
         if isinstance(self.destination, Path):
             self.destination.write_text(output_string)
         elif isinstance(self.destination, TextIOBase):
@@ -112,3 +113,21 @@ class CharModuleWriter(BasePredictionWriter):
         dataloader_idx: int,
     ) -> None:
         pass
+
+    @staticmethod
+    def create_morpheme(surf: str, norm: str) -> Morpheme:
+        return Morpheme(
+            surf,
+            MorphemeAttributes(
+                reading="_",
+                lemma=norm,
+                pos="未定義語",
+                pos_id=15,
+                subpos="その他",
+                subpos_id=1,
+                conjtype="*",
+                conjtype_id=0,
+                conjform="*",
+                conjform_id=0,
+            ),
+        )

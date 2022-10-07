@@ -11,6 +11,8 @@ from omegaconf import OmegaConf
 from pytorch_lightning.trainer.states import TrainerFn
 from rhoknp import Document
 
+import kwja
+from kwja.callbacks.word_module_discourse_writer import WordModuleDiscourseWriter
 from kwja.callbacks.word_module_writer import WordModuleWriter
 from kwja.cli.utils import download_checkpoint_from_url, suppress_debug_info
 from kwja.datamodule.datamodule import DataModule
@@ -30,16 +32,22 @@ OmegaConf.register_new_resolver("concat", lambda x, y: x + y)
 app = typer.Typer(pretty_exceptions_show_locals=False)
 
 
+def version_callback(value: bool) -> None:
+    if value is True:
+        typer.echo(f"KWJA {kwja.__version__}")
+        raise typer.Exit()
+
+
 @app.command()
 def main(
     text: Optional[str] = typer.Option(None, help="Text to be analyzed."),
     filename: Optional[Path] = typer.Option(None, help="File to be analyzed."),
-    discourse: Optional[bool] = typer.Option(
-        False, help="Whether to use a single model for discourse relation analysis"
-    ),
+    discourse: Optional[bool] = typer.Option(True, help="Whether to perform discourse relation analysis."),
+    version: Optional[bool] = typer.Option(None, "--version", callback=version_callback, is_eager=True),
 ) -> None:
+    assert version is None
     if text is not None and filename is not None:
-        typer.echo("ERROR: Please provide text or filename, not both")
+        typer.echo("ERROR: Please provide text or filename, not both", err=True)
         raise typer.Exit()
     elif text is not None:
         input_texts: list[str] = text.splitlines()
@@ -47,12 +55,12 @@ def main(
         with Path(filename).open() as f:
             input_texts = [line.strip() for line in f]
     else:
-        typer.echo("ERROR: Please provide text or filename")
+        typer.echo("ERROR: Please provide text or filename", err=True)
         raise typer.Exit
 
     tmp_dir: TemporaryDirectory = TemporaryDirectory()
     typo_path: Path = tmp_dir.name / Path("predict_typo.txt")
-    char_path: Path = tmp_dir.name / Path("predict_char.txt")
+    char_path: Path = tmp_dir.name / Path("predict_char.juman")
     word_path: Path = tmp_dir.name / Path("predict_word.knp")
     word_discourse_path: Path = tmp_dir.name / Path("predict_word_discourse.knp")
 
@@ -131,22 +139,20 @@ def main(
         ],
         devices=1,
     )
-    char_results: list[str] = char_path.read_text().splitlines()
-    comments: list[str] = [x for i, x in enumerate(char_results) if i % 2 == 0]
-    word_cfg.datamodule.predict.texts = [x for i, x in enumerate(char_results) if i % 2 == 1]
+    word_cfg.datamodule.predict.juman_file = char_path
     word_datamodule = DataModule(cfg=word_cfg.datamodule)
     word_datamodule.setup(stage=TrainerFn.PREDICTING)
     word_trainer.predict(model=word_model, dataloaders=word_datamodule.predict_dataloader())
     word_module_writer: WordModuleWriter = word_trainer.callbacks[0]
-    word_module_writer.jumandic.close()  # word module (discourse) cannot be initialized unless this is written because multiple tinyDBs cannot be opened.
+    # word module (discourse) cannot be initialized unless this is written because multiple tinyDBs cannot be opened.
+    word_module_writer.jumandic.close()
     del word_model
     document: Document = Document.from_knp(word_path.read_text())
-    for idx, sentence in enumerate(document.sentences):
-        sentence.comment = comments[idx]
+    # Remove the result of discourse relation analysis by the jointly learned model.
+    for base_phrase in document.base_phrases:
+        if "談話関係" in base_phrase.features:
+            del base_phrase.features["談話関係"]
     if not discourse:
-        for base_phrase in document.base_phrases:
-            if "談話関係" in base_phrase.features:
-                del base_phrase.features["談話関係"]
         print(document.to_knp(), end="")
     else:
         # word module (discourse)
@@ -166,22 +172,19 @@ def main(
         word_discourse_cfg = word_discourse_model.hparams
         word_discourse_cfg.datamodule.predict.reading_resource_path = reading_resource_path
         word_discourse_cfg.dataset.reading_resource_path = reading_resource_path
-        word_discourse_cfg.callbacks.prediction_writer.reading_resource_path = reading_resource_path
-        word_discourse_cfg.callbacks.prediction_writer.jumandic_path = resources.files("kwja") / "resource/jumandic"
 
         word_discourse_trainer: pl.Trainer = pl.Trainer(
             logger=False,
             enable_progress_bar=False,
             callbacks=[
-                hydra.utils.instantiate(
-                    word_discourse_cfg.callbacks.prediction_writer,
+                WordModuleDiscourseWriter(
                     output_dir=str(tmp_dir.name),
                     pred_filename=word_discourse_path.stem,
                 )
             ],
             devices=1,
         )
-        word_discourse_cfg.datamodule.predict.texts = [x for i, x in enumerate(char_results) if i % 2 == 1]
+        word_discourse_cfg.datamodule.predict.knp_file = word_path
         word_discourse_datamodule = DataModule(cfg=word_discourse_cfg.datamodule)
         word_discourse_datamodule.setup(stage=TrainerFn.PREDICTING)
         word_discourse_trainer.predict(
@@ -189,8 +192,9 @@ def main(
             dataloaders=word_discourse_datamodule.predict_dataloader(),
         )
         discourse_document: Document = Document.from_knp(word_discourse_path.read_text())
-        for base_phrase in discourse_document.base_phrases:
-            if feature := base_phrase.features.get("談話関係", False):
-                document.base_phrases[base_phrase.global_index].features["談話関係"] = feature
-        print(document.to_knp(), end="")
+        print(discourse_document.to_knp(), end="")
     tmp_dir.cleanup()
+
+
+if __name__ == "__main__":
+    typer.run(main)

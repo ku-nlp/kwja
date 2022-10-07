@@ -1,4 +1,5 @@
 import tempfile
+import textwrap
 
 import torch
 from omegaconf import ListConfig
@@ -74,4 +75,13 @@ def test_write_on_epoch_end():
             ]
         ]
         writer.write_on_epoch_end(trainer, ..., predictions)
-        assert writer.destination.read_text() == f"# S-ID:test-0-0 kwja:{kwja.__version__}\n今日 は 晴れ だ\n"
+        assert writer.destination.read_text() == textwrap.dedent(
+            f"""\
+            # S-ID:test-0-0 kwja:{kwja.__version__}
+            今日 _ 今日 未定義語 15 その他 1 * 0 * 0
+            は _ は 未定義語 15 その他 1 * 0 * 0
+            晴れ _ 晴れ 未定義語 15 その他 1 * 0 * 0
+            だぁ _ だ 未定義語 15 その他 1 * 0 * 0
+            EOS
+            """
+        )
