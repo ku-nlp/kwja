@@ -68,6 +68,7 @@ class WordModuleWriter(BasePredictionWriter):
             ensure_ascii=False,
             access_mode="r",
             storage=CachingMiddleware(BetterJSONStorage),
+            cache_size=0,
         )
         self.ambig_surf_specs = ambig_surf_specs
 
