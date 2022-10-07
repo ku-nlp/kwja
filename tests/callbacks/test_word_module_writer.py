@@ -1,3 +1,4 @@
+import pathlib
 import tempfile
 import textwrap
 from pathlib import Path
@@ -98,7 +99,23 @@ class MockTrainer:
 
 def test_write_on_epoch_end():
     texts = ["今日 は 晴れ だ"]
+    juman_texts = [
+        textwrap.dedent(
+            f"""\
+            # S-ID:test-0-0 kwja:{kwja.__version__}
+            今日 _ 今日 未定義語 15 その他 1 * 0 * 0
+            は _ は 未定義語 15 その他 1 * 0 * 0
+            晴れ _ 晴れ 未定義語 15 その他 1 * 0 * 0
+            だ _ だ 未定義語 15 その他 1 * 0 * 0
+            EOS
+            """
+        )
+    ]
     tokens = ["[CLS] 今日 は 晴れ だ"]
+
+    juman_file = tempfile.NamedTemporaryFile("wt")
+    juman_file.write("".join(juman_texts))
+    juman_file.seek(0)
 
     reading_subword_map = torch.tensor(
         [
@@ -233,9 +250,10 @@ def test_write_on_epoch_end():
             restrict_cohesion_target=True,
             document_split_stride=1,
             doc_id_prefix="test",
+            juman_file=pathlib.Path(juman_file.name),
         )
         trainer = MockTrainer([DataLoader(dataset)])
-        writer.write_on_epoch_end(trainer, ..., predictions)
+        writer.write_on_epoch_end(trainer, ..., predictions)  # noqa
         expected_knp = textwrap.dedent(
             f"""\
             # S-ID:test-0-0 kwja:{kwja.__version__}
@@ -252,3 +270,4 @@ def test_write_on_epoch_end():
         )
         assert Path(tmp_dir).joinpath(f"{pred_filename}.knp").read_text() == expected_knp
         jumandic_dir.cleanup()
+        juman_file.close()

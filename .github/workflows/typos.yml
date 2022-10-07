@@ -1,8 +1,6 @@
----
-# yamllint disable rule:line-length
 name: Typos
 
-on:  # yamllint disable-line rule:truthy
+on:
   push:
   pull_request:
     types:
@@ -13,9 +11,7 @@ on:  # yamllint disable-line rule:truthy
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v3
-
       - name: typos-action
         uses: crate-ci/typos@v1.12.7
