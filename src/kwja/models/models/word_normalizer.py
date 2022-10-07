@@ -1,3 +1,5 @@
+from typing import Dict
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -21,8 +23,8 @@ class WordNormalizer(nn.Module):
             nn.Linear(self.hidden_size, self.num_labels),
         )
 
-    def forward(self, encoder_output: torch.Tensor, inputs: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
-        output: dict[str, torch.Tensor] = dict()
+    def forward(self, encoder_output: torch.Tensor, inputs: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+        output: Dict[str, torch.Tensor] = dict()
         logits = self.cls(encoder_output)  # (b, seq_len, word_norm_label_num)
         output["logits"] = logits
         if "norm_types" in inputs:

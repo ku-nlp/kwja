@@ -1,3 +1,5 @@
+from typing import List
+
 import hydra
 import pytorch_lightning as pl
 import transformers.utils.logging as hf_logging
@@ -21,7 +23,7 @@ def main(cfg: DictConfig):
         except ValueError:
             cfg.devices = None
 
-    callbacks: list[Callback] = []
+    callbacks: List[Callback] = []
     for k, v in cfg.get("callbacks", {}).items():
         if k == "prediction_writer":
             callbacks.append(hydra.utils.instantiate(v))

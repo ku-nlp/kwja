@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import List
 
 from rhoknp import BasePhrase, Document
 from rhoknp.cohesion import ExophoraReferent, ExophoraReferentType
@@ -19,17 +20,17 @@ class Mrph:
 class Phrase:
     dtid: int
     surf: str
-    dmids: list[int]
+    dmids: List[int]
     dmid: int
-    children: list[Mrph]
+    children: List[Mrph]
     is_target: bool
-    candidates: list[int]  # candidates list is always empty if is_target is False
+    candidates: List[int]  # candidates list is always empty if is_target is False
 
 
 class Extractor:
     def __init__(
         self,
-        exophora_referents: list[ExophoraReferent],
+        exophora_referents: List[ExophoraReferent],
         restrict_target: bool = False,
     ) -> None:
         self.exophora_referents = exophora_referents
@@ -47,7 +48,7 @@ class Extractor:
             exophora_referent.index = None
         return exophora_referent
 
-    def extract(self, document: Document, phrases: list[Phrase]):
+    def extract(self, document: Document, phrases: List[Phrase]):
         raise NotImplementedError
 
     def is_target(self, bp: BasePhrase) -> bool:

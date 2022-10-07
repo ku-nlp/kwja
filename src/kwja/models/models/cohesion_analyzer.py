@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import torch
 import torch.nn as nn
 from transformers import PretrainedConfig
@@ -19,7 +21,7 @@ class CohesionAnalyzer(nn.Module):
     def forward(
         self,
         pooled_outputs: torch.Tensor,  # (b, seq, hid)
-    ) -> tuple[torch.Tensor, torch.Tensor]:  # (), (b, seq, seq)
+    ) -> Tuple[torch.Tensor, torch.Tensor]:  # (), (b, seq, seq)
         batch_size, sequence_len, _ = pooled_outputs.size()
 
         h_src = self.l_src(self.dropout(pooled_outputs))  # (b, seq, rel*hid)

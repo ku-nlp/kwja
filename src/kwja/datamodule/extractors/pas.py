@@ -1,6 +1,7 @@
 import logging
 from collections import defaultdict
 from dataclasses import dataclass
+from typing import Dict, List
 
 from rhoknp import BasePhrase, Document
 from rhoknp.cohesion import Argument, ArgumentType, EndophoraArgument, ExophoraArgument, ExophoraReferent
@@ -13,14 +14,14 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class PasAnnotation:
-    arguments_set: list[dict[str, list[str]]]
+    arguments_set: List[Dict[str, List[str]]]
 
 
 class PasExtractor(Extractor):
     def __init__(
         self,
-        cases: list[str],
-        exophors: list[ExophoraReferent],
+        cases: List[str],
+        exophors: List[ExophoraReferent],
         restrict_target: bool,
     ) -> None:
         self.pas_targets = ["pred", "noun"]
@@ -30,15 +31,15 @@ class PasExtractor(Extractor):
     def extract(
         self,
         document: Document,
-        phrases: list[Phrase],
+        phrases: List[Phrase],
     ) -> PasAnnotation:
         bp_list = document.base_phrases
-        arguments_set: list[dict[str, list[str]]] = [defaultdict(list) for _ in bp_list]
+        arguments_set: List[Dict[str, List[str]]] = [defaultdict(list) for _ in bp_list]
         for anaphor in [bp for sent in extract_target_sentences(document) for bp in sent.base_phrases]:
             if self.is_target(anaphor) is False:
                 continue
             phrases[anaphor.global_index].is_target = True
-            candidates: list[int] = [bp.global_index for bp in bp_list if self.is_candidate(bp, anaphor) is True]
+            candidates: List[int] = [bp.global_index for bp in bp_list if self.is_candidate(bp, anaphor) is True]
             phrases[anaphor.global_index].candidates = candidates
             assert anaphor.pas is not None, "pas has not been set"
             for case in self.cases:
@@ -49,9 +50,9 @@ class PasExtractor(Extractor):
 
     def _get_args(
         self,
-        orig_args: list[Argument],
-        candidates: list[int],
-    ) -> list[str]:
+        orig_args: List[Argument],
+        candidates: List[int],
+    ) -> List[str]:
         """Get string representations of orig_args.
         If the return value is an empty list, do not calculate loss for this argument.
         overt: {dmid}%C
@@ -61,7 +62,7 @@ class PasExtractor(Extractor):
         no arg: [NULL]
         """
         # filter out non-target exophors
-        args: list[Argument] = []
+        args: List[Argument] = []
         for arg in orig_args:
             if isinstance(arg, ExophoraArgument):
                 arg.exophora_referent = self._relax_exophora_referent(arg.exophora_referent)
@@ -73,7 +74,7 @@ class PasExtractor(Extractor):
                 args.append(arg)
         if not args:
             return ["[NULL]"]
-        arg_strings: list[str] = []
+        arg_strings: List[str] = []
         for arg in args:
             if isinstance(arg, EndophoraArgument):
                 if arg.base_phrase.global_index not in candidates:

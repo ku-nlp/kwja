@@ -4,12 +4,12 @@ import re
 import sys
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Union
+from typing import Dict, List, Set, Union
 
 import dartsclone
 from tqdm import tqdm
 
-BAD_ENE_PATTERNS: list[str] = [
+BAD_ENE_PATTERNS: List[str] = [
     r"^1\.7\.19\.",  # 芸術作品名
     r"^1\.7\.20\.0$",  # 出版物名＿その他
     r"^1\.7\.20\.2$",  # 雑誌名
@@ -34,13 +34,13 @@ class WikiDicPreprocessor:
         )  # numbers, two alphabets, two hiragana/katakanas
         self.bad_ene_pattern = re.compile("|".join(BAD_ENE_PATTERNS))
         self.ene_pattern = re.compile(r"^(0$|\d+\.\d+)")
-        self.stop_titles: set[str] = {"ぼく", "ぼくら", "先生"}
+        self.stop_titles: Set[str] = {"ぼく", "ぼくら", "先生"}
 
-        self.entries: list[dict] = self._load_json(path=input_json_path)
+        self.entries: List[dict] = self._load_json(path=input_json_path)
 
     @staticmethod
-    def _load_json(path: str) -> list[dict]:
-        entries: list[dict] = []
+    def _load_json(path: str) -> List[dict]:
+        entries: List[dict] = []
         with Path(path).open() as f:
             for line in tqdm(f, desc="load original json file..."):
                 entries.append(json.loads(line))
@@ -60,7 +60,7 @@ class WikiDicPreprocessor:
                 return True
         return False
 
-    def _normalize_enes(self, entry: dict) -> list[str]:
+    def _normalize_enes(self, entry: dict) -> List[str]:
         enes = set()
         for cand in list(entry["ENEs"].values())[0]:
             m = self.ene_pattern.match(cand["ENE_id"])
@@ -71,8 +71,8 @@ class WikiDicPreprocessor:
                 enes.add(m[1])
         return list(enes)
 
-    def get_filtered_entries(self, save_filtered_results: bool = False) -> list[dict]:
-        converted_entries: dict[str, set] = {}
+    def get_filtered_entries(self, save_filtered_results: bool = False) -> List[dict]:
+        converted_entries: Dict[str, set] = {}
         for entry in tqdm(self.entries, desc="process filtering..."):
             m = self.title_pattern.match(entry["title"])
             entry["title_normalized"] = entry["title"] if m is None else m[1]
@@ -85,7 +85,7 @@ class WikiDicPreprocessor:
             else:
                 converted_entries[entry["title_normalized"]] = set(entry["ENEs_normalized"])
 
-        outputs: list[dict[str, Union[str, list[str]]]] = [
+        outputs: List[Dict[str, Union[str, List[str]]]] = [
             {"title": k, "classes": list(v)} for k, v in converted_entries.items()
         ]
         if save_filtered_results:
@@ -94,10 +94,10 @@ class WikiDicPreprocessor:
                     f.write(json.dumps(output, ensure_ascii=False) + "\n")
         return outputs
 
-    def build_db(self, entries: list[dict]) -> None:
+    def build_db(self, entries: List[dict]) -> None:
         ene_set_all: set = set()
-        title2class: dict[bytes, int] = dict()
-        classes_all: dict[str, int] = dict()
+        title2class: Dict[bytes, int] = dict()
+        classes_all: Dict[str, int] = dict()
         for entry in entries:
             title_byte: bytes = entry["title"].encode()
             ene_set_all |= set(entry["classes"])
@@ -106,8 +106,8 @@ class WikiDicPreprocessor:
                 classes_all[class_str] = len(classes_all)
             title2class[title_byte] = classes_all[class_str]
 
-        sorted_titles: list[bytes] = sorted(title2class.keys())
-        sorted_classes: list[int] = [title2class[t] for t in sorted_titles]
+        sorted_titles: List[bytes] = sorted(title2class.keys())
+        sorted_classes: List[int] = [title2class[t] for t in sorted_titles]
 
         # build index of darts-clone
         darts = dartsclone.DoubleArray()
@@ -115,7 +115,7 @@ class WikiDicPreprocessor:
         darts.save(f"{self.output_dir}/wiki.da")
 
         # save classes with darts-clone's index
-        values: list[list[str]] = [[""]] * len(classes_all)
+        values: List[List[str]] = [[""]] * len(classes_all)
         for k, v in classes_all.items():
             values[v] = k.split("\t")
         with Path(f"{self.output_dir}/wiki_values.pkl").open("wb") as f:

@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Dict, Union
 
 import torch
 from torchmetrics.functional import accuracy
@@ -10,11 +10,11 @@ class TypoCorrectionMetric:
 
     @staticmethod
     def compute_metrics(
-        outputs: dict[str, torch.Tensor],
-        batch: dict[str, torch.Tensor],
-    ) -> dict[str, Union[torch.Tensor, float]]:
+        outputs: Dict[str, torch.Tensor],
+        batch: Dict[str, torch.Tensor],
+    ) -> Dict[str, Union[torch.Tensor, float]]:
 
-        metrics: dict[str, Union[torch.Tensor, float]] = dict(loss=outputs["loss"])
+        metrics: Dict[str, Union[torch.Tensor, float]] = dict(loss=outputs["loss"])
         for key in outputs.keys():
             if "_loss" in key:
                 metrics[key] = outputs[key].detach()

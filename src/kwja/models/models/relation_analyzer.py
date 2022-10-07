@@ -1,3 +1,5 @@
+from typing import Dict
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -30,9 +32,9 @@ class RelationAnalyzer(nn.Module):
     def forward(
         self,
         pooled_outputs: torch.Tensor,
-        batch: dict[str, torch.Tensor],
-    ) -> dict[str, torch.Tensor]:
-        output: dict[str, torch.Tensor] = dict()
+        batch: Dict[str, torch.Tensor],
+    ) -> Dict[str, torch.Tensor]:
+        output: Dict[str, torch.Tensor] = dict()
         # (b, seq, seq)
         dependency_logits, dependency_type_logits = self.dependency_parser(
             pooled_outputs,

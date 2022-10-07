@@ -1,3 +1,5 @@
+from typing import List
+
 import pytest
 
 from kwja.evaluators.word_segmentation_metric import WordSegmentationMetric
@@ -37,10 +39,10 @@ from kwja.evaluators.word_segmentation_metric import WordSegmentationMetric
     ],
 )
 def test_filter_predictions(
-    preds: list[str],
-    labels: list[str],
-    expected_filtered_preds: list[str],
-    expected_filtered_labels: list[str],
+    preds: List[str],
+    labels: List[str],
+    expected_filtered_preds: List[str],
+    expected_filtered_labels: List[str],
 ):
     filtered_preds, filtered_labels = WordSegmentationMetric.filter_predictions(preds, labels)
     assert filtered_preds == expected_filtered_preds

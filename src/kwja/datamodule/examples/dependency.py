@@ -1,3 +1,5 @@
+from typing import Dict, List
+
 from rhoknp import Document
 from rhoknp.props import DepType
 
@@ -9,9 +11,9 @@ class DependencyExample:
 
     def __init__(self) -> None:
         self.doc_id: str = ""
-        self.dependencies: dict[int, int] = {}  # 形態素単位係り受け
-        self.candidates: dict[int, list[int]] = {}  # 形態素単位係り先選択候補
-        self.dependency_types: dict[int, DepType] = {}  # 形態素単位係り受けラベル
+        self.dependencies: Dict[int, int] = {}  # 形態素単位係り受け
+        self.candidates: Dict[int, List[int]] = {}  # 形態素単位係り先選択候補
+        self.dependency_types: Dict[int, DepType] = {}  # 形態素単位係り受けラベル
 
     def load(self, document: Document) -> None:
         self.doc_id = document.doc_id

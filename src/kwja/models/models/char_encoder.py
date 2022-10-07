@@ -1,3 +1,5 @@
+from typing import Dict
+
 import torch
 import torch.nn as nn
 from omegaconf import DictConfig
@@ -18,7 +20,7 @@ class CharEncoder(nn.Module):
             )
         self.word_embed = self.pretrained_model.embeddings.word_embeddings
 
-    def forward(self, inputs: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+    def forward(self, inputs: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         outputs = self.pretrained_model(
             input_ids=inputs["input_ids"],
             attention_mask=inputs["attention_mask"],

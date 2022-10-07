@@ -1,4 +1,4 @@
-from typing import Any, Optional, Union
+from typing import Any, Dict, Optional, Union
 
 import hydra
 import torch
@@ -32,29 +32,29 @@ class TypoModule(LightningModule):
         model_output = self.model(encoder_output, kwargs)
         return model_output
 
-    def training_step(self, batch: Any, batch_idx: int) -> dict[str, Any]:
-        outputs: dict[str, torch.Tensor] = self(**batch)
-        result: dict[str, Union[torch.Tensor, float]] = self.metrics.compute_metrics(outputs, batch)
+    def training_step(self, batch: Any, batch_idx: int) -> Dict[str, Any]:
+        outputs: Dict[str, torch.Tensor] = self(**batch)
+        result: Dict[str, Union[torch.Tensor, float]] = self.metrics.compute_metrics(outputs, batch)
         for name, value in result.items():
             self.log(f"train/{name}", value)
         return result
 
-    def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> dict[str, Any]:
-        outputs: dict[str, torch.Tensor] = self(**batch)
-        result: dict[str, Union[torch.Tensor, float]] = self.metrics.compute_metrics(outputs, batch)
+    def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Dict[str, Any]:
+        outputs: Dict[str, torch.Tensor] = self(**batch)
+        result: Dict[str, Union[torch.Tensor, float]] = self.metrics.compute_metrics(outputs, batch)
         for name, value in result.items():
             self.log(f"valid/{name}", value)
         return result
 
-    def test_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> dict[str, Any]:
-        outputs: dict[str, torch.Tensor] = self(**batch)
-        result: dict[str, Union[torch.Tensor, float]] = self.metrics.compute_metrics(outputs, batch)
+    def test_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Dict[str, Any]:
+        outputs: Dict[str, torch.Tensor] = self(**batch)
+        result: Dict[str, Union[torch.Tensor, float]] = self.metrics.compute_metrics(outputs, batch)
         for name, value in result.items():
             self.log(f"test/{name}", value)
         return result
 
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Any:
-        outputs: dict[str, torch.Tensor] = self(**batch)
+        outputs: Dict[str, torch.Tensor] = self(**batch)
         # the prediction of the first token (= [CLS]) is excluded.
         kdr_probs = torch.softmax(outputs["kdr_logits"][:, 1:, :], dim=-1)  # (b, seq_len - 1, kdr_label_num)
         kdr_values, kdr_indices = torch.max(kdr_probs, dim=-1)
@@ -108,7 +108,7 @@ class TypoModule(LightningModule):
             },
         }
 
-    def on_save_checkpoint(self, checkpoint: dict[str, Any]) -> None:
+    def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         hparams = checkpoint["hyper_parameters"]["hparams"]
         OmegaConf.set_struct(hparams, False)
         hparams = filter_dict_items(hparams, self.hparams.hparams_to_ignore_on_save)
