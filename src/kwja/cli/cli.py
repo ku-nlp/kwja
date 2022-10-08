@@ -13,7 +13,7 @@ from rhoknp import Document
 
 import kwja
 from kwja.callbacks.word_module_discourse_writer import WordModuleDiscourseWriter
-from kwja.cli.utils import download_checkpoint_from_url, suppress_debug_info
+from kwja.cli.utils import download_checkpoint_from_url, suppress_debug_info, prepare_device
 from kwja.datamodule.datamodule import DataModule
 from kwja.models.char_module import CharModule
 from kwja.models.typo_module import TypoModule
@@ -32,7 +32,9 @@ app = typer.Typer(pretty_exceptions_show_locals=False)
 
 
 class CLIProcessor:
-    def __init__(self):
+    def __init__(self, specified_device: str) -> None:
+        self.device_name, self.device = prepare_device(specified_device)
+
         self.tmp_dir: TemporaryDirectory = TemporaryDirectory()
         self.typo_path: Path = self.tmp_dir.name / Path("predict_typo.txt")
         self.char_path: Path = self.tmp_dir.name / Path("predict_char.juman")
@@ -50,7 +52,12 @@ class CLIProcessor:
 
     def load_typo(self) -> None:
         typo_checkpoint_path: Path = download_checkpoint_from_url(TYPO_CHECKPOINT_URL)
-        self.typo_model = TypoModule.load_from_checkpoint(str(typo_checkpoint_path))
+        self.typo_model = TypoModule.load_from_checkpoint(
+            str(typo_checkpoint_path),
+            map_location=self.device,
+        )
+        self.typo_model.eval()
+        self.typo_model.freeze()
         extended_vocab_path = resources.files("kwja") / "resource/typo_correction/multi_char_vocab.txt"
         if self.typo_model is None:
             raise ValueError("typo model does not exist")
@@ -67,6 +74,7 @@ class CLIProcessor:
                     pred_filename=self.typo_path.stem,
                 )
             ],
+            accelerator=self.device_name,
             devices=1,
         )
 
@@ -85,7 +93,12 @@ class CLIProcessor:
 
     def load_char(self) -> None:
         char_checkpoint_path: Path = download_checkpoint_from_url(CHAR_CHECKPOINT_URL)
-        self.char_model = CharModule.load_from_checkpoint(str(char_checkpoint_path))
+        self.char_model = CharModule.load_from_checkpoint(
+            str(char_checkpoint_path),
+            map_location=self.device,
+        )
+        self.char_model.eval()
+        self.char_model.freeze()
         if self.char_model is None:
             raise ValueError("char model does not exist")
         self.char_trainer = pl.Trainer(
@@ -98,6 +111,7 @@ class CLIProcessor:
                     pred_filename=self.char_path.stem,
                 )
             ],
+            accelerator=self.device_name,
             devices=1,
         )
 
@@ -123,7 +137,13 @@ class CLIProcessor:
         hparams.dataset.reading_resource_path = reading_resource_path
         hparams.callbacks.prediction_writer.reading_resource_path = reading_resource_path
         hparams.callbacks.prediction_writer.jumandic_path = resources.files("kwja") / "resource/jumandic"
-        self.word_model = WordModule.load_from_checkpoint(str(word_checkpoint_path), hparams=hparams)
+        self.word_model = WordModule.load_from_checkpoint(
+            str(word_checkpoint_path),
+            hparams=hparams,
+            map_location=self.device,
+        )
+        self.word_model.eval()
+        self.word_model.freeze()
         if self.word_model is None:
             raise ValueError("word model does not exist")
         self.word_model.hparams.datamodule.predict.reading_resource_path = reading_resource_path
@@ -142,6 +162,7 @@ class CLIProcessor:
                     pred_filename=self.word_path.stem,
                 )
             ],
+            accelerator=self.device_name,
             devices=1,
         )
 
@@ -170,8 +191,12 @@ class CLIProcessor:
         hparams.callbacks.prediction_writer.reading_resource_path = reading_resource_path
         hparams.callbacks.prediction_writer.jumandic_path = resources.files("kwja") / "resource/jumandic"
         self.word_discourse_model = WordModule.load_from_checkpoint(
-            str(word_discourse_checkpoint_path), hparams=hparams
+            str(word_discourse_checkpoint_path),
+            hparams=hparams,
+            map_location=self.device,
         )
+        self.word_discourse_model.eval()
+        self.word_discourse_model.freeze()
         if self.word_discourse_model is None:
             raise ValueError("word discourse model does not exist")
         self.word_discourse_model.hparams.datamodule.predict.reading_resource_path = reading_resource_path
@@ -185,6 +210,7 @@ class CLIProcessor:
                     pred_filename=self.word_discourse_path.stem,
                 )
             ],
+            accelerator=self.device_name,
             devices=1,
         )
 
@@ -224,6 +250,7 @@ def version_callback(value: bool) -> None:
 def main(
     text: Optional[str] = typer.Option(None, help="Text to be analyzed."),
     filename: Optional[Path] = typer.Option(None, help="File to be analyzed."),
+    device: str = typer.Option("cpu", help="Device to be used. Please specify 'cpu' or 'gpu'."),
     discourse: Optional[bool] = typer.Option(True, help="Whether to perform discourse relation analysis."),
     version: Optional[bool] = typer.Option(None, "--version", callback=version_callback, is_eager=True),
 ) -> None:
@@ -238,7 +265,7 @@ def main(
         with Path(filename).open() as f:
             input_texts = [line.strip() for line in f]
 
-    processor = CLIProcessor()
+    processor = CLIProcessor(specified_device=device)
     if input_texts:
         processor.load_typo()
         processor.apply_typo(input_texts)
@@ -259,6 +286,7 @@ def main(
             processor.apply_word_discourse()
             processor.output_word_discourse_result()
     else:
+        typer.echo('Please end your input with a new line and type "EOD"')
         processor.load_typo()
         processor.load_char()
         processor.load_word()
