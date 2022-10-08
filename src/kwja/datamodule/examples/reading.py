@@ -1,5 +1,5 @@
 import logging
-from typing import Union
+from typing import List, Union
 
 from rhoknp import Document
 
@@ -13,7 +13,7 @@ class ReadingExample:
 
     def __init__(self) -> None:
         self.doc_id: str = ""
-        self.readings: Union[list[str], None] = []
+        self.readings: Union[List[str], None] = []
 
     def load(self, document: Document, aligner: ReadingAligner) -> None:
         self.doc_id = document.doc_id

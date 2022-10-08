@@ -1,5 +1,6 @@
 import logging
 from dataclasses import dataclass
+from typing import List
 
 from rhoknp import BasePhrase, Document
 from rhoknp.cohesion import ExophoraReferent
@@ -12,13 +13,13 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class CoreferenceAnnotation:
-    arguments_set: list[list[str]]
+    arguments_set: List[List[str]]
 
 
 class CoreferenceExtractor(Extractor):
     def __init__(
         self,
-        exophors: list[ExophoraReferent],
+        exophors: List[ExophoraReferent],
         restrict_target: bool,
     ) -> None:
         super().__init__(exophors, restrict_target=restrict_target)
@@ -26,15 +27,15 @@ class CoreferenceExtractor(Extractor):
     def extract(
         self,
         document: Document,
-        phrases: list[Phrase],
+        phrases: List[Phrase],
     ) -> CoreferenceAnnotation:
         bp_list = document.base_phrases
-        mentions_set: list[list[str]] = [[] for _ in bp_list]
+        mentions_set: List[List[str]] = [[] for _ in bp_list]
         for mention in [bp for sent in extract_target_sentences(document) for bp in sent.base_phrases]:
             if self.is_target(mention) is False:
                 continue
             phrases[mention.global_index].is_target = True
-            candidates: list[int] = [bp.global_index for bp in bp_list if self.is_candidate(bp, mention) is True]
+            candidates: List[int] = [bp.global_index for bp in bp_list if self.is_candidate(bp, mention) is True]
             phrases[mention.global_index].candidates = candidates
             mentions_set[mention.global_index] = self._get_mentions(mention, candidates)
 
@@ -43,12 +44,12 @@ class CoreferenceExtractor(Extractor):
     def _get_mentions(
         self,
         src_mention: BasePhrase,
-        candidates: list[int],
-    ) -> list[str]:
+        candidates: List[int],
+    ) -> List[str]:
         if not src_mention.entities:
             return ["[NA]"]
 
-        ment_strings: list[str] = []
+        ment_strings: List[str] = []
         tgt_mentions = src_mention.get_coreferents(include_nonidentical=False)
         exophora_referents = [e.exophora_referent for e in src_mention.entities if e.exophora_referent is not None]
         for mention in tgt_mentions:

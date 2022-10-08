@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Union
+from typing import Dict, List, Union
 
 import torch
 from rhoknp import Document, Sentence
@@ -46,15 +46,15 @@ class CharDataset(BaseDataset):
         )
         self.denormalizer: SentenceDenormalizer = SentenceDenormalizer()
         self.denormalize_prob: float = denormalize_prob
-        self.examples: list[CharExampleSet] = self._load_examples(self.documents)
+        self.examples: List[CharExampleSet] = self._load_examples(self.documents)
 
     def __len__(self) -> int:
         return len(self.examples)
 
-    def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
+    def __getitem__(self, index: int) -> Dict[str, torch.Tensor]:
         return self.encode(self.examples[index])
 
-    def _load_examples(self, documents: list[Document]) -> list[CharExampleSet]:
+    def _load_examples(self, documents: List[Document]) -> List[CharExampleSet]:
         examples = []
         idx = 0
         for document in tqdm(documents, dynamic_ncols=True):
@@ -90,13 +90,13 @@ class CharDataset(BaseDataset):
             )
         return examples
 
-    def encode(self, example: CharExampleSet) -> dict[str, torch.Tensor]:
+    def encode(self, example: CharExampleSet) -> Dict[str, torch.Tensor]:
         char_feature_example = example.char_feature_example
-        seg_types: list[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
+        seg_types: List[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
         for i, seg_label in char_feature_example.seg_types.items():
             # 先頭のCLSトークンをIGNORE_INDEXにするため+1
             seg_types[i + 1] = seg_label
-        norm_types: list[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
+        norm_types: List[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
         for i, norm_label in char_feature_example.norm_types.items():
             # 先頭のCLSトークンをIGNORE_INDEXにするため+1
             norm_types[i + 1] = norm_label

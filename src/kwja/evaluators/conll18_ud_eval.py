@@ -97,6 +97,7 @@ import sys
 import unicodedata
 import unittest
 from dataclasses import dataclass  # FIX
+from typing import List
 
 # CoNLL-U column names
 ID, FORM, LEMMA, UPOS, XPOS, FEATS, HEAD, DEPREL, DEPS, MISC = range(10)
@@ -181,7 +182,7 @@ def _encode(text):
 
 # Load given CoNLL-U file into internal representation
 # def load_conllu(file):
-def load_conllu(lines: list[str]):  # FIX
+def load_conllu(lines: List[str]):  # FIX
     # Internal representation classes
     class UDRepresentation:
         def __init__(self):
@@ -577,7 +578,7 @@ def evaluate(gold_ud, system_ud):
 # def load_conllu_file(path):
 #     _file = open(path, mode="r", **({"encoding": "utf-8"} if sys.version_info >= (3, 0) else {}))
 #     return load_conllu(_file)
-def load_conllu_lines(lines: list[str]):  # FIX
+def load_conllu_lines(lines: List[str]):  # FIX
     return load_conllu(lines)
 
 
@@ -594,8 +595,8 @@ def evaluate_wrapper(args):  # FIX
 
 @dataclass  # FIX
 class Args:
-    gold_lines: list[str]
-    system_lines: list[str]
+    gold_lines: List[str]
+    system_lines: List[str]
     verbose: bool
     counts: bool
 

@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Dict, Union
 
 import torch
 from torchmetrics import Metric
@@ -17,7 +17,7 @@ class ReadingPredictorMetric(Metric):
         self.predictions.append(predictions)
         self.labels.append(labels)
 
-    def compute(self) -> dict[str, Union[torch.Tensor, float]]:
+    def compute(self) -> Dict[str, Union[torch.Tensor, float]]:
         predictions = self.predictions.view(-1)
         labels = self.labels.view(-1)
         ignore_indexes = labels == IGNORE_INDEX

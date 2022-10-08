@@ -5,7 +5,7 @@ import os
 import sys
 from io import TextIOBase
 from pathlib import Path
-from typing import Any, Optional, Sequence, TextIO, Union
+from typing import Any, Dict, List, Optional, Sequence, Set, TextIO, Tuple, Union
 
 import pytorch_lightning as pl
 import torch
@@ -52,7 +52,7 @@ class WordModuleWriter(BasePredictionWriter):
         output_dir: str,
         reading_resource_path: str,
         jumandic_path: str,
-        ambig_surf_specs: list[dict[str, str]],
+        ambig_surf_specs: List[Dict[str, str]],
         pred_filename: str = "predict",
         use_stdout: bool = False,
     ) -> None:
@@ -88,7 +88,7 @@ class WordModuleWriter(BasePredictionWriter):
         predictions: Sequence[Any],
         batch_indices: Optional[Sequence[Any]] = None,
     ) -> None:
-        sentences: list[Sentence] = []
+        sentences: List[Sentence] = []
         dataloaders = trainer.predict_dataloaders
         for prediction in predictions:
             for batch_pred in prediction:
@@ -193,14 +193,14 @@ class WordModuleWriter(BasePredictionWriter):
 
     def _create_morphemes(
         self,
-        words: list[str],
-        norms: list[str],
-        reading_preds: list[str],
-        pos_preds: list[int],
-        subpos_preds: list[int],
-        conjtype_preds: list[int],
-        conjform_preds: list[int],
-    ) -> list[Morpheme]:
+        words: List[str],
+        norms: List[str],
+        reading_preds: List[str],
+        pos_preds: List[int],
+        subpos_preds: List[int],
+        conjtype_preds: List[int],
+        conjform_preds: List[int],
+    ) -> List[Morpheme]:
         morphemes = []
         for word, norm, reading, pos_index, subpos_index, conjtype_index, conjform_index in zip(
             words, norms, reading_preds, pos_preds, subpos_preds, conjtype_preds, conjform_preds
@@ -213,8 +213,8 @@ class WordModuleWriter(BasePredictionWriter):
             conjtype_id = conjtype_index
             conjform = INDEX2CONJFORM_TYPE[conjform_index]
             conjform_id = CONJTYPE_CONJFORM_TYPE2ID[conjtype][conjform]
-            semantics: dict[str, Union[str, bool]] = {}
-            homograph_ops: list[dict[str, Any]] = []
+            semantics: Dict[str, Union[str, bool]] = {}
+            homograph_ops: List[Dict[str, Any]] = []
 
             # create lemma using norm, conjtype and conjform
             if conjtype == "*":
@@ -231,10 +231,10 @@ class WordModuleWriter(BasePredictionWriter):
                         (q.pos == pos) & (q.subpos == subpos) & (q.conjtype == conjtype) & (q.surf == norm)
                     )
                     if len(matches) > 0:
-                        lemma_set: set[str] = set()
+                        lemma_set: Set[str] = set()
                         for entry in matches:
                             lemma_set.add(entry["lemma"])
-                        lemmas: list[str] = list(lemma_set)
+                        lemmas: List[str] = list(lemma_set)
                         lemma = lemmas[0]
                         if len(lemmas) > 1:
                             homograph_ops.append({"type": "lemma", "values": lemmas[1:]})
@@ -264,7 +264,7 @@ class WordModuleWriter(BasePredictionWriter):
                     # homograph
                     semantics_list = []
                     for entry2 in matches[1:]:
-                        semantics2: dict[str, Union[str, bool]] = {}
+                        semantics2: Dict[str, Union[str, bool]] = {}
                         semantics2.update(SemanticsDict.from_sstring('"' + entry2["semantics"] + '"'))
                         semantics_list.append(semantics2)
                     homograph_ops.append(
@@ -316,14 +316,14 @@ class WordModuleWriter(BasePredictionWriter):
         subpos_logits: torch.Tensor,
         conjtype_logits: torch.Tensor,
         conjform_logits: torch.Tensor,
-    ) -> tuple[list[list[int]], list[list[int]], list[list[int]], list[list[int]]]:
-        batch_pos_preds: list[list[int]] = torch.argmax(pos_logits, dim=-1).tolist()
-        batch_subpos_logits: list[list[list[float]]] = subpos_logits.tolist()
-        refined_batch_subpos_preds: list[list[int]] = []
+    ) -> Tuple[List[List[int]], List[List[int]], List[List[int]], List[List[int]]]:
+        batch_pos_preds: List[List[int]] = torch.argmax(pos_logits, dim=-1).tolist()
+        batch_subpos_logits: List[List[List[float]]] = subpos_logits.tolist()
+        refined_batch_subpos_preds: List[List[int]] = []
         for batch_idx, batch_pos_pred in enumerate(batch_pos_preds):
-            refined_subpos_preds: list[int] = []
+            refined_subpos_preds: List[int] = []
             for pos_idx, pos in enumerate(batch_pos_pred):
-                possible_subpos_ids: set[int] = {
+                possible_subpos_ids: Set[int] = {
                     SUBPOS_TYPES.index(x) for x in POS_SUBPOS_TYPE2ID[INDEX2POS_TYPE[pos]].keys()
                 }
                 refined_subpos_pred: int = 0
@@ -335,13 +335,13 @@ class WordModuleWriter(BasePredictionWriter):
                 refined_subpos_preds.append(refined_subpos_pred)
             refined_batch_subpos_preds.append(refined_subpos_preds)
 
-        batch_conjtype_preds: list[list[int]] = torch.argmax(conjtype_logits, dim=-1).tolist()
-        batch_conjform_logits: list[list[list[float]]] = conjform_logits.tolist()
-        refined_batch_conjform_preds: list[list[int]] = []
+        batch_conjtype_preds: List[List[int]] = torch.argmax(conjtype_logits, dim=-1).tolist()
+        batch_conjform_logits: List[List[List[float]]] = conjform_logits.tolist()
+        refined_batch_conjform_preds: List[List[int]] = []
         for batch_idx, batch_conjtype_pred in enumerate(batch_conjtype_preds):
-            refined_conjform_preds: list[int] = []
+            refined_conjform_preds: List[int] = []
             for conjtype_idx, conjtype in enumerate(batch_conjtype_pred):
-                possible_conjform_ids: set[int] = {
+                possible_conjform_ids: Set[int] = {
                     CONJFORM_TYPES.index(x) for x in CONJTYPE_CONJFORM_TYPE2ID[INDEX2CONJTYPE_TYPE[conjtype]].keys()
                 }
                 refined_conjform_pred: int = 0
@@ -357,7 +357,7 @@ class WordModuleWriter(BasePredictionWriter):
 
     @staticmethod
     def _chunk_morphemes(
-        document: Document, morphemes: list[Morpheme], word_feature_preds: list[list[float]]
+        document: Document, morphemes: List[Morpheme], word_feature_preds: List[List[float]]
     ) -> Document:
         assert len(morphemes) <= len(word_feature_preds)
         sentences = []
@@ -412,9 +412,9 @@ class WordModuleWriter(BasePredictionWriter):
         return Document.from_sentences(sentences)
 
     @staticmethod
-    def _add_base_phrase_features(document: Document, base_phrase_feature_preds: list[list[float]]) -> None:
+    def _add_base_phrase_features(document: Document, base_phrase_feature_preds: List[List[float]]) -> None:
         base_phrases = document.base_phrases
-        clause_start_index_set: set[int] = {0}
+        clause_start_index_set: Set[int] = {0}
         for base_phrase in base_phrases:
             for feature, pred in zip(BASE_PHRASE_FEATURES, base_phrase_feature_preds[base_phrase.head.global_index]):
                 if feature != "節-主辞" and pred >= 0.5:
@@ -424,7 +424,7 @@ class WordModuleWriter(BasePredictionWriter):
                         clause_start_index_set.add(base_phrase.global_index + 1)
         if base_phrases[-1].features.get("節-区切", False) is False:
             clause_start_index_set.add(len(base_phrases))
-        clause_start_indices: list[int] = sorted(clause_start_index_set)
+        clause_start_indices: List[int] = sorted(clause_start_index_set)
 
         for span in zip(clause_start_indices[:-1], clause_start_indices[1:]):
             clause = base_phrases[slice(*span)]
@@ -436,7 +436,7 @@ class WordModuleWriter(BasePredictionWriter):
             clause_head.features["節-主辞"] = True
 
     @staticmethod
-    def _add_named_entities(document: Document, ne_tag_preds: list[int]) -> None:
+    def _add_named_entities(document: Document, ne_tag_preds: List[int]) -> None:
         for sentence in document.sentences:
             morphemes = sentence.morphemes
             category = ""
@@ -485,9 +485,9 @@ class WordModuleWriter(BasePredictionWriter):
     def _add_dependency(
         self,
         document: Document,
-        dependency_preds: list[list[int]],
-        dependency_type_preds: list[list[int]],
-        special_to_index: dict[str, int],
+        dependency_preds: List[List[int]],
+        dependency_type_preds: List[List[int]],
+        special_to_index: Dict[str, int],
     ) -> None:
         for sentence in extract_target_sentences(document):
             base_phrases = sentence.base_phrases
@@ -530,11 +530,11 @@ class WordModuleWriter(BasePredictionWriter):
     def _add_cohesion(
         self,
         document: Document,
-        cohesion_preds: list[list[int]],
-        task_to_rel_types: dict[CohesionTask, list[str]],
-        exophora_referents: list[ExophoraReferent],
-        index_to_special: dict[int, str],
-        task_to_extractors: dict[CohesionTask, Extractor],
+        cohesion_preds: List[List[int]],
+        task_to_rel_types: Dict[CohesionTask, List[str]],
+        exophora_referents: List[ExophoraReferent],
+        index_to_special: Dict[int, str],
+        task_to_extractors: Dict[CohesionTask, Extractor],
     ) -> None:
         all_rel_types = [t for ts in task_to_rel_types.values() for t in ts]
         for base_phrase in document.base_phrases:
@@ -552,7 +552,7 @@ class WordModuleWriter(BasePredictionWriter):
                     base_phrase.rels += [rel for rel in rel_tags if rel.type in rel_types]
 
     @staticmethod
-    def _add_discourse(document: Document, discourse_preds: list[list[int]]) -> None:
+    def _add_discourse(document: Document, discourse_preds: List[List[int]]) -> None:
         if document.need_clause_tag:
             logger.warning("failed to output clause boundaries")
             return
@@ -571,11 +571,11 @@ class WordModuleWriter(BasePredictionWriter):
 
     @staticmethod
     def _to_rels(
-        prediction: list[int],  # (rel)
-        morphemes: list[Morpheme],
-        rel_types: list[str],
-        exophora_referents: list[ExophoraReferent],
-        index_to_special: dict[int, str],
+        prediction: List[int],  # (rel)
+        morphemes: List[Morpheme],
+        rel_types: List[str],
+        exophora_referents: List[ExophoraReferent],
+        index_to_special: Dict[int, str],
     ) -> RelTagList:
         rel_tags = RelTagList()
         assert len(rel_types) == len(prediction)

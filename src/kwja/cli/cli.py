@@ -1,7 +1,7 @@
 from importlib import resources
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Optional
+from typing import List, Optional
 
 import hydra
 import pytorch_lightning as pl
@@ -179,7 +179,9 @@ class CLIProcessor:
             str(word_discourse_checkpoint_path), map_location=lambda storage, loc: storage
         )
         hparams = word_discourse_checkpoint["hyper_parameters"]["hparams"]
-        reading_resource_path = resources.files("kwja") / "resource/reading_prediction"
+        with resources.path("kwja", "resource") as resource_path:
+            reading_resource_path = resource_path / "reading_prediction"
+            jumandic_path = resource_path / "jumandic"
         hparams.datamodule.predict.reading_resource_path = reading_resource_path
         hparams.dataset.reading_resource_path = reading_resource_path
         hparams.callbacks.prediction_writer.reading_resource_path = reading_resource_path

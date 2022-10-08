@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from math import sqrt
-from typing import Optional
+from typing import Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -59,8 +59,8 @@ class PhraseAnalyzer(nn.Module):
             )
         )
 
-    def forward(self, pooled_outputs: torch.Tensor, batch: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
-        outputs: dict[str, torch.Tensor] = {}
+    def forward(self, pooled_outputs: torch.Tensor, batch: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+        outputs: Dict[str, torch.Tensor] = {}
         ne_logits, emissions = self.compute_ne_logits(pooled_outputs, batch)
         outputs["ne_logits"] = ne_logits
         word_feature_logits = self.word_feature_head(pooled_outputs)  # (batch_size, seq_length, num_word_features)
@@ -90,8 +90,8 @@ class PhraseAnalyzer(nn.Module):
         return outputs
 
     def compute_ne_logits(
-        self, pooled_outputs: torch.Tensor, batch: dict[str, torch.Tensor]
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+        self, pooled_outputs: torch.Tensor, batch: Dict[str, torch.Tensor]
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         ne_logits = self.ne_head(pooled_outputs)  # (batch_size, seq_length, num_tags)
         device, shape = map(lambda x: getattr(ne_logits, x), ["device", "shape"])
         non_target = torch.full_like(ne_logits, -1024.0)
@@ -143,7 +143,7 @@ class CRF(nn.Module):
     .. _Viterbi algorithm: https://en.wikipedia.org/wiki/Viterbi_algorithm
     """
 
-    def __init__(self, tags: tuple[str, ...], batch_first: bool = True) -> None:
+    def __init__(self, tags: Tuple[str, ...], batch_first: bool = True) -> None:
         num_tags = len(tags)
         assert num_tags > 0, f"invalid number of tags: {num_tags}"
         super().__init__()
@@ -156,7 +156,7 @@ class CRF(nn.Module):
 
         self.reset_parameters(tags)
 
-    def reset_parameters(self, tags: tuple[str, ...]) -> None:
+    def reset_parameters(self, tags: Tuple[str, ...]) -> None:
         bound = sqrt(6 / self.num_tags)
         nn.init.uniform_(self.start_transitions, -bound, bound)
         nn.init.uniform_(self.end_transitions, -bound, bound)
@@ -228,7 +228,7 @@ class CRF(nn.Module):
         assert reduction == "token_mean"
         return llh.sum() / mask.type_as(emissions).sum()
 
-    def decode(self, emissions: torch.FloatTensor, mask: Optional[torch.ByteTensor] = None) -> list[list[int]]:
+    def decode(self, emissions: torch.FloatTensor, mask: Optional[torch.ByteTensor] = None) -> List[List[int]]:
         """Find the most likely tag sequence using Viterbi algorithm.
 
         Args:
@@ -353,7 +353,7 @@ class CRF(nn.Module):
         # Sum (log-sum-exp) over all possible tags
         return torch.logsumexp(score, dim=1)  # (batch_size,)
 
-    def _viterbi_decode(self, emissions: torch.FloatTensor, mask: torch.ByteTensor) -> list[list[int]]:
+    def _viterbi_decode(self, emissions: torch.FloatTensor, mask: torch.ByteTensor) -> List[List[int]]:
         # emissions: (seq_length, batch_size, num_tags)
         # mask: (seq_length, batch_size)
         assert emissions.dim() == 3 and mask.dim() == 2

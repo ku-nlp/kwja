@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Union
+from typing import Dict, List, Tuple, Union
 
 import torch
 from omegaconf import ListConfig
@@ -80,11 +80,11 @@ class WordDataset(BaseDataset):
             max_seq_length,
             tokenizer_kwargs or {},
         )
-        self.special_tokens: list[str] = list(special_tokens)
+        self.special_tokens: List[str] = list(special_tokens)
         self.exophora_referents = [ExophoraReferent(s) for s in exophora_referents]
-        self.cohesion_tasks: list[CohesionTask] = [CohesionTask(t) for t in cohesion_tasks]
-        self.pas_cases: list[str] = list(pas_cases)
-        self.bar_rels: list[str] = list(bar_rels)
+        self.cohesion_tasks: List[CohesionTask] = [CohesionTask(t) for t in cohesion_tasks]
+        self.pas_cases: List[str] = list(pas_cases)
+        self.bar_rels: List[str] = list(bar_rels)
         self.cohesion_task_to_rel_types = {
             CohesionTask.PAS_ANALYSIS: self.pas_cases,
             CohesionTask.BRIDGING: self.bar_rels,
@@ -96,14 +96,14 @@ class WordDataset(BaseDataset):
             CohesionTask.COREFERENCE: CoreferenceExtractor(self.exophora_referents, restrict_cohesion_target),
             CohesionTask.BRIDGING: BridgingExtractor(self.bar_rels, self.exophora_referents, restrict_cohesion_target),
         }
-        self.special_to_index: dict[str, int] = {
+        self.special_to_index: Dict[str, int] = {
             token: self.max_seq_length - len(self.special_tokens) + i for i, token in enumerate(self.special_tokens)
         }
-        self.index_to_special: dict[int, str] = {v: k for k, v in self.special_to_index.items()}
+        self.index_to_special: Dict[int, str] = {v: k for k, v in self.special_to_index.items()}
         self.reading_resource_path = Path(reading_resource_path)
         self.reading2id = get_reading2id(str(self.reading_resource_path / "vocab.txt"))
         self.reading_aligner = ReadingAligner(self.tokenizer, KanjiDic(str(self.reading_resource_path / "kanjidic")))
-        self.examples: list[WordExampleSet] = self._load_examples(self.documents)
+        self.examples: List[WordExampleSet] = self._load_examples(self.documents)
         self.special_encoding: Encoding = self.tokenizer(
             self.special_tokens,
             is_split_into_words=True,
@@ -113,11 +113,11 @@ class WordDataset(BaseDataset):
         ).encodings[0]
 
     @property
-    def special_indices(self) -> list[int]:
+    def special_indices(self) -> List[int]:
         return list(self.special_to_index.values())
 
     @property
-    def cohesion_special_indices(self) -> list[int]:
+    def cohesion_special_indices(self) -> List[int]:
         return [index for special, index in self.special_to_index.items() if special != "[ROOT]"]
 
     @property
@@ -125,10 +125,10 @@ class WordDataset(BaseDataset):
         return len(self.special_tokens)
 
     @property
-    def cohesion_rel_types(self) -> list[str]:
+    def cohesion_rel_types(self) -> List[str]:
         return [t for task in self.cohesion_tasks for t in self.cohesion_task_to_rel_types[task]]
 
-    def _load_examples(self, documents: list[Document]) -> list[WordExampleSet]:
+    def _load_examples(self, documents: List[Document]) -> List[WordExampleSet]:
         examples = []
         idx = 0
         for document in tqdm(documents, dynamic_ncols=True):
@@ -195,10 +195,10 @@ class WordDataset(BaseDataset):
     def __len__(self) -> int:
         return len(self.examples)
 
-    def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
+    def __getitem__(self, index: int) -> Dict[str, torch.Tensor]:
         return self.encode(self.examples[index])
 
-    def encode(self, example: WordExampleSet) -> dict[str, torch.Tensor]:
+    def encode(self, example: WordExampleSet) -> Dict[str, torch.Tensor]:
         merged_encoding: Encoding = Encoding.merge([example.encoding, self.special_encoding])
 
         document = self.doc_id2document[example.doc_id]
@@ -235,7 +235,7 @@ class WordDataset(BaseDataset):
                 if mrph_type in all_types:
                     morpheme_types[morpheme_index][i] = all_types.index(mrph_type)
 
-        ne_tags: list[int] = [
+        ne_tags: List[int] = [
             (NE_TAGS.index("O") if morpheme_index in word_feature_example.features.keys() else IGNORE_INDEX)
             for morpheme_index in range(self.max_seq_length)
         ]
@@ -261,7 +261,7 @@ class WordDataset(BaseDataset):
 
         # dependency parsing
         dependency_example = example.dependency_example
-        dependencies: list[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
+        dependencies: List[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
         for morpheme_index, dependency in dependency_example.dependencies.items():
             dependencies[morpheme_index] = dependency if dependency != -1 else self.special_to_index["[ROOT]"]
 
@@ -271,14 +271,14 @@ class WordDataset(BaseDataset):
             for candidate_index in candidates + [self.special_to_index["[ROOT]"]]:
                 dependency_mask[morpheme_index][candidate_index] = True
 
-        dependency_types: list[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
+        dependency_types: List[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
         for morpheme_index, dependency_type in dependency_example.dependency_types.items():
             dependency_types[morpheme_index] = DEPENDENCY_TYPE2INDEX[dependency_type]
 
         # PAS analysis & coreference resolution
         cohesion_example = example.cohesion_example
-        cohesion_target: list[list[list[int]]] = []  # (task, src, tgt)
-        candidates_set: list[list[list[int]]] = []  # (task, src, tgt)
+        cohesion_target: List[List[List[int]]] = []  # (task, src, tgt)
+        candidates_set: List[List[List[int]]] = []  # (task, src, tgt)
         if CohesionTask.PAS_ANALYSIS in self.cohesion_tasks:
             task = CohesionTask.PAS_ANALYSIS
             annotation = cohesion_example.annotations[task]
@@ -334,11 +334,11 @@ class WordDataset(BaseDataset):
 
     def dump_prediction(
         self,
-        result: list[list[list[float]]],  # word level
+        result: List[List[List[float]]],  # word level
         example: CohesionExample,
-    ) -> list[list[list[float]]]:  # (phrase, rel, 0 or phrase+special)
+    ) -> List[List[List[float]]]:  # (phrase, rel, 0 or phrase+special)
         """1 example 中に存在する基本句それぞれに対してシステム予測のリストを返す．"""
-        ret: list[list[list[float]]] = [[] for _ in next(iter(example.phrases.values()))]
+        ret: List[List[List[float]]] = [[] for _ in next(iter(example.phrases.values()))]
         task_idx = 0
         if CohesionTask.PAS_ANALYSIS in self.cohesion_tasks:
             for _ in self.pas_cases:
@@ -359,13 +359,13 @@ class WordDataset(BaseDataset):
 
     def _word2bp_level(
         self,
-        word_level_output: list[list[float]],
-        phrases: list[Phrase],
-    ) -> list[list[float]]:  # (bp, 0 or bp+special)
-        ret: list[list[float]] = [[] for _ in phrases]
+        word_level_output: List[List[float]],
+        phrases: List[Phrase],
+    ) -> List[List[float]]:  # (bp, 0 or bp+special)
+        ret: List[List[float]] = [[] for _ in phrases]
         for anaphor in filter(lambda p: p.is_target, phrases):
-            word_level_scores: list[float] = word_level_output[anaphor.dmid]
-            phrase_level_scores: list[float] = []
+            word_level_scores: List[float] = word_level_output[anaphor.dmid]
+            phrase_level_scores: List[float] = []
             for tgt_bp in phrases:
                 if tgt_bp.dtid not in anaphor.candidates:
                     phrase_level_scores.append(-1)  # pad -1 for non-candidate phrases
@@ -376,7 +376,7 @@ class WordDataset(BaseDataset):
             ret[anaphor.dtid] = softmax(phrase_level_scores).tolist()
         return ret
 
-    def _gen_subword_map(self, encoding: Encoding, include_additional_words: bool = True) -> list[list[bool]]:
+    def _gen_subword_map(self, encoding: Encoding, include_additional_words: bool = True) -> List[List[bool]]:
         subword_map = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
         for token_id, word_id in enumerate(encoding.word_ids):
             if word_id is None or token_id in self.special_indices:
@@ -389,16 +389,16 @@ class WordDataset(BaseDataset):
 
     def _convert_annotation_to_feature(
         self,
-        annotation: list[list[str]],  # phrase level
-        phrases: list[Phrase],
-    ) -> tuple[list[list[int]], list[list[int]]]:
-        scores_set: list[list[int]] = [[0] * self.max_seq_length for _ in range(self.max_seq_length)]
-        candidates_set: list[list[int]] = [[] for _ in range(self.max_seq_length)]
+        annotation: List[List[str]],  # phrase level
+        phrases: List[Phrase],
+    ) -> Tuple[List[List[int]], List[List[int]]]:
+        scores_set: List[List[int]] = [[0] * self.max_seq_length for _ in range(self.max_seq_length)]
+        candidates_set: List[List[int]] = [[] for _ in range(self.max_seq_length)]
         for phrase in phrases:
-            arguments: list[str] = annotation[phrase.dtid]
-            candidates: list[int] = phrase.candidates  # phrase level
+            arguments: List[str] = annotation[phrase.dtid]
+            candidates: List[int] = phrase.candidates  # phrase level
             for mrph in phrase.children:
-                scores: list[int] = [0] * self.max_seq_length
+                scores: List[int] = [0] * self.max_seq_length
                 if mrph.is_target:
                     for arg_string in arguments:
                         # arg_string: 著者, 8%C, 15%O, 2, [NULL], ...
@@ -412,7 +412,7 @@ class WordDataset(BaseDataset):
                             word_index = phrases[int(arg_string)].dmid
                         scores[word_index] = 1
 
-                word_level_candidates: list[int] = []
+                word_level_candidates: List[int] = []
                 for candidate in candidates:
                     word_level_candidates.append(phrases[candidate].dmid)
                 word_level_candidates += self.cohesion_special_indices

@@ -3,7 +3,7 @@ import logging
 import re
 import unicodedata
 from dataclasses import dataclass
-from typing import Dict, Final, Optional, Union
+from typing import Dict, Final, List, Optional, Tuple, Union
 
 import jaconv
 import numpy as np
@@ -157,7 +157,7 @@ UNK_ID: Final = 0
 ID_ID: Final = 1
 
 
-def get_reading2id(path: str) -> dict[str, int]:
+def get_reading2id(path: str) -> Dict[str, int]:
     reading2id = {UNK: UNK_ID, ID: ID_ID}
     with open(path, "r") as f:
         for line in f:
@@ -175,7 +175,7 @@ class ReadingAligner:
         self.tokenizer = tokenizer
         self.kanji_dic = kanji_dic
 
-    def align(self, sequence: Union[Sentence, Document]) -> list[tuple[str, str]]:
+    def align(self, sequence: Union[Sentence, Document]) -> List[Tuple[str, str]]:
         inp = " ".join([morpheme.surf for morpheme in sequence.morphemes])
         reading_list = []
 
@@ -197,7 +197,7 @@ class ReadingAligner:
         assert len(subword_list) == len(reading_list)
         return list(zip(subword_list, reading_list))
 
-    def _align_morpheme(self, morpheme: Morpheme, subwords: list[str]) -> list[str]:
+    def _align_morpheme(self, morpheme: Morpheme, subwords: List[str]) -> List[str]:
         # trivial
         if len(subwords) == 1:
             return [morpheme.reading]
@@ -230,8 +230,8 @@ class ReadingAligner:
 
         # build lattice
         # no node can cross boundaries
-        td_lattice: list[list[list[Node]]] = []
-        td_holder: list[list[tuple[Optional[Node], Optional[Node], int]]] = []
+        td_lattice: List[List[List[Node]]] = []
+        td_holder: List[List[Tuple[Optional[Node], Optional[Node], int]]] = []
         node: Optional[Node] = None
         node_prev: Optional[Node] = None
         for i in range(len(surf)):
@@ -382,7 +382,7 @@ class ReadingAligner:
                     break
         return subreading_list
 
-    def _extend_kanji_reading_list(self, kanji_reading_list_orig: list[str]) -> list[str]:
+    def _extend_kanji_reading_list(self, kanji_reading_list_orig: List[str]) -> List[str]:
         kanji_reading_list = []
         for kanji_reading in kanji_reading_list_orig:
             kanji_reading = re.sub("-", "", kanji_reading)
@@ -399,7 +399,7 @@ class ReadingAligner:
         return kanji_reading_list
 
 
-def get_word_level_readings(readings: list[str], tokens: list[str], subword_map: list[list[bool]]) -> list[str]:
+def get_word_level_readings(readings: List[str], tokens: List[str], subword_map: List[List[bool]]) -> List[str]:
     """サブワードレベルの読みを単語レベルの読みに変換．
 
     Args:
@@ -407,7 +407,7 @@ def get_word_level_readings(readings: list[str], tokens: list[str], subword_map:
         tokens: list[str] サブワードレベルの表層．
         subword_map: list[list[bool]] subword_map[i][j] = True ならば i 番目の単語は j 番目のトークンを含む．
     """
-    ret: list[str] = []
+    ret: List[str] = []
     for flags in subword_map:
         item = ""
         for token, reading, flag in zip(tokens, readings, flags):
@@ -449,7 +449,7 @@ if __name__ == "__main__":
                     # print(aligner.align(document))
                     subreading_counter[subreading] += 1
             except ValueError:
-                logging.warn("skip {document.doc_id} for an error")
+                logging.warning(f"skip {document.doc_id} for an error")
     for subreading, count in sorted(
         sorted(subreading_counter.items(), key=lambda pair: pair[0]), key=lambda pair: pair[1], reverse=True
     ):

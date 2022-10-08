@@ -1,3 +1,5 @@
+from typing import Dict, Tuple
+
 import torch
 import torch.nn as nn
 from omegaconf import DictConfig
@@ -19,8 +21,8 @@ class WordEncoder(nn.Module):
             )
 
     def forward(
-        self, batch: dict[str, torch.Tensor], pooling_strategy: PoolingStrategy
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+        self, batch: Dict[str, torch.Tensor], pooling_strategy: PoolingStrategy
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         outputs = self.pretrained_model(
             input_ids=batch["input_ids"],
             attention_mask=batch["attention_mask"],
