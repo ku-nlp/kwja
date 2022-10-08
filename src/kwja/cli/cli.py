@@ -13,7 +13,7 @@ from rhoknp import Document
 
 import kwja
 from kwja.callbacks.word_module_discourse_writer import WordModuleDiscourseWriter
-from kwja.cli.utils import download_checkpoint_from_url, suppress_debug_info, prepare_device
+from kwja.cli.utils import download_checkpoint_from_url, prepare_device, suppress_debug_info
 from kwja.datamodule.datamodule import DataModule
 from kwja.models.char_module import CharModule
 from kwja.models.typo_module import TypoModule
@@ -56,8 +56,6 @@ class CLIProcessor:
             str(typo_checkpoint_path),
             map_location=self.device,
         )
-        self.typo_model.eval()
-        self.typo_model.freeze()
         extended_vocab_path = resources.files("kwja") / "resource/typo_correction/multi_char_vocab.txt"
         if self.typo_model is None:
             raise ValueError("typo model does not exist")
@@ -97,8 +95,6 @@ class CLIProcessor:
             str(char_checkpoint_path),
             map_location=self.device,
         )
-        self.char_model.eval()
-        self.char_model.freeze()
         if self.char_model is None:
             raise ValueError("char model does not exist")
         self.char_trainer = pl.Trainer(
@@ -142,8 +138,6 @@ class CLIProcessor:
             hparams=hparams,
             map_location=self.device,
         )
-        self.word_model.eval()
-        self.word_model.freeze()
         if self.word_model is None:
             raise ValueError("word model does not exist")
         self.word_model.hparams.datamodule.predict.reading_resource_path = reading_resource_path
@@ -195,8 +189,6 @@ class CLIProcessor:
             hparams=hparams,
             map_location=self.device,
         )
-        self.word_discourse_model.eval()
-        self.word_discourse_model.freeze()
         if self.word_discourse_model is None:
             raise ValueError("word discourse model does not exist")
         self.word_discourse_model.hparams.datamodule.predict.reading_resource_path = reading_resource_path
