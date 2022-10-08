@@ -1,4 +1,4 @@
-from importlib import resources
+import importlib_resources
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import List, Optional
@@ -29,6 +29,7 @@ suppress_debug_info()
 OmegaConf.register_new_resolver("concat", lambda x, y: x + y)
 
 app = typer.Typer(pretty_exceptions_show_locals=False)
+resource_path = importlib_resources.files(kwja) / "resource"
 
 
 class CLIProcessor:
@@ -56,8 +57,7 @@ class CLIProcessor:
             str(typo_checkpoint_path),
             map_location=self.device,
         )
-        with resources.path("kwja", "resource") as resource_path:
-            extended_vocab_path = resource_path / "typo_correction/multi_char_vocab.txt"
+        extended_vocab_path = resource_path / "typo_correction/multi_char_vocab.txt"
         if self.typo_model is None:
             raise ValueError("typo model does not exist")
         self.typo_model.hparams.datamodule.predict.extended_vocab_path = str(extended_vocab_path)
@@ -129,9 +129,8 @@ class CLIProcessor:
         word_checkpoint_path: Path = download_checkpoint_from_url(WORD_CHECKPOINT_URL)
         word_checkpoint = torch.load(str(word_checkpoint_path), map_location=lambda storage, loc: storage)
         hparams = word_checkpoint["hyper_parameters"]["hparams"]
-        with resources.path("kwja", "resource") as resource_path:
-            reading_resource_path = resource_path / "reading_prediction"
-            jumandic_path = resource_path / "jumandic"
+        reading_resource_path = resource_path / "reading_prediction"
+        jumandic_path = resource_path / "jumandic"
         hparams.datamodule.predict.reading_resource_path = reading_resource_path
         hparams.dataset.reading_resource_path = reading_resource_path
         hparams.callbacks.prediction_writer.reading_resource_path = reading_resource_path
@@ -180,9 +179,8 @@ class CLIProcessor:
             str(word_discourse_checkpoint_path), map_location=lambda storage, loc: storage
         )
         hparams = word_discourse_checkpoint["hyper_parameters"]["hparams"]
-        with resources.path("kwja", "resource") as resource_path:
-            reading_resource_path = resource_path / "reading_prediction"
-            jumandic_path = resource_path / "jumandic"
+        reading_resource_path = resource_path / "reading_prediction"
+        jumandic_path = resource_path / "jumandic"
         hparams.datamodule.predict.reading_resource_path = reading_resource_path
         hparams.dataset.reading_resource_path = reading_resource_path
         hparams.callbacks.prediction_writer.reading_resource_path = reading_resource_path
