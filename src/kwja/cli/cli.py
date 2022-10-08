@@ -57,6 +57,8 @@ class CLIProcessor:
             map_location=self.device,
         )
         extended_vocab_path = resources.files("kwja") / "resource/typo_correction/multi_char_vocab.txt"
+        # with resources.path("kwja", "resource/typo_correction/multi_char_vocab.txt") as ex:
+        #     extended_vocab_path = resource_path / "typo_correction/multi_char_vocab.txt"
         if self.typo_model is None:
             raise ValueError("typo model does not exist")
         self.typo_model.hparams.datamodule.predict.extended_vocab_path = str(extended_vocab_path)
@@ -76,7 +78,7 @@ class CLIProcessor:
             devices=1,
         )
 
-    def apply_typo(self, input_texts: list[str]) -> None:
+    def apply_typo(self, input_texts: List[str]) -> None:
         if self.typo_model is None:
             raise ValueError("typo model does not exist")
         self.typo_model.hparams.datamodule.predict.texts = input_texts
@@ -129,10 +131,14 @@ class CLIProcessor:
         word_checkpoint = torch.load(str(word_checkpoint_path), map_location=lambda storage, loc: storage)
         hparams = word_checkpoint["hyper_parameters"]["hparams"]
         reading_resource_path = resources.files("kwja") / "resource/reading_prediction"
+        jumandic_path = resources.files("kwja") / "resource/jumandic"
+        # with resources.path("kwja", "resource") as resource_path:
+        #     reading_resource_path = resource_path / "reading_prediction"
+        #     jumandic_path = resource_path / "jumandic"
         hparams.datamodule.predict.reading_resource_path = reading_resource_path
         hparams.dataset.reading_resource_path = reading_resource_path
         hparams.callbacks.prediction_writer.reading_resource_path = reading_resource_path
-        hparams.callbacks.prediction_writer.jumandic_path = resources.files("kwja") / "resource/jumandic"
+        hparams.callbacks.prediction_writer.jumandic_path = jumandic_path
         self.word_model = WordModule.load_from_checkpoint(
             str(word_checkpoint_path),
             hparams=hparams,
@@ -143,9 +149,7 @@ class CLIProcessor:
         self.word_model.hparams.datamodule.predict.reading_resource_path = reading_resource_path
         self.word_model.hparams.dataset.reading_resource_path = reading_resource_path
         self.word_model.hparams.callbacks.prediction_writer.reading_resource_path = reading_resource_path
-        self.word_model.hparams.callbacks.prediction_writer.jumandic_path = (
-            resources.files("kwja") / "resource/jumandic"
-        )
+        self.word_model.hparams.callbacks.prediction_writer.jumandic_path = jumandic_path
         self.word_trainer = pl.Trainer(
             logger=False,
             enable_progress_bar=False,
@@ -179,13 +183,15 @@ class CLIProcessor:
             str(word_discourse_checkpoint_path), map_location=lambda storage, loc: storage
         )
         hparams = word_discourse_checkpoint["hyper_parameters"]["hparams"]
-        with resources.path("kwja", "resource") as resource_path:
-            reading_resource_path = resource_path / "reading_prediction"
-            jumandic_path = resource_path / "jumandic"
+        reading_resource_path = resources.files("kwja") / "resource/reading_prediction"
+        jumandic_path = resources.files("kwja") / "resource/jumandic"
+        # with resources.path("kwja", "resource") as resource_path:
+        #     reading_resource_path = resource_path / "reading_prediction"
+        #     jumandic_path = resource_path / "jumandic"
         hparams.datamodule.predict.reading_resource_path = reading_resource_path
         hparams.dataset.reading_resource_path = reading_resource_path
         hparams.callbacks.prediction_writer.reading_resource_path = reading_resource_path
-        hparams.callbacks.prediction_writer.jumandic_path = resources.files("kwja") / "resource/jumandic"
+        hparams.callbacks.prediction_writer.jumandic_path = jumandic_path
         self.word_discourse_model = WordModule.load_from_checkpoint(
             str(word_discourse_checkpoint_path),
             hparams=hparams,
@@ -249,7 +255,7 @@ def main(
     version: Optional[bool] = typer.Option(None, "--version", callback=version_callback, is_eager=True),
 ) -> None:
     assert version is None
-    input_texts: list[str] = []
+    input_texts: List[str] = []
     if text is not None and filename is not None:
         typer.echo("ERROR: Please provide text or filename, not both", err=True)
         raise typer.Exit()

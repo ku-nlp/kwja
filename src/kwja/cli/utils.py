@@ -3,7 +3,7 @@ import os
 import sys
 import warnings
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Tuple, Union
 from urllib.parse import urlparse
 
 import torch
@@ -62,7 +62,7 @@ def _get_kwja_cache_dir() -> Path:
     return cache_dir / "kwja"
 
 
-def prepare_device(device_name: str) -> tuple[str, torch.device]:
+def prepare_device(device_name: str) -> Tuple[str, torch.device]:
     n_gpu = torch.cuda.device_count()
     if device_name == "gpu" and n_gpu == 0:
         print("Warning: There's no GPU available on this machine. Using CPU instead.")
