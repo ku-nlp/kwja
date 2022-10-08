@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Union
+from typing import Dict, List, Union
 
 import torch
 from torch.utils.data import Dataset
@@ -35,31 +35,31 @@ class TypoDataset(Dataset):
         self.unk_token_id: int = self.tokenizer.unk_token_id
         self.max_seq_length: int = max_seq_length
 
-        self.opn2id: dict[str, int] = self.get_opn2id(path=Path(extended_vocab_path))
+        self.opn2id: Dict[str, int] = self.get_opn2id(path=Path(extended_vocab_path))
 
     def __len__(self) -> int:
         return len(self.documents)
 
-    def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
+    def __getitem__(self, index: int) -> Dict[str, torch.Tensor]:
         return self.encode(self.documents[index])
 
     @staticmethod
-    def load_documents(path: Path) -> list[dict[str, Union[str, list[str]]]]:
-        documents: list[dict[str, Union[str, list[str]]]] = []
+    def load_documents(path: Path) -> List[Dict[str, Union[str, List[str]]]]:
+        documents: List[Dict[str, Union[str, List[str]]]] = []
         for file_path in sorted(path.glob("**/*.jsonl")):
             with file_path.open(mode="r", encoding="utf-8") as f:
                 for line in f:
                     documents.append(json.loads(line))
         return documents
 
-    def get_opn2id(self, path: Path) -> dict[str, int]:
+    def get_opn2id(self, path: Path) -> Dict[str, int]:
         opn2id = self.tokenizer.get_vocab()
         with path.open(mode="r") as f:
             for line in f:
                 opn2id[str(line.strip())] = len(opn2id)
         return opn2id
 
-    def encode(self, document: dict[str, Union[str, list[str]]]) -> dict[str, torch.Tensor]:
+    def encode(self, document: Dict[str, Union[str, List[str]]]) -> Dict[str, torch.Tensor]:
         if isinstance(document["pre_text"], list):
             raise ValueError('document["pre_text"] must be string')
         encoding: BatchEncoding = self.tokenizer(
@@ -71,23 +71,23 @@ class TypoDataset(Dataset):
         input_ids = encoding["input_ids"]
         attention_mask = encoding["attention_mask"]
 
-        kdr_labels: list[int] = []
+        kdr_labels: List[int] = []
         for opn in document["kdrs"][:-1]:
             if opn in TYPO_OPN2TOKEN:
                 kdr_label = self.opn2id[TYPO_OPN2TOKEN[opn]]
             else:
-                kdr_label = self.opn2id.get(opn.removeprefix("R:"), self.unk_token_id)
+                kdr_label = self.opn2id.get(opn[2:], self.unk_token_id)  # remove prefix "R:" from opn
             kdr_labels.append(kdr_label)
         kdr_labels.append(self.pad_token_id)
         kdr_labels = [self.pad_token_id] + kdr_labels[: self.max_seq_length - 2] + [self.pad_token_id]
         kdr_labels = kdr_labels + [self.pad_token_id] * (self.max_seq_length - len(kdr_labels))
 
-        ins_labels: list[int] = []
+        ins_labels: List[int] = []
         for opn in document["inss"]:
             if opn in TYPO_OPN2TOKEN:
                 ins_label = self.opn2id[TYPO_OPN2TOKEN[opn]]
             else:
-                ins_label = self.opn2id.get(opn.removeprefix("I:"), self.unk_token_id)
+                ins_label = self.opn2id.get(opn[2:], self.unk_token_id)  # remove prefix "I:" from opn
             ins_labels.append(ins_label)
         ins_labels = [self.pad_token_id] + ins_labels[: self.max_seq_length - 2] + [self.pad_token_id]
         ins_labels = ins_labels + [self.pad_token_id] * (self.max_seq_length - len(ins_labels))

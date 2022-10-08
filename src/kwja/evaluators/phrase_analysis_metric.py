@@ -1,5 +1,5 @@
 from itertools import chain
-from typing import Literal
+from typing import Dict, List, Literal, Tuple
 
 import numpy as np
 import torch
@@ -33,7 +33,7 @@ class PhraseAnalysisMetric(Metric):
         self.base_phrase_feature_predictions.append(base_phrase_feature_predictions)
         self.base_phrase_features.append(base_phrase_features)
 
-    def compute(self) -> dict[str, float]:
+    def compute(self) -> Dict[str, float]:
         sorted_indices = self.unique(self.example_ids)
         # (num_base_phrase_features, b, seq)
         (word_feature_predictions, word_features, base_phrase_feature_predictions, base_phrase_features,) = map(
@@ -60,10 +60,10 @@ class PhraseAnalysisMetric(Metric):
     @staticmethod
     def align_predictions(
         prediction: np.ndarray, label: np.ndarray, io_tag: Literal["I", "O"]
-    ) -> tuple[list[list[str]], list[list[str]]]:
+    ) -> Tuple[List[List[str]], List[List[str]]]:
         b, seq_len = label.shape
-        aligned_prediction: list[list[str]] = [[] for _ in range(b)]
-        aligned_label: list[list[str]] = [[] for _ in range(b)]
+        aligned_prediction: List[List[str]] = [[] for _ in range(b)]
+        aligned_label: List[List[str]] = [[] for _ in range(b)]
         for i in range(b):
             for j in range(seq_len):
                 # 評価対象外の label / prediction は含めない
@@ -76,7 +76,7 @@ class PhraseAnalysisMetric(Metric):
         self,
         word_feature_predictions: torch.Tensor,
         word_features: torch.Tensor,
-    ) -> dict[str, float]:
+    ) -> Dict[str, float]:
         word_feature_metrics = {}
         aligned_predictions, aligned_labels = [], []
         for i, (word_feature_prediction, word_feature_label) in enumerate(zip(word_feature_predictions, word_features)):
@@ -116,7 +116,7 @@ class PhraseAnalysisMetric(Metric):
         self,
         base_phrase_feature_predictions: torch.Tensor,
         base_phrase_features: torch.Tensor,
-    ) -> dict[str, float]:
+    ) -> Dict[str, float]:
         base_phrase_feature_metrics = {}
         aligned_predictions, aligned_labels = [], []
         for i, (base_phrase_feature_prediction, base_phrase_feature_label) in enumerate(

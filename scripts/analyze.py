@@ -1,4 +1,5 @@
 import sys
+from typing import List
 
 import hydra
 import pytorch_lightning as pl
@@ -23,7 +24,7 @@ def main(cfg: DictConfig):
         except ValueError:
             cfg.devices = None
 
-    callbacks: list[Callback] = [hydra.utils.instantiate(cfg.callbacks.prediction_writer, use_stdout=True)]
+    callbacks: List[Callback] = [hydra.utils.instantiate(cfg.callbacks.prediction_writer, use_stdout=True)]
 
     trainer: pl.Trainer = hydra.utils.instantiate(
         cfg.trainer,

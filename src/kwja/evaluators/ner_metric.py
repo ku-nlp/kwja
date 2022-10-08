@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Dict, List, Tuple, Union
 
 import numpy as np
 import torch
@@ -26,7 +26,7 @@ class NERMetric(Metric):
         self.ne_tag_predictions.append(ne_tag_predictions)
         self.ne_tags.append(ne_tags)
 
-    def compute(self) -> dict[str, Union[torch.Tensor, float]]:
+    def compute(self) -> Dict[str, Union[torch.Tensor, float]]:
         sorted_indices = self._unique(self.example_ids)
         ne_tag_predictions, ne_tags = map(
             lambda x: x[sorted_indices],
@@ -47,10 +47,10 @@ class NERMetric(Metric):
         return inverse.new_empty(unique.size(0)).scatter_(0, inverse, perm)
 
     @staticmethod
-    def _align_predictions(prediction: np.ndarray, label: np.ndarray) -> tuple[list[list[str]], list[list[str]]]:
+    def _align_predictions(prediction: np.ndarray, label: np.ndarray) -> Tuple[List[List[str]], List[List[str]]]:
         batch_size, sequence_len = label.shape
-        aligned_prediction: list[list[str]] = [[] for _ in range(batch_size)]
-        aligned_label: list[list[str]] = [[] for _ in range(batch_size)]
+        aligned_prediction: List[List[str]] = [[] for _ in range(batch_size)]
+        aligned_label: List[List[str]] = [[] for _ in range(batch_size)]
         for i in range(batch_size):
             for j in range(sequence_len):
                 # 評価対象外の label / prediction は含めない
@@ -63,7 +63,7 @@ class NERMetric(Metric):
         self,
         ne_tag_predictions: torch.Tensor,
         ne_tags: torch.Tensor,
-    ) -> dict[str, float]:
+    ) -> Dict[str, float]:
         ner_metric = {}
         aligned_predictions, aligned_labels = self._align_predictions(
             prediction=ne_tag_predictions.detach().cpu().numpy(),

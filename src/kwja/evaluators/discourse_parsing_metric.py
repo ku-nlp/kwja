@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Dict, Union
 
 import torch
 from torchmetrics import Metric
@@ -25,7 +25,7 @@ class DiscourseParsingMetric(Metric):
         self.discourse_parsing_predictions.append(discourse_parsing_predictions)
         self.discourse_parsing_labels.append(discourse_parsing_labels)
 
-    def compute(self) -> dict[str, Union[torch.Tensor, float]]:
+    def compute(self) -> Dict[str, Union[torch.Tensor, float]]:
         predictions = self.discourse_parsing_predictions.view(-1)
         labels = self.discourse_parsing_labels.view(-1)
 

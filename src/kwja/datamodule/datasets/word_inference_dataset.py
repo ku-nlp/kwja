@@ -3,7 +3,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Union
+from typing import Dict, List, Optional, Union
 
 import torch
 from omegaconf import ListConfig
@@ -57,14 +57,14 @@ class WordInferenceDataset(BaseDataset):
         super().__init__(documents, document_split_stride, model_name_or_path, max_seq_length, tokenizer_kwargs or {})
 
         self.exophora_referents = [ExophoraReferent(s) for s in exophora_referents]
-        self.special_tokens: list[str] = list(special_tokens)
-        self.special_to_index: dict[str, int] = {
+        self.special_tokens: List[str] = list(special_tokens)
+        self.special_to_index: Dict[str, int] = {
             token: self.max_seq_length - len(self.special_tokens) + i for i, token in enumerate(self.special_tokens)
         }
-        self.index_to_special: dict[int, str] = {v: k for k, v in self.special_to_index.items()}
+        self.index_to_special: Dict[int, str] = {v: k for k, v in self.special_to_index.items()}
         self.cohesion_tasks = [CohesionTask(t) for t in cohesion_tasks]
-        self.pas_cases: list[str] = list(pas_cases)
-        self.bar_rels: list[str] = list(bar_rels)
+        self.pas_cases: List[str] = list(pas_cases)
+        self.bar_rels: List[str] = list(bar_rels)
         self.cohesion_task_to_rel_types = {
             CohesionTask.PAS_ANALYSIS: self.pas_cases,
             CohesionTask.BRIDGING: self.bar_rels,
@@ -75,7 +75,7 @@ class WordInferenceDataset(BaseDataset):
             CohesionTask.COREFERENCE: CoreferenceExtractor(self.exophora_referents, restrict_cohesion_target),
             CohesionTask.BRIDGING: BridgingExtractor(self.bar_rels, self.exophora_referents, restrict_cohesion_target),
         }
-        self.examples: list[WordInferenceExample] = self._load_examples(self.documents)
+        self.examples: List[WordInferenceExample] = self._load_examples(self.documents)
         self.special_encoding: Encoding = self.tokenizer(
             self.special_tokens,
             is_split_into_words=True,
@@ -85,11 +85,11 @@ class WordInferenceDataset(BaseDataset):
         ).encodings[0]
 
     @property
-    def special_indices(self) -> list[int]:
+    def special_indices(self) -> List[int]:
         return list(self.special_to_index.values())
 
     @property
-    def cohesion_special_indices(self) -> list[int]:
+    def cohesion_special_indices(self) -> List[int]:
         return [index for special, index in self.special_to_index.items() if special != "[ROOT]"]
 
     @property
@@ -97,11 +97,11 @@ class WordInferenceDataset(BaseDataset):
         return len(self.special_tokens)
 
     @property
-    def cohesion_rel_types(self) -> list[str]:
+    def cohesion_rel_types(self) -> List[str]:
         return [t for ts in self.cohesion_task_to_rel_types.values() for t in ts]
 
     @staticmethod
-    def _create_documents_from_texts(texts: list[str], doc_id_prefix: Optional[str]) -> list[Document]:
+    def _create_documents_from_texts(texts: List[str], doc_id_prefix: Optional[str]) -> List[Document]:
         did2sentences = defaultdict(list)
         if doc_id_prefix is None:
             doc_id_prefix = datetime.now().strftime("%Y%m%d%H%M")
@@ -136,10 +136,10 @@ class WordInferenceDataset(BaseDataset):
     def __len__(self) -> int:
         return len(self.examples)
 
-    def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
+    def __getitem__(self, index: int) -> Dict[str, torch.Tensor]:
         return self.encode(self.examples[index])
 
-    def _load_examples(self, documents: list[Document]) -> list[WordInferenceExample]:
+    def _load_examples(self, documents: List[Document]) -> List[WordInferenceExample]:
         examples = []
         idx = 0
         for document in documents:
@@ -170,7 +170,7 @@ class WordInferenceDataset(BaseDataset):
             logger.error("No examples to process. Make sure any texts are given and they are not too long.")
         return examples
 
-    def encode(self, example: WordInferenceExample) -> dict[str, torch.Tensor]:
+    def encode(self, example: WordInferenceExample) -> Dict[str, torch.Tensor]:
         document = self.doc_id2document[example.doc_id]
 
         target_mask = [False for _ in range(self.max_seq_length)]
@@ -215,7 +215,7 @@ class WordInferenceDataset(BaseDataset):
             "tokens": " ".join(self.tokenizer.decode(id_) for id_ in merged_encoding.ids),
         }
 
-    def _gen_subword_map(self, encoding: Encoding, include_additional_words: bool = True) -> list[list[bool]]:
+    def _gen_subword_map(self, encoding: Encoding, include_additional_words: bool = True) -> List[List[bool]]:
         subword_map = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
         for token_id, word_id in enumerate(encoding.word_ids):
             if word_id is None or token_id in self.special_indices:

@@ -1,7 +1,7 @@
 from importlib import resources
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Optional
+from typing import List, Optional
 
 import hydra
 import pytorch_lightning as pl
@@ -50,7 +50,7 @@ def main(
         typer.echo("ERROR: Please provide text or filename, not both", err=True)
         raise typer.Exit()
     elif text is not None:
-        input_texts: list[str] = text.splitlines()
+        input_texts: List[str] = text.splitlines()
     elif filename is not None:
         with Path(filename).open() as f:
             input_texts = [line.strip() for line in f]
@@ -68,7 +68,8 @@ def main(
     typo_checkpoint_path: Path = download_checkpoint_from_url(TYPO_CHECKPOINT_URL)
     typo_model: TypoModule = TypoModule.load_from_checkpoint(str(typo_checkpoint_path))
     typo_cfg = typo_model.hparams
-    extended_vocab_path = resources.files("kwja") / "resource/typo_correction/multi_char_vocab.txt"
+    with resources.path("kwja", "resource") as resource_path:
+        extended_vocab_path = resource_path / "typo_correction/multi_char_vocab.txt"
     typo_cfg.datamodule.predict.extended_vocab_path = str(extended_vocab_path)
     typo_cfg.dataset.extended_vocab_path = str(extended_vocab_path)
     typo_cfg.callbacks.prediction_writer.extended_vocab_path = str(extended_vocab_path)
@@ -116,17 +117,19 @@ def main(
     word_checkpoint_path: Path = download_checkpoint_from_url(WORD_CHECKPOINT_URL)
     word_checkpoint = torch.load(str(word_checkpoint_path), map_location=lambda storage, loc: storage)
     hparams = word_checkpoint["hyper_parameters"]["hparams"]
-    reading_resource_path = resources.files("kwja") / "resource/reading_prediction"
+    with resources.path("kwja", "resource") as resource_path:
+        reading_resource_path = resource_path / "reading_prediction"
+        jumandic_path = resource_path / "jumandic"
     hparams.datamodule.predict.reading_resource_path = reading_resource_path
     hparams.dataset.reading_resource_path = reading_resource_path
     hparams.callbacks.prediction_writer.reading_resource_path = reading_resource_path
-    hparams.callbacks.prediction_writer.jumandic_path = resources.files("kwja") / "resource/jumandic"
+    hparams.callbacks.prediction_writer.jumandic_path = jumandic_path
     word_model: WordModule = WordModule.load_from_checkpoint(str(word_checkpoint_path), hparams=hparams)
     word_cfg = word_model.hparams
     word_cfg.datamodule.predict.reading_resource_path = reading_resource_path
     word_cfg.dataset.reading_resource_path = reading_resource_path
     word_cfg.callbacks.prediction_writer.reading_resource_path = reading_resource_path
-    word_cfg.callbacks.prediction_writer.jumandic_path = resources.files("kwja") / "resource/jumandic"
+    word_cfg.callbacks.prediction_writer.jumandic_path = jumandic_path
     word_trainer: pl.Trainer = pl.Trainer(
         logger=False,
         enable_progress_bar=False,
@@ -161,11 +164,13 @@ def main(
             str(word_discourse_checkpoint_path), map_location=lambda storage, loc: storage
         )
         hparams = word_discourse_checkpoint["hyper_parameters"]["hparams"]
-        reading_resource_path = resources.files("kwja") / "resource/reading_prediction"
+        with resources.path("kwja", "resource") as resource_path:
+            reading_resource_path = resource_path / "reading_prediction"
+            jumandic_path = resource_path / "jumandic"
         hparams.datamodule.predict.reading_resource_path = reading_resource_path
         hparams.dataset.reading_resource_path = reading_resource_path
         hparams.callbacks.prediction_writer.reading_resource_path = reading_resource_path
-        hparams.callbacks.prediction_writer.jumandic_path = resources.files("kwja") / "resource/jumandic"
+        hparams.callbacks.prediction_writer.jumandic_path = jumandic_path
         word_discourse_model: WordModule = WordModule.load_from_checkpoint(
             str(word_discourse_checkpoint_path), hparams=hparams
         )

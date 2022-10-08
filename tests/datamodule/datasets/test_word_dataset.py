@@ -1,6 +1,7 @@
 import json
 import textwrap
 from pathlib import Path
+from typing import Dict, List
 
 from omegaconf import ListConfig
 from rhoknp import Document
@@ -351,7 +352,7 @@ def test_pas():
 
     assert len(mrphs) == len(mrphs_exp)
     for phrase in phrases:
-        arguments: dict[str, list[str]] = annotation.arguments_set[phrase.dtid]
+        arguments: Dict[str, List[str]] = annotation.arguments_set[phrase.dtid]
         for case in dataset.pas_cases:
             arg_strings = [arg[:-2] if arg[-2:] in ("%C", "%N", "%O") else arg for arg in arguments[case]]
             arg_strings = [(s if s in dataset.special_to_index else str(phrases[int(s)].dmid)) for s in arg_strings]

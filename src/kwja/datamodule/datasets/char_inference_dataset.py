@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional, Union
+from typing import Dict, List, Optional, Union
 
 import torch
 from omegaconf import ListConfig
@@ -35,15 +35,15 @@ class CharInferenceDataset(BaseDataset):
     ) -> None:
         documents = self._create_documents_from_texts(list(texts), doc_id_prefix)
         super().__init__(documents, document_split_stride, model_name_or_path, max_seq_length, tokenizer_kwargs or {})
-        self.examples: list[CharInferenceExample] = self._load_examples(self.documents)
+        self.examples: List[CharInferenceExample] = self._load_examples(self.documents)
 
     def __len__(self) -> int:
         return len(self.examples)
 
-    def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
+    def __getitem__(self, index: int) -> Dict[str, torch.Tensor]:
         return self.encode(self.examples[index])
 
-    def _load_examples(self, documents: list[Document]) -> list[CharInferenceExample]:
+    def _load_examples(self, documents: List[Document]) -> List[CharInferenceExample]:
         examples = []
         idx = 0
         for document in documents:
@@ -72,7 +72,7 @@ class CharInferenceDataset(BaseDataset):
         return examples
 
     @staticmethod
-    def encode(example: CharInferenceExample) -> dict[str, torch.Tensor]:
+    def encode(example: CharInferenceExample) -> Dict[str, torch.Tensor]:
         input_ids = example.encoding["input_ids"]
         attention_mask = example.encoding["attention_mask"]
         return {
@@ -82,10 +82,10 @@ class CharInferenceDataset(BaseDataset):
         }
 
     @staticmethod
-    def _create_documents_from_texts(texts: list[str], doc_id_prefix: Optional[str]) -> list[Document]:
+    def _create_documents_from_texts(texts: List[str], doc_id_prefix: Optional[str]) -> List[Document]:
         senter = RegexSenter()
         # split text into sentences
-        documents: list[Document] = [senter.apply_to_document(text) for text in texts]
+        documents: List[Document] = [senter.apply_to_document(text) for text in texts]
         if doc_id_prefix is None:
             doc_id_prefix = datetime.now().strftime("%Y%m%d%H%M")
         doc_id_width = len(str(len(documents)))

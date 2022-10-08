@@ -1,4 +1,4 @@
-from typing import Tuple, Union
+from typing import Dict, List, Tuple, Union
 
 import numpy as np
 import torch
@@ -18,7 +18,7 @@ class WordSegmentationMetric(Metric):
         self.add_state("seg_types", default=[], dist_reduce_fx="cat")
 
     @staticmethod
-    def filter_predictions(preds: list[str], labels: list[str]) -> Tuple[list[str], list[str]]:
+    def filter_predictions(preds: List[str], labels: List[str]) -> Tuple[List[str], List[str]]:
         filtered_preds = []
         filtered_labels = []
         for pred, label in zip(preds, labels):
@@ -29,10 +29,10 @@ class WordSegmentationMetric(Metric):
         return filtered_preds, filtered_labels
 
     @staticmethod
-    def _align_predictions(prediction: np.ndarray, label: np.ndarray) -> tuple[list[list[str]], list[list[str]]]:
+    def _align_predictions(prediction: np.ndarray, label: np.ndarray) -> Tuple[List[List[str]], List[List[str]]]:
         batch_size, sequence_len = label.shape
-        aligned_prediction: list[list[str]] = [[] for _ in range(batch_size)]
-        aligned_label: list[list[str]] = [[] for _ in range(batch_size)]
+        aligned_prediction: List[List[str]] = [[] for _ in range(batch_size)]
+        aligned_label: List[List[str]] = [[] for _ in range(batch_size)]
         for i in range(batch_size):
             for j in range(sequence_len):
                 # 評価対象外の label / prediction は含めない
@@ -46,7 +46,7 @@ class WordSegmentationMetric(Metric):
         self.seg_types.append(seg_types)
 
     def compute(self):
-        metrics: dict[str, Union[torch.Tensor, float]] = dict()
+        metrics: Dict[str, Union[torch.Tensor, float]] = dict()
         aligned_predictions, aligned_labels = self._align_predictions(
             prediction=self.seg_preds.detach().cpu().numpy(),
             label=self.seg_types.detach().cpu().numpy(),

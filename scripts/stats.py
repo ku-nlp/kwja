@@ -1,5 +1,5 @@
 import logging
-from typing import Union
+from typing import Dict, Union
 
 import hydra
 import transformers.utils.logging as hf_logging
@@ -17,8 +17,8 @@ logging.getLogger("rhoknp").setLevel(logging.WARNING)
 OmegaConf.register_new_resolver("concat", lambda x, y: x + y)
 
 
-def get_word_dataset_stats(dataset: WordDataset) -> dict[str, Union[int, float]]:
-    stats: dict[str, Union[int, float]] = {"num_examples": len(dataset)}
+def get_word_dataset_stats(dataset: WordDataset) -> Dict[str, Union[int, float]]:
+    stats: Dict[str, Union[int, float]] = {"num_examples": len(dataset)}
 
     # Reading predictions
     num_reading_labels = 0

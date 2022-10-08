@@ -1,3 +1,5 @@
+from typing import Dict
+
 from rhoknp import Document
 
 from kwja.utils.constants import IGNORE_INDEX, IGNORE_WORD_NORM_TYPE, SEG_TYPES, WORD_NORM_TYPES
@@ -10,8 +12,8 @@ class CharFeatureExample:
 
     def __init__(self) -> None:
         self.doc_id: str = ""
-        self.seg_types: dict[int, int] = {}  # 文字 index -> 単語分割用のBIタグ
-        self.norm_types: dict[int, int] = {}  # 文字 index -> 正規化タイプ
+        self.seg_types: Dict[int, int] = {}  # 文字 index -> 単語分割用のBIタグ
+        self.norm_types: Dict[int, int] = {}  # 文字 index -> 正規化タイプ
 
         self.normalizer: MorphemeNormalizer = MorphemeNormalizer()
 

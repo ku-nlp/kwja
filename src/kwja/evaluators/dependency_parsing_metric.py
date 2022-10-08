@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Dict, List, Tuple, Union
 
 import torch
 from rhoknp import BasePhrase, Document, Morpheme
@@ -28,7 +28,7 @@ class DependencyParsingMetric(Metric):
         self.dependency_predictions.append(dependency_predictions)
         self.dependency_type_predictions.append(dependency_type_predictions)
 
-    def compute(self, documents: list[Document]) -> dict[str, Union[torch.Tensor, float]]:
+    def compute(self, documents: List[Document]) -> Dict[str, Union[torch.Tensor, float]]:
         sorted_indices = self.unique(self.example_ids)
         (example_ids, dependency_predictions, dependency_type_predictions) = map(
             lambda x: x[sorted_indices].tolist(),
@@ -59,10 +59,10 @@ class DependencyParsingMetric(Metric):
 
     def _to_base_phrase_based_conll(
         self,
-        documents: list[Document],
+        documents: List[Document],
         dependency_predictions: torch.Tensor,
         dependency_type_predictions: torch.Tensor,
-    ) -> tuple[list[str], list[str]]:
+    ) -> Tuple[List[str], List[str]]:
         gold_lines, system_lines = [], []
         for document, dependency_prediction, dependency_type_prediction in zip(
             documents, dependency_predictions, dependency_type_predictions
@@ -100,10 +100,10 @@ class DependencyParsingMetric(Metric):
 
     def _to_morpheme_based_conll(
         self,
-        documents: list[Document],
+        documents: List[Document],
         dependency_predictions: torch.Tensor,
         dependency_type_predictions: torch.Tensor,
-    ) -> tuple[list[str], list[str]]:
+    ) -> Tuple[List[str], List[str]]:
         gold_lines, system_lines = [], []
         for document, dependency_prediction, dependency_type_prediction in zip(
             documents, dependency_predictions, dependency_type_predictions
@@ -175,9 +175,9 @@ class DependencyParsingMetric(Metric):
         unit: Union[BasePhrase, Morpheme],
         topk_heads: torch.Tensor,  # (k, )
         topk_dependency_types: torch.Tensor,  # (k, )
-        morpheme_global_index2unit_index: dict[int, int],
+        morpheme_global_index2unit_index: Dict[int, int],
         dependency_manager: DependencyManager,
-    ) -> tuple[int, DepType]:
+    ) -> Tuple[int, DepType]:
         src = unit.index + 1
         for head, dependency_type in zip(topk_heads, topk_dependency_types):
             system_head = morpheme_global_index2unit_index[head]
@@ -197,7 +197,7 @@ class DependencyParsingMetric(Metric):
 
     def _resolve_dependency(
         self, unit: Union[BasePhrase, Morpheme], dependency_manager: DependencyManager
-    ) -> tuple[int, DepType]:
+    ) -> Tuple[int, DepType]:
         src = unit.index + 1
         num_units = self.get_number_of_units(unit)
         # 日本語の係り受けは基本的にleft-to-rightなので、まず右方向に係れるか調べる

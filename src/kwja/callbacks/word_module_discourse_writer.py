@@ -3,7 +3,7 @@ import os
 import sys
 from io import TextIOBase
 from pathlib import Path
-from typing import Any, Optional, Sequence, TextIO, Union
+from typing import Any, List, Optional, Sequence, TextIO, Union
 
 import pytorch_lightning as pl
 import torch
@@ -44,7 +44,7 @@ class WordModuleDiscourseWriter(BasePredictionWriter):
         predictions: Sequence[Any],
         batch_indices: Optional[Sequence[Any]] = None,
     ) -> None:
-        sentences: list[Sentence] = []
+        sentences: List[Sentence] = []
         dataloaders = trainer.predict_dataloaders
         for prediction in predictions:
             for batch_pred in prediction:
@@ -73,7 +73,7 @@ class WordModuleDiscourseWriter(BasePredictionWriter):
             self.destination.write(output_string)
 
     @staticmethod
-    def _add_discourse(document: Document, discourse_preds: list[list[int]]) -> None:
+    def _add_discourse(document: Document, discourse_preds: List[List[int]]) -> None:
         if document.need_clause_tag:
             logger.warning("failed to output clause boundaries")
             return

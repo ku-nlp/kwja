@@ -1,11 +1,12 @@
 import json
 from argparse import ArgumentParser
 from pathlib import Path
+from typing import Dict, List, Tuple
 
 from Levenshtein import opcodes
 
 
-def apply_ops(pre_text: str, kdrs: list[str], inss: list[str]) -> str:
+def apply_ops(pre_text: str, kdrs: List[str], inss: List[str]) -> str:
     post_text = ""
     for i, c in enumerate(pre_text):
         if inss[i] != "_":
@@ -23,12 +24,12 @@ def apply_ops(pre_text: str, kdrs: list[str], inss: list[str]) -> str:
     return post_text
 
 
-def get_diffs(before: str, after: str) -> list[tuple[str, str]]:
-    before_split: list[str] = list(before)
-    after_split: list[str] = list(after)
+def get_diffs(before: str, after: str) -> List[Tuple[str, str]]:
+    before_split: List[str] = list(before)
+    after_split: List[str] = list(after)
 
-    char2id: dict[str, str] = dict()
-    id2char: dict[str, str] = dict()
+    char2id: Dict[str, str] = dict()
+    id2char: Dict[str, str] = dict()
     id_ = 0
     for char in before_split + after_split:
         if char not in char2id:
@@ -39,7 +40,7 @@ def get_diffs(before: str, after: str) -> list[tuple[str, str]]:
     before_id_string: str = "".join([char2id[i] for i in before_split])
     after_id_string: str = "".join([char2id[i] for i in after_split])
 
-    diff_list: list[tuple[str, str]] = []
+    diff_list: List[Tuple[str, str]] = []
     for operation, bb, be, ab, ae in opcodes(before_id_string, after_id_string):
         if operation == "insert":
             for char_id in after_id_string[ab:ae]:
@@ -55,8 +56,8 @@ def get_diffs(before: str, after: str) -> list[tuple[str, str]]:
 
 
 def calc_tp_fp_fn(pre_text: str, ref_post_text: str, pred_post_text: str):
-    ref_diffs: list[tuple[str, str]] = get_diffs(pre_text, ref_post_text)
-    pred_diffs: list[tuple[str, str]] = get_diffs(pre_text, pred_post_text)
+    ref_diffs: List[Tuple[str, str]] = get_diffs(pre_text, ref_post_text)
+    pred_diffs: List[Tuple[str, str]] = get_diffs(pre_text, pred_post_text)
 
     ref_num: int = len(ref_diffs)
     tp: int = 0

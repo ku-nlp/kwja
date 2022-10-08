@@ -1,3 +1,5 @@
+from typing import Dict, List
+
 import torch
 from torchmetrics import Metric
 from torchmetrics.functional import f1_score
@@ -44,8 +46,8 @@ class WordAnalysisMetric(Metric):
         converted_labels = torch.masked_select(labels, ignore_index_pos)
         return converted_preds, converted_labels
 
-    def compute(self) -> dict[str, float]:
-        metrics: dict[str, float] = {}
+    def compute(self) -> Dict[str, float]:
+        metrics: Dict[str, float] = {}
         pos_preds, pos_labels = self._convert(preds=self.pos_preds, labels=self.pos_labels)
         metrics["pos_f1"] = f1_score(
             preds=pos_preds,
@@ -66,7 +68,7 @@ class WordAnalysisMetric(Metric):
             preds=conjform_preds,
             target=conjform_labels,
         ).item()
-        f1s: list[float] = [
+        f1s: List[float] = [
             metrics["pos_f1"],
             metrics["subpos_f1"],
             metrics["conjtype_f1"],

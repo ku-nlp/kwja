@@ -7,7 +7,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 from Levenshtein import opcodes
 
@@ -39,7 +39,7 @@ class TypoPreprocessor:
         pass
 
     @staticmethod
-    def decompose(pre_text: str, post_text: str, typo_diffs: list[TypoDiff]) -> Optional[list[Block]]:
+    def decompose(pre_text: str, post_text: str, typo_diffs: List[TypoDiff]) -> Optional[List[Block]]:
         # decompose pre_text into blocks
         # return None if alignment fails
         assert len(typo_diffs) > 0
@@ -47,7 +47,7 @@ class TypoPreprocessor:
         s_idx: int = 0
         remaining_pre_text: str = pre_text
         remaining_post_text: str = post_text
-        blocks: list[Block] = []
+        blocks: List[Block] = []
         for diff in typo_diffs:
             if len(diff.pre_str) > 0 and len(diff.post_str) > 0:
                 # both pre_str and post_str are non-null: check if post_text contains post_str at the position s_idx
@@ -122,11 +122,11 @@ class TypoPreprocessor:
         return blocks
 
     @staticmethod
-    def generate_opn(pre_text: str, blocks: list[Block]) -> Tuple[list[str], list[str]]:
+    def generate_opn(pre_text: str, blocks: List[Block]) -> Tuple[List[str], List[str]]:
         # Keep ("K"), Delete ("D"), Replace ("R:x")
-        kdr_opns: list[str] = ["K"] * (len(pre_text) + 1)
+        kdr_opns: List[str] = ["K"] * (len(pre_text) + 1)
         # Insert ("I:x"), Nothing ("_")
-        ins_opns: list[str] = ["_"] * (len(pre_text) + 1)
+        ins_opns: List[str] = ["_"] * (len(pre_text) + 1)
 
         s_idx = 0
         for block in blocks:
@@ -163,7 +163,7 @@ class TypoPreprocessor:
 
     @staticmethod
     def make_multi_char_vocab(train_path: Path, output_dir: Path) -> None:
-        multi_char_vocabs: list[str] = []
+        multi_char_vocabs: List[str] = []
         with train_path.open(mode="r") as fr:
             for line in fr:
                 train_example: dict = json.loads(line)
@@ -211,13 +211,13 @@ def main():
 
     preprocessor: TypoPreprocessor = TypoPreprocessor()
     for filename in ["test", "train"]:
-        category2obj = defaultdict(list[str])
-        other_objs: list[str] = []
+        category2obj = defaultdict(List[str])
+        other_objs: List[str] = []
         with Path(f"{args.input_dir}/{filename}.jsonl").open("r") as f:
             for line in f:
                 example: dict = json.loads(line)
                 diffs = [diff for diff in example["diffs"] if diff["category"] != "not-typo"]
-                blocks: Optional[list[Block]] = preprocessor.decompose(
+                blocks: Optional[List[Block]] = preprocessor.decompose(
                     pre_text=example["pre_text"],
                     post_text=example["post_text"],
                     typo_diffs=[TypoDiff(pre_str=diff["pre_str"], post_str=diff["post_str"]) for diff in diffs],
@@ -242,8 +242,8 @@ def main():
             with test_dir.joinpath(f"{filename}.jsonl").open("w") as f:
                 f.write("\n".join(other_objs) + "\n")
         else:
-            valid_save_objs: list[str] = []
-            train_save_objs: list[str] = other_objs
+            valid_save_objs: List[str] = []
+            train_save_objs: List[str] = other_objs
             for category, objs in category2obj.items():
                 random_objs = random.sample(objs, len(objs))
                 valid_save_objs.extend(random_objs[: args.num_valid_samples_per_category])

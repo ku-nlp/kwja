@@ -1,5 +1,6 @@
 from collections import OrderedDict
 from pathlib import Path
+from typing import Dict
 
 import torch
 import torch.nn as nn
@@ -30,8 +31,8 @@ class ReadingPredictor(nn.Module):
             )
         )
 
-    def forward(self, pooled_outputs: torch.Tensor, batch: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
-        outputs: dict[str, torch.Tensor] = {}
+    def forward(self, pooled_outputs: torch.Tensor, batch: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+        outputs: Dict[str, torch.Tensor] = {}
         reading_predictor_logits = self.reading_predictor_head(pooled_outputs)  # (b, seq, num_labels)
         outputs["logits"] = reading_predictor_logits
         if "reading_ids" in batch:

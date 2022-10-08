@@ -2,7 +2,7 @@ import os
 import sys
 from io import TextIOBase
 from pathlib import Path
-from typing import Any, Optional, Sequence, TextIO, Union
+from typing import Any, Dict, List, Optional, Sequence, TextIO, Tuple, Union
 
 import pytorch_lightning as pl
 import torch
@@ -44,9 +44,9 @@ class TypoModuleWriter(BasePredictionWriter):
 
         self.opn2id, self.id2opn = self.get_opn_dict(path=Path(extended_vocab_path))
 
-    def get_opn_dict(self, path: Path) -> tuple[dict[str, int], dict[int, str]]:
-        opn2id: dict[str, int] = self.tokenizer.get_vocab()
-        id2opn: dict[int, str] = {idx: opn for opn, idx in opn2id.items()}
+    def get_opn_dict(self, path: Path) -> Tuple[Dict[str, int], Dict[int, str]]:
+        opn2id: Dict[str, int] = self.tokenizer.get_vocab()
+        id2opn: Dict[int, str] = {idx: opn for opn, idx in opn2id.items()}
         with path.open(mode="r") as f:
             for line in f:
                 opn = str(line.strip())
@@ -54,10 +54,10 @@ class TypoModuleWriter(BasePredictionWriter):
                 id2opn[len(id2opn)] = opn
         return opn2id, id2opn
 
-    def convert_id2opn(self, opn_ids_list: list[list[int]], opn_prefix: str) -> list[list[str]]:
-        opns_list: list[list[str]] = []
+    def convert_id2opn(self, opn_ids_list: List[List[int]], opn_prefix: str) -> List[List[str]]:
+        opns_list: List[List[str]] = []
         for opn_ids in opn_ids_list:
-            opns: list[str] = []
+            opns: List[str] = []
             for opn_id in opn_ids:
                 opn: str = self.id2opn[opn_id]
                 opns.append(TOKEN2TYPO_OPN.get(opn, f"{opn_prefix}:{opn}"))
@@ -65,33 +65,33 @@ class TypoModuleWriter(BasePredictionWriter):
         return opns_list
 
     @staticmethod
-    def apply_opn(pre_text: str, kdrs: list[str], inss: list[str]) -> str:
+    def apply_opn(pre_text: str, kdrs: List[str], inss: List[str]) -> str:
         post_text = ""
         assert len(pre_text) + 1 == len(kdrs) + 1 == len(inss)
         for char_idx, char in enumerate(pre_text):
             # insert
             if inss[char_idx] != "_":
-                post_text += inss[char_idx].removeprefix("I:")
+                post_text += inss[char_idx][2:]  # remove prefix "I:"
             # keep, delete, replace
             if kdrs[char_idx] == "K":
                 post_text += char
             elif kdrs[char_idx] == "D":
                 pass
             elif kdrs[char_idx].startswith("R:"):
-                post_text += kdrs[char_idx].removeprefix("R:")
+                post_text += kdrs[char_idx][2:]  # remove prefix "R:"
             else:
                 raise ValueError("unsupported operation!")
         if inss[-1] != "_":
-            post_text += inss[-1].removeprefix("I:")
+            post_text += inss[-1][2:]  # remove prefix "I:"
         return post_text
 
     def get_opn_ids_list(
         self, batch_values: torch.Tensor, batch_indices: torch.Tensor, opn_prefix: str
-    ) -> list[list[int]]:
+    ) -> List[List[int]]:
         # Do not edit if the operation probability (replace, delete, and insert) is less than "confidence_threshold"
-        opn_ids_list: list[list[int]] = []
+        opn_ids_list: List[List[int]] = []
         for values, indices in zip(batch_values.tolist(), batch_indices.tolist()):
-            opn_ids: list[int] = []
+            opn_ids: List[int] = []
             for value, index in zip(values, indices):
                 if opn_prefix == "R" and value < self.confidence_threshold:
                     opn_ids.append(self.opn2id["<k>"])
@@ -112,7 +112,7 @@ class TypoModuleWriter(BasePredictionWriter):
         results = []
         for prediction in predictions:
             for batch_pred in prediction:
-                kdr_preds: list[list[str]] = self.convert_id2opn(
+                kdr_preds: List[List[str]] = self.convert_id2opn(
                     opn_ids_list=self.get_opn_ids_list(
                         batch_values=batch_pred["kdr_values"],
                         batch_indices=batch_pred["kdr_indices"],
@@ -120,7 +120,7 @@ class TypoModuleWriter(BasePredictionWriter):
                     ),
                     opn_prefix="R",
                 )
-                ins_preds: list[list[str]] = self.convert_id2opn(
+                ins_preds: List[List[str]] = self.convert_id2opn(
                     opn_ids_list=self.get_opn_ids_list(
                         batch_values=batch_pred["ins_values"],
                         batch_indices=batch_pred["ins_indices"],

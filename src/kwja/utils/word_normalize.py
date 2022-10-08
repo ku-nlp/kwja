@@ -1,4 +1,5 @@
 import logging
+from typing import List
 
 import numpy as np
 from jinf import Jinf
@@ -151,7 +152,7 @@ class MorphemeNormalizer:
     def __init__(self) -> None:
         self.jinf = Jinf()
 
-    def get_normalization_opns(self, morpheme: Morpheme) -> list[str]:
+    def get_normalization_opns(self, morpheme: Morpheme) -> List[str]:
         try:
             if morpheme.conjtype == "*":
                 normalized = morpheme.surf
@@ -163,13 +164,13 @@ class MorphemeNormalizer:
             return [IGNORE_WORD_NORM_TYPE] * len(morpheme.surf)
 
 
-def get_normalization_opns(surf: str, normalized: str) -> list[str]:
+def get_normalization_opns(surf: str, normalized: str) -> List[str]:
     surf_len = len(surf) + 1
     normalized_len = len(normalized) + 1
     if surf_len < normalized_len:
         raise ValueError(f"failed to construct normalization labels to convert {surf} to {normalized}")
     d = np.inf * np.ones((surf_len, normalized_len), dtype=np.int32)
-    dops: list[list[str]] = []
+    dops: List[List[str]] = []
     for i in range(surf_len):
         dops.append([])
         for j in range(normalized_len):
@@ -231,7 +232,7 @@ def get_normalization_opns(surf: str, normalized: str) -> list[str]:
     return ops
 
 
-def get_normalized(surf: str, ops: list[str], strict: bool = True) -> str:
+def get_normalized(surf: str, ops: List[str], strict: bool = True) -> str:
     assert len(surf) == len(ops)
     normalized = ""
     for i, (c, op) in enumerate(zip(surf, ops)):

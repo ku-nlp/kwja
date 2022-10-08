@@ -1,5 +1,6 @@
 import logging
 from enum import Enum
+from typing import Dict, List
 
 from rhoknp import Document
 
@@ -27,18 +28,18 @@ class CohesionExample:
 
     def __init__(self) -> None:
         self.doc_id: str = ""
-        self.annotations: dict[CohesionTask, Annotation] = {}
-        self.phrases: dict[CohesionTask, list[Phrase]] = {}
+        self.annotations: Dict[CohesionTask, Annotation] = {}
+        self.phrases: Dict[CohesionTask, List[Phrase]] = {}
 
     @property
-    def mrphs(self) -> dict[CohesionTask, list[Mrph]]:
+    def mrphs(self) -> Dict[CohesionTask, List[Mrph]]:
         return {task: sum((p.children for p in phrases), []) for task, phrases in self.phrases.items()}
 
     def load(
         self,
         document: Document,
-        tasks: list[CohesionTask],
-        extractors: dict[CohesionTask, Extractor],
+        tasks: List[CohesionTask],
+        extractors: Dict[CohesionTask, Extractor],
     ):
         self.doc_id = document.doc_id
         for task in tasks:
@@ -48,7 +49,7 @@ class CohesionExample:
             self.annotations[task] = extractor.extract(document, phrases)  # extract gold
 
     @staticmethod
-    def _construct_phrases(document: Document) -> list[Phrase]:
+    def _construct_phrases(document: Document) -> List[Phrase]:
         # construct phrases and mrphs
         phrases = []
         for sentence in document.sentences:
