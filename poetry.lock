@@ -186,7 +186,7 @@ Cython = "*"
 name = "docker-pycreds"
 version = "0.4.0"
 description = "Python bindings for the docker credentials store API"
-category = "main"
+category = "dev"
 optional = false
 python-versions = "*"
 
@@ -252,7 +252,7 @@ tqdm = ["tqdm"]
 name = "gitdb"
 version = "4.0.9"
 description = "Git Object Database"
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.6"
 
@@ -263,7 +263,7 @@ smmap = ">=3.0.1,<6"
 name = "GitPython"
 version = "3.1.28"
 description = "GitPython is a python library used to interact with Git repositories"
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.7"
 
@@ -426,7 +426,7 @@ python-versions = "*"
 name = "jaconv"
 version = "0.3"
 description = "Pure-Python Japanese character interconverter for Hiragana, Katakana, Hankaku, Zenkaku and more"
-category = "main"
+category = "dev"
 optional = false
 python-versions = "*"
 
@@ -453,7 +453,7 @@ python-versions = ">=3.7"
 name = "kyoto-reader"
 version = "2.5.2"
 description = "A KWDLC and KyotoCorpus parser"
-category = "main"
+category = "dev"
 optional = false
 python-versions = "!=3.7.0,!=3.7.1,>=3.7"
 
@@ -603,7 +603,7 @@ test = ["hypothesis (>=5.5.3)", "pytest (>=6.0)", "pytest-xdist (>=1.31)"]
 name = "pathtools"
 version = "0.1.2"
 description = "File system general utilities"
-category = "main"
+category = "dev"
 optional = false
 python-versions = "*"
 
@@ -623,7 +623,7 @@ testing = ["pytest", "pytest-benchmark"]
 name = "promise"
 version = "2.3"
 description = "Promises/A+ implementation for Python"
-category = "main"
+category = "dev"
 optional = false
 python-versions = "*"
 
@@ -645,7 +645,7 @@ python-versions = ">=3.7"
 name = "psutil"
 version = "5.9.2"
 description = "Cross-platform lib for process and system monitoring in Python."
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 
@@ -702,7 +702,7 @@ plugins = ["importlib-metadata"]
 name = "pyknp"
 version = "0.6.1"
 description = "Python module for JUMAN/KNP"
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.7,<4.0"
 
@@ -977,7 +977,7 @@ python-versions = "*"
 name = "sentry-sdk"
 version = "1.9.10"
 description = "Python client for Sentry (https://sentry.io)"
-category = "main"
+category = "dev"
 optional = false
 python-versions = "*"
 
@@ -1021,7 +1021,7 @@ scikit-learn = ">=0.21.3"
 name = "setproctitle"
 version = "1.3.2"
 description = "A Python module to customize the process title"
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.7"
 
@@ -1045,7 +1045,7 @@ testing-integration = ["build[virtualenv]", "filelock (>=3.4.0)", "jaraco.envs (
 name = "shortuuid"
 version = "1.0.9"
 description = "A generator library for concise, unambiguous and URL-safe UUIDs."
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.5"
 
@@ -1061,7 +1061,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*"
 name = "smmap"
 version = "5.0.0"
 description = "A pure Python implementation of a sliding window memory map manager"
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.6"
 
@@ -1293,7 +1293,7 @@ socks = ["PySocks (>=1.5.6,!=1.5.7,<2.0)"]
 name = "wandb"
 version = "0.13.4"
 description = "A CLI and library for interacting with the Weights and Biases API."
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.6"
 
@@ -1376,7 +1376,7 @@ testing = ["func-timeout", "jaraco.itertools", "pytest (>=6)", "pytest-black (>=
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8,<3.11"
-content-hash = "9a3b8f66d7e11ac79c318683b95a7dc8ad5e3674c3886865111c10c963a2424f"
+content-hash = "3e625a77f3898bbac7880d2972430f8046ebc7e0e899e894245097771864e4f6"
 
 [metadata.files]
 absl-py = [
