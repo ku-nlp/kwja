@@ -23,13 +23,13 @@ class Scorer:
     """A class to evaluate system output.
 
     To evaluate system output with this class, you have to prepare gold data and system prediction data as instances of
-    :class:`kyoto_reader.Document`
+    :class:`rhoknp.Document`
 
     Args:
         documents_pred (list[Document]): システム予測文書集合
         documents_gold (list[Document]): 正解文書集合
-        target_cases (list[str]): 評価の対象とする格 (kyoto_reader.ALL_CASES を参照)
-        exophora_referents (list[ExophoraReferent]): 評価の対象とする外界照応の照応先 (kyoto_reader.ALL_EXOPHORS を参照)
+        target_cases (list[str]): 評価の対象とする格 (rhoknp.cohesion.rel.CASE_TYPES を参照)
+        exophora_referents (list[ExophoraReferent]): 評価の対象とする外界照応の照応先 (rhoknp.cohesion.ExophoraReferentType を参照)
         bridging (bool): 橋渡し照応の評価を行うかどうか (default: False)
         coreference (bool): 共参照の評価を行うかどうか (default: False)
         pas_target (str): 述語項構造解析において述語として扱う対象 ('pred': 用言, 'noun': 体言, 'all': 両方, '': 述語なし (default: pred))
