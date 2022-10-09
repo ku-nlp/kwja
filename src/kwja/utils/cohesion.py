@@ -143,7 +143,7 @@ class CohesionKNPWriter:
         knp_lines: List[str],
         document: Document,
     ) -> List[str]:
-        dtid2pas = {pas.predicate.base_phrase.global_index: pas for pas in document.pas_list()}
+        dtid2pas = {pas.predicate.base_phrase.global_index: pas for pas in document.pas_list}
         dtid = 0
         output_knp_lines = []
         for line in knp_lines:
@@ -174,7 +174,7 @@ class CohesionKNPWriter:
             args = pas.get_arguments(case, relax=False)
             if args:
                 arg: Argument = args[0]
-                items[1] = arg.type.value  # フラグ (C/N/O/D/E/U)
+                items[1] = str(arg.type.value)  # フラグ (C/N/O/D/E/U)
                 items[2] = str(arg)  # 見出し
                 if isinstance(arg, EndophoraArgument):
                     items[3] = str(sid2index[pas.sid] - sid2index[arg.base_phrase.sentence.sid])  # N文前
