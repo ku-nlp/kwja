@@ -382,7 +382,8 @@ class ReadingAligner:
                     break
         return subreading_list
 
-    def _extend_kanji_reading_list(self, kanji_reading_list_orig: List[str]) -> List[str]:
+    @staticmethod
+    def _extend_kanji_reading_list(kanji_reading_list_orig: List[str]) -> List[str]:
         kanji_reading_list = []
         for kanji_reading in kanji_reading_list_orig:
             kanji_reading = re.sub("-", "", kanji_reading)

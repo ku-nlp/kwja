@@ -917,8 +917,6 @@ BASE_PHRASE_FEATURES = (
     *SUB_BASE_PHRASE_FEATURES,
 )
 IGNORE_VALUE_FEATURE_PAT = re.compile(r"節-(前向き)?機能疑?")
-IGNORE_INDEX = -100
-
 
 DEPENDENCY_TYPE2INDEX: Dict[DepType, int] = {
     DepType.DEPENDENCY: 0,

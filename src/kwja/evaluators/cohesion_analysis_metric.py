@@ -16,8 +16,8 @@ class CohesionAnalysisMetric(Metric):
 
     def __init__(self):
         super().__init__()
-        # Metric state variables can either be torch.Tensor or an empty list which can be used to store torch.Tensors`.
-        # i.e. Expected metric state to be either a Tensor or a list of Tensor
+        # Metric state variables can either be `torch.Tensor` or an empty list which can be used to store
+        # `torch.Tensors`. i.e. Expected metric state to be either a Tensor or a list of Tensor
         self.add_state("example_ids", default=list())
         self.add_state("predictions", default=list())
         self.example_ids: List[torch.Tensor]  # [()]

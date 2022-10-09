@@ -204,7 +204,7 @@ class SubScorer:
         measures = pd.DataFrame(
             [[Measure() for _ in Scorer.DEPTYPE2ANALYSIS.values()] for _ in self.cases],
             index=self.cases,
-            columns=Scorer.DEPTYPE2ANALYSIS.values(),
+            columns=list(Scorer.DEPTYPE2ANALYSIS.values()),
         )
         global_index2predicate_pred: Dict[int, Predicate] = {
             pred.base_phrase.global_index: pred for pred in self.predicates_pred

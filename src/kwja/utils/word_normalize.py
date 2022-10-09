@@ -258,7 +258,7 @@ def get_normalized(surf: str, ops: List[str], strict: bool = True) -> str:
                     raise ValueError(f"not a small kana {c} in {surf}")
                 normalized += c
         elif op == "P":
-            # NOTE: in canonical ops, P and E must follow K
+            # NOTE: in canonical ops, P and E must follow K,
             # but we do not check this constraint here
             if len(normalized) <= 0:
                 if strict:
@@ -321,7 +321,7 @@ class SentenceDenormalizer:
             surf2 = self.md.denormalize(morpheme)
             if surf2 != morpheme.surf:
                 if np.random.rand() < prob:
-                    morpheme._attributes.surf = surf2
+                    morpheme.attributes.surf = surf2
                     prob *= 0.1
             else:
                 prob = min(prob * 1.5, p)
@@ -330,7 +330,7 @@ class SentenceDenormalizer:
         opn = self.mn.get_normalization_opns(morpheme)
         if opn[0] == IGNORE_WORD_NORM_TYPE:
             return False
-        return all(map(lambda x: x in ("K"), opn))
+        return all(map(lambda x: x in ("K",), opn))
 
 
 class MorphemeDenormalizer:
@@ -446,7 +446,8 @@ class MorphemeDenormalizer:
         idx = np.random.choice(len(probs), p=probs)
         return cands[idx][0]
 
-    def _denormalize_deterministic(self, surf, var_prolonged=False) -> str:
+    @staticmethod
+    def _denormalize_deterministic(surf, var_prolonged=False) -> str:
         # S
         if surf[-1] in UPPER2LOWER:
             surf2 = surf[:-1] + UPPER2LOWER[surf[-1]]
