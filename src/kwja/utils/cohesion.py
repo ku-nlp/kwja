@@ -27,15 +27,17 @@ class CohesionKNPWriter:
         self.rel_types: List[str] = dataset.cohesion_rel_types
         self.exophora_referents: List[ExophoraReferent] = dataset.exophora_referents
         self.specials: List[str] = dataset.special_tokens
-        self.documents: List[Document] = [self.reconstruct(doc) for doc in dataset.documents]
+        self.documents: List[Document] = [self._reconstruct(doc) for doc in dataset.documents]
         self.examples: List[CohesionExample] = [e.cohesion_example for e in dataset.examples]
         self.kc: bool = False
 
     @staticmethod
-    def reconstruct(doc):
+    def _reconstruct(doc: Document) -> Document:
         doc_id = doc.doc_id
-        reconstructed = Document.from_knp(doc.to_knp())
+        reconstructed = doc.reparse()
         reconstructed.doc_id = doc_id
+        for sentence in reconstructed.sentences:
+            sentence.doc_id = doc_id
         return reconstructed
 
     def write(
@@ -73,7 +75,11 @@ class CohesionKNPWriter:
                     continue
                 for base_phrase in document.base_phrases:
                     base_phrase.rels = []
-            orig_did_to_sentences[to_orig_doc_id(document.doc_id)] += extract_target_sentences(document)
+            orig_doc_id = to_orig_doc_id(document.doc_id)
+            target_sentences = extract_target_sentences(document)
+            for sentence in target_sentences:
+                sentence.doc_id = orig_doc_id
+            orig_did_to_sentences[orig_doc_id] += target_sentences
 
         documents = []
         for sentences in orig_did_to_sentences.values():
