@@ -1,3 +1,4 @@
+import copy
 from enum import Enum
 from pathlib import Path
 from statistics import mean
@@ -506,7 +507,7 @@ class WordModule(LightningModule):
         }
 
     def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
-        hparams = checkpoint["hyper_parameters"]["hparams"]
+        hparams: DictConfig = copy.deepcopy(checkpoint["hyper_parameters"])
         OmegaConf.set_struct(hparams, False)
         hparams = filter_dict_items(hparams, self.hparams.hparams_to_ignore_on_save)
         checkpoint["hyper_parameters"] = {"hparams": hparams}
