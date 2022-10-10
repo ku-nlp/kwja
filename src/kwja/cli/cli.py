@@ -247,20 +247,20 @@ def main(
     discourse: Optional[bool] = typer.Option(True, help="Whether to perform discourse relation analysis."),
     _: Optional[bool] = typer.Option(None, "--version", callback=version_callback, is_eager=True),
 ) -> None:
-    input_texts: List[str] = []
+    input_text = ""
     if text is not None and filename is not None:
         typer.echo("ERROR: Please provide text or filename, not both", err=True)
         raise typer.Exit()
     elif text is not None:
-        input_texts = text.splitlines()
+        input_text = text
     elif filename is not None:
         with Path(filename).open() as f:
-            input_texts = [line.strip() for line in f]
+            input_text = f.read()
 
     processor = CLIProcessor(specified_device=device)
-    if input_texts:
+    if input_text:
         processor.load_typo()
-        processor.apply_typo(input_texts)
+        processor.apply_typo([input_text])
         processor.del_typo()
 
         processor.load_char()
@@ -288,7 +288,7 @@ def main(
         while True:
             inp = input()
             if inp == "EOD":
-                processor.apply_typo(input_texts)
+                processor.apply_typo([input_text])
                 processor.apply_char()
                 processor.apply_word()
                 if not discourse:
@@ -296,9 +296,9 @@ def main(
                 else:
                     processor.apply_word_discourse()
                     processor.output_word_discourse_result()
-                input_texts = []
+                input_text = ""
             else:
-                input_texts.append(inp)
+                input_text += inp + "\n"
 
 
 if __name__ == "__main__":
