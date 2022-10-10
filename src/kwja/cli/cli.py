@@ -245,9 +245,8 @@ def main(
     filename: Optional[Path] = typer.Option(None, help="File to be analyzed."),
     device: str = typer.Option("cpu", help="Device to be used. Please specify 'cpu' or 'gpu'."),
     discourse: Optional[bool] = typer.Option(True, help="Whether to perform discourse relation analysis."),
-    version: Optional[bool] = typer.Option(None, "--version", callback=version_callback, is_eager=True),
+    _: Optional[bool] = typer.Option(None, "--version", callback=version_callback, is_eager=True),
 ) -> None:
-    assert version is None
     input_texts: List[str] = []
     if text is not None and filename is not None:
         typer.echo("ERROR: Please provide text or filename, not both", err=True)
