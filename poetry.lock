@@ -887,7 +887,7 @@ rsa = ["oauthlib[signedtoken] (>=3.0.0)"]
 
 [[package]]
 name = "rhoknp"
-version = "0.4.0"
+version = "0.4.4"
 description = "Yet another Python binding for Juman++/KNP"
 category = "main"
 optional = false
@@ -2322,8 +2322,8 @@ requests-oauthlib = [
     {file = "requests_oauthlib-1.3.1-py2.py3-none-any.whl", hash = "sha256:2577c501a2fb8d05a304c09d090d6e47c306fef15809d102b327cf8364bddab5"},
 ]
 rhoknp = [
-    {file = "rhoknp-0.4.0-py3-none-any.whl", hash = "sha256:733c7059f1ea4b4b8c810a8e01867d82be885b33912e641c3e5f9e4f55bd4272"},
-    {file = "rhoknp-0.4.0.tar.gz", hash = "sha256:549440dbd36b03e41b3bfa7adbc89ff9de3b805dcfb3654f01288638595f6d97"},
+    {file = "rhoknp-0.4.4-py3-none-any.whl", hash = "sha256:3b856a7c036fe45c6e01347559e3137083ec68652a5b674b2bcf989939e9af6e"},
+    {file = "rhoknp-0.4.4.tar.gz", hash = "sha256:457b11535eabbf65d847e0313dee6ef9c05299212b3e88f4228e90a462826778"},
 ]
 rich = [
     {file = "rich-12.5.1-py3-none-any.whl", hash = "sha256:2eb4e6894cde1e017976d2975ac210ef515d7548bc595ba20e195fb9628acdeb"},
