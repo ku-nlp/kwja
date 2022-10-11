@@ -43,6 +43,12 @@ $ kwja --text "KWJAは日本語の統合解析ツールです。汎用言語モ�
 
 # Analyze a text file and write the result to a file
 $ kwja --file path/to/file.txt > path/to/analyzed.knp
+
+# Analyze a texts interactively
+$ kwja
+Please end your input with a new line and type "EOD"
+KWJAは日本語の統合解析ツールです。汎用言語モデルを利用し、様々な言語解析を統一的な方法で解いています。
+EOD
 ```
 
 The output is in the KNP format, like the following:
