@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Dict, Union
 
 import torch
 from sklearn.metrics import accuracy_score
@@ -19,7 +19,7 @@ class WordNormalizationMetric(Metric):
         self.norm_types.append(norm_types[~ignore_indexes])
 
     def compute(self):
-        metrics: dict[str, Union[torch.Tensor, float]] = dict()
+        metrics: Dict[str, Union[torch.Tensor, float]] = dict()
         preds = self.norm_preds.cpu()
         labels = self.norm_types.cpu()
 

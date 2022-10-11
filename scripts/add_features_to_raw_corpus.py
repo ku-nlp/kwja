@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 from itertools import product
 from pathlib import Path
 from subprocess import PIPE, Popen
-from typing import Any, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from kyoto_reader import KyotoReader
 from rhoknp import KNP, Document, Jumanpp, Morpheme, Sentence
@@ -69,14 +69,14 @@ class JumanppAugmenter:
     ) -> None:
         for original_morpheme, augmented_morpheme in zip(original_sentence.morphemes, augmented_sentence.morphemes):
             # Jumanpp may override reading
-            augmented_morpheme._attributes.reading = original_morpheme.reading
+            augmented_morpheme.attributes.reading = original_morpheme.reading
             if update_original and not original_sentence.need_knp:
                 # add Semantics
                 for k, v in augmented_morpheme.semantics.items():
                     original_morpheme.semantics[k] = v
 
 
-def align(morphemes1: list[Morpheme], morphemes2: list[Morpheme]) -> Union[dict[str, list[Morpheme]], None]:
+def align(morphemes1: List[Morpheme], morphemes2: List[Morpheme]) -> Union[Dict[str, List[Morpheme]], None]:
     alignment = {}
     idx1, idx2 = 0, 0
     for _ in range(max(len(morphemes1), len(morphemes2))):
@@ -102,7 +102,7 @@ def align(morphemes1: list[Morpheme], morphemes2: list[Morpheme]) -> Union[dict[
     return alignment
 
 
-def extract_named_entities(tagged_sentence: Sentence) -> list[tuple[str, list[Morpheme]]]:
+def extract_named_entities(tagged_sentence: Sentence) -> List[Tuple[str, List[Morpheme]]]:
     named_entities = []
     category, morphemes_buff = "", []
     for morpheme in tagged_sentence.morphemes:
@@ -120,7 +120,7 @@ def extract_named_entities(tagged_sentence: Sentence) -> list[tuple[str, list[Mo
     return named_entities
 
 
-def set_named_entities(document: Document, sid2tagged_sentence: dict[str, Sentence]) -> None:
+def set_named_entities(document: Document, sid2tagged_sentence: Dict[str, Sentence]) -> None:
     for sentence in document.sentences:
         # 既にneタグが付与されている文は対象としない
         if sentence.sid in sid2tagged_sentence and len(sentence.named_entities) == 0:
@@ -196,10 +196,10 @@ def refresh(document: Document) -> None:
 
 
 def add_features(
-    doc_ids: list[str],
+    doc_ids: List[str],
     reader: KyotoReader,
     output_dir: Path,
-    sid2tagged_sentence: Optional[dict[str, Sentence]] = None,
+    sid2tagged_sentence: Optional[Dict[str, Sentence]] = None,
 ) -> None:
     jumanpp_augmenter = JumanppAugmenter()
     knp = KNP(options=["-tab", "-dpnd-fast", "-read-feature"])

@@ -1,3 +1,5 @@
+from typing import Dict
+
 import hydra
 import torch
 import torch.nn as nn
@@ -38,8 +40,8 @@ class TypoCorrector(nn.Module):
         assert self.tokenizer.pad_token_id is not None
         self.pad_token_id: int = self.tokenizer.pad_token_id
 
-    def forward(self, encoder_output: torch.Tensor, inputs: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
-        output: dict[str, torch.Tensor] = dict()
+    def forward(self, encoder_output: torch.Tensor, inputs: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+        output: Dict[str, torch.Tensor] = dict()
         kdr_logits = self.kdr_cls(encoder_output)  # (b, seq_len, kdr_label_num)
         output["kdr_logits"] = kdr_logits
         ins_logits = self.ins_cls(encoder_output)  # (b, seq_len, ins_label_num)

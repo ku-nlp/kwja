@@ -1,3 +1,5 @@
+from typing import List
+
 from rhoknp import Document
 
 from kwja.utils.constants import DISCOURSE_RELATION_MAP
@@ -8,7 +10,7 @@ class DiscourseExample:
 
     def __init__(self) -> None:
         self.doc_id: str = ""
-        self.discourse_relations: list[list[str]] = []
+        self.discourse_relations: List[List[str]] = []
 
     def load(self, document: Document, has_annotation: bool = True) -> None:
         self.doc_id = document.doc_id

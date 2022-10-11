@@ -1,3 +1,5 @@
+from typing import List, Set
+
 from rhoknp import Document
 
 from kwja.utils.constants import BASE_PHRASE_FEATURES, IGNORE_VALUE_FEATURE_PAT
@@ -9,8 +11,8 @@ class BasePhraseFeatureExample:
 
     def __init__(self) -> None:
         self.doc_id: str = ""
-        self.heads: list[int] = []  # 基本句単位主辞形態素インデックス
-        self.features: list[set[str]] = []  # 基本句単位素性リスト
+        self.heads: List[int] = []  # 基本句単位主辞形態素インデックス
+        self.features: List[Set[str]] = []  # 基本句単位素性リスト
 
     def load(self, document: Document) -> None:
         self.doc_id = document.doc_id

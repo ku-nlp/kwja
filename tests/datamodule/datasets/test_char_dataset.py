@@ -40,7 +40,7 @@ def test_getitem():
 
 def test_encode():
     max_seq_length = 20
-    dataset = CharDataset(str(path), **(char_dataset_kwargs | {"max_seq_length": max_seq_length}))
+    dataset = CharDataset(str(path), **{**char_dataset_kwargs, "max_seq_length": max_seq_length})
     document = Document.from_knp(
         textwrap.dedent(
             """\

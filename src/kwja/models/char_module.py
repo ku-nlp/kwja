@@ -1,4 +1,5 @@
-from typing import Any, Optional
+import copy
+from typing import Any, Dict, Optional
 
 import hydra
 import torch
@@ -29,22 +30,22 @@ class CharModule(LightningModule):
         pretrained_model_config: PretrainedConfig = self.char_encoder.pretrained_model.config
 
         self.word_segmenter = WordSegmenter(hparams, pretrained_model_config)
-        self.valid_word_segmenter_metrics: dict[str, WordSegmentationMetric] = {
+        self.valid_word_segmenter_metrics: Dict[str, WordSegmentationMetric] = {
             corpus: WordSegmentationMetric() for corpus in self.valid_corpora
         }
-        self.test_word_segmenter_metrics: dict[str, WordSegmentationMetric] = {
+        self.test_word_segmenter_metrics: Dict[str, WordSegmentationMetric] = {
             corpus: WordSegmentationMetric() for corpus in self.test_corpora
         }
 
         self.word_normalizer = WordNormalizer(hparams, pretrained_model_config)
-        self.valid_word_normalizer_metrics: dict[str, WordNormalizationMetric] = {
+        self.valid_word_normalizer_metrics: Dict[str, WordNormalizationMetric] = {
             corpus: WordNormalizationMetric() for corpus in self.valid_corpora
         }
-        self.test_word_normalizer_metrics: dict[str, WordNormalizationMetric] = {
+        self.test_word_normalizer_metrics: Dict[str, WordNormalizationMetric] = {
             corpus: WordNormalizationMetric() for corpus in self.test_corpora
         }
 
-    def forward(self, **kwargs) -> dict[str, dict[str, torch.Tensor]]:
+    def forward(self, **kwargs) -> Dict[str, Dict[str, torch.Tensor]]:
         encoder_output = self.char_encoder(kwargs)  # (b, seq_len, h)
         word_segmenter_outputs = self.word_segmenter(encoder_output, kwargs)
         word_normalizer_outputs = self.word_normalizer(encoder_output, kwargs)
@@ -54,7 +55,7 @@ class CharModule(LightningModule):
         }
 
     def training_step(self, batch: Any, batch_idx: int) -> STEP_OUTPUT:
-        outputs: dict[str, dict[str, torch.Tensor]] = self(**batch)
+        outputs: Dict[str, Dict[str, torch.Tensor]] = self(**batch)
         word_segmenter_loss = outputs["word_segmenter_outputs"]["loss"]
         self.log("train/word_segmenter_loss", word_segmenter_loss)
         word_normalizer_loss = outputs["word_normalizer_outputs"]["loss"]
@@ -62,7 +63,7 @@ class CharModule(LightningModule):
         return word_segmenter_loss + word_normalizer_loss
 
     def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Any:
-        outputs: dict[str, dict[str, torch.Tensor]] = self(**batch)
+        outputs: Dict[str, Dict[str, torch.Tensor]] = self(**batch)
         corpus = self.valid_corpora[dataloader_idx or 0]
         word_segmenter_args = {
             "seg_preds": torch.argmax(outputs["word_segmenter_outputs"]["logits"], dim=-1),
@@ -101,7 +102,7 @@ class CharModule(LightningModule):
         self.log("valid/f1", (word_segmenter_f1 + word_normalizer_f1) / 2)
 
     def test_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Any:
-        outputs: dict[str, dict[str, torch.Tensor]] = self(**batch)
+        outputs: Dict[str, Dict[str, torch.Tensor]] = self(**batch)
         corpus = self.test_corpora[dataloader_idx or 0]
         word_segmenter_args = {
             "seg_preds": torch.argmax(outputs["word_segmenter_outputs"]["logits"], dim=-1),
@@ -139,7 +140,7 @@ class CharModule(LightningModule):
         self.log("valid/word_normalizer_f1", word_normalizer_f1)
 
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Any:
-        outputs: dict[str, dict[str, torch.Tensor]] = self(**batch)
+        outputs: Dict[str, Dict[str, torch.Tensor]] = self(**batch)
         return {
             "example_ids": batch["example_ids"],
             "dataloader_idx": dataloader_idx or 0,
@@ -184,8 +185,8 @@ class CharModule(LightningModule):
             "lr_scheduler": {"scheduler": lr_scheduler, "interval": "step", "frequency": 1},
         }
 
-    def on_save_checkpoint(self, checkpoint: dict[str, Any]) -> None:
-        hparams = checkpoint["hyper_parameters"]["hparams"]
+    def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
+        hparams: DictConfig = copy.deepcopy(checkpoint["hyper_parameters"])
         OmegaConf.set_struct(hparams, False)
         hparams = filter_dict_items(hparams, self.hparams.hparams_to_ignore_on_save)
         checkpoint["hyper_parameters"] = {"hparams": hparams}

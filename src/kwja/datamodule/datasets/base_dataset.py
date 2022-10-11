@@ -1,7 +1,7 @@
 import logging
 from functools import cached_property
 from pathlib import Path
-from typing import Union
+from typing import Dict, List, Union
 
 from rhoknp import Document, Sentence
 from torch.utils.data import Dataset
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class BaseDataset(Dataset):
     def __init__(
         self,
-        source: Union[Path, str, list[Document]],
+        source: Union[Path, str, List[Document]],
         document_split_stride: int,
         model_name_or_path: str,
         max_seq_length: int,
@@ -27,14 +27,14 @@ class BaseDataset(Dataset):
             **tokenizer_kwargs,
         )
         self.max_seq_length = max_seq_length
-        self.orig_documents: list[Document]
+        self.orig_documents: List[Document]
         if isinstance(source, (Path, str)):
             source = Path(source)
             assert source.is_dir()
             self.orig_documents = self._load_documents(source, ext)
         else:
             self.orig_documents = source
-        self.doc_id2document: dict[str, Document] = {}
+        self.doc_id2document: Dict[str, Document] = {}
         for orig_document in self.orig_documents:
             self.doc_id2document.update(
                 {
@@ -48,11 +48,11 @@ class BaseDataset(Dataset):
             )
 
     @cached_property
-    def documents(self) -> list[Document]:
+    def documents(self) -> List[Document]:
         return list(self.doc_id2document.values())
 
     @staticmethod
-    def _load_documents(document_dir: Path, ext: str = "knp") -> list[Document]:
+    def _load_documents(document_dir: Path, ext: str = "knp") -> List[Document]:
         documents = []
         for path in sorted(document_dir.glob(f"*.{ext}")):
             # TODO: fix document files that raise exception
@@ -62,7 +62,7 @@ class BaseDataset(Dataset):
                 logger.warning(f"{path} is not a valid knp file.")
         return documents
 
-    def _split_document(self, document: Document, max_token_length: int, stride: int) -> list[Document]:
+    def _split_document(self, document: Document, max_token_length: int, stride: int) -> List[Document]:
         cum_lens = [0]
         for sentence in document.sentences:
             num_tokens = self._get_tokenized_len(sentence)
@@ -75,7 +75,7 @@ class BaseDataset(Dataset):
         while end < len(document.sentences) and cum_lens[end + 1] - cum_lens[0] <= max_token_length:
             end += 1
 
-        sub_documents: list[Document] = []
+        sub_documents: List[Document] = []
         sub_idx = 0
         while end <= len(document.sentences):
             start = 0
@@ -88,9 +88,11 @@ class BaseDataset(Dataset):
             # TODO: fix rhoknp to keep comments in sentence
             comments = [s.comment for s in document.sentences[start:end]]
             sub_document = Document.from_sentences(document.sentences[start:end])
+            sub_doc_id = to_sub_doc_id(document.doc_id, sub_idx, stride=stride)
             for comment, sentence in zip(comments, sub_document.sentences):
                 sentence.comment = comment
-            sub_document.doc_id = to_sub_doc_id(document.doc_id, sub_idx, stride=stride)
+                sentence.doc_id = sub_doc_id
+            sub_document.doc_id = sub_doc_id
             sub_documents.append(sub_document)
             sub_idx += 1
             end += stride

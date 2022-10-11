@@ -1,3 +1,5 @@
+from typing import Dict, List
+
 import torch
 from torch.utils.data import Dataset
 from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizerBase
@@ -9,7 +11,7 @@ from kwja.utils.constants import TYPO_DUMMY_TOKEN
 class TypoInferenceDataset(Dataset):
     def __init__(
         self,
-        texts: list[str],
+        texts: List[str],
         model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
         max_seq_length: int = 512,
         tokenizer_kwargs: dict = None,
@@ -25,10 +27,10 @@ class TypoInferenceDataset(Dataset):
     def __len__(self) -> int:
         return len(self.texts)
 
-    def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
+    def __getitem__(self, index: int) -> Dict[str, torch.Tensor]:
         return self.encode(self.texts[index])
 
-    def encode(self, text: str) -> dict[str, torch.Tensor]:
+    def encode(self, text: str) -> Dict[str, torch.Tensor]:
         encoding: BatchEncoding = self.tokenizer(
             text + TYPO_DUMMY_TOKEN,
             truncation=True,

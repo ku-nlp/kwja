@@ -1,7 +1,8 @@
+import copy
 from enum import Enum
 from pathlib import Path
 from statistics import mean
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 import hydra
 import torch
@@ -54,54 +55,54 @@ class WordModule(LightningModule):
         self.reading_predictor: ReadingPredictor = ReadingPredictor(
             hparams.dataset.reading_resource_path, pretrained_model_config
         )
-        self.valid_reading_predictor_metrics: dict[str, ReadingPredictorMetric] = {
+        self.valid_reading_predictor_metrics: Dict[str, ReadingPredictorMetric] = {
             corpus: ReadingPredictorMetric() for corpus in self.valid_corpora
         }
-        self.test_reading_predictor_metrics: dict[str, ReadingPredictorMetric] = {
+        self.test_reading_predictor_metrics: Dict[str, ReadingPredictorMetric] = {
             corpus: ReadingPredictorMetric() for corpus in self.test_corpora
         }
 
         self.word_analyzer: WordAnalyzer = WordAnalyzer(pretrained_model_config)
-        self.valid_word_analysis_metrics: dict[str, WordAnalysisMetric] = {
+        self.valid_word_analysis_metrics: Dict[str, WordAnalysisMetric] = {
             corpus: WordAnalysisMetric() for corpus in self.valid_corpora
         }
-        self.test_word_analysis_metrics: dict[str, WordAnalysisMetric] = {
+        self.test_word_analysis_metrics: Dict[str, WordAnalysisMetric] = {
             corpus: WordAnalysisMetric() for corpus in self.test_corpora
         }
-        self.valid_ner_metrics: dict[str, NERMetric] = {corpus: NERMetric() for corpus in self.valid_corpora}
-        self.test_ner_metrics: dict[str, NERMetric] = {corpus: NERMetric() for corpus in self.test_corpora}
+        self.valid_ner_metrics: Dict[str, NERMetric] = {corpus: NERMetric() for corpus in self.valid_corpora}
+        self.test_ner_metrics: Dict[str, NERMetric] = {corpus: NERMetric() for corpus in self.test_corpora}
 
         self.phrase_analyzer: PhraseAnalyzer = PhraseAnalyzer(pretrained_model_config)
-        self.valid_phrase_analysis_metrics: dict[str, PhraseAnalysisMetric] = {
+        self.valid_phrase_analysis_metrics: Dict[str, PhraseAnalysisMetric] = {
             corpus: PhraseAnalysisMetric() for corpus in self.valid_corpora
         }
-        self.test_phrase_analysis_metrics: dict[str, PhraseAnalysisMetric] = {
+        self.test_phrase_analysis_metrics: Dict[str, PhraseAnalysisMetric] = {
             corpus: PhraseAnalysisMetric() for corpus in self.test_corpora
         }
 
         self.relation_analyzer: RelationAnalyzer = RelationAnalyzer(hparams, pretrained_model_config)
-        self.valid_dependency_parsing_metrics: dict[str, DependencyParsingMetric] = {
+        self.valid_dependency_parsing_metrics: Dict[str, DependencyParsingMetric] = {
             corpus: DependencyParsingMetric() for corpus in self.valid_corpora
         }
-        self.test_dependency_parsing_metrics: dict[str, DependencyParsingMetric] = {
+        self.test_dependency_parsing_metrics: Dict[str, DependencyParsingMetric] = {
             corpus: DependencyParsingMetric() for corpus in self.test_corpora
         }
-        self.valid_cohesion_analysis_metrics: dict[str, CohesionAnalysisMetric] = {
+        self.valid_cohesion_analysis_metrics: Dict[str, CohesionAnalysisMetric] = {
             corpus: CohesionAnalysisMetric() for corpus in self.valid_corpora
         }
-        self.test_cohesion_analysis_metrics: dict[str, CohesionAnalysisMetric] = {
+        self.test_cohesion_analysis_metrics: Dict[str, CohesionAnalysisMetric] = {
             corpus: CohesionAnalysisMetric() for corpus in self.test_corpora
         }
-        self.valid_discourse_parsing_metrics: dict[str, DiscourseParsingMetric] = {
+        self.valid_discourse_parsing_metrics: Dict[str, DiscourseParsingMetric] = {
             corpus: DiscourseParsingMetric() for corpus in self.valid_corpora
         }
-        self.test_discourse_parsing_metrics: dict[str, DiscourseParsingMetric] = {
+        self.test_discourse_parsing_metrics: Dict[str, DiscourseParsingMetric] = {
             corpus: DiscourseParsingMetric() for corpus in self.test_corpora
         }
 
         self.discourse_parsing_threshold: float = self.hparams.discourse_parsing_threshold
 
-    def forward(self, **batch) -> dict[str, dict[str, torch.Tensor]]:
+    def forward(self, **batch) -> Dict[str, Dict[str, torch.Tensor]]:
         # (batch_size, seq_len, hidden_size)
         hast_hidden_states, pooled_outputs = self.word_encoder(batch, PoolingStrategy.FIRST)
         reading_predictor_outputs = self.reading_predictor(hast_hidden_states, batch)
@@ -117,7 +118,7 @@ class WordModule(LightningModule):
 
     def training_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
         batch["training"] = True
-        outputs: dict[str, dict[str, torch.Tensor]] = self(**batch)
+        outputs: Dict[str, Dict[str, torch.Tensor]] = self(**batch)
         loss = torch.tensor(0.0, device=self.device)
         if WordTask.READING_PREDICTION in self.training_tasks:
             reading_predictor_loss = outputs["reading_predictor_outputs"]["loss"]
@@ -158,7 +159,7 @@ class WordModule(LightningModule):
 
     def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> None:
         batch["training"] = False
-        outputs: dict[str, dict[str, torch.Tensor]] = self(**batch)
+        outputs: Dict[str, Dict[str, torch.Tensor]] = self(**batch)
         corpus = self.valid_corpora[dataloader_idx or 0]
 
         reading_predictor_metric_args = {
@@ -238,7 +239,7 @@ class WordModule(LightningModule):
         self.log("valid/discourse_parsing_loss", outputs["relation_analyzer_outputs"]["discourse_parsing_loss"])
 
     def validation_epoch_end(self, validation_step_outputs) -> None:
-        log_metrics: dict[str, dict[str, float]] = {corpus: {} for corpus in self.valid_corpora}
+        log_metrics: Dict[str, Dict[str, float]] = {corpus: {} for corpus in self.valid_corpora}
 
         for corpus, metric in self.valid_reading_predictor_metrics.items():
             if WordTask.READING_PREDICTION in self.training_tasks:
@@ -302,7 +303,7 @@ class WordModule(LightningModule):
 
     def test_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> None:
         batch["training"] = False
-        outputs: dict[str, dict[str, torch.Tensor]] = self(**batch)
+        outputs: Dict[str, Dict[str, torch.Tensor]] = self(**batch)
         corpus = self.test_corpora[dataloader_idx or 0]
 
         reading_predictor_metric_args = {
@@ -382,7 +383,7 @@ class WordModule(LightningModule):
         self.log("test/discourse_parsing_loss", outputs["relation_analyzer_outputs"]["discourse_parsing_loss"])
 
     def test_epoch_end(self, test_step_outputs) -> None:
-        log_metrics: dict[str, dict[str, float]] = {corpus: {} for corpus in self.test_corpora}
+        log_metrics: Dict[str, Dict[str, float]] = {corpus: {} for corpus in self.test_corpora}
 
         for corpus, metric in self.test_reading_predictor_metrics.items():
             if WordTask.READING_PREDICTION in self.training_tasks:
@@ -449,7 +450,7 @@ class WordModule(LightningModule):
 
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Any:
         batch["training"] = False
-        outputs: dict[str, dict[str, torch.Tensor]] = self(**batch)
+        outputs: Dict[str, Dict[str, torch.Tensor]] = self(**batch)
         return {
             "tokens": batch["tokens"],
             "example_ids": batch["example_ids"],
@@ -505,8 +506,8 @@ class WordModule(LightningModule):
             "lr_scheduler": {"scheduler": lr_scheduler, "interval": "step", "frequency": 1},
         }
 
-    def on_save_checkpoint(self, checkpoint: dict[str, Any]) -> None:
-        hparams = checkpoint["hyper_parameters"]["hparams"]
+    def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
+        hparams: DictConfig = copy.deepcopy(checkpoint["hyper_parameters"])
         OmegaConf.set_struct(hparams, False)
         hparams = filter_dict_items(hparams, self.hparams.hparams_to_ignore_on_save)
         checkpoint["hyper_parameters"] = {"hparams": hparams}

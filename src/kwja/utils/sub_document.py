@@ -1,8 +1,9 @@
 import re
+from typing import List
 
 from rhoknp import Document, Sentence
 
-SUB_DOC_PAT: re.Pattern[str] = re.compile(r"^(?P<did>[a-zA-Z\d\-_]+?)-split(?P<stride>[1-9])(?P<idx>\d{2})$")
+SUB_DOC_PAT: re.Pattern = re.compile(r"^(?P<did>[a-zA-Z\d\-_]+?)-split(?P<stride>[1-9])(?P<idx>\d{2})$")
 
 
 def is_target_sentence(sentence: Sentence) -> bool:
@@ -19,7 +20,7 @@ def is_target_sentence(sentence: Sentence) -> bool:
         return sentence in sentence.document.sentences[-stride:]
 
 
-def extract_target_sentences(document: Document) -> list[Sentence]:
+def extract_target_sentences(document: Document) -> List[Sentence]:
     return [sentence for sentence in document.sentences if is_target_sentence(sentence)]
 
 

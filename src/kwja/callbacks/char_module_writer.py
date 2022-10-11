@@ -2,7 +2,7 @@ import os
 import sys
 from io import TextIOBase
 from pathlib import Path
-from typing import Any, Optional, Sequence, TextIO, Union
+from typing import Any, List, Optional, Sequence, TextIO, Union
 
 import pytorch_lightning as pl
 import torch
@@ -43,7 +43,7 @@ class CharModuleWriter(BasePredictionWriter):
         predictions: Sequence[Any],
         batch_indices: Optional[Sequence[Any]] = None,
     ) -> None:
-        sentences: list[Sentence] = []
+        sentences: List[Sentence] = []
         dataloaders = trainer.predict_dataloaders
         for prediction in predictions:
             for batch_pred in prediction:
@@ -79,9 +79,9 @@ class CharModuleWriter(BasePredictionWriter):
                     document = dataset.doc_id2document[example.doc_id]
                     for sentence in document.sentences:
                         Morpheme.count = 0
-                        morphemes: list[Morpheme] = []
+                        morphemes: List[Morpheme] = []
                         word_surf: str = ""
-                        word_norm_ops: list[str] = []
+                        word_norm_ops: List[str] = []
                         for char in sentence.text:
                             if word_segmenter_types[char_idx] == "B" and word_surf:
                                 word_norm = get_normalized(word_surf, word_norm_ops, strict=False)

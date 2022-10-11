@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Dict, List, Optional, Union
 
 import hydra
 import pytorch_lightning as pl
@@ -24,8 +24,8 @@ class DataModule(pl.LightningDataModule):
         self.num_workers: int = cfg.num_workers
 
         self.train_dataset: Optional[ConcatDataset] = None
-        self.valid_datasets: dict[str, Union[TypoDataset, CharDataset, WordDataset]] = {}
-        self.test_datasets: dict[str, Union[TypoDataset, CharDataset, WordDataset]] = {}
+        self.valid_datasets: Dict[str, Union[TypoDataset, CharDataset, WordDataset]] = {}
+        self.test_datasets: Dict[str, Union[TypoDataset, CharDataset, WordDataset]] = {}
         self.predict_dataset: Optional[
             Union[
                 TypoDataset, CharDataset, WordDataset, TypoInferenceDataset, CharInferenceDataset, WordInferenceDataset
@@ -48,10 +48,10 @@ class DataModule(pl.LightningDataModule):
     def train_dataloader(self) -> DataLoader:
         return self._get_dataloader(dataset=self.train_dataset, shuffle=True)
 
-    def val_dataloader(self) -> list[DataLoader]:
+    def val_dataloader(self) -> List[DataLoader]:
         return [self._get_dataloader(dataset, shuffle=False) for dataset in self.valid_datasets.values()]
 
-    def test_dataloader(self) -> list[DataLoader]:
+    def test_dataloader(self) -> List[DataLoader]:
         return [self._get_dataloader(dataset, shuffle=False) for dataset in self.test_datasets.values()]
 
     def predict_dataloader(self) -> DataLoader:

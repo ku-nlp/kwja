@@ -2,7 +2,7 @@ import io
 import logging
 from collections import defaultdict
 from pathlib import Path
-from typing import TextIO, Union
+from typing import Dict, List, TextIO, Union
 
 from rhoknp import BasePhrase, Document, Sentence
 from rhoknp.cohesion import Argument, EndophoraArgument, ExophoraArgument, ExophoraReferent, Pas, RelTag, RelTagList
@@ -22,29 +22,31 @@ class CohesionKNPWriter:
     """
 
     def __init__(self, dataset: WordDataset) -> None:
-        self.cases: list[str] = dataset.pas_cases
-        self.tasks: list[CohesionTask] = dataset.cohesion_tasks
-        self.rel_types: list[str] = dataset.cohesion_rel_types
-        self.exophora_referents: list[ExophoraReferent] = dataset.exophora_referents
-        self.specials: list[str] = dataset.special_tokens
-        self.documents: list[Document] = [self.reconstruct(doc) for doc in dataset.documents]
-        self.examples: list[CohesionExample] = [e.cohesion_example for e in dataset.examples]
+        self.cases: List[str] = dataset.pas_cases
+        self.tasks: List[CohesionTask] = dataset.cohesion_tasks
+        self.rel_types: List[str] = dataset.cohesion_rel_types
+        self.exophora_referents: List[ExophoraReferent] = dataset.exophora_referents
+        self.specials: List[str] = dataset.special_tokens
+        self.documents: List[Document] = [self._reconstruct(doc) for doc in dataset.documents]
+        self.examples: List[CohesionExample] = [e.cohesion_example for e in dataset.examples]
         self.kc: bool = False
 
     @staticmethod
-    def reconstruct(doc):
+    def _reconstruct(doc: Document) -> Document:
         doc_id = doc.doc_id
-        reconstructed = Document.from_knp(doc.to_knp())
+        reconstructed = doc.reparse()
         reconstructed.doc_id = doc_id
+        for sentence in reconstructed.sentences:
+            sentence.doc_id = doc_id
         return reconstructed
 
     def write(
         self,
-        predictions: dict[int, list[list[int]]],
+        predictions: Dict[int, List[List[int]]],
         destination: Union[Path, TextIO, None] = None,
         skip_untagged: bool = True,
         add_pas_tag: bool = True,
-    ) -> list[Document]:
+    ) -> List[Document]:
         """Write final predictions to files.
 
         Args:
@@ -62,8 +64,8 @@ class CohesionKNPWriter:
         elif not (destination is None or isinstance(destination, io.TextIOBase)):
             logger.warning("invalid output destination")
 
-        did2prediction: dict[str, list] = {self.examples[eid].doc_id: pred for eid, pred in predictions.items()}
-        orig_did_to_sentences: dict[str, list[Sentence]] = defaultdict(list)
+        did2prediction: Dict[str, list] = {self.examples[eid].doc_id: pred for eid, pred in predictions.items()}
+        orig_did_to_sentences: Dict[str, List[Sentence]] = defaultdict(list)
         for document in self.documents:
             if prediction := did2prediction.get(document.doc_id):  # (phrase, rel)
                 for base_phrase, pred in zip(document.base_phrases, prediction):
@@ -73,7 +75,11 @@ class CohesionKNPWriter:
                     continue
                 for base_phrase in document.base_phrases:
                     base_phrase.rels = []
-            orig_did_to_sentences[to_orig_doc_id(document.doc_id)] += extract_target_sentences(document)
+            orig_doc_id = to_orig_doc_id(document.doc_id)
+            target_sentences = extract_target_sentences(document)
+            for sentence in target_sentences:
+                sentence.doc_id = orig_doc_id
+            orig_did_to_sentences[orig_doc_id] += target_sentences
 
         documents = []
         for sentences in orig_did_to_sentences.values():
@@ -94,8 +100,8 @@ class CohesionKNPWriter:
 
     def _to_rels(
         self,
-        prediction: list[int],  # (rel)
-        base_phrases: list[BasePhrase],
+        prediction: List[int],  # (rel)
+        base_phrases: List[BasePhrase],
     ) -> RelTagList:
         rels = RelTagList()
         assert len(self.rel_types) == len(prediction)
@@ -134,10 +140,10 @@ class CohesionKNPWriter:
 
     def _add_pas_tag(
         self,
-        knp_lines: list[str],
+        knp_lines: List[str],
         document: Document,
-    ) -> list[str]:
-        dtid2pas = {pas.predicate.base_phrase.global_index: pas for pas in document.pas_list()}
+    ) -> List[str]:
+        dtid2pas = {pas.predicate.base_phrase.global_index: pas for pas in document.pas_list}
         dtid = 0
         output_knp_lines = []
         for line in knp_lines:
@@ -160,7 +166,7 @@ class CohesionKNPWriter:
         cfid: str,
         document: Document,
     ) -> str:
-        sid2index: dict[str, int] = {sent.sid: i for i, sent in enumerate(document.sentences)}
+        sid2index: Dict[str, int] = {sent.sid: i for i, sent in enumerate(document.sentences)}
         case_elements = []
         for case in self.cases + ["ノ"] * (CohesionTask.BRIDGING in self.tasks):
             items = ["-"] * 6
@@ -168,7 +174,7 @@ class CohesionKNPWriter:
             args = pas.get_arguments(case, relax=False)
             if args:
                 arg: Argument = args[0]
-                items[1] = arg.type.value  # フラグ (C/N/O/D/E/U)
+                items[1] = str(arg.type.value)  # フラグ (C/N/O/D/E/U)
                 items[2] = str(arg)  # 見出し
                 if isinstance(arg, EndophoraArgument):
                     items[3] = str(sid2index[pas.sid] - sid2index[arg.base_phrase.sentence.sid])  # N文前

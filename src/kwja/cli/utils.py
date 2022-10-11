@@ -3,9 +3,10 @@ import os
 import sys
 import warnings
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Tuple, Union
 from urllib.parse import urlparse
 
+import torch
 import transformers.utils.logging as hf_logging
 from torch.hub import download_url_to_file
 
@@ -59,3 +60,12 @@ def _get_kwja_cache_dir() -> Path:
     if path := os.getenv(ENV_XDG_CACHE_HOME):
         cache_dir = Path(path)
     return cache_dir / "kwja"
+
+
+def prepare_device(device_name: str) -> Tuple[str, torch.device]:
+    n_gpu = torch.cuda.device_count()
+    if device_name == "gpu" and n_gpu == 0:
+        print("Warning: There's no GPU available on this machine. Using CPU instead.")
+        return "cpu", torch.device("cpu")
+    else:
+        return device_name, torch.device("cuda:0" if device_name == "gpu" else "cpu")

@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Dict, Union
 
 import torch
 from torchmetrics import Metric
@@ -12,8 +12,8 @@ class DiscourseParsingMetric(Metric):
 
     def __init__(self):
         super().__init__()
-        # Metric state variables can either be torch.Tensor or an empty list which can be used to store torch.Tensors`.
-        # i.e. Expected metric state to be either a Tensor or a list of Tensor
+        # Metric state variables can either be `torch.Tensor` or an empty list which can be used to store
+        # `torch.Tensors`. i.e. Expected metric state to be either a Tensor or a list of Tensor
         self.add_state("discourse_parsing_predictions", default=list(), dist_reduce_fx="cat")  # list[torch.Tensor]
         self.add_state("discourse_parsing_labels", default=list(), dist_reduce_fx="cat")  # list[torch.Tensor]
 
@@ -25,7 +25,7 @@ class DiscourseParsingMetric(Metric):
         self.discourse_parsing_predictions.append(discourse_parsing_predictions)
         self.discourse_parsing_labels.append(discourse_parsing_labels)
 
-    def compute(self) -> dict[str, Union[torch.Tensor, float]]:
+    def compute(self) -> Dict[str, Union[torch.Tensor, float]]:
         predictions = self.discourse_parsing_predictions.view(-1)
         labels = self.discourse_parsing_labels.view(-1)
 

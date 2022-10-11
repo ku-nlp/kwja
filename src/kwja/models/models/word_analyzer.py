@@ -1,3 +1,5 @@
+from typing import Dict
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -24,8 +26,8 @@ class WordAnalyzer(nn.Module):
         self.conjtype_cls = nn.Linear(hidden_size, self.num_conjtype_labels)
         self.conjform_cls = nn.Linear(hidden_size, self.num_conjform_labels)
 
-    def forward(self, encoder_output: torch.Tensor, inputs: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
-        output: dict[str, torch.Tensor] = dict()
+    def forward(self, encoder_output: torch.Tensor, inputs: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+        output: Dict[str, torch.Tensor] = dict()
         base_output = self.base_cls(encoder_output)  # (b, seq_len, h)
         pos_logits = self.pos_cls(base_output)  # (b, seq_len, pos_label_num)
         subpos_logits = self.subpos_cls(base_output)  # (b, seq_len, subpos_label_num)
