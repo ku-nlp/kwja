@@ -293,9 +293,11 @@ def main(
                 processor.apply_word()
                 if not discourse:
                     processor.output_word_result()
+                    print("EOD")  # To indicate the end of the output.
                 else:
                     processor.apply_word_discourse()
                     processor.output_word_discourse_result()
+                    print("EOD")  # To indicate the end of the output.
                 input_text = ""
             else:
                 input_text += inp + "\n"
