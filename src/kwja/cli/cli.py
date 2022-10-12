@@ -278,7 +278,7 @@ def main(
             processor.apply_word_discourse()
             processor.output_word_discourse_result()
     else:
-        typer.echo('Please end your input with a new line and type "EOD"')
+        typer.echo('Please end your input with a new line and type "EOD"', err=True)
         processor.load_typo()
         processor.load_char()
         processor.load_word()
