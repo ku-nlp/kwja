@@ -20,7 +20,7 @@ class MockTrainer:
         self.predict_dataloaders = predict_dataloaders
 
 
-def test_write_on_epoch_end():
+def test_write_on_batch_end():
     with tempfile.TemporaryDirectory() as tmp_dir:
         writer = CharModuleWriter(tmp_dir)
         dataset = CharInferenceDataset(
@@ -63,18 +63,14 @@ def test_write_on_epoch_end():
             ],
             dtype=torch.float,
         )
-        predictions = [
-            [
-                {
-                    "example_ids": [0],
-                    "dataloader_idx": 0,
-                    "input_ids": input_ids,
-                    "word_segmenter_logits": word_segmenter_logits,
-                    "word_normalizer_logits": word_normalizer_logits,
-                }
-            ]
-        ]
-        writer.write_on_epoch_end(trainer, ..., predictions)
+        prediction = {
+            "example_ids": [0],
+            "dataloader_idx": 0,
+            "input_ids": input_ids,
+            "word_segmenter_logits": word_segmenter_logits,
+            "word_normalizer_logits": word_normalizer_logits,
+        }
+        writer.write_on_batch_end(trainer, ..., prediction, ..., ..., ..., ...)
         assert writer.destination.read_text() == textwrap.dedent(
             f"""\
             # S-ID:test-0-0 kwja:{kwja.__version__}
