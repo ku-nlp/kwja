@@ -6,7 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.1.1] -2022-10-12
+## [1.1.2] - 2022-10-13
+### Fixed
+- Fixed a bug where the CLI does not work due to a missing dependency.
+- Relaxed the version constraint on `torch`.
+
+## [1.1.1] - 2022-10-12
 ### Fixed
 - Output the instruction message of the CLI tool to stderr instead of stdout.
 

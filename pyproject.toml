@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "kwja"
-version = "1.1.1"
+version = "1.1.2"
 description = "A unified language analyzer for Japanese"
 authors = [
     "Hirokazu Kiyomaru <kiyomaru@i.kyoto-u.ac.jp>",
@@ -42,7 +42,7 @@ include = [
 
 [tool.poetry.dependencies]
 python = ">=3.8,<3.11"
-torch = "~1.11.0"
+torch = "~1.11"
 torchmetrics = "^0.9.3"
 pytorch-lightning = "^1.7"
 omegaconf = "^2.1"
@@ -64,6 +64,7 @@ jinf = "^1.0.4"
 tinydb = "^4.7.0"
 BetterJSONStorage = "^1.3.0"
 importlib-resources = "^5.10.0"
+jaconv = "^0.3"
 
 [tool.poetry.scripts]
 kwja = "kwja.cli.cli:app"
