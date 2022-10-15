@@ -56,7 +56,10 @@ class CLIProcessor:
         split_texts: List[str] = []
         split_text: str = ""
         for input_text in input_texts:
-            input_text_with_eod: str = input_text.rstrip().removesuffix("EOD") + "\nEOD"
+            stripped_input_text: str = input_text.strip()
+            if stripped_input_text.endswith("EOD"):
+                stripped_input_text = stripped_input_text[:-3]
+            input_text_with_eod: str = stripped_input_text + "\nEOD"
             for text in input_text_with_eod.split("\n"):
                 if text == "EOD":
                     split_texts.append(split_text.rstrip())
@@ -129,9 +132,7 @@ class CLIProcessor:
     def apply_char(self) -> None:
         if self.char_model is None:
             raise ValueError("char model does not exist")
-        self.char_model.hparams.datamodule.predict.texts = self._split_input_texts(
-            [self.typo_path.read_text()]
-        )
+        self.char_model.hparams.datamodule.predict.texts = self._split_input_texts([self.typo_path.read_text()])
         char_datamodule = DataModule(cfg=self.char_model.hparams.datamodule)
         char_datamodule.setup(stage=TrainerFn.PREDICTING)
         if self.char_trainer is None:
