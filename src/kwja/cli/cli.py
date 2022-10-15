@@ -51,6 +51,20 @@ class CLIProcessor:
         self.word_discourse_model: Optional[WordModule] = None
         self.word_discourse_trainer: Optional[pl.Trainer] = None
 
+    @staticmethod
+    def _split_input_texts(input_texts: List[str]) -> List[str]:
+        split_texts: List[str] = []
+        split_text: str = ""
+        for input_text in input_texts:
+            input_text_with_eod: str = input_text.rstrip().removesuffix("EOD") + "\nEOD"
+            for text in input_text_with_eod.split("\n"):
+                if text == "EOD":
+                    split_texts.append(split_text.rstrip())
+                    split_text = ""
+                else:
+                    split_text += f"{text}\n"
+        return split_texts
+
     def load_typo(self) -> None:
         typo_checkpoint_path: Path = download_checkpoint_from_url(TYPO_CHECKPOINT_URL)
         self.typo_model = TypoModule.load_from_checkpoint(
@@ -80,7 +94,7 @@ class CLIProcessor:
     def apply_typo(self, input_texts: List[str]) -> None:
         if self.typo_model is None:
             raise ValueError("typo model does not exist")
-        self.typo_model.hparams.datamodule.predict.texts = input_texts
+        self.typo_model.hparams.datamodule.predict.texts = self._split_input_texts(input_texts)
         typo_datamodule = DataModule(cfg=self.typo_model.hparams.datamodule)
         typo_datamodule.setup(stage=TrainerFn.PREDICTING)
         if self.typo_trainer is None:
@@ -115,7 +129,9 @@ class CLIProcessor:
     def apply_char(self) -> None:
         if self.char_model is None:
             raise ValueError("char model does not exist")
-        self.char_model.hparams.datamodule.predict.texts = self.typo_path.read_text().splitlines()
+        self.char_model.hparams.datamodule.predict.texts = self._split_input_texts(
+            [self.typo_path.read_text()]
+        )
         char_datamodule = DataModule(cfg=self.char_model.hparams.datamodule)
         char_datamodule.setup(stage=TrainerFn.PREDICTING)
         if self.char_trainer is None:
