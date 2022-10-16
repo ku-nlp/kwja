@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import List, Optional
@@ -20,12 +21,23 @@ from kwja.models.typo_module import TypoModule
 from kwja.models.word_module import WordModule
 
 _CHECKPOINT_BASE_URL = "https://lotus.kuee.kyoto-u.ac.jp/kwja"
-TYPO_CHECKPOINT_URL = f"{_CHECKPOINT_BASE_URL}/v1.0/typo_roberta-base-wwm_seq512.ckpt"
-CHAR_CHECKPOINT_URL = f"{_CHECKPOINT_BASE_URL}/v1.0/char_roberta-base-wwm_seq512.ckpt"
-WORD_CHECKPOINT_URL = f"{_CHECKPOINT_BASE_URL}/v1.0/word_roberta-base_seq128.ckpt"
-WORD_DISCOURSE_CHECKPOINT_URL = f"{_CHECKPOINT_BASE_URL}/v1.0/disc_roberta-base_seq128.ckpt"
+MODEL_SIZE2CHECKPOINT_URL = {
+    "base": {
+        "typo": f"{_CHECKPOINT_BASE_URL}/v1.0/typo_roberta-base-wwm_seq512.ckpt",
+        "char": f"{_CHECKPOINT_BASE_URL}/v1.0/char_roberta-base-wwm_seq512.ckpt",
+        "word": f"{_CHECKPOINT_BASE_URL}/v1.0/word_roberta-base_seq128.ckpt",
+        "word_discourse": f"{_CHECKPOINT_BASE_URL}/v1.0/disc_roberta-base_seq128.ckpt",
+    },
+    "large": {
+        "typo": f"{_CHECKPOINT_BASE_URL}/v1.0/typo_roberta-large-wwm_seq512.ckpt",
+        "char": f"{_CHECKPOINT_BASE_URL}/v1.0/char_roberta-large-wwm_seq512.ckpt",
+        "word": f"{_CHECKPOINT_BASE_URL}/v1.0/word_roberta-large_seq256.ckpt",
+        "word_discourse": f"{_CHECKPOINT_BASE_URL}/v1.0/disc_roberta-large_seq256.ckpt",
+    },
+}
 
 suppress_debug_info()
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 OmegaConf.register_new_resolver("concat", lambda x, y: x + y)
 
 app = typer.Typer(pretty_exceptions_show_locals=False)
@@ -33,8 +45,19 @@ resource_path = importlib_resources.files(kwja) / "resource"
 
 
 class CLIProcessor:
-    def __init__(self, specified_device: str) -> None:
+    def __init__(
+        self,
+        specified_device: str,
+        model_size: str,
+        typo_batch_size: int,
+        char_batch_size: int,
+        word_batch_size: int,
+    ) -> None:
         self.device_name, self.device = prepare_device(specified_device)
+        self.model_size: str = model_size
+        self.typo_batch_size: int = typo_batch_size
+        self.char_batch_size: int = char_batch_size
+        self.word_batch_size: int = word_batch_size
 
         self.tmp_dir: TemporaryDirectory = TemporaryDirectory()
         self.typo_path: Path = self.tmp_dir.name / Path("predict_typo.txt")
@@ -51,8 +74,25 @@ class CLIProcessor:
         self.word_discourse_model: Optional[WordModule] = None
         self.word_discourse_trainer: Optional[pl.Trainer] = None
 
+    @staticmethod
+    def _split_input_texts(input_texts: List[str]) -> List[str]:
+        split_texts: List[str] = []
+        split_text: str = ""
+        for input_text in input_texts:
+            stripped_input_text: str = input_text.strip()
+            if stripped_input_text.endswith("EOD"):
+                stripped_input_text = stripped_input_text[:-3]
+            input_text_with_eod: str = stripped_input_text + "\nEOD"
+            for text in input_text_with_eod.split("\n"):
+                if text == "EOD":
+                    split_texts.append(split_text.rstrip())
+                    split_text = ""
+                else:
+                    split_text += f"{text}\n"
+        return split_texts
+
     def load_typo(self) -> None:
-        typo_checkpoint_path: Path = download_checkpoint_from_url(TYPO_CHECKPOINT_URL)
+        typo_checkpoint_path: Path = download_checkpoint_from_url(MODEL_SIZE2CHECKPOINT_URL[self.model_size]["typo"])
         self.typo_model = TypoModule.load_from_checkpoint(
             str(typo_checkpoint_path),
             map_location=self.device,
@@ -61,6 +101,7 @@ class CLIProcessor:
         if self.typo_model is None:
             raise ValueError("typo model does not exist")
         self.typo_model.hparams.datamodule.predict.extended_vocab_path = str(extended_vocab_path)
+        self.typo_model.hparams.datamodule.batch_size = self.typo_batch_size
         self.typo_model.hparams.dataset.extended_vocab_path = str(extended_vocab_path)
         self.typo_model.hparams.callbacks.prediction_writer.extended_vocab_path = str(extended_vocab_path)
         self.typo_trainer = pl.Trainer(
@@ -80,7 +121,7 @@ class CLIProcessor:
     def apply_typo(self, input_texts: List[str]) -> None:
         if self.typo_model is None:
             raise ValueError("typo model does not exist")
-        self.typo_model.hparams.datamodule.predict.texts = input_texts
+        self.typo_model.hparams.datamodule.predict.texts = self._split_input_texts(input_texts)
         typo_datamodule = DataModule(cfg=self.typo_model.hparams.datamodule)
         typo_datamodule.setup(stage=TrainerFn.PREDICTING)
         if self.typo_trainer is None:
@@ -91,13 +132,14 @@ class CLIProcessor:
         del self.typo_model, self.typo_trainer
 
     def load_char(self) -> None:
-        char_checkpoint_path: Path = download_checkpoint_from_url(CHAR_CHECKPOINT_URL)
+        char_checkpoint_path: Path = download_checkpoint_from_url(MODEL_SIZE2CHECKPOINT_URL[self.model_size]["char"])
         self.char_model = CharModule.load_from_checkpoint(
             str(char_checkpoint_path),
             map_location=self.device,
         )
         if self.char_model is None:
             raise ValueError("char model does not exist")
+        self.char_model.hparams.datamodule.batch_size = self.char_batch_size
         self.char_trainer = pl.Trainer(
             logger=False,
             enable_progress_bar=False,
@@ -115,7 +157,7 @@ class CLIProcessor:
     def apply_char(self) -> None:
         if self.char_model is None:
             raise ValueError("char model does not exist")
-        self.char_model.hparams.datamodule.predict.texts = self.typo_path.read_text().splitlines()
+        self.char_model.hparams.datamodule.predict.texts = self._split_input_texts([self.typo_path.read_text()])
         char_datamodule = DataModule(cfg=self.char_model.hparams.datamodule)
         char_datamodule.setup(stage=TrainerFn.PREDICTING)
         if self.char_trainer is None:
@@ -126,7 +168,7 @@ class CLIProcessor:
         del self.char_model, self.char_trainer
 
     def load_word(self) -> None:
-        word_checkpoint_path: Path = download_checkpoint_from_url(WORD_CHECKPOINT_URL)
+        word_checkpoint_path: Path = download_checkpoint_from_url(MODEL_SIZE2CHECKPOINT_URL[self.model_size]["word"])
         word_checkpoint = torch.load(str(word_checkpoint_path), map_location=lambda storage, loc: storage)
         hparams = word_checkpoint["hyper_parameters"]["hparams"]
         reading_resource_path = resource_path / "reading_prediction"
@@ -142,6 +184,7 @@ class CLIProcessor:
         )
         if self.word_model is None:
             raise ValueError("word model does not exist")
+        self.word_model.hparams.datamodule.batch_size = self.word_batch_size
         self.word_model.hparams.datamodule.predict.reading_resource_path = reading_resource_path
         self.word_model.hparams.dataset.reading_resource_path = reading_resource_path
         self.word_model.hparams.callbacks.prediction_writer.reading_resource_path = reading_resource_path
@@ -174,7 +217,9 @@ class CLIProcessor:
         del self.word_model, self.word_trainer
 
     def load_word_discourse(self) -> None:
-        word_discourse_checkpoint_path: Path = download_checkpoint_from_url(WORD_DISCOURSE_CHECKPOINT_URL)
+        word_discourse_checkpoint_path: Path = download_checkpoint_from_url(
+            MODEL_SIZE2CHECKPOINT_URL[self.model_size]["word_discourse"]
+        )
         word_discourse_checkpoint = torch.load(
             str(word_discourse_checkpoint_path), map_location=lambda storage, loc: storage
         )
@@ -192,6 +237,7 @@ class CLIProcessor:
         )
         if self.word_discourse_model is None:
             raise ValueError("word discourse model does not exist")
+        self.word_discourse_model.hparams.datamodule.batch_size = self.word_batch_size
         self.word_discourse_model.hparams.datamodule.predict.reading_resource_path = reading_resource_path
         self.word_discourse_model.hparams.dataset.reading_resource_path = reading_resource_path
         self.word_discourse_trainer = pl.Trainer(
@@ -239,11 +285,23 @@ def version_callback(value: bool) -> None:
         raise typer.Exit()
 
 
+def model_size_callback(value: str) -> str:
+    if value not in ["base", "large"]:
+        raise typer.BadParameter("model must be one of 'base' or 'large'")
+    return value
+
+
 @app.command()
 def main(
     text: Optional[str] = typer.Option(None, help="Text to be analyzed."),
     filename: Optional[Path] = typer.Option(None, help="File to be analyzed."),
+    model_size: str = typer.Option(
+        "base", callback=model_size_callback, help="Model size to be used. Please specify 'base' or 'large'."
+    ),
     device: str = typer.Option("cpu", help="Device to be used. Please specify 'cpu' or 'gpu'."),
+    typo_batch_size: int = typer.Option(1, help="Batch size for typo module."),
+    char_batch_size: int = typer.Option(1, help="Batch size for char module."),
+    word_batch_size: int = typer.Option(1, help="Batch size for word module."),
     discourse: Optional[bool] = typer.Option(True, help="Whether to perform discourse relation analysis."),
     _: Optional[bool] = typer.Option(None, "--version", callback=version_callback, is_eager=True),
 ) -> None:
@@ -257,7 +315,14 @@ def main(
         with Path(filename).open() as f:
             input_text = f.read()
 
-    processor = CLIProcessor(specified_device=device)
+    processor: CLIProcessor = CLIProcessor(
+        specified_device=device,
+        model_size=model_size,
+        typo_batch_size=typo_batch_size,
+        char_batch_size=char_batch_size,
+        word_batch_size=word_batch_size,
+    )
+
     if input_text:
         processor.load_typo()
         processor.apply_typo([input_text])

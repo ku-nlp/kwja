@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Added option to change batch size to CLI.
+  - `--typo-batch-size`, `--char-batch-size`, and `--word-batch-size`.
+- Added large model.
+### Fixed
+- Allow input files containing multiple documents in one file from command line.
 
 ## [1.1.2] - 2022-10-13
 ### Fixed
