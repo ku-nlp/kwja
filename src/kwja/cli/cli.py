@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import List, Optional
@@ -26,6 +27,7 @@ WORD_CHECKPOINT_URL = f"{_CHECKPOINT_BASE_URL}/v1.0/word_roberta-base_seq128.ckp
 WORD_DISCOURSE_CHECKPOINT_URL = f"{_CHECKPOINT_BASE_URL}/v1.0/disc_roberta-base_seq128.ckpt"
 
 suppress_debug_info()
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 OmegaConf.register_new_resolver("concat", lambda x, y: x + y)
 
 app = typer.Typer(pretty_exceptions_show_locals=False)
@@ -33,8 +35,17 @@ resource_path = importlib_resources.files(kwja) / "resource"
 
 
 class CLIProcessor:
-    def __init__(self, specified_device: str) -> None:
+    def __init__(
+        self,
+        specified_device: str,
+        typo_batch_size: int,
+        char_batch_size: int,
+        word_batch_size: int,
+    ) -> None:
         self.device_name, self.device = prepare_device(specified_device)
+        self.typo_batch_size: int = typo_batch_size
+        self.char_batch_size: int = char_batch_size
+        self.word_batch_size: int = word_batch_size
 
         self.tmp_dir: TemporaryDirectory = TemporaryDirectory()
         self.typo_path: Path = self.tmp_dir.name / Path("predict_typo.txt")
@@ -78,6 +89,7 @@ class CLIProcessor:
         if self.typo_model is None:
             raise ValueError("typo model does not exist")
         self.typo_model.hparams.datamodule.predict.extended_vocab_path = str(extended_vocab_path)
+        self.typo_model.hparams.datamodule.batch_size = self.typo_batch_size
         self.typo_model.hparams.dataset.extended_vocab_path = str(extended_vocab_path)
         self.typo_model.hparams.callbacks.prediction_writer.extended_vocab_path = str(extended_vocab_path)
         self.typo_trainer = pl.Trainer(
@@ -115,6 +127,7 @@ class CLIProcessor:
         )
         if self.char_model is None:
             raise ValueError("char model does not exist")
+        self.char_model.hparams.datamodule.batch_size = self.char_batch_size
         self.char_trainer = pl.Trainer(
             logger=False,
             enable_progress_bar=False,
@@ -159,6 +172,7 @@ class CLIProcessor:
         )
         if self.word_model is None:
             raise ValueError("word model does not exist")
+        self.word_model.hparams.datamodule.batch_size = self.word_batch_size
         self.word_model.hparams.datamodule.predict.reading_resource_path = reading_resource_path
         self.word_model.hparams.dataset.reading_resource_path = reading_resource_path
         self.word_model.hparams.callbacks.prediction_writer.reading_resource_path = reading_resource_path
@@ -209,6 +223,7 @@ class CLIProcessor:
         )
         if self.word_discourse_model is None:
             raise ValueError("word discourse model does not exist")
+        self.word_discourse_model.hparams.datamodule.batch_size = self.word_batch_size
         self.word_discourse_model.hparams.datamodule.predict.reading_resource_path = reading_resource_path
         self.word_discourse_model.hparams.dataset.reading_resource_path = reading_resource_path
         self.word_discourse_trainer = pl.Trainer(
@@ -261,6 +276,9 @@ def main(
     text: Optional[str] = typer.Option(None, help="Text to be analyzed."),
     filename: Optional[Path] = typer.Option(None, help="File to be analyzed."),
     device: str = typer.Option("cpu", help="Device to be used. Please specify 'cpu' or 'gpu'."),
+    typo_batch_size: int = typer.Option(1, help="Batch size for typo module."),
+    char_batch_size: int = typer.Option(1, help="Batch size for char module."),
+    word_batch_size: int = typer.Option(1, help="Batch size for word module."),
     discourse: Optional[bool] = typer.Option(True, help="Whether to perform discourse relation analysis."),
     _: Optional[bool] = typer.Option(None, "--version", callback=version_callback, is_eager=True),
 ) -> None:
@@ -274,7 +292,13 @@ def main(
         with Path(filename).open() as f:
             input_text = f.read()
 
-    processor = CLIProcessor(specified_device=device)
+    processor: CLIProcessor = CLIProcessor(
+        specified_device=device,
+        typo_batch_size=typo_batch_size,
+        char_batch_size=char_batch_size,
+        word_batch_size=word_batch_size,
+    )
+
     if input_text:
         processor.load_typo()
         processor.apply_typo([input_text])
