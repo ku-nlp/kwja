@@ -21,10 +21,20 @@ from kwja.models.typo_module import TypoModule
 from kwja.models.word_module import WordModule
 
 _CHECKPOINT_BASE_URL = "https://lotus.kuee.kyoto-u.ac.jp/kwja"
-TYPO_CHECKPOINT_URL = f"{_CHECKPOINT_BASE_URL}/v1.0/typo_roberta-base-wwm_seq512.ckpt"
-CHAR_CHECKPOINT_URL = f"{_CHECKPOINT_BASE_URL}/v1.0/char_roberta-base-wwm_seq512.ckpt"
-WORD_CHECKPOINT_URL = f"{_CHECKPOINT_BASE_URL}/v1.0/word_roberta-base_seq128.ckpt"
-WORD_DISCOURSE_CHECKPOINT_URL = f"{_CHECKPOINT_BASE_URL}/v1.0/disc_roberta-base_seq128.ckpt"
+MODEL_SIZE2CHECKPOINT_URL = {
+    "base": {
+        "typo": f"{_CHECKPOINT_BASE_URL}/v1.0/typo_roberta-base-wwm_seq512.ckpt",
+        "char": f"{_CHECKPOINT_BASE_URL}/v1.0/char_roberta-base-wwm_seq512.ckpt",
+        "word": f"{_CHECKPOINT_BASE_URL}/v1.0/word_roberta-base_seq128.ckpt",
+        "word_discourse": f"{_CHECKPOINT_BASE_URL}/v1.0/disc_roberta-base_seq128.ckpt",
+    },
+    "large": {
+        "typo": f"{_CHECKPOINT_BASE_URL}/v1.0/typo_roberta-large-wwm_seq512.ckpt",
+        "char": f"{_CHECKPOINT_BASE_URL}/v1.0/char_roberta-large-wwm_seq512.ckpt",
+        "word": f"{_CHECKPOINT_BASE_URL}/v1.0/word_roberta-large_seq256.ckpt",
+        "word_discourse": f"{_CHECKPOINT_BASE_URL}/v1.0/disc_roberta-large_seq256.ckpt",
+    },
+}
 
 suppress_debug_info()
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -38,11 +48,13 @@ class CLIProcessor:
     def __init__(
         self,
         specified_device: str,
+        model_size: str,
         typo_batch_size: int,
         char_batch_size: int,
         word_batch_size: int,
     ) -> None:
         self.device_name, self.device = prepare_device(specified_device)
+        self.model_size: str = model_size
         self.typo_batch_size: int = typo_batch_size
         self.char_batch_size: int = char_batch_size
         self.word_batch_size: int = word_batch_size
@@ -80,7 +92,7 @@ class CLIProcessor:
         return split_texts
 
     def load_typo(self) -> None:
-        typo_checkpoint_path: Path = download_checkpoint_from_url(TYPO_CHECKPOINT_URL)
+        typo_checkpoint_path: Path = download_checkpoint_from_url(MODEL_SIZE2CHECKPOINT_URL[self.model_size]["typo"])
         self.typo_model = TypoModule.load_from_checkpoint(
             str(typo_checkpoint_path),
             map_location=self.device,
@@ -120,7 +132,7 @@ class CLIProcessor:
         del self.typo_model, self.typo_trainer
 
     def load_char(self) -> None:
-        char_checkpoint_path: Path = download_checkpoint_from_url(CHAR_CHECKPOINT_URL)
+        char_checkpoint_path: Path = download_checkpoint_from_url(MODEL_SIZE2CHECKPOINT_URL[self.model_size]["char"])
         self.char_model = CharModule.load_from_checkpoint(
             str(char_checkpoint_path),
             map_location=self.device,
@@ -156,7 +168,7 @@ class CLIProcessor:
         del self.char_model, self.char_trainer
 
     def load_word(self) -> None:
-        word_checkpoint_path: Path = download_checkpoint_from_url(WORD_CHECKPOINT_URL)
+        word_checkpoint_path: Path = download_checkpoint_from_url(MODEL_SIZE2CHECKPOINT_URL[self.model_size]["word"])
         word_checkpoint = torch.load(str(word_checkpoint_path), map_location=lambda storage, loc: storage)
         hparams = word_checkpoint["hyper_parameters"]["hparams"]
         reading_resource_path = resource_path / "reading_prediction"
@@ -205,7 +217,9 @@ class CLIProcessor:
         del self.word_model, self.word_trainer
 
     def load_word_discourse(self) -> None:
-        word_discourse_checkpoint_path: Path = download_checkpoint_from_url(WORD_DISCOURSE_CHECKPOINT_URL)
+        word_discourse_checkpoint_path: Path = download_checkpoint_from_url(
+            MODEL_SIZE2CHECKPOINT_URL[self.model_size]["word_discourse"]
+        )
         word_discourse_checkpoint = torch.load(
             str(word_discourse_checkpoint_path), map_location=lambda storage, loc: storage
         )
@@ -271,10 +285,19 @@ def version_callback(value: bool) -> None:
         raise typer.Exit()
 
 
+def model_size_callback(value: str) -> str:
+    if value not in ["base", "large"]:
+        raise typer.BadParameter("model must be one of 'base' or 'large'")
+    return value
+
+
 @app.command()
 def main(
     text: Optional[str] = typer.Option(None, help="Text to be analyzed."),
     filename: Optional[Path] = typer.Option(None, help="File to be analyzed."),
+    model_size: str = typer.Option(
+        "base", callback=model_size_callback, help="Model size to be used. Please specify 'base' or 'large'."
+    ),
     device: str = typer.Option("cpu", help="Device to be used. Please specify 'cpu' or 'gpu'."),
     typo_batch_size: int = typer.Option(1, help="Batch size for typo module."),
     char_batch_size: int = typer.Option(1, help="Batch size for char module."),
@@ -294,6 +317,7 @@ def main(
 
     processor: CLIProcessor = CLIProcessor(
         specified_device=device,
+        model_size=model_size,
         typo_batch_size=typo_batch_size,
         char_batch_size=char_batch_size,
         word_batch_size=word_batch_size,
