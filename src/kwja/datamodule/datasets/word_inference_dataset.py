@@ -10,6 +10,7 @@ from omegaconf import ListConfig
 from rhoknp import Document, Morpheme, Sentence
 from rhoknp.cohesion import ExophoraReferent
 from rhoknp.units.morpheme import MorphemeAttributes
+from rhoknp.utils.reader import chunk_by_document
 from tokenizers import Encoding
 from transformers.utils import PaddingStrategy
 
@@ -49,9 +50,11 @@ class WordInferenceDataset(BaseDataset):
         **_,  # accept reading_resource_path
     ) -> None:
         if knp_file is not None:
-            documents = [Document.from_knp(knp_file.read_text())]
+            with open(knp_file) as f:
+                documents = [Document.from_knp(c) for c in chunk_by_document(f)]
         elif juman_file is not None:
-            documents = [Document.from_jumanpp(juman_file.read_text())]
+            with open(juman_file) as f:
+                documents = [Document.from_jumanpp(c) for c in chunk_by_document(f)]
         else:
             documents = self._create_documents_from_texts(list(texts), doc_id_prefix)
         super().__init__(documents, document_split_stride, model_name_or_path, max_seq_length, tokenizer_kwargs or {})
