@@ -142,7 +142,7 @@ class TypoModuleWriter(BasePredictionWriter):
             )
         results.append("\nEOD\n".join(result))
 
-        output_string: str = "\n".join(results) + "\n"
+        output_string: str = "\nEOD\n".join(results) + "\n"
         if isinstance(self.destination, Path):
             with self.destination.open("a") as f:
                 f.write(output_string)
