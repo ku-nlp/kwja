@@ -41,7 +41,7 @@ def main(cfg: DictConfig):
     datamodule = DataModule(cfg=cfg.datamodule)
     datamodule.setup(stage=TrainerFn.PREDICTING)
 
-    trainer.predict(model=model, dataloaders=datamodule.predict_dataloader())
+    trainer.predict(model=model, dataloaders=datamodule.predict_dataloader(), return_predictions=False)
 
 
 if __name__ == "__main__":
