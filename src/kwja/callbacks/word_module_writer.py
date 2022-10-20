@@ -318,7 +318,7 @@ class WordModuleWriter(BasePredictionWriter):
                         k, *vs = feature.split(":")
                         base_phrase.features[k] = ":".join(vs) or True
                     if feature.startswith("節-区切") and pred >= 0.5:
-                        clause_start_index_set.add(base_phrase.global_index + 1)
+                        clause_start_index_set.add(base_phrase.index + 1)
             if base_phrases[-1].features.get("節-区切", False) is False:
                 clause_start_index_set.add(len(base_phrases))
             clause_start_indices: List[int] = sorted(clause_start_index_set)
