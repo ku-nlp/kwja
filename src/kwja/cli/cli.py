@@ -126,7 +126,9 @@ class CLIProcessor:
         typo_datamodule.setup(stage=TrainerFn.PREDICTING)
         if self.typo_trainer is None:
             raise ValueError("typo trainer does not exist")
-        self.typo_trainer.predict(model=self.typo_model, dataloaders=typo_datamodule.predict_dataloader())
+        self.typo_trainer.predict(
+            model=self.typo_model, dataloaders=typo_datamodule.predict_dataloader(), return_predictions=False
+        )
 
     def del_typo(self) -> None:
         del self.typo_model, self.typo_trainer
@@ -162,7 +164,9 @@ class CLIProcessor:
         char_datamodule.setup(stage=TrainerFn.PREDICTING)
         if self.char_trainer is None:
             raise ValueError("char trainer does not exist")
-        self.char_trainer.predict(model=self.char_model, dataloaders=char_datamodule.predict_dataloader())
+        self.char_trainer.predict(
+            model=self.char_model, dataloaders=char_datamodule.predict_dataloader(), return_predictions=False
+        )
 
     def del_char(self) -> None:
         del self.char_model, self.char_trainer
@@ -211,7 +215,9 @@ class CLIProcessor:
         word_datamodule.setup(stage=TrainerFn.PREDICTING)
         if self.word_trainer is None:
             raise ValueError("word trainer does not exist")
-        self.word_trainer.predict(model=self.word_model, dataloaders=word_datamodule.predict_dataloader())
+        self.word_trainer.predict(
+            model=self.word_model, dataloaders=word_datamodule.predict_dataloader(), return_predictions=False
+        )
 
     def del_word(self) -> None:
         del self.word_model, self.word_trainer
@@ -264,6 +270,7 @@ class CLIProcessor:
         self.word_discourse_trainer.predict(
             model=self.word_discourse_model,
             dataloaders=word_discourse_datamodule.predict_dataloader(),
+            return_predictions=False,
         )
 
     def output_word_result(self) -> None:

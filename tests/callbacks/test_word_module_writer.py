@@ -97,7 +97,7 @@ class MockTrainer:
         self.predict_dataloaders = predict_dataloaders
 
 
-def test_write_on_epoch_end():
+def test_write_on_batch_end():
     texts = ["今日 は 晴れ だ"]
     juman_texts = [
         textwrap.dedent(
@@ -205,28 +205,24 @@ def test_write_on_epoch_end():
     discourse_parsing_logits = torch.zeros(1, 4, 13, 7, dtype=torch.float)  # (b, word, word, rel)
     discourse_parsing_logits[0][2][2][1] = 1.0  # 晴れ -> 晴れ: 原因・理由
 
-    predictions = [
-        [
-            {
-                "tokens": tokens,
-                "example_ids": [0],
-                "dataloader_idx": 0,
-                "reading_subword_map": reading_subword_map,
-                "reading_prediction_logits": reading_prediction_logits,
-                "word_analysis_pos_logits": word_analysis_pos_logits,
-                "word_analysis_subpos_logits": word_analysis_subpos_logits,
-                "word_analysis_conjtype_logits": word_analysis_conjtype_logits,
-                "word_analysis_conjform_logits": word_analysis_conjform_logits,
-                "ne_logits": ne_logits,
-                "word_feature_logits": word_feature_logits,
-                "base_phrase_feature_logits": base_phrase_feature_logits,
-                "dependency_logits": dependency_logits,
-                "dependency_type_logits": dependency_type_logits,
-                "cohesion_logits": cohesion_logits,
-                "discourse_parsing_logits": discourse_parsing_logits,
-            }
-        ]
-    ]
+    prediction = {
+        "tokens": tokens,
+        "example_ids": [0],
+        "dataloader_idx": 0,
+        "reading_subword_map": reading_subword_map,
+        "reading_prediction_logits": reading_prediction_logits,
+        "word_analysis_pos_logits": word_analysis_pos_logits,
+        "word_analysis_subpos_logits": word_analysis_subpos_logits,
+        "word_analysis_conjtype_logits": word_analysis_conjtype_logits,
+        "word_analysis_conjform_logits": word_analysis_conjform_logits,
+        "ne_logits": ne_logits,
+        "word_feature_logits": word_feature_logits,
+        "base_phrase_feature_logits": base_phrase_feature_logits,
+        "dependency_logits": dependency_logits,
+        "dependency_type_logits": dependency_type_logits,
+        "cohesion_logits": cohesion_logits,
+        "discourse_parsing_logits": discourse_parsing_logits,
+    }
 
     pred_filename = "test"
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -253,7 +249,7 @@ def test_write_on_epoch_end():
             juman_file=pathlib.Path(juman_file.name),
         )
         trainer = MockTrainer([DataLoader(dataset)])
-        writer.write_on_epoch_end(trainer, ..., predictions)  # noqa
+        writer.write_on_batch_end(trainer, ..., prediction, ..., ..., ..., ...)  # noqa
         expected_knp = textwrap.dedent(
             f"""\
             # S-ID:test-0-0 kwja:{kwja.__version__}
