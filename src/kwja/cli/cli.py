@@ -93,10 +93,7 @@ class CLIProcessor:
 
     def load_typo(self) -> None:
         typo_checkpoint_path: Path = download_checkpoint_from_url(MODEL_SIZE2CHECKPOINT_URL[self.model_size]["typo"])
-        self.typo_model = TypoModule.load_from_checkpoint(
-            str(typo_checkpoint_path),
-            map_location=self.device,
-        )
+        self.typo_model = TypoModule.load_from_checkpoint(str(typo_checkpoint_path), map_location=self.device)
         extended_vocab_path = resource_path / "typo_correction/multi_char_vocab.txt"
         if self.typo_model is None:
             raise ValueError("typo model does not exist")
@@ -135,10 +132,7 @@ class CLIProcessor:
 
     def load_char(self) -> None:
         char_checkpoint_path: Path = download_checkpoint_from_url(MODEL_SIZE2CHECKPOINT_URL[self.model_size]["char"])
-        self.char_model = CharModule.load_from_checkpoint(
-            str(char_checkpoint_path),
-            map_location=self.device,
-        )
+        self.char_model = CharModule.load_from_checkpoint(str(char_checkpoint_path), map_location=self.device)
         if self.char_model is None:
             raise ValueError("char model does not exist")
         self.char_model.hparams.datamodule.batch_size = self.char_batch_size
@@ -312,10 +306,10 @@ def main(
     discourse: Optional[bool] = typer.Option(True, help="Whether to perform discourse relation analysis."),
     _: Optional[bool] = typer.Option(None, "--version", callback=version_callback, is_eager=True),
 ) -> None:
-    input_text = ""
+    input_text: Optional[str] = None
     if text is not None and filename is not None:
         typer.echo("ERROR: Please provide text or filename, not both", err=True)
-        raise typer.Exit()
+        raise typer.Abort()
     elif text is not None:
         input_text = text
     elif filename is not None:
@@ -330,7 +324,10 @@ def main(
         word_batch_size=word_batch_size,
     )
 
-    if input_text:
+    if input_text is not None:
+        if input_text.strip() == "":
+            raise typer.Exit()
+
         processor.load_typo()
         processor.apply_typo([input_text])
         processor.del_typo()
@@ -357,6 +354,7 @@ def main(
         if discourse:
             processor.load_word_discourse()
 
+        input_text = ""
         while True:
             inp = input()
             if inp == "EOD":
