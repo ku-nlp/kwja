@@ -1,4 +1,5 @@
 import tempfile
+import textwrap
 
 import torch
 
@@ -69,4 +70,9 @@ def test_write_on_batch_end():
         }
         writer.write_on_batch_end(..., ..., prediction, ..., ..., ..., ...)
         with open(writer.destination) as f:
-            assert f.read().strip() == "今日は晴れだ"
+            assert f.read() == textwrap.dedent(
+                """\
+                今日は晴れだ
+                EOD
+                """
+            )

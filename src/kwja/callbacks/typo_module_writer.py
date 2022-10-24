@@ -112,7 +112,6 @@ class TypoModuleWriter(BasePredictionWriter):
         batch_idx: int,
         dataloader_idx: int,
     ) -> None:
-        results = []
         kdr_preds: List[List[str]] = self.convert_id2opn(
             opn_ids_list=self.get_opn_ids_list(
                 batch_values=prediction["kdr_values"],
@@ -129,20 +128,19 @@ class TypoModuleWriter(BasePredictionWriter):
             ),
             opn_prefix="I",
         )
-        result = []
+        results = []
         for idx in range(len(prediction["kdr_values"])):
             seq_len: int = len(prediction["texts"][idx])
             # the prediction of the dummy token (= "<dummy>") at the end of the input is used for insertion only.
-            result.append(
+            results.append(
                 self.apply_opn(
                     pre_text=prediction["texts"][idx],
                     kdrs=kdr_preds[idx][:seq_len],
                     inss=ins_preds[idx][: seq_len + 1],
                 )
             )
-        results.append("\nEOD\n".join(result))
 
-        output_string: str = "\nEOD\n".join(results) + "\n"
+        output_string = "".join(result + "\nEOD\n" for result in results)  # Append EOD to the end of each result
         if isinstance(self.destination, Path):
             with self.destination.open("a") as f:
                 f.write(output_string)
