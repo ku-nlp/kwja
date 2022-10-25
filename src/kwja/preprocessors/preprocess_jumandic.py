@@ -4,10 +4,9 @@ import sys
 from argparse import ArgumentParser
 from pathlib import Path
 
-from BetterJSONStorage import BetterJSONStorage
-from tinydb import TinyDB
-from tinydb.middlewares import CachingMiddleware
 from tqdm import tqdm
+
+from kwja.utils.jumandic import JumanDic
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s: %(message)s", level=logging.DEBUG)
@@ -49,6 +48,7 @@ def main():
     with open(str(input_path)) as f:
         dicreader = csv.reader(f)
         rows = list(dicreader)
+    # entries = {}
     entries = []
     for row in tqdm(rows):
         surf, _, _, _, pos, subpos, conjform, conjtype, lemma, reading, repname, sem = row
@@ -59,24 +59,8 @@ def main():
             if len(semantics) > 0:
                 semantics += " "
             semantics += sem
-        entries.append(
-            {
-                "surf": surf,
-                "reading": reading,
-                "lemma": lemma,
-                "pos": pos,
-                "subpos": subpos,
-                "conjtype": conjtype,
-                "conjform": conjform,
-                "semantics": semantics,
-            }
-        )
-    rows = []
-    (outdir / "jumandic.db").unlink(missing_ok=True)
-    CachingMiddleware.WRITE_CACHE_SIZE = 1000000
-    with TinyDB(outdir / "jumandic.db", access_mode="r+", storage=CachingMiddleware(BetterJSONStorage)) as dic:
-        dic.insert_multiple(entries)
-    entries = []
+        entries.append([surf, reading, lemma, pos, subpos, conjtype, conjform, semantics])
+    JumanDic.build(outdir, entries)
 
 
 if __name__ == "__main__":

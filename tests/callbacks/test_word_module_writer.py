@@ -4,10 +4,8 @@ import textwrap
 from pathlib import Path
 
 import torch
-from BetterJSONStorage import BetterJSONStorage
 from omegaconf import ListConfig
 from rhoknp.props import DepType
-from tinydb import TinyDB
 from torch.utils.data import DataLoader
 
 import kwja
@@ -23,6 +21,7 @@ from kwja.utils.constants import (
     SUBPOS_TYPES,
     WORD_FEATURES,
 )
+from kwja.utils.jumandic import JumanDic
 
 here = Path(__file__).absolute().parent
 reading_resource_path = here.parent / "datamodule/datasets/reading_files"
@@ -30,44 +29,15 @@ reading_resource_path = here.parent / "datamodule/datasets/reading_files"
 
 def make_dummy_jumandic():
     jumandic_dir = tempfile.TemporaryDirectory()
-    path = Path(jumandic_dir.name + "/jumandic.db")
-    with TinyDB(path, access_mode="r+", storage=BetterJSONStorage) as db:
-        db.insert(
-            {
-                "surf": "今日",
-                "reading": "きょう",
-                "lemma": "今日",
-                "pos": "名詞",
-                "subpos": "時相名詞",
-                "conjtype": "*",
-                "conjform": "*",
-                "semantics": "代表表記:今日/きょう カテゴリ:時間",
-            }
-        )
-        db.insert(
-            {
-                "surf": "あい",
-                "reading": "あい",
-                "lemma": "あい",
-                "pos": "名詞",
-                "subpos": "普通名詞",
-                "conjtype": "*",
-                "conjform": "*",
-                "semantics": "代表表記:愛/あい 漢字読み:音 カテゴリ:抽象物",
-            }
-        )
-        db.insert(
-            {
-                "surf": "あい",
-                "reading": "あい",
-                "lemma": "あい",
-                "pos": "名詞",
-                "subpos": "普通名詞",
-                "conjtype": "*",
-                "conjform": "*",
-                "semantics": "代表表記:藍/あい カテゴリ:植物",
-            }
-        )
+    path = Path(jumandic_dir.name)
+    JumanDic.build(
+        path,
+        [
+            ["今日", "きょう", "今日", "名詞", "時相名詞", "*", "*", "代表表記:今日/きょう カテゴリ:時間"],
+            ["あい", "あい", "あい", "名詞", "普通名詞", "*", "*", "代表表記:愛/あい 漢字読み:音 カテゴリ:抽象物"],
+            ["あい", "あい", "あい", "名詞", "普通名詞", "*", "*", "代表表記:藍/あい カテゴリ:植物"],
+        ],
+    )
     ambig_surf_specs = [
         {
             "conjtype": "イ形容詞アウオ段",

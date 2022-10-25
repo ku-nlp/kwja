@@ -9,15 +9,12 @@ from typing import Any, Dict, List, Optional, Sequence, Set, TextIO, Tuple, Unio
 
 import pytorch_lightning as pl
 import torch
-from BetterJSONStorage import BetterJSONStorage
 from jinf import Jinf
 from pytorch_lightning.callbacks import BasePredictionWriter
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
 from rhoknp.cohesion import ExophoraReferent, RelTag, RelTagList
 from rhoknp.props import DepType, FeatureDict, NamedEntity, NamedEntityCategory, SemanticsDict
 from rhoknp.units.morpheme import MorphemeAttributes
-from tinydb import Query, TinyDB
-from tinydb.middlewares import CachingMiddleware
 
 from kwja.datamodule.datasets import WordDataset, WordInferenceDataset
 from kwja.datamodule.datasets.word_dataset import WordExampleSet
@@ -40,6 +37,7 @@ from kwja.utils.constants import (
     SUBPOS_TYPES,
 )
 from kwja.utils.dependency_parsing import DependencyManager
+from kwja.utils.jumandic import JumanDic
 from kwja.utils.reading import get_reading2id, get_word_level_readings
 from kwja.utils.sub_document import extract_target_sentences
 
@@ -62,14 +60,7 @@ class WordModuleWriter(BasePredictionWriter):
         reading2id = get_reading2id(str(self.reading_resource_path / "vocab.txt"))
         self.id2reading = {v: k for k, v in reading2id.items()}
         self.jinf = Jinf()
-        self.jumandic_path = Path(jumandic_path)
-        self.jumandic = TinyDB(
-            self.jumandic_path / "jumandic.db",
-            ensure_ascii=False,
-            access_mode="r",
-            storage=CachingMiddleware(BetterJSONStorage),
-            cache_size=0,
-        )
+        self.jumandic = JumanDic(Path(jumandic_path))
         self.ambig_surf_specs = ambig_surf_specs
 
         self.destination: Union[Path, TextIO]
@@ -116,10 +107,10 @@ class WordModuleWriter(BasePredictionWriter):
                     if conjform != ambig_surf_spec["conjform"]:
                         continue
                     # ambiguous: dictionary lookup to identify the lemma
-                    q = Query()
-                    matches = self.jumandic.search(
-                        (q.pos == pos) & (q.subpos == subpos) & (q.conjtype == conjtype) & (q.surf == norm)
-                    )
+                    matches = []
+                    for entry in self.jumandic.lookup(norm):
+                        if entry["pos"] == pos and entry["subpos"] == subpos and entry["conjtype"] == conjtype:
+                            matches.append(entry)
                     if len(matches) > 0:
                         lemma_set: Set[str] = set()
                         for entry in matches:
@@ -139,14 +130,15 @@ class WordModuleWriter(BasePredictionWriter):
                     except ValueError as e:
                         logger.warning(f"failed to get lemma for {norm}: ({e})")
                         lemma = norm
-            q = Query()
-            matches = self.jumandic.search(
-                (q.pos == pos)
-                & (q.subpos == subpos)
-                & (q.conjtype == conjtype)
-                & (q.surf == norm)
-                & (q.reading == reading)
-            )
+            matches = []
+            for entry in self.jumandic.lookup(norm):
+                if (
+                    entry["reading"] == reading
+                    and entry["pos"] == pos
+                    and entry["subpos"] == subpos
+                    and entry["conjtype"] == conjtype
+                ):
+                    matches.append(entry)
             if len(matches) > 0:
                 entry = matches[0]
                 semantics.update(SemanticsDict.from_sstring('"' + entry["semantics"] + '"'))
