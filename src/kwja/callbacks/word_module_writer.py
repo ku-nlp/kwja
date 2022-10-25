@@ -7,10 +7,8 @@ from io import TextIOBase
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Set, TextIO, Tuple, Union
 
-import cdblib
 import pytorch_lightning as pl
 import torch
-import ujson as json
 from jinf import Jinf
 from pytorch_lightning.callbacks import BasePredictionWriter
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
@@ -39,6 +37,7 @@ from kwja.utils.constants import (
     SUBPOS_TYPES,
 )
 from kwja.utils.dependency_parsing import DependencyManager
+from kwja.utils.jumandic import JumanDic
 from kwja.utils.reading import get_reading2id, get_word_level_readings
 from kwja.utils.sub_document import extract_target_sentences
 
@@ -61,10 +60,7 @@ class WordModuleWriter(BasePredictionWriter):
         reading2id = get_reading2id(str(self.reading_resource_path / "vocab.txt"))
         self.id2reading = {v: k for k, v in reading2id.items()}
         self.jinf = Jinf()
-        self.jumandic_path = Path(jumandic_path)
-        with open(str(self.jumandic_path / "jumandic.db"), "rb") as f:
-            data = f.read()
-        self.jumandic = cdblib.Reader(data)
+        self.jumandic = JumanDic(Path(jumandic_path))
         self.ambig_surf_specs = ambig_surf_specs
 
         self.destination: Union[Path, TextIO]
@@ -112,22 +108,9 @@ class WordModuleWriter(BasePredictionWriter):
                         continue
                     # ambiguous: dictionary lookup to identify the lemma
                     matches = []
-                    bv = self.jumandic.getstring(norm.encode("utf-8"))
-                    if bv is not None:
-                        for item in json.loads(bv):
-                            if item[2] == pos and item[3] == subpos and item[4] == conjtype:
-                                matches.append(
-                                    {
-                                        "surf": norm,
-                                        "reading": item[0],
-                                        "lemma": item[1],
-                                        "pos": item[2],
-                                        "subpos": item[3],
-                                        "conjtype": item[4],
-                                        "conjform": item[5],
-                                        "semantics": item[6],
-                                    }
-                                )
+                    for entry in self.jumandic.lookup(norm):
+                        if entry["pos"] == pos and entry["subpos"] == subpos and entry["conjtype"] == conjtype:
+                            matches.append(entry)
                     if len(matches) > 0:
                         lemma_set: Set[str] = set()
                         for entry in matches:
@@ -148,22 +131,14 @@ class WordModuleWriter(BasePredictionWriter):
                         logger.warning(f"failed to get lemma for {norm}: ({e})")
                         lemma = norm
             matches = []
-            bv = self.jumandic.getstring(norm.encode("utf-8"))
-            if bv is not None:
-                for item in json.loads(bv):
-                    if item[0] == reading and item[2] == pos and item[3] == subpos and item[4] == conjtype:
-                        matches.append(
-                            {
-                                "surf": norm,
-                                "reading": item[0],
-                                "lemma": item[1],
-                                "pos": item[2],
-                                "subpos": item[3],
-                                "conjtype": item[4],
-                                "conjform": item[5],
-                                "semantics": item[6],
-                            }
-                        )
+            for entry in self.jumandic.lookup(norm):
+                if (
+                    entry["reading"] == reading
+                    and entry["pos"] == pos
+                    and entry["subpos"] == subpos
+                    and entry["conjtype"] == conjtype
+                ):
+                    matches.append(entry)
             if len(matches) > 0:
                 entry = matches[0]
                 semantics.update(SemanticsDict.from_sstring('"' + entry["semantics"] + '"'))

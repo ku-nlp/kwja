@@ -3,9 +3,7 @@ import tempfile
 import textwrap
 from pathlib import Path
 
-import cdblib
 import torch
-import ujson as json
 from omegaconf import ListConfig
 from rhoknp.props import DepType
 from torch.utils.data import DataLoader
@@ -23,6 +21,7 @@ from kwja.utils.constants import (
     SUBPOS_TYPES,
     WORD_FEATURES,
 )
+from kwja.utils.jumandic import JumanDic
 
 here = Path(__file__).absolute().parent
 reading_resource_path = here.parent / "datamodule/datasets/reading_files"
@@ -30,18 +29,15 @@ reading_resource_path = here.parent / "datamodule/datasets/reading_files"
 
 def make_dummy_jumandic():
     jumandic_dir = tempfile.TemporaryDirectory()
-    path = Path(jumandic_dir.name + "/jumandic.db")
-    with open(str(path), "wb") as f:
-        with cdblib.Writer(f) as writer:
-            writer.putstring(
-                "今日".encode("utf-8"), json.dumps([["きょう", "今日", "名詞", "時相名詞", "*", "*", "代表表記:今日/きょう カテゴリ:時間"]])
-            )
-            writer.putstring(
-                "あい".encode("utf-8"), json.dumps([["あい", "あい", "名詞", "普通名詞", "*", "*", "代表表記:愛/あい 漢字読み:音 カテゴリ:抽象物"]])
-            )
-            writer.putstring(
-                "あい".encode("utf-8"), json.dumps([["あい", "あい", "名詞", "普通名詞", "*", "*", "代表表記:藍/あい カテゴリ:植物"]])
-            )
+    path = Path(jumandic_dir.name)
+    JumanDic.build(
+        path,
+        [
+            ["今日", "きょう", "今日", "名詞", "時相名詞", "*", "*", "代表表記:今日/きょう カテゴリ:時間"],
+            ["あい", "あい", "あい", "名詞", "普通名詞", "*", "*", "代表表記:愛/あい 漢字読み:音 カテゴリ:抽象物"],
+            ["あい", "あい", "あい", "名詞", "普通名詞", "*", "*", "代表表記:藍/あい カテゴリ:植物"],
+        ],
+    )
     ambig_surf_specs = [
         {
             "conjtype": "イ形容詞アウオ段",
