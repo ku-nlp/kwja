@@ -4,9 +4,8 @@ import sys
 from argparse import ArgumentParser
 from pathlib import Path
 
-from BetterJSONStorage import BetterJSONStorage
-from tinydb import TinyDB
-from tinydb.middlewares import CachingMiddleware
+import cdblib
+import ujson as json
 from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
@@ -49,7 +48,7 @@ def main():
     with open(str(input_path)) as f:
         dicreader = csv.reader(f)
         rows = list(dicreader)
-    entries = []
+    entries = {}
     for row in tqdm(rows):
         surf, _, _, _, pos, subpos, conjform, conjtype, lemma, reading, repname, sem = row
         semantics = ""
@@ -59,24 +58,18 @@ def main():
             if len(semantics) > 0:
                 semantics += " "
             semantics += sem
-        entries.append(
-            {
-                "surf": surf,
-                "reading": reading,
-                "lemma": lemma,
-                "pos": pos,
-                "subpos": subpos,
-                "conjtype": conjtype,
-                "conjform": conjform,
-                "semantics": semantics,
-            }
-        )
-    rows = []
+        val = [reading, lemma, pos, subpos, conjtype, conjform, semantics]
+        if surf in entries:
+            entries[surf].append(val)
+        else:
+            entries[surf] = [val]
     (outdir / "jumandic.db").unlink(missing_ok=True)
-    CachingMiddleware.WRITE_CACHE_SIZE = 1000000
-    with TinyDB(outdir / "jumandic.db", access_mode="r+", storage=CachingMiddleware(BetterJSONStorage)) as dic:
-        dic.insert_multiple(entries)
-    entries = []
+    with open(str(outdir / "jumandic.db"), "wb") as f:
+        with cdblib.Writer(f) as writer:
+            for k, v in entries.items():
+                bk = k.encode("utf-8")
+                bv = json.dumps(v)
+                writer.putstring(bk, bv)
 
 
 if __name__ == "__main__":
