@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `--typo-batch-size`, `--char-batch-size`, and `--word-batch-size`.
 - Add large model.
 ### Fixed
+- Output predictions per batch to avoid out of memory error.
 - Allow input files containing multiple documents in one file from command line.
 - Use pure-cdb for storing JumanDIC instead of TinyDB.
 
