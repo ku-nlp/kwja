@@ -6,16 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
-- Added option to change batch size to CLI.
+- Add option to change batch size to CLI.
   - `--typo-batch-size`, `--char-batch-size`, and `--word-batch-size`.
-- Added large model.
+- Add large model.
 ### Fixed
 - Allow input files containing multiple documents in one file from command line.
+- Use pure-cdb for storing JumanDIC instead of TinyDB.
 
 ## [1.1.2] - 2022-10-13
 ### Fixed
-- Fixed a bug where the CLI does not work due to a missing dependency.
-- Relaxed the version constraint on `torch`.
+- Fix a bug where the CLI does not work due to a missing dependency.
+- Relax the version constraint on `torch`.
 
 ## [1.1.1] - 2022-10-12
 ### Fixed
