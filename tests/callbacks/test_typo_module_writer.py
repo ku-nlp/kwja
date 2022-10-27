@@ -1,4 +1,5 @@
 import tempfile
+import textwrap
 
 import torch
 
@@ -19,7 +20,7 @@ def test_init():
         )
 
 
-def test_write_on_epoch_end():
+def test_write_on_batch_end():
     with tempfile.TemporaryDirectory() as tmp_dir:
         writer = TypoModuleWriter(
             tmp_dir,
@@ -60,17 +61,18 @@ def test_write_on_epoch_end():
         kdr_values, kdr_indices = torch.max(kdr_probs, dim=-1)
         ins_probs = torch.softmax(ins_logits[:, 1:, :], dim=-1)
         ins_values, ins_indices = torch.max(ins_probs, dim=-1)
-        predictions = [
-            [
-                {
-                    "texts": texts,
-                    "kdr_values": kdr_values,
-                    "kdr_indices": kdr_indices,
-                    "ins_values": ins_values,
-                    "ins_indices": ins_indices,
-                }
-            ]
-        ]
-        writer.write_on_epoch_end(..., ..., predictions)
+        prediction = {
+            "texts": texts,
+            "kdr_values": kdr_values,
+            "kdr_indices": kdr_indices,
+            "ins_values": ins_values,
+            "ins_indices": ins_indices,
+        }
+        writer.write_on_batch_end(..., ..., prediction, ..., ..., ..., ...)
         with open(writer.destination) as f:
-            assert f.read().strip() == "今日は晴れだ"
+            assert f.read() == textwrap.dedent(
+                """\
+                今日は晴れだ
+                EOD
+                """
+            )

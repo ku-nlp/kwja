@@ -26,7 +26,7 @@ class WordModuleDiscourseWriter(BasePredictionWriter):
         pred_filename: str = "predict",
         use_stdout: bool = False,
     ) -> None:
-        super().__init__(write_interval="epoch")
+        super().__init__(write_interval="batch")
 
         self.destination: Union[Path, TextIO]
         if use_stdout is True:
@@ -36,41 +36,6 @@ class WordModuleDiscourseWriter(BasePredictionWriter):
             self.destination.parent.mkdir(exist_ok=True, parents=True)
             if self.destination.exists():
                 os.remove(str(self.destination))
-
-    def write_on_epoch_end(
-        self,
-        trainer: pl.Trainer,
-        pl_module: pl.LightningModule,
-        predictions: Sequence[Any],
-        batch_indices: Optional[Sequence[Any]] = None,
-    ) -> None:
-        sentences: List[Sentence] = []
-        dataloaders = trainer.predict_dataloaders
-        for prediction in predictions:
-            for batch_pred in prediction:
-                batch_tokens = batch_pred["tokens"]
-                batch_example_ids = batch_pred["example_ids"]
-                dataloader_idx: int = batch_pred["dataloader_idx"]
-                dataset: Union[WordDataset, WordInferenceDataset] = dataloaders[dataloader_idx].dataset
-                batch_discourse_parsing_preds = torch.argmax(batch_pred["discourse_parsing_logits"], dim=3)
-                for (tokens, example_id, discourse_parsing_preds,) in zip(
-                    batch_tokens,
-                    batch_example_ids,
-                    batch_discourse_parsing_preds.tolist(),
-                ):
-                    example: Union[WordExampleSet, WordInferenceExample] = dataset.examples[example_id]
-                    doc_id = example.doc_id
-                    document = dataset.doc_id2document[doc_id]
-                    document.doc_id = doc_id
-                    document = document.reparse()  # reparse to get clauses
-                    self._add_discourse(document, discourse_parsing_preds)
-                    sentences += extract_target_sentences(document)
-
-        output_string = "".join(sentence.to_knp() for sentence in sentences)
-        if isinstance(self.destination, Path):
-            self.destination.write_text(output_string)
-        elif isinstance(self.destination, TextIOBase):
-            self.destination.write(output_string)
 
     @staticmethod
     def _add_discourse(document: Document, discourse_preds: List[List[int]]) -> None:
@@ -104,5 +69,39 @@ class WordModuleDiscourseWriter(BasePredictionWriter):
         batch: Any,
         batch_idx: int,
         dataloader_idx: int,
+    ) -> None:
+        sentences: List[Sentence] = []
+        dataloaders = trainer.predict_dataloaders
+        batch_tokens = prediction["tokens"]
+        batch_example_ids = prediction["example_ids"]
+        dataloader_idx = prediction["dataloader_idx"]
+        dataset: Union[WordDataset, WordInferenceDataset] = dataloaders[dataloader_idx].dataset
+        batch_discourse_parsing_preds = torch.argmax(prediction["discourse_parsing_logits"], dim=3)
+        for (tokens, example_id, discourse_parsing_preds,) in zip(
+            batch_tokens,
+            batch_example_ids,
+            batch_discourse_parsing_preds.tolist(),
+        ):
+            example: Union[WordExampleSet, WordInferenceExample] = dataset.examples[example_id]
+            doc_id = example.doc_id
+            document = dataset.doc_id2document[doc_id]
+            document.doc_id = doc_id
+            document = document.reparse()  # reparse to get clauses
+            self._add_discourse(document, discourse_parsing_preds)
+            sentences += extract_target_sentences(document)
+
+        output_string = "".join(sentence.to_knp() for sentence in sentences)
+        if isinstance(self.destination, Path):
+            with self.destination.open("a") as f:
+                f.write(output_string)
+        elif isinstance(self.destination, TextIOBase):
+            self.destination.write(output_string)
+
+    def write_on_epoch_end(
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        predictions: Sequence[Any],
+        batch_indices: Optional[Sequence[Any]] = None,
     ) -> None:
         pass

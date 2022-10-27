@@ -36,12 +36,16 @@ def main(cfg: DictConfig):
 
     model: pl.LightningModule = hydra.utils.call(cfg.module.load_from_checkpoint, hparams=cfg, _recursive_=False)
 
-    if not cfg.datamodule.predict.texts:
+    if (
+        cfg.datamodule.predict.knp_file is None
+        and cfg.datamodule.predict.juman_file is None
+        and not cfg.datamodule.predict.texts
+    ):
         cfg.datamodule.predict.texts = sys.stdin.read().splitlines()
     datamodule = DataModule(cfg=cfg.datamodule)
     datamodule.setup(stage=TrainerFn.PREDICTING)
 
-    trainer.predict(model=model, dataloaders=datamodule.predict_dataloader())
+    trainer.predict(model=model, dataloaders=datamodule.predict_dataloader(), return_predictions=False)
 
 
 if __name__ == "__main__":

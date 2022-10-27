@@ -24,7 +24,7 @@ class TypoModuleWriter(BasePredictionWriter):
         tokenizer_kwargs: DictConfig = None,
         use_stdout: bool = False,
     ) -> None:
-        super().__init__(write_interval="epoch")
+        super().__init__(write_interval="batch")
 
         self.destination = Union[Path, TextIO]
         if use_stdout is True:
@@ -102,51 +102,6 @@ class TypoModuleWriter(BasePredictionWriter):
             opn_ids_list.append(opn_ids)
         return opn_ids_list
 
-    def write_on_epoch_end(
-        self,
-        trainer: pl.Trainer,
-        pl_module: pl.LightningModule,
-        predictions: Sequence[Any],
-        batch_indices: Optional[Sequence[Any]] = None,
-    ) -> None:
-        results = []
-        for prediction in predictions:
-            for batch_pred in prediction:
-                kdr_preds: List[List[str]] = self.convert_id2opn(
-                    opn_ids_list=self.get_opn_ids_list(
-                        batch_values=batch_pred["kdr_values"],
-                        batch_indices=batch_pred["kdr_indices"],
-                        opn_prefix="R",
-                    ),
-                    opn_prefix="R",
-                )
-                ins_preds: List[List[str]] = self.convert_id2opn(
-                    opn_ids_list=self.get_opn_ids_list(
-                        batch_values=batch_pred["ins_values"],
-                        batch_indices=batch_pred["ins_indices"],
-                        opn_prefix="I",
-                    ),
-                    opn_prefix="I",
-                )
-                result = []
-                for idx in range(len(batch_pred["kdr_values"])):
-                    seq_len: int = len(batch_pred["texts"][idx])
-                    # the prediction of the dummy token (= "<dummy>") at the end of the input is used for insertion only.
-                    result.append(
-                        self.apply_opn(
-                            pre_text=batch_pred["texts"][idx],
-                            kdrs=kdr_preds[idx][:seq_len],
-                            inss=ins_preds[idx][: seq_len + 1],
-                        )
-                    )
-                results.append("\n".join(result))
-
-        output_string: str = "\n".join(results) + "\n"
-        if isinstance(self.destination, Path):
-            self.destination.write_text(output_string)
-        elif isinstance(self.destination, TextIOBase):
-            self.destination.write(output_string)
-
     def write_on_batch_end(
         self,
         trainer: "pl.Trainer",
@@ -156,5 +111,47 @@ class TypoModuleWriter(BasePredictionWriter):
         batch: Any,
         batch_idx: int,
         dataloader_idx: int,
+    ) -> None:
+        kdr_preds: List[List[str]] = self.convert_id2opn(
+            opn_ids_list=self.get_opn_ids_list(
+                batch_values=prediction["kdr_values"],
+                batch_indices=prediction["kdr_indices"],
+                opn_prefix="R",
+            ),
+            opn_prefix="R",
+        )
+        ins_preds: List[List[str]] = self.convert_id2opn(
+            opn_ids_list=self.get_opn_ids_list(
+                batch_values=prediction["ins_values"],
+                batch_indices=prediction["ins_indices"],
+                opn_prefix="I",
+            ),
+            opn_prefix="I",
+        )
+        results = []
+        for idx in range(len(prediction["kdr_values"])):
+            seq_len: int = len(prediction["texts"][idx])
+            # the prediction of the dummy token (= "<dummy>") at the end of the input is used for insertion only.
+            results.append(
+                self.apply_opn(
+                    pre_text=prediction["texts"][idx],
+                    kdrs=kdr_preds[idx][:seq_len],
+                    inss=ins_preds[idx][: seq_len + 1],
+                )
+            )
+
+        output_string = "".join(result + "\nEOD\n" for result in results)  # Append EOD to the end of each result
+        if isinstance(self.destination, Path):
+            with self.destination.open("a") as f:
+                f.write(output_string)
+        elif isinstance(self.destination, TextIOBase):
+            self.destination.write(output_string)
+
+    def write_on_epoch_end(
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        predictions: Sequence[Any],
+        batch_indices: Optional[Sequence[Any]] = None,
     ) -> None:
         pass

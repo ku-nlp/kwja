@@ -68,6 +68,23 @@ KWJA ＫWＪＡ KWJA 名詞 6 固有名詞 3 * 0 * 0 <基本句-主辞>
 ...
 ```
 
+Here are some other options for `kwja` command:
+
+`--model-size`: Model size to be used. Please specify 'base' or 'large'.
+
+`--device`: Device to be used. Please specify 'cpu' or 'gpu'.
+
+`--typo-batch-size`: Batch size for typo module.
+
+`--char-batch-size`: Batch size for char module.
+
+`--word-batch-size`: Batch size for word module.
+
+`--discourse`: Whether to perform discourse relation analysis. Default value is True. If you do not need the results of discourse relation analysis, please specify `--no-discourse`.
+
+```shell
+
+
 You can read a KNP format file with [rhoknp](https://github.com/ku-nlp/rhoknp).
 
 ```python

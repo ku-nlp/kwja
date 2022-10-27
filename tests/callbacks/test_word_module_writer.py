@@ -4,10 +4,8 @@ import textwrap
 from pathlib import Path
 
 import torch
-from BetterJSONStorage import BetterJSONStorage
 from omegaconf import ListConfig
 from rhoknp.props import DepType
-from tinydb import TinyDB
 from torch.utils.data import DataLoader
 
 import kwja
@@ -23,6 +21,7 @@ from kwja.utils.constants import (
     SUBPOS_TYPES,
     WORD_FEATURES,
 )
+from kwja.utils.jumandic import JumanDic
 
 here = Path(__file__).absolute().parent
 reading_resource_path = here.parent / "datamodule/datasets/reading_files"
@@ -30,44 +29,15 @@ reading_resource_path = here.parent / "datamodule/datasets/reading_files"
 
 def make_dummy_jumandic():
     jumandic_dir = tempfile.TemporaryDirectory()
-    path = Path(jumandic_dir.name + "/jumandic.db")
-    with TinyDB(path, access_mode="r+", storage=BetterJSONStorage) as db:
-        db.insert(
-            {
-                "surf": "今日",
-                "reading": "きょう",
-                "lemma": "今日",
-                "pos": "名詞",
-                "subpos": "時相名詞",
-                "conjtype": "*",
-                "conjform": "*",
-                "semantics": "代表表記:今日/きょう カテゴリ:時間",
-            }
-        )
-        db.insert(
-            {
-                "surf": "あい",
-                "reading": "あい",
-                "lemma": "あい",
-                "pos": "名詞",
-                "subpos": "普通名詞",
-                "conjtype": "*",
-                "conjform": "*",
-                "semantics": "代表表記:愛/あい 漢字読み:音 カテゴリ:抽象物",
-            }
-        )
-        db.insert(
-            {
-                "surf": "あい",
-                "reading": "あい",
-                "lemma": "あい",
-                "pos": "名詞",
-                "subpos": "普通名詞",
-                "conjtype": "*",
-                "conjform": "*",
-                "semantics": "代表表記:藍/あい カテゴリ:植物",
-            }
-        )
+    path = Path(jumandic_dir.name)
+    JumanDic.build(
+        path,
+        [
+            ["今日", "きょう", "今日", "名詞", "時相名詞", "*", "*", "代表表記:今日/きょう カテゴリ:時間"],
+            ["あい", "あい", "あい", "名詞", "普通名詞", "*", "*", "代表表記:愛/あい 漢字読み:音 カテゴリ:抽象物"],
+            ["あい", "あい", "あい", "名詞", "普通名詞", "*", "*", "代表表記:藍/あい カテゴリ:植物"],
+        ],
+    )
     ambig_surf_specs = [
         {
             "conjtype": "イ形容詞アウオ段",
@@ -97,7 +67,7 @@ class MockTrainer:
         self.predict_dataloaders = predict_dataloaders
 
 
-def test_write_on_epoch_end():
+def test_write_on_batch_end():
     texts = ["今日 は 晴れ だ"]
     juman_texts = [
         textwrap.dedent(
@@ -205,28 +175,24 @@ def test_write_on_epoch_end():
     discourse_parsing_logits = torch.zeros(1, 4, 13, 7, dtype=torch.float)  # (b, word, word, rel)
     discourse_parsing_logits[0][2][2][1] = 1.0  # 晴れ -> 晴れ: 原因・理由
 
-    predictions = [
-        [
-            {
-                "tokens": tokens,
-                "example_ids": [0],
-                "dataloader_idx": 0,
-                "reading_subword_map": reading_subword_map,
-                "reading_prediction_logits": reading_prediction_logits,
-                "word_analysis_pos_logits": word_analysis_pos_logits,
-                "word_analysis_subpos_logits": word_analysis_subpos_logits,
-                "word_analysis_conjtype_logits": word_analysis_conjtype_logits,
-                "word_analysis_conjform_logits": word_analysis_conjform_logits,
-                "ne_logits": ne_logits,
-                "word_feature_logits": word_feature_logits,
-                "base_phrase_feature_logits": base_phrase_feature_logits,
-                "dependency_logits": dependency_logits,
-                "dependency_type_logits": dependency_type_logits,
-                "cohesion_logits": cohesion_logits,
-                "discourse_parsing_logits": discourse_parsing_logits,
-            }
-        ]
-    ]
+    prediction = {
+        "tokens": tokens,
+        "example_ids": [0],
+        "dataloader_idx": 0,
+        "reading_subword_map": reading_subword_map,
+        "reading_prediction_logits": reading_prediction_logits,
+        "word_analysis_pos_logits": word_analysis_pos_logits,
+        "word_analysis_subpos_logits": word_analysis_subpos_logits,
+        "word_analysis_conjtype_logits": word_analysis_conjtype_logits,
+        "word_analysis_conjform_logits": word_analysis_conjform_logits,
+        "ne_logits": ne_logits,
+        "word_feature_logits": word_feature_logits,
+        "base_phrase_feature_logits": base_phrase_feature_logits,
+        "dependency_logits": dependency_logits,
+        "dependency_type_logits": dependency_type_logits,
+        "cohesion_logits": cohesion_logits,
+        "discourse_parsing_logits": discourse_parsing_logits,
+    }
 
     pred_filename = "test"
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -253,7 +219,7 @@ def test_write_on_epoch_end():
             juman_file=pathlib.Path(juman_file.name),
         )
         trainer = MockTrainer([DataLoader(dataset)])
-        writer.write_on_epoch_end(trainer, ..., predictions)  # noqa
+        writer.write_on_batch_end(trainer, ..., prediction, ..., ..., ..., ...)  # noqa
         expected_knp = textwrap.dedent(
             f"""\
             # S-ID:test-0-0 kwja:{kwja.__version__}
