@@ -82,8 +82,6 @@ Here are some other options for `kwja` command:
 
 `--discourse`: Whether to perform discourse relation analysis. Default value is True. If you do not need the results of discourse relation analysis, please specify `--no-discourse`.
 
-```shell
-
 
 You can read a KNP format file with [rhoknp](https://github.com/ku-nlp/rhoknp).
 
