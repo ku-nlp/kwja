@@ -7,9 +7,9 @@ from pathlib import Path
 from subprocess import PIPE, Popen
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from kyoto_reader import KyotoReader
 from rhoknp import KNP, Document, Jumanpp, Morpheme, Sentence
 from rhoknp.props import FeatureDict, NamedEntity, NamedEntityCategory
+from rhoknp.utils.reader import chunk_by_document, chunk_by_sentence
 from tqdm import tqdm
 
 from kwja.utils.constants import BASE_PHRASE_FEATURES, IGNORE_VALUE_FEATURE_PAT, SUB_WORD_FEATURES
@@ -128,8 +128,8 @@ def set_named_entities(document: Document, sid2tagged_sentence: Dict[str, Senten
             alignment = align(tagged_sentence.morphemes, sentence.morphemes)
             if alignment is None:
                 print(
-                    f'alignment ({" ".join(m.surf for m in tagged_sentence.morphemes)} | '
-                    f'{" ".join(m.surf for m in sentence.morphemes)}) not found'
+                    f'alignment ({" ".join(morpheme.surf for morpheme in tagged_sentence.morphemes)} | '
+                    f'{" ".join(morpheme.surf for morpheme in sentence.morphemes)}) not found'
                 )
                 continue
 
@@ -143,11 +143,11 @@ def set_named_entities(document: Document, sid2tagged_sentence: Dict[str, Senten
 
                 if len(keys) == 0:
                     named_entity = NamedEntity(category=NamedEntityCategory(category), morphemes=morphemes)
-                    sentence.named_entities.append(named_entity)
+                    morphemes[-1].base_phrase.features["NE"] = f"{named_entity.category.value}:{named_entity.text}"
                 else:
                     print(
-                        f'morpheme span of {" ".join(m.surf for m in morphemes_buff)} not found in '
-                        f'{" ".join(m.surf for m in sentence.morphemes)}'
+                        f'morpheme span of {" ".join(morpheme.surf for morpheme in morphemes_buff)} not found in '
+                        f'{" ".join(morpheme.surf for morpheme in sentence.morphemes)}'
                     )
 
 
@@ -157,23 +157,27 @@ def is_target_base_phrase_feature(k: str, v: Any) -> bool:
 
 
 def refresh(document: Document) -> None:
+    keys = [feature.split(":")[0] for feature in SUB_WORD_FEATURES]
     for morpheme in document.morphemes:
+        morpheme.semantics.clear()
         feature_dict = {}
         if morpheme.base_phrase.head == morpheme:
             feature_dict["基本句-主辞"] = True
-        for feature in SUB_WORD_FEATURES:
-            k, *vs = feature.split(":")
-            if k in morpheme.features:
-                feature_dict[k] = morpheme.features[k]
+        feature_dict.update({key: morpheme.features[key] for key in keys if key in morpheme.features})
         morpheme.features = FeatureDict(feature_dict)
-        morpheme.semantics.clear()
 
+    keys = [feature.split(":")[0] for feature in BASE_PHRASE_FEATURES]
     for base_phrase in document.base_phrases:
         feature_dict = {}
-        for feature in BASE_PHRASE_FEATURES:
-            k, *vs = feature.split(":")
-            if k in base_phrase.features and is_target_base_phrase_feature(k, base_phrase.features[k]):
-                feature_dict[k] = base_phrase.features[k]
+        if "NE" in base_phrase.features:
+            feature_dict["NE"] = base_phrase.features["NE"]
+        feature_dict.update(
+            {
+                key: base_phrase.features[key]
+                for key in keys
+                if key in base_phrase.features and is_target_base_phrase_feature(key, base_phrase.features[key])
+            }
+        )
         base_phrase.features = FeatureDict(feature_dict)
 
     for phrase in document.phrases:
@@ -187,25 +191,24 @@ def refresh(document: Document) -> None:
                 # あるnamed entityの一部もまたnamed entityである場合、外側だけ残す
                 if len(span1 & span2) > 0 and len(span1) < len(span2):
                     print(
-                        f'NE tag {" ".join(m.surf for m in ne1.morphemes)} removed '
-                        f'due to the named entity {" ".join(m.surf for m in ne2.morphemes)} '
+                        f'NE tag {" ".join(morpheme.surf for morpheme in ne1.morphemes)} removed '
+                        f'due to the named entity {" ".join(morpheme.surf for morpheme in ne2.morphemes)} '
                         f"({sentence.sid}:{sentence.text})"
                     )
-                    sentence.named_entities.remove(ne1)
+                    del ne1.morphemes[-1].base_phrase.features["NE"]
                     break
 
 
-def add_features(
-    doc_ids: List[str],
-    reader: KyotoReader,
-    output_dir: Path,
+def assign_features_and_save(
+    knp_texts: List[str],
+    output_root: Path,
+    doc_id2split: Dict[str, str],
     sid2tagged_sentence: Optional[Dict[str, Sentence]] = None,
 ) -> None:
     jumanpp_augmenter = JumanppAugmenter()
     knp = KNP(options=["-tab", "-dpnd-fast", "-read-feature"])
-
-    for doc_id in tqdm(doc_ids):
-        old_knp_lines = reader.get_knp(doc_id).split("\n")
+    for knp_text in tqdm(knp_texts):
+        old_knp_lines = knp_text.split("\n")
         buf = []
         for idx, line in enumerate(old_knp_lines):
             if line.startswith("*") or line.startswith("+"):
@@ -214,15 +217,16 @@ def add_features(
                 features = mo.group("features")
                 old_knp_lines[idx] = line.replace(features, "")
                 buf.append((idx, features))
-
         document = Document.from_knp("\n".join(old_knp_lines))
+        if document.doc_id not in doc_id2split:
+            continue
+
         # 形態素意味情報付与 (引数に渡したdocumentをupdateする)
         _ = jumanpp_augmenter.augment_document(document)
 
         # 素性付与
         with Popen(knp.run_command, stdout=PIPE, stdin=PIPE, encoding="utf-8", errors="replace") as p:
             knp_text, _ = p.communicate(input=document.to_knp())
-
         new_knp_lines = knp_text.split("\n")
         # ダ列文語連体形など
         if len(new_knp_lines) != len(old_knp_lines):
@@ -233,17 +237,19 @@ def add_features(
             assert new_knp_lines[idx].endswith(">")
             new_knp_lines[idx] += features
         knp_text = "\n".join(new_knp_lines)
-
         document = Document.from_knp(knp_text)
+
         if sid2tagged_sentence is not None:
             set_named_entities(document, sid2tagged_sentence)
-        refresh(document)
 
+        refresh(document)
         knp_text = document.to_knp()
         for mo in NE_OPTIONAL_PAT.finditer(knp_text):
             knp_text = knp_text.replace(mo.group("optional"), "")
 
-        with output_dir.joinpath(f"{document.doc_id}.knp").open(mode="w") as f:
+        doc_id = document.doc_id
+        split = doc_id2split[doc_id]
+        with output_root.joinpath(split).joinpath(f"{doc_id}.knp").open(mode="w") as f:
             f.write(knp_text)
 
 
@@ -399,29 +405,39 @@ def main():
     parser = ArgumentParser()
     parser.add_argument("INPUT", type=str, help="path to input knp dir")
     parser.add_argument("OUTPUT", type=str, help="path to output dir")
+    parser.add_argument("--id", type=str, help="path to id")
     parser.add_argument("--ne-tags", default=None, type=str, help="path to ne tags")
     parser.add_argument("-j", default=1, type=int, help="number of jobs")
     args = parser.parse_args()
 
-    reader = KyotoReader(args.INPUT, did_from_sid=True)
-    output_dir = Path(args.OUTPUT)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    knp_texts = []
+    for input_file in Path(args.INPUT).glob("**/*.knp"):
+        with input_file.open(mode="r") as f:
+            knp_texts += [knp_text for knp_text in chunk_by_document(f)]
 
     if args.ne_tags:
         with open(args.ne_tags, mode="r") as f:
-            document = Document.from_jumanpp(f.read())
-        sid2tagged_sentence = {sentence.sid: sentence for sentence in document.sentences}
+            sentences = [Sentence.from_jumanpp(jumanpp_text) for jumanpp_text in chunk_by_sentence(f)]
+        sid2tagged_sentence = {sentence.sid: sentence for sentence in sentences}
     else:
         sid2tagged_sentence = None
 
-    doc_ids = reader.doc_ids
-    chunk_size = len(doc_ids) // args.j + int(len(doc_ids) % args.j > 0)
+    output_root = Path(args.OUTPUT)
+    doc_id2split = {}
+    for input_file in Path(args.id).glob("*.id"):
+        split = "valid" if input_file.stem == "dev" else input_file.stem
+        output_root.joinpath(split).mkdir(parents=True, exist_ok=True)
+        with input_file.open(mode="r") as f:
+            for line in f:
+                doc_id2split[line.strip()] = split
+
+    chunk_size = len(knp_texts) // args.j + int(len(knp_texts) % args.j > 0)
     iterable = [
-        (doc_ids[slice(start, start + chunk_size)], reader, output_dir, sid2tagged_sentence)
-        for start in range(0, len(doc_ids), chunk_size)
+        (knp_texts[slice(start, start + chunk_size)], output_root, doc_id2split, sid2tagged_sentence)
+        for start in range(0, len(knp_texts), chunk_size)
     ]
     with mp.Pool(args.j) as pool:
-        pool.starmap(add_features, iterable)
+        pool.starmap(assign_features_and_save, iterable)
 
 
 if __name__ == "__main__":
