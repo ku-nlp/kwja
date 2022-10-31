@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 from itertools import product
 from pathlib import Path
 from subprocess import PIPE, Popen
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 
 from rhoknp import KNP, Document, Jumanpp, Morpheme, Sentence
 from rhoknp.props import FeatureDict, NamedEntity, NamedEntityCategory
@@ -76,7 +76,7 @@ class JumanppAugmenter:
                     original_morpheme.semantics[k] = v
 
 
-def align(morphemes1: List[Morpheme], morphemes2: List[Morpheme]) -> Union[Dict[str, List[Morpheme]], None]:
+def align_morphemes(morphemes1: List[Morpheme], morphemes2: List[Morpheme]) -> Optional[Dict[str, List[Morpheme]]]:
     alignment = {}
     idx1, idx2 = 0, 0
     for _ in range(max(len(morphemes1), len(morphemes2))):
@@ -125,7 +125,7 @@ def set_named_entities(document: Document, sid2tagged_sentence: Dict[str, Senten
         # 既にneタグが付与されている文は対象としない
         if sentence.sid in sid2tagged_sentence and len(sentence.named_entities) == 0:
             tagged_sentence = sid2tagged_sentence[sentence.sid]
-            alignment = align(tagged_sentence.morphemes, sentence.morphemes)
+            alignment = align_morphemes(tagged_sentence.morphemes, sentence.morphemes)
             if alignment is None:
                 print(
                     f'alignment ({" ".join(morpheme.surf for morpheme in tagged_sentence.morphemes)} | '
@@ -160,15 +160,15 @@ def refresh(document: Document) -> None:
     keys = [feature.split(":")[0] for feature in SUB_WORD_FEATURES]
     for morpheme in document.morphemes:
         morpheme.semantics.clear()
-        feature_dict = {}
+        feature_dict = FeatureDict()
         if morpheme.base_phrase.head == morpheme:
             feature_dict["基本句-主辞"] = True
         feature_dict.update({key: morpheme.features[key] for key in keys if key in morpheme.features})
-        morpheme.features = FeatureDict(feature_dict)
+        morpheme.features = feature_dict
 
     keys = [feature.split(":")[0] for feature in BASE_PHRASE_FEATURES]
     for base_phrase in document.base_phrases:
-        feature_dict = {}
+        feature_dict = FeatureDict()
         if "NE" in base_phrase.features:
             feature_dict["NE"] = base_phrase.features["NE"]
         feature_dict.update(
@@ -178,7 +178,7 @@ def refresh(document: Document) -> None:
                 if key in base_phrase.features and is_target_base_phrase_feature(key, base_phrase.features[key])
             }
         )
-        base_phrase.features = FeatureDict(feature_dict)
+        base_phrase.features = feature_dict
 
     for phrase in document.phrases:
         phrase.features.clear()
@@ -249,8 +249,7 @@ def assign_features_and_save(
 
         doc_id = document.doc_id
         split = doc_id2split[doc_id]
-        with output_root.joinpath(split).joinpath(f"{doc_id}.knp").open(mode="w") as f:
-            f.write(knp_text)
+        output_root.joinpath(f"{split}/{doc_id}.knp").write_text(knp_text)
 
 
 def test_jumanpp_augmenter():
