@@ -41,7 +41,7 @@ class WordAnalysisMetric(Metric):
 
     @staticmethod
     def _convert(preds: torch.Tensor, labels: torch.Tensor):
-        ignore_index_pos: torch.BoolTensor = labels != IGNORE_INDEX
+        ignore_index_pos: torch.Tensor = labels != IGNORE_INDEX
         converted_preds = torch.masked_select(preds, ignore_index_pos)
         converted_labels = torch.masked_select(labels, ignore_index_pos)
         return converted_preds, converted_labels

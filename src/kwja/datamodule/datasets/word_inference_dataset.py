@@ -139,7 +139,7 @@ class WordInferenceDataset(BaseDataset):
     def __len__(self) -> int:
         return len(self.examples)
 
-    def __getitem__(self, index: int) -> Dict[str, torch.Tensor]:
+    def __getitem__(self, index: int) -> Dict[str, Union[torch.Tensor, str]]:
         return self.encode(self.examples[index])
 
     def _load_examples(self, documents: List[Document]) -> List[WordInferenceExample]:
@@ -173,7 +173,7 @@ class WordInferenceDataset(BaseDataset):
             logger.error("No examples to process. Make sure any texts are given and they are not too long.")
         return examples
 
-    def encode(self, example: WordInferenceExample) -> Dict[str, torch.Tensor]:
+    def encode(self, example: WordInferenceExample) -> Dict[str, Union[torch.Tensor, str]]:
         document = self.doc_id2document[example.doc_id]
 
         target_mask = [False for _ in range(self.max_seq_length)]

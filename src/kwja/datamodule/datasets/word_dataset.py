@@ -195,10 +195,10 @@ class WordDataset(BaseDataset):
     def __len__(self) -> int:
         return len(self.examples)
 
-    def __getitem__(self, index: int) -> Dict[str, torch.Tensor]:
+    def __getitem__(self, index: int) -> Dict[str, Union[torch.Tensor, str]]:
         return self.encode(self.examples[index])
 
-    def encode(self, example: WordExampleSet) -> Dict[str, torch.Tensor]:
+    def encode(self, example: WordExampleSet) -> Dict[str, Union[torch.Tensor, str]]:
         merged_encoding: Encoding = Encoding.merge([example.encoding, self.special_encoding])
 
         document = self.doc_id2document[example.doc_id]

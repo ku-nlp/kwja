@@ -180,19 +180,19 @@ class CRF(nn.Module):
 
     def forward(
         self,
-        emissions: torch.FloatTensor,
-        tags: torch.LongTensor,
-        mask: Optional[torch.ByteTensor] = None,
+        emissions: torch.Tensor,
+        tags: torch.Tensor,
+        mask: Optional[torch.Tensor] = None,
         reduction: str = "token_mean",
     ) -> torch.Tensor:
         """Compute the conditional log likelihood of a sequence of tags given emission scores.
 
         Args:
-            emissions (`~torch.FloatTensor`): Emission score tensor of size ``(seq_length, batch_size, num_tags)`` or
+            emissions (`~torch.Tensor`): Emission score tensor of size ``(seq_length, batch_size, num_tags)`` or
                                               ``(batch_size, seq_length, num_tags)`` (if batch_first is True).
-            tags (`~torch.LongTensor`): Sequence of tags tensor of size ``(seq_length, batch_size)`` or
+            tags (`~torch.Tensor`): Sequence of tags tensor of size ``(seq_length, batch_size)`` or
                                         ``(batch_size, seq_length, num_tags)`` (if batch_first is True).
-            mask (`~torch.ByteTensor`): Mask tensor of size ``(seq_length, batch_size)`` or
+            mask (`~torch.Tensor`): Mask tensor of size ``(seq_length, batch_size)`` or
                                         ``(batch_size, seq_length)`` (if batch_first is True).
             reduction: Specifies  the reduction to apply to the output: ``none|sum|mean|token_mean``.
                        ``none``: no reduction will be applied.
@@ -228,7 +228,7 @@ class CRF(nn.Module):
         assert reduction == "token_mean"
         return llh.sum() / mask.type_as(emissions).sum()
 
-    def decode(self, emissions: torch.FloatTensor, mask: Optional[torch.ByteTensor] = None) -> List[List[int]]:
+    def decode(self, emissions: torch.Tensor, mask: Optional[torch.Tensor] = None) -> List[List[int]]:
         """Find the most likely tag sequence using Viterbi algorithm.
 
         Args:
@@ -241,20 +241,19 @@ class CRF(nn.Module):
             `~list[list[int]]`: list of list containing the best tag sequence for each batch.
         """
         self._validate(emissions, mask=mask)
-        if mask is None:
-            mask = emissions.new_ones(emissions.shape[:2], dtype=torch.uint8)
+        mask_: torch.Tensor = mask or emissions.new_ones(emissions.shape[:2], dtype=torch.uint8)
 
         if self.batch_first:
             emissions = emissions.transpose(0, 1)
-            mask = mask.transpose(0, 1)
+            mask_ = mask_.transpose(0, 1)
 
-        return self._viterbi_decode(emissions, mask)
+        return self._viterbi_decode(emissions, mask_)
 
     def _validate(
         self,
-        emissions: torch.FloatTensor,
-        tags: Optional[torch.LongTensor] = None,
-        mask: Optional[torch.ByteTensor] = None,
+        emissions: torch.Tensor,
+        tags: Optional[torch.Tensor] = None,
+        mask: Optional[torch.Tensor] = None,
     ) -> None:
         if emissions.dim() != 3:
             raise ValueError(f"emissions must have dimension of 3, got {emissions.dim()}")
@@ -279,9 +278,7 @@ class CRF(nn.Module):
             # if not no_empty_seq and not no_empty_seq_bf:
             #     raise ValueError('mask of the first timestep must all be on')
 
-    def _compute_score(
-        self, emissions: torch.FloatTensor, tags: torch.LongTensor, mask: torch.ByteTensor
-    ) -> torch.Tensor:
+    def _compute_score(self, emissions: torch.Tensor, tags: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         # emissions: (seq_length, batch_size, num_tags)
         # tags: (seq_length, batch_size)
         assert emissions.dim() == 3 and tags.dim() == 2
@@ -314,7 +311,7 @@ class CRF(nn.Module):
 
         return score
 
-    def _compute_normalizer(self, emissions: torch.FloatTensor, mask: torch.ByteTensor) -> torch.Tensor:
+    def _compute_normalizer(self, emissions: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         # emissions: (seq_length, batch_size, num_tags)
         # mask: (seq_length, batch_size)
         assert emissions.dim() == 3 and mask.dim() == 2
@@ -353,7 +350,7 @@ class CRF(nn.Module):
         # Sum (log-sum-exp) over all possible tags
         return torch.logsumexp(score, dim=1)  # (batch_size,)
 
-    def _viterbi_decode(self, emissions: torch.FloatTensor, mask: torch.ByteTensor) -> List[List[int]]:
+    def _viterbi_decode(self, emissions: torch.Tensor, mask: torch.Tensor) -> List[List[int]]:
         # emissions: (seq_length, batch_size, num_tags)
         # mask: (seq_length, batch_size)
         assert emissions.dim() == 3 and mask.dim() == 2
@@ -398,7 +395,7 @@ class CRF(nn.Module):
 
         # Now, compute the best path for each sample
 
-        seq_ends = mask.long().sum(dim=0) - 1  # (batch_size,)
+        seq_ends: torch.Tensor = mask.long().sum(dim=0) - 1  # (batch_size,)
         best_tags_list = []
 
         for idx in range(batch_size):
@@ -408,7 +405,9 @@ class CRF(nn.Module):
 
             # We trace back where the best last tag comes from, append that to our best tag sequence, and
             # trace it back again, and so on
-            for hist in reversed(history[: seq_ends[idx]]):
+            end_index = seq_ends[idx].item()
+            assert isinstance(end_index, int)
+            for hist in reversed(history[:end_index]):
                 best_last_tag = hist[idx][best_tags[-1]]
                 best_tags.append(best_last_tag.item())
 

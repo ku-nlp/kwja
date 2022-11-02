@@ -40,7 +40,7 @@ class TypoDataset(Dataset):
     def __len__(self) -> int:
         return len(self.documents)
 
-    def __getitem__(self, index: int) -> Dict[str, torch.Tensor]:
+    def __getitem__(self, index: int) -> Dict[str, Union[torch.Tensor, str]]:
         return self.encode(self.documents[index])
 
     @staticmethod
@@ -59,7 +59,7 @@ class TypoDataset(Dataset):
                 opn2id[str(line.strip())] = len(opn2id)
         return opn2id
 
-    def encode(self, document: Dict[str, Union[str, List[str]]]) -> Dict[str, torch.Tensor]:
+    def encode(self, document: Dict[str, Union[str, List[str]]]) -> Dict[str, Union[torch.Tensor, str]]:
         if isinstance(document["pre_text"], list):
             raise ValueError('document["pre_text"] must be string')
         encoding: BatchEncoding = self.tokenizer(
