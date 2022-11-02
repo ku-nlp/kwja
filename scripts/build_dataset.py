@@ -1,5 +1,6 @@
 import multiprocessing as mp
 import re
+import subprocess
 import textwrap
 from argparse import ArgumentParser
 from itertools import product
@@ -250,6 +251,12 @@ def assign_features_and_save(
         doc_id = document.doc_id
         split = doc_id2split[doc_id]
         output_root.joinpath(f"{split}/{doc_id}.knp").write_text(knp_text)
+
+
+def test_jumanpp_version():
+    out = subprocess.run(["jumanpp", "--version"], capture_output=True, encoding="utf-8", text=True)
+    match = re.match(r"Juman\+\+ Version: 2\.0\.0-dev\.(\d{8})-[0-9a-f]{8}.+", out.stdout)
+    assert match is not None and int(match.group(1)) >= 20220605, "Juman++ version is old. Please update Juman++."
 
 
 def test_jumanpp_augmenter():
