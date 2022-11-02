@@ -255,7 +255,7 @@ def assign_features_and_save(
 
 def test_jumanpp_version():
     out = subprocess.run(["jumanpp", "--version"], capture_output=True, encoding="utf-8", text=True)
-    match = re.match(r"Juman\+\+ Version: 2\.0\.0-dev\.(\d{8})-[0-9a-f]{8}.+", out.stdout)
+    match = re.match(r"Juman\+\+ Version: 2\.0\.0-dev\.(\d{8}).+", out.stdout)
     assert match is not None and int(match.group(1)) >= 20220605, "Juman++ version is old. Please update Juman++."
 
 
