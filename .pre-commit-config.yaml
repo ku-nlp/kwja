@@ -21,3 +21,4 @@ repos:
     rev: v0.971
     hooks:
       - id: mypy
+        additional_dependencies: [hydra-core==1.2.0]
