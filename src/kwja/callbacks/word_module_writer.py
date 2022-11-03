@@ -13,7 +13,7 @@ from jinf import Jinf
 from pytorch_lightning.callbacks import BasePredictionWriter
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
 from rhoknp.cohesion import ExophoraReferent, RelTag, RelTagList
-from rhoknp.props import DepType, FeatureDict, NamedEntity, NamedEntityCategory, SemanticsDict
+from rhoknp.props import DepType, NamedEntity, NamedEntityCategory, SemanticsDict
 from rhoknp.units.morpheme import MorphemeAttributes
 
 from kwja.datamodule.datasets import WordDataset, WordInferenceDataset
@@ -167,7 +167,7 @@ class WordModuleWriter(BasePredictionWriter):
                 conjform=conjform,
                 conjform_id=conjform_id,
             )
-            morpheme = Morpheme(word, attributes, SemanticsDict(semantics), FeatureDict(semantics))
+            morpheme = Morpheme(word, attributes=attributes, semantics=SemanticsDict(semantics))
             morphemes.append(morpheme)
             if len(homograph_ops) >= 1:
                 range_list = []
@@ -185,11 +185,11 @@ class WordModuleWriter(BasePredictionWriter):
                             semantics2 = v
                         else:
                             raise NotImplementedError
-                    morpheme2 = Morpheme(
-                        word, attributes2, SemanticsDict(semantics2), FeatureDict(semantics2), homograph=True
+                    homograph = Morpheme(
+                        word, attributes=attributes2, semantics=SemanticsDict(semantics2), homograph=True
                     )
                     # rhoknp coverts homographs into KNP's ALT features
-                    morpheme.homographs.append(morpheme2)
+                    morpheme.homographs.append(homograph)
         return morphemes
 
     @staticmethod
