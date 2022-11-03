@@ -281,8 +281,7 @@ class CLIProcessor:
         print("\n".join(knp_texts), end="")
 
     def output_word_discourse_result(self) -> None:
-        discourse_document: Document = Document.from_knp(self.word_discourse_path.read_text())
-        print(discourse_document.to_knp(), end="")
+        print(self.word_discourse_path.read_text(), end="")
 
     def refresh(self) -> None:
         self.typo_path.unlink(missing_ok=True)
