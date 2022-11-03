@@ -383,7 +383,7 @@ class WordModuleWriter(BasePredictionWriter):
         dependency_type_preds: List[List[int]],
         special_to_index: Dict[str, int],
     ) -> None:
-        for sentence in extract_target_sentences(document):
+        for sentence in document.sentences:
             base_phrases = sentence.base_phrases
             morpheme_global_index2base_phrase_index = {
                 morpheme.global_index: base_phrase.index
