@@ -160,7 +160,6 @@ def is_target_base_phrase_feature(k: str, v: Any) -> bool:
 def refresh(document: Document) -> None:
     keys = [feature.split(":")[0] for feature in SUB_WORD_FEATURES]
     for morpheme in document.morphemes:
-        morpheme.semantics.clear()
         feature_dict = FeatureDict()
         if morpheme.base_phrase.head == morpheme:
             feature_dict["基本句-主辞"] = True
@@ -431,6 +430,8 @@ def main():
     output_root = Path(args.OUTPUT)
     doc_id2split = {}
     for input_file in Path(args.id).glob("*.id"):
+        if input_file.stem not in {"train", "dev", "test"}:
+            continue
         split = "valid" if input_file.stem == "dev" else input_file.stem
         output_root.joinpath(split).mkdir(parents=True, exist_ok=True)
         with input_file.open(mode="r") as f:
