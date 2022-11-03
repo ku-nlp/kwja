@@ -335,26 +335,22 @@ class WordModuleWriter(BasePredictionWriter):
 
     @staticmethod
     def _add_named_entities(document: Document, ne_tag_preds: List[int]) -> None:
-        for sentence in document.sentences:
-            morphemes = sentence.morphemes
-            category = ""
-            morphemes_buff = []
-            for morpheme, ne_tag_pred in zip(morphemes, ne_tag_preds):
-                ne_tag: str = NE_TAGS[ne_tag_pred]
-                if ne_tag.startswith("B-"):
-                    category = ne_tag[2:]
-                    morphemes_buff.append(morpheme)
-                elif ne_tag.startswith("I-") and ne_tag[2:] == category:
-                    morphemes_buff.append(morpheme)
-                else:
-                    if morphemes_buff:
-                        named_entity = NamedEntity(category=NamedEntityCategory(category), morphemes=morphemes_buff)
-                        # NE feature must be tagged to the last base phrase the named entity contains
-                        morphemes_buff[-1].base_phrase.features[
-                            "NE"
-                        ] = f"{named_entity.category.value}:{named_entity.text}"
-                    category = ""
-                    morphemes_buff = []
+        category = ""
+        morphemes_buff = []
+        for morpheme, ne_tag_pred in zip(document.morphemes, ne_tag_preds):
+            ne_tag: str = NE_TAGS[ne_tag_pred]
+            if ne_tag.startswith("B-"):
+                category = ne_tag[2:]
+                morphemes_buff.append(morpheme)
+            elif ne_tag.startswith("I-") and ne_tag[2:] == category:
+                morphemes_buff.append(morpheme)
+            else:
+                if morphemes_buff:
+                    named_entity = NamedEntity(category=NamedEntityCategory(category), morphemes=morphemes_buff)
+                    # NE feature must be tagged to the last base phrase the named entity contains
+                    morphemes_buff[-1].base_phrase.features["NE"] = f"{named_entity.category.value}:{named_entity.text}"
+                category = ""
+                morphemes_buff = []
 
     @staticmethod
     def _resolve_dependency(base_phrase: BasePhrase, dependency_manager: DependencyManager) -> None:
@@ -526,13 +522,13 @@ class WordModuleWriter(BasePredictionWriter):
         dataloader_idx = prediction["dataloader_idx"]
         dataset: Union[WordDataset, WordInferenceDataset] = dataloaders[dataloader_idx].dataset
         batch_reading_subword_map = prediction["reading_subword_map"]
-        batch_reading_preds = torch.argmax(prediction["reading_prediction_logits"], dim=-1)
+        batch_reading_preds = torch.argmax(prediction["reading_prediction_logits"], dim=2)
         batch_pos_logits = prediction["word_analysis_pos_logits"]
         batch_subpos_logits = prediction["word_analysis_subpos_logits"]
         batch_conjtype_logits = prediction["word_analysis_conjtype_logits"]
         batch_conjform_logits = prediction["word_analysis_conjform_logits"]
         batch_word_feature_logits = prediction["word_feature_logits"]
-        batch_ne_tag_preds = torch.argmax(prediction["ne_logits"], dim=-1)
+        batch_ne_tag_preds = torch.argmax(prediction["ne_logits"], dim=2)
         batch_base_phrase_feature_logits = prediction["base_phrase_feature_logits"]
         batch_dependency_preds = torch.topk(
             prediction["dependency_logits"],
