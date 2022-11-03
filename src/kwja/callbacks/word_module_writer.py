@@ -245,9 +245,9 @@ class WordModuleWriter(BasePredictionWriter):
 
     @staticmethod
     def _chunk_morphemes(
-        document: Document, morphemes: List[Morpheme], word_feature_preds: List[List[float]]
+        document: Document, morphemes: List[Morpheme], word_feature_logits: List[List[float]]
     ) -> Document:
-        assert len(morphemes) <= len(word_feature_preds)
+        assert len(morphemes) <= len(word_feature_logits)
         sentences = []
         for sentence in document.sentences:
             phrases_buff = []
@@ -261,15 +261,14 @@ class WordModuleWriter(BasePredictionWriter):
                     base_phrase_head_prob,
                     base_phrase_end_prob,
                     phrase_end_prob,
-                    declinable_word_surf_head,
-                    declinable_word_surf_end,
-                ) = word_feature_preds[i]
+                    inflectable_word_surf_head_prob,
+                    inflectable_word_surf_end_prob,
+                ) = word_feature_logits[i]
                 if base_phrase_head_prob >= 0.5:
                     morpheme.features["基本句-主辞"] = True
-                # TODO: refactor & set strict condition
-                if declinable_word_surf_head >= 0.5:
+                if inflectable_word_surf_head_prob >= 0.5:
                     morpheme.features["用言表記先頭"] = True
-                if declinable_word_surf_end >= 0.5:
+                if inflectable_word_surf_end_prob >= 0.5:
                     morpheme.features["用言表記末尾"] = True
                 # even if base_phrase_end_prob is low, if phrase_end_prob is high enough, create chunk here
                 if base_phrase_end_prob >= 0.5 or base_phrase_end_prob + phrase_end_prob >= 1.0:
@@ -294,41 +293,45 @@ class WordModuleWriter(BasePredictionWriter):
                 phrase.base_phrases = base_phrases_buff
                 phrases_buff.append(phrase)
 
-            sentence = sentence.reparse()  # reparse to get clauses
             sentence.phrases = phrases_buff
-            sentence.from_knp(sentence.to_knp())
+            sentence = sentence.reparse()
             sentences.append(sentence)
         return Document.from_sentences(sentences)
 
     @staticmethod
-    def _add_base_phrase_features(document: Document, base_phrase_feature_preds: List[List[float]]) -> None:
+    def _add_base_phrase_features(document: Document, base_phrase_feature_logits: List[List[float]]) -> None:
         for sentence in document.sentences:
             base_phrases = sentence.base_phrases
             if len(base_phrases) == 0:
                 continue
 
-            clause_start_index_set: Set[int] = {0}
             for base_phrase in base_phrases:
-                for feature, pred in zip(
-                    BASE_PHRASE_FEATURES, base_phrase_feature_preds[base_phrase.head.global_index]
+                for feature, prob in zip(
+                    BASE_PHRASE_FEATURES, base_phrase_feature_logits[base_phrase.head.global_index]
                 ):
-                    if feature != "節-主辞" and pred >= 0.5:
+                    if feature.startswith("節-区切") and prob >= 0.5:
                         k, *vs = feature.split(":")
                         base_phrase.features[k] = ":".join(vs) or True
-                    if feature.startswith("節-区切") and pred >= 0.5:
-                        clause_start_index_set.add(base_phrase.index + 1)
             if base_phrases[-1].features.get("節-区切", False) is False:
-                clause_start_index_set.add(len(base_phrases))
-            clause_start_indices: List[int] = sorted(clause_start_index_set)
+                base_phrases[-1].features["節-区切"] = True
 
-            for span in zip(clause_start_indices[:-1], clause_start_indices[1:]):
-                clause = base_phrases[slice(*span)]
-                clause_head_scores = [
-                    base_phrase_feature_preds[base_phrase.head.global_index][BASE_PHRASE_FEATURES.index("節-主辞")]
-                    for base_phrase in clause
+            reparsed = sentence.reparse()
+            for clause in reparsed.clauses:
+                clause_base_phrases = [base_phrases[base_phrase.index] for base_phrase in clause.base_phrases]
+                clause_head_probs = [
+                    base_phrase_feature_logits[base_phrase.head.global_index][BASE_PHRASE_FEATURES.index("節-主辞")]
+                    for base_phrase in clause_base_phrases
                 ]
-                clause_head = clause[clause_head_scores.index(max(clause_head_scores))]
+                clause_head = clause_base_phrases[clause_head_probs.index(max(clause_head_probs))]
                 clause_head.features["節-主辞"] = True
+
+                for base_phrase in clause_base_phrases:
+                    for feature, prob in zip(
+                        BASE_PHRASE_FEATURES, base_phrase_feature_logits[base_phrase.head.global_index]
+                    ):
+                        if not feature.startswith("節-区切") and feature != "節-主辞" and prob >= 0.5:
+                            k, *vs = feature.split(":")
+                            base_phrase.features[k] = ":".join(vs) or True
 
     @staticmethod
     def _add_named_entities(document: Document, ne_tag_preds: List[int]) -> None:
@@ -528,9 +531,9 @@ class WordModuleWriter(BasePredictionWriter):
         batch_subpos_logits = prediction["word_analysis_subpos_logits"]
         batch_conjtype_logits = prediction["word_analysis_conjtype_logits"]
         batch_conjform_logits = prediction["word_analysis_conjform_logits"]
+        batch_word_feature_logits = prediction["word_feature_logits"]
         batch_ne_tag_preds = torch.argmax(prediction["ne_logits"], dim=-1)
-        batch_word_feature_preds = prediction["word_feature_logits"]
-        batch_base_phrase_feature_preds = prediction["base_phrase_feature_logits"]
+        batch_base_phrase_feature_logits = prediction["base_phrase_feature_logits"]
         batch_dependency_preds = torch.topk(
             prediction["dependency_logits"],
             k=4,  # TODO
@@ -548,9 +551,9 @@ class WordModuleWriter(BasePredictionWriter):
             subpos_logits,
             conjtype_logits,
             conjform_logits,
-            word_feature_preds,
+            word_feature_logits,
             ne_tag_preds,
-            base_phrase_feature_preds,
+            base_phrase_feature_logits,
             dependency_preds,
             dependency_type_preds,
             cohesion_preds,
@@ -564,9 +567,9 @@ class WordModuleWriter(BasePredictionWriter):
             batch_subpos_logits,
             batch_conjtype_logits,
             batch_conjform_logits,
-            batch_word_feature_preds.tolist(),
+            batch_word_feature_logits.tolist(),
             batch_ne_tag_preds.tolist(),
-            batch_base_phrase_feature_preds.tolist(),
+            batch_base_phrase_feature_logits.tolist(),
             batch_dependency_preds.tolist(),
             batch_dependency_type_preds.tolist(),
             batch_cohesion_preds.tolist(),
@@ -592,9 +595,9 @@ class WordModuleWriter(BasePredictionWriter):
                 conjtype_preds,
                 conjform_preds,
             )
-            document = self._chunk_morphemes(document, morphemes, word_feature_preds)
+            document = self._chunk_morphemes(document, morphemes, word_feature_logits)
             document.doc_id = doc_id
-            self._add_base_phrase_features(document, base_phrase_feature_preds)
+            self._add_base_phrase_features(document, base_phrase_feature_logits)
             self._add_named_entities(document, ne_tag_preds)
             self._add_dependency(document, dependency_preds, dependency_type_preds, dataset.special_to_index)
             self._add_cohesion(
