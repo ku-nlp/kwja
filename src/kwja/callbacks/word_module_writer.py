@@ -25,6 +25,7 @@ from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TYPES,
     CONJTYPE_CONJFORM_TYPE2ID,
+    CONJTYPE_TYPES,
     INDEX2CONJFORM_TYPE,
     INDEX2CONJTYPE_TYPE,
     INDEX2DEPENDENCY_TYPE,
@@ -198,44 +199,49 @@ class WordModuleWriter(BasePredictionWriter):
         subpos_logits: torch.Tensor,
         conjtype_logits: torch.Tensor,
         conjform_logits: torch.Tensor,
-    ) -> Tuple[List[List[int]], List[List[int]], List[List[int]], List[List[int]]]:
-        batch_pos_preds: List[List[int]] = torch.argmax(pos_logits, dim=-1).tolist()
-        batch_subpos_logits: List[List[List[float]]] = subpos_logits.tolist()
-        refined_batch_subpos_preds: List[List[int]] = []
-        for batch_idx, batch_pos_pred in enumerate(batch_pos_preds):
-            refined_subpos_preds: List[int] = []
-            for pos_idx, pos in enumerate(batch_pos_pred):
-                possible_subpos_ids: Set[int] = {
-                    SUBPOS_TYPES.index(x) for x in POS_SUBPOS_TYPE2ID[INDEX2POS_TYPE[pos]].keys()
-                }
-                refined_subpos_pred: int = 0
-                refined_subpos_logit: float = float("-inf")
-                for logit_idx, logit in enumerate(batch_subpos_logits[batch_idx][pos_idx]):
-                    if logit_idx in possible_subpos_ids and logit > refined_subpos_logit:
-                        refined_subpos_pred = logit_idx
-                        refined_subpos_logit = logit
-                refined_subpos_preds.append(refined_subpos_pred)
-            refined_batch_subpos_preds.append(refined_subpos_preds)
+    ) -> Tuple[List[int], List[int], List[int], List[int]]:
+        pos_preds: List[int] = torch.argmax(pos_logits, dim=1).tolist()
+        subpos_logits = subpos_logits.tolist()
+        subpos_preds: List[int] = []
+        for mrph_idx, pos_pred in enumerate(pos_preds):
+            possible_subpos_ids: Set[int] = {
+                SUBPOS_TYPES.index(x) for x in POS_SUBPOS_TYPE2ID[INDEX2POS_TYPE[pos_pred]].keys()
+            }
+            subpos_logit: float = float("-inf")
+            subpos_pred: int = 0
+            for logit_idx, logit in enumerate(subpos_logits[mrph_idx]):
+                if logit_idx in possible_subpos_ids and logit > subpos_logit:
+                    subpos_logit = logit
+                    subpos_pred = logit_idx
+            subpos_preds.append(subpos_pred)
 
-        batch_conjtype_preds: List[List[int]] = torch.argmax(conjtype_logits, dim=-1).tolist()
-        batch_conjform_logits: List[List[List[float]]] = conjform_logits.tolist()
-        refined_batch_conjform_preds: List[List[int]] = []
-        for batch_idx, batch_conjtype_pred in enumerate(batch_conjtype_preds):
-            refined_conjform_preds: List[int] = []
-            for conjtype_idx, conjtype in enumerate(batch_conjtype_pred):
+        conjtype_preds: List[int] = torch.argmax(conjtype_logits, dim=1).tolist()
+        conjform_logits = conjform_logits.tolist()
+        conjform_preds: List[int] = []
+        for mrph_idx, (pos_pred, subpos_pred, conjtype_pred) in enumerate(zip(pos_preds, subpos_preds, conjtype_preds)):
+            inflectable = INDEX2POS_TYPE[pos_pred] in {"動詞", "形容詞", "判定詞", "助動詞"}
+            inflectable |= INDEX2POS_TYPE[pos_pred] == "接尾辞" and INDEX2SUBPOS_TYPE[subpos_pred] in {
+                "形容詞性述語接尾辞",
+                "形容詞性名詞接尾辞",
+                "動詞性接尾辞",
+            }
+            if inflectable:
                 possible_conjform_ids: Set[int] = {
-                    CONJFORM_TYPES.index(x) for x in CONJTYPE_CONJFORM_TYPE2ID[INDEX2CONJTYPE_TYPE[conjtype]].keys()
+                    CONJFORM_TYPES.index(x)
+                    for x in CONJTYPE_CONJFORM_TYPE2ID[INDEX2CONJTYPE_TYPE[conjtype_pred]].keys()
                 }
-                refined_conjform_pred: int = 0
-                refined_conjform_logit: float = float("-inf")
-                for logit_idx, logit in enumerate(batch_conjform_logits[batch_idx][conjtype_idx]):
-                    if logit_idx in possible_conjform_ids and logit > refined_conjform_logit:
-                        refined_conjform_pred = logit_idx
-                        refined_conjform_logit = logit
-                refined_conjform_preds.append(refined_conjform_pred)
-            refined_batch_conjform_preds.append(refined_conjform_preds)
+                conjform_logit: float = float("-inf")
+                conjform_pred: int = 0
+                for logit_idx, logit in enumerate(conjform_logits[mrph_idx]):
+                    if logit_idx in possible_conjform_ids and logit > conjform_logit:
+                        conjform_logit = logit
+                        conjform_pred = logit_idx
+            else:
+                conjtype_preds[mrph_idx] = CONJTYPE_TYPES.index("*")
+                conjform_pred = CONJTYPE_CONJFORM_TYPE2ID["*"]["*"]
+            conjform_preds.append(conjform_pred)
 
-        return batch_pos_preds, refined_batch_subpos_preds, batch_conjtype_preds, refined_batch_conjform_preds
+        return pos_preds, subpos_preds, conjtype_preds, conjform_preds
 
     @staticmethod
     def _chunk_morphemes(
@@ -518,12 +524,10 @@ class WordModuleWriter(BasePredictionWriter):
         dataset: Union[WordDataset, WordInferenceDataset] = dataloaders[dataloader_idx].dataset
         batch_reading_subword_map = prediction["reading_subword_map"]
         batch_reading_preds = torch.argmax(prediction["reading_prediction_logits"], dim=-1)
-        (batch_pos_preds, batch_subpos_preds, batch_conjtype_preds, batch_conjform_preds,) = self._get_mrph_type_preds(
-            pos_logits=prediction["word_analysis_pos_logits"],
-            subpos_logits=prediction["word_analysis_subpos_logits"],
-            conjtype_logits=prediction["word_analysis_conjtype_logits"],
-            conjform_logits=prediction["word_analysis_conjform_logits"],
-        )
+        batch_pos_logits = prediction["word_analysis_pos_logits"]
+        batch_subpos_logits = prediction["word_analysis_subpos_logits"]
+        batch_conjtype_logits = prediction["word_analysis_conjtype_logits"]
+        batch_conjform_logits = prediction["word_analysis_conjform_logits"]
         batch_ne_tag_preds = torch.argmax(prediction["ne_logits"], dim=-1)
         batch_word_feature_preds = prediction["word_feature_logits"]
         batch_base_phrase_feature_preds = prediction["base_phrase_feature_logits"]
@@ -540,10 +544,10 @@ class WordModuleWriter(BasePredictionWriter):
             example_id,
             reading_subword_map,
             reading_preds,
-            pos_preds,
-            subpos_preds,
-            conjtype_preds,
-            conjform_preds,
+            pos_logits,
+            subpos_logits,
+            conjtype_logits,
+            conjform_logits,
             word_feature_preds,
             ne_tag_preds,
             base_phrase_feature_preds,
@@ -556,10 +560,10 @@ class WordModuleWriter(BasePredictionWriter):
             batch_example_ids,
             batch_reading_subword_map.tolist(),
             batch_reading_preds.tolist(),
-            batch_pos_preds,
-            batch_subpos_preds,
-            batch_conjtype_preds,
-            batch_conjform_preds,
+            batch_pos_logits,
+            batch_subpos_logits,
+            batch_conjtype_logits,
+            batch_conjform_logits,
             batch_word_feature_preds.tolist(),
             batch_ne_tag_preds.tolist(),
             batch_base_phrase_feature_preds.tolist(),
@@ -573,6 +577,12 @@ class WordModuleWriter(BasePredictionWriter):
             document = dataset.doc_id2document[doc_id]
             readings = [self.id2reading[pred] for pred in reading_preds]
             word_reading_preds = get_word_level_readings(readings, tokens.split(" "), reading_subword_map)
+            pos_preds, subpos_preds, conjtype_preds, conjform_preds = self._get_mrph_type_preds(
+                pos_logits=pos_logits,
+                subpos_logits=subpos_logits,
+                conjtype_logits=conjtype_logits,
+                conjform_logits=conjform_logits,
+            )
             morphemes = self._create_morphemes(
                 [m.text for m in document.morphemes],
                 [m.lemma if m.attributes is not None else m.text for m in document.morphemes],
