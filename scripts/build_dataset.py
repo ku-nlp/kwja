@@ -413,12 +413,15 @@ def main():
     parser.add_argument("--id", type=str, help="path to id")
     parser.add_argument("--ne-tags", default=None, type=str, help="path to ne tags")
     parser.add_argument("-j", default=1, type=int, help="number of jobs")
+    parser.add_argument(
+        "--doc-id-format", default="default", type=str, help="doc id format to identify document boundary"
+    )
     args = parser.parse_args()
 
     knp_texts = []
     for input_file in Path(args.INPUT).glob("**/*.knp"):
         with input_file.open(mode="r") as f:
-            knp_texts += [knp_text for knp_text in chunk_by_document(f)]
+            knp_texts += [knp_text for knp_text in chunk_by_document(f, doc_id_format=args.doc_id_format)]
 
     if args.ne_tags:
         with open(args.ne_tags, mode="r") as f:
