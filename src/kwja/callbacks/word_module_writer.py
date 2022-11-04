@@ -32,6 +32,7 @@ from kwja.utils.constants import (
     INDEX2DISCOURSE_RELATION,
     INDEX2POS_TYPE,
     INDEX2SUBPOS_TYPE,
+    INFLECTABLE,
     NE_TAGS,
     POS_SUBPOS_TYPE2ID,
     POS_TYPE2ID,
@@ -219,13 +220,9 @@ class WordModuleWriter(BasePredictionWriter):
         conjform_logits_list: List[List[float]] = conjform_logits.tolist()
         conjform_preds: List[int] = []
         for mrph_idx, (pos_pred, subpos_pred, conjtype_pred) in enumerate(zip(pos_preds, subpos_preds, conjtype_preds)):
-            inflectable = INDEX2POS_TYPE[pos_pred] in {"動詞", "形容詞", "判定詞", "助動詞"}
-            inflectable |= INDEX2POS_TYPE[pos_pred] == "接尾辞" and INDEX2SUBPOS_TYPE[subpos_pred] in {
-                "形容詞性述語接尾辞",
-                "形容詞性名詞接尾辞",
-                "動詞性接尾辞",
-            }
-            if inflectable:
+            pos: str = INDEX2POS_TYPE[pos_pred]
+            subpos: str = INDEX2SUBPOS_TYPE[subpos_pred]
+            if (pos, subpos) in INFLECTABLE:
                 possible_conjform_ids: Set[int] = {
                     CONJFORM_TYPES.index(x)
                     for x in CONJTYPE_CONJFORM_TYPE2ID[INDEX2CONJTYPE_TYPE[conjtype_pred]].keys()

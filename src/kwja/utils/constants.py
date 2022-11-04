@@ -829,6 +829,8 @@ CONJFORM_TYPES_WITH_OVERLAP = tuple(
 )
 CONJFORM_TYPES = tuple(sorted(set(CONJFORM_TYPES_WITH_OVERLAP), key=CONJFORM_TYPES_WITH_OVERLAP.index))
 INDEX2CONJFORM_TYPE: Dict[int, str] = {index: conjform_type for index, conjform_type in enumerate(CONJFORM_TYPES)}
+INFLECTABLE = {(pos, subpos) for pos in ["動詞", "形容詞", "判定詞", "助動詞"] for subpos in POS_SUBPOS_TYPE2ID[pos].keys()}
+INFLECTABLE |= {("接尾辞", subpos) for subpos in ["形容詞性述語接尾辞", "形容詞性名詞接尾辞", "動詞性接尾辞"]}
 
 NE_TAGS: Tuple[str, ...] = sum(
     [(f"B-{cat.value}", f"I-{cat.value}") for cat in NamedEntityCategory if cat != NamedEntityCategory.OPTIONAL], ("O",)
