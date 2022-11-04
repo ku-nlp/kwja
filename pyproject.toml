@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "kwja"
-version = "1.2.0"
+version = "1.2.1"
 description = "A unified language analyzer for Japanese"
 authors = [
     "Hirokazu Kiyomaru <kiyomaru@i.kyoto-u.ac.jp>",
