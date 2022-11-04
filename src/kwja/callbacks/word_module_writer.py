@@ -305,11 +305,13 @@ class WordModuleWriter(BasePredictionWriter):
                     for feature, prob in zip(
                         BASE_PHRASE_FEATURES, base_phrase_feature_logits[base_phrase.head.global_index]
                     ):
-                        if feature != "節-主辞" and prob >= 0.5:
-                            k, *vs = feature.split(":")
-                            base_phrase.features[k] = ":".join(vs) or True
                         if feature.startswith("節-区切") and prob >= 0.5:
                             clause_boundary = feature
+                        elif feature != "節-主辞" and prob >= 0.5:
+                            k, *vs = feature.split(":")
+                            base_phrase.features[k] = ":".join(vs) or True
+                if phrase == phrases[-1] and clause_boundary is None:
+                    clause_boundary = "節-区切"
 
                 if clause_boundary:
                     k, *vs = clause_boundary.split(":")
