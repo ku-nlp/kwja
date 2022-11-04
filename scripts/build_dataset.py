@@ -15,7 +15,7 @@ from tqdm import tqdm
 
 from kwja.utils.constants import BASE_PHRASE_FEATURES, IGNORE_VALUE_FEATURE_PAT, SUB_WORD_FEATURES
 
-FEATURES_PAT = re.compile(r"(?P<features>(<[^>]+>)+)")
+FEATURES_PAT = re.compile(r"(?P<features>(<[^>]+>)+$)")
 NE_OPTIONAL_PAT = re.compile(r"(?P<optional><NE:OPTIONAL:[^>]+>)")
 
 
