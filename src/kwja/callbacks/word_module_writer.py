@@ -301,37 +301,30 @@ class WordModuleWriter(BasePredictionWriter):
     @staticmethod
     def _add_base_phrase_features(document: Document, base_phrase_feature_logits: List[List[float]]) -> None:
         for sentence in document.sentences:
-            base_phrases = sentence.base_phrases
-            if len(base_phrases) == 0:
-                continue
-
-            for base_phrase in base_phrases:
-                for feature, prob in zip(
-                    BASE_PHRASE_FEATURES, base_phrase_feature_logits[base_phrase.head.global_index]
-                ):
-                    if feature.startswith("節-区切") and prob >= 0.5:
-                        k, *vs = feature.split(":")
-                        base_phrase.features[k] = ":".join(vs) or True
-            if base_phrases[-1].features.get("節-区切", False) is False:
-                base_phrases[-1].features["節-区切"] = True
-
-            reparsed = sentence.reparse()
-            for clause in reparsed.clauses:
-                clause_base_phrases = [base_phrases[base_phrase.index] for base_phrase in clause.base_phrases]
-                clause_head_probs = [
-                    base_phrase_feature_logits[base_phrase.head.global_index][BASE_PHRASE_FEATURES.index("節-主辞")]
-                    for base_phrase in clause_base_phrases
-                ]
-                clause_head = clause_base_phrases[clause_head_probs.index(max(clause_head_probs))]
-                clause_head.features["節-主辞"] = True
-
-                for base_phrase in clause_base_phrases:
+            phrases = sentence.phrases
+            clause_boundary, clause_start = None, 0
+            for phrase in phrases:
+                for base_phrase in phrase.base_phrases:
                     for feature, prob in zip(
                         BASE_PHRASE_FEATURES, base_phrase_feature_logits[base_phrase.head.global_index]
                     ):
-                        if not feature.startswith("節-区切") and feature != "節-主辞" and prob >= 0.5:
+                        if feature != "節-主辞" and prob >= 0.5:
                             k, *vs = feature.split(":")
                             base_phrase.features[k] = ":".join(vs) or True
+                        if feature.startswith("節-区切") and prob >= 0.5:
+                            clause_boundary = feature
+
+                if clause_boundary:
+                    k, *vs = clause_boundary.split(":")
+                    phrase.base_phrases[-1].features[k] = ":".join(vs) or True
+                    base_phrases = [bp for p in phrases[clause_start : phrase.index + 1] for bp in p.base_phrases]
+                    clause_head_probs = [
+                        base_phrase_feature_logits[base_phrase.head.global_index][BASE_PHRASE_FEATURES.index("節-主辞")]
+                        for base_phrase in base_phrases
+                    ]
+                    clause_head = base_phrases[clause_head_probs.index(max(clause_head_probs))]
+                    clause_head.features["節-主辞"] = True
+                    clause_boundary, clause_start = None, phrase.index + 1
 
     @staticmethod
     def _add_named_entities(document: Document, ne_tag_preds: List[int]) -> None:
