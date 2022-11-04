@@ -15,7 +15,6 @@ from tqdm import tqdm
 
 from kwja.utils.constants import BASE_PHRASE_FEATURES, IGNORE_VALUE_FEATURE_PAT, SUB_WORD_FEATURES
 
-FEATURES_PAT = re.compile(r"(?P<features>(<[^>]+>)+$)")
 NE_OPTIONAL_PAT = re.compile(r"(?P<optional><NE:OPTIONAL:[^>]+>)")
 
 
@@ -208,36 +207,29 @@ def assign_features_and_save(
     jumanpp_augmenter = JumanppAugmenter()
     knp = KNP(options=["-tab", "-dpnd-fast", "-read-feature"])
     for knp_text in tqdm(knp_texts):
-        old_knp_lines = knp_text.split("\n")
-        buf = []
-        for idx, line in enumerate(old_knp_lines):
-            if line.startswith("*") or line.startswith("+"):
-                pass
-            elif mo := FEATURES_PAT.search(line):
-                features = mo.group("features")
-                old_knp_lines[idx] = line.replace(features, "")
-                buf.append((idx, features))
-        document = Document.from_knp("\n".join(old_knp_lines))
+        document = Document.from_knp(knp_text)
         if document.doc_id not in doc_id2split:
             continue
+
+        buf = []
+        for morpheme in document.morphemes:
+            buf.append({**morpheme.features})
+            morpheme.features.clear()
 
         # 形態素意味情報付与 (引数に渡したdocumentをupdateする)
         _ = jumanpp_augmenter.augment_document(document)
 
         # 素性付与
         with Popen(knp.run_command, stdout=PIPE, stdin=PIPE, encoding="utf-8", errors="replace") as p:
-            knp_text, _ = p.communicate(input=document.to_knp())
-        new_knp_lines = knp_text.split("\n")
+            assigned_knp_text, _ = p.communicate(input=document.to_knp())
         # ダ列文語連体形など
-        if len(new_knp_lines) != len(old_knp_lines):
+        if len(assigned_knp_text.split("\n")) != len(knp_text.split("\n")):
             continue
+        document = Document.from_knp(assigned_knp_text)
 
         # 初めから付いていた素性の付与
-        for idx, features in buf:
-            assert new_knp_lines[idx].endswith(">")
-            new_knp_lines[idx] += features
-        knp_text = "\n".join(new_knp_lines)
-        document = Document.from_knp(knp_text)
+        for morpheme, features in zip(document.morphemes, buf):
+            morpheme.features.update(features)
 
         if sid2tagged_sentence is not None:
             set_named_entities(document, sid2tagged_sentence)
