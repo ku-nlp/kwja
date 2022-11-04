@@ -201,7 +201,7 @@ class WordModuleWriter(BasePredictionWriter):
         conjform_logits: torch.Tensor,
     ) -> Tuple[List[int], List[int], List[int], List[int]]:
         pos_preds: List[int] = torch.argmax(pos_logits, dim=1).tolist()
-        subpos_logits = subpos_logits.tolist()
+        subpos_logits_list: List[List[float]] = subpos_logits.tolist()
         subpos_preds: List[int] = []
         for mrph_idx, pos_pred in enumerate(pos_preds):
             possible_subpos_ids: Set[int] = {
@@ -209,14 +209,14 @@ class WordModuleWriter(BasePredictionWriter):
             }
             subpos_logit: float = float("-inf")
             subpos_pred: int = 0
-            for logit_idx, logit in enumerate(subpos_logits[mrph_idx]):
+            for logit_idx, logit in enumerate(subpos_logits_list[mrph_idx]):
                 if logit_idx in possible_subpos_ids and logit > subpos_logit:
                     subpos_logit = logit
                     subpos_pred = logit_idx
             subpos_preds.append(subpos_pred)
 
         conjtype_preds: List[int] = torch.argmax(conjtype_logits, dim=1).tolist()
-        conjform_logits = conjform_logits.tolist()
+        conjform_logits_list: List[List[float]] = conjform_logits.tolist()
         conjform_preds: List[int] = []
         for mrph_idx, (pos_pred, subpos_pred, conjtype_pred) in enumerate(zip(pos_preds, subpos_preds, conjtype_preds)):
             inflectable = INDEX2POS_TYPE[pos_pred] in {"動詞", "形容詞", "判定詞", "助動詞"}
@@ -232,7 +232,7 @@ class WordModuleWriter(BasePredictionWriter):
                 }
                 conjform_logit: float = float("-inf")
                 conjform_pred: int = 0
-                for logit_idx, logit in enumerate(conjform_logits[mrph_idx]):
+                for logit_idx, logit in enumerate(conjform_logits_list[mrph_idx]):
                     if logit_idx in possible_conjform_ids and logit > conjform_logit:
                         conjform_logit = logit
                         conjform_pred = logit_idx
