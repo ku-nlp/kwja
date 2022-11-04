@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Tuple
 
 import numpy as np
 import torch
@@ -26,7 +26,7 @@ class NERMetric(Metric):
         self.ne_tag_predictions.append(ne_tag_predictions)
         self.ne_tags.append(ne_tags)
 
-    def compute(self) -> Dict[str, Union[torch.Tensor, float]]:
+    def compute(self) -> Dict[str, float]:
         sorted_indices = self._unique(self.example_ids)
         ne_tag_predictions, ne_tags = map(
             lambda x: x[sorted_indices],

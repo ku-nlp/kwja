@@ -85,8 +85,6 @@ class WordModuleDiscourseWriter(BasePredictionWriter):
             example: Union[WordExampleSet, WordInferenceExample] = dataset.examples[example_id]
             doc_id = example.doc_id
             document = dataset.doc_id2document[doc_id]
-            document.doc_id = doc_id
-            document = document.reparse()  # reparse to get clauses
             self._add_discourse(document, discourse_parsing_preds)
             sentences += extract_target_sentences(document)
 

@@ -1,5 +1,5 @@
 import logging
-from typing import List
+from typing import List, Tuple
 
 import numpy as np
 from jinf import Jinf
@@ -341,20 +341,20 @@ class MorphemeDenormalizer:
         if len(surf) == 1:
             return surf
         surf2 = self._denormalize_deterministic(surf, var_prolonged=True)
-        cands = [[surf, 10.0]]
+        cands: List[Tuple[str, float]] = [(surf, 10.0)]
         # D: ー, っ
         if is_kana(surf2[-1]):
             d = 0.1
             if surf2[-1] in ("ん", "ン", "っ", "ッ"):
                 d *= 0.1
-            cands.append([surf2 + "ー", d * 1.0])
-            cands.append([surf2 + "ーー", d * 0.1])
-            cands.append([surf2 + "ーーー", d * 0.05])
-            cands.append([surf2 + "〜", d * 0.2])
-            cands.append([surf2 + "〜〜", d * 0.02])
-            cands.append([surf2 + "〜〜〜", d * 0.001])
-            cands.append([surf2 + "っ", d * 0.1])
-            cands.append([surf2 + "ッ", d * 0.05])
+            cands.append((surf2 + "ー", d * 1.0))
+            cands.append((surf2 + "ーー", d * 0.1))
+            cands.append((surf2 + "ーーー", d * 0.05))
+            cands.append((surf2 + "〜", d * 0.2))
+            cands.append((surf2 + "〜〜", d * 0.02))
+            cands.append((surf2 + "〜〜〜", d * 0.001))
+            cands.append((surf2 + "っ", d * 0.1))
+            cands.append((surf2 + "ッ", d * 0.05))
         # D: ぁ, ぅ, ぉ, っ
         if surf2[-1] in (
             "あ",
@@ -375,9 +375,9 @@ class MorphemeDenormalizer:
             "ゃ",
         ):
             d = 0.5
-            cands.append([surf2 + "ぁ", d * 1.0])
-            cands.append([surf2 + "ぁー", d * 0.1])
-            cands.append([surf2 + "ぁーー", d * 0.05])
+            cands.append((surf2 + "ぁ", d * 1.0))
+            cands.append((surf2 + "ぁー", d * 0.1))
+            cands.append((surf2 + "ぁーー", d * 0.05))
         elif surf2[-1] in (
             "う",
             "く",
@@ -396,9 +396,9 @@ class MorphemeDenormalizer:
             "ゅ",
         ):
             d = 0.5
-            cands.append([surf2 + "ぅ", d * 1.0])
-            cands.append([surf2 + "ぅー", d * 0.01])
-            cands.append([surf2 + "ぅーー", d * 0.05])
+            cands.append((surf2 + "ぅ", d * 1.0))
+            cands.append((surf2 + "ぅー", d * 0.01))
+            cands.append((surf2 + "ぅーー", d * 0.05))
         elif surf2[-1] in (
             "お",
             "こ",
@@ -417,28 +417,28 @@ class MorphemeDenormalizer:
             "ょ",
         ):
             d = 0.5
-            cands.append([surf2 + "ぉ", d * 1.0])
-            cands.append([surf2 + "ぉー", d * 0.1])
-            cands.append([surf2 + "ぉーー", d * 0.05])
+            cands.append((surf2 + "ぉ", d * 1.0))
+            cands.append((surf2 + "ぉー", d * 0.1))
+            cands.append((surf2 + "ぉーー", d * 0.05))
         elif surf2[-1] == "っ":
             d = 0.5
-            cands.append([surf2 + "っ", d * 1.0])
-            cands.append([surf2 + "っっ", d * 0.1])
-            cands.append([surf2 + "っっ", d * 0.05])
+            cands.append((surf2 + "っ", d * 1.0))
+            cands.append((surf2 + "っっ", d * 0.1))
+            cands.append((surf2 + "っっ", d * 0.05))
         elif len(surf2) >= 2 and surf2[-1] == "い" and is_kana(surf2[-2]):
             d = 1.0
-            cands.append([surf2[:-1] + "ーい", d * 1.0])
-            cands.append([surf2[:-1] + "ーーい", d * 0.1])
+            cands.append((surf2[:-1] + "ーい", d * 1.0))
+            cands.append((surf2[:-1] + "ーーい", d * 0.1))
         elif len(surf2) >= 2 and surf2[-1] == "く" and is_kana(surf2[-2]):
             d = 1.0
-            cands.append([surf2[:-1] + "ーく", d * 1.0])
-            cands.append([surf2[:-1] + "ーーく", d * 0.1])
+            cands.append((surf2[:-1] + "ーく", d * 1.0))
+            cands.append((surf2[:-1] + "ーーく", d * 0.1))
         if surf2 == "です":
-            cands.append(["でーす", 1.0])
-            cands.append(["で〜す", 0.2])
+            cands.append(("でーす", 1.0))
+            cands.append(("で〜す", 0.2))
         if surf2 == "ます":
-            cands.append(["まーす", 1.0])
-            cands.append(["ま〜す", 0.2])
+            cands.append(("まーす", 1.0))
+            cands.append(("ま〜す", 0.2))
         if len(cands) <= 1:
             return surf2
         probs = np.array(list(map(lambda x: x[1], cands)))

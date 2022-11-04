@@ -46,6 +46,7 @@ class DataModule(pl.LightningDataModule):
             self.predict_dataset = hydra.utils.instantiate(self.cfg.predict)
 
     def train_dataloader(self) -> DataLoader:
+        assert self.train_dataset is not None
         return self._get_dataloader(dataset=self.train_dataset, shuffle=True)
 
     def val_dataloader(self) -> List[DataLoader]:
@@ -55,6 +56,7 @@ class DataModule(pl.LightningDataModule):
         return [self._get_dataloader(dataset, shuffle=False) for dataset in self.test_datasets.values()]
 
     def predict_dataloader(self) -> DataLoader:
+        assert isinstance(self.predict_dataset, Dataset)
         return self._get_dataloader(self.predict_dataset, shuffle=False)
 
     def _get_dataloader(self, dataset: Dataset, shuffle: bool) -> DataLoader:

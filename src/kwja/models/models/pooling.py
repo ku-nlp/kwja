@@ -38,5 +38,6 @@ def pool_subwords(
         return torch.amax(word_sequence_output + mask.unsqueeze(dim=3), dim=2)  # (b, word, hid)
     if strategy == PoolingStrategy.AVE:
         subword_map = subword_map.float()
-        conv_matrix = subword_map / (subword_map.sum(dim=2, keepdims=True) + 1e-6)  # (b, word, seq)
+        conv_matrix = subword_map / (subword_map.sum(dim=2, keepdim=True) + 1e-6)  # (b, word, seq)
         return torch.bmm(conv_matrix, sequence_output)  # (b, word, hid)
+    raise ValueError(f"Unknown pooling strategy: {strategy}")
