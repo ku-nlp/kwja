@@ -3,7 +3,7 @@ prediction_writer:
   output_dir: ${run_dir}
   reading_resource_path: ${dataset.reading_resource_path}
   pred_filename: "predict"
-  jumandic_path: ${oc.env:DATA_DIR}/jumandic
+  jumandic_path: kwja/resource/jumandic
   ambig_surf_specs: [
     {
       conjtype: "イ形容詞アウオ段",
