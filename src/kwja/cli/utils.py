@@ -15,6 +15,9 @@ ENV_XDG_CACHE_HOME = "XDG_CACHE_HOME"
 DEFAULT_CACHE_DIR = Path.home() / ".cache"
 
 
+logger = logging.getLogger(__name__)
+
+
 def suppress_debug_info() -> None:
     warnings.filterwarnings("ignore")
     logging.getLogger("kwja").setLevel(logging.ERROR)
@@ -64,8 +67,13 @@ def _get_kwja_cache_dir() -> Path:
 
 def prepare_device(device_name: str) -> Tuple[str, torch.device]:
     n_gpu = torch.cuda.device_count()
+    if device_name == "auto":
+        if n_gpu > 0:
+            device_name = "gpu"
+        else:
+            device_name = "cpu"
     if device_name == "gpu" and n_gpu == 0:
-        print("Warning: There's no GPU available on this machine. Using CPU instead.")
+        logger.warning("There's no GPU available on this machine. Using CPU instead.")
         return "cpu", torch.device("cpu")
     else:
         return device_name, torch.device("cuda:0" if device_name == "gpu" else "cpu")
