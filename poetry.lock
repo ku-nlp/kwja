@@ -1429,7 +1429,7 @@ test = ["pre-commit", "pytest"]
 
 [[package]]
 name = "transformers"
-version = "4.19.4"
+version = "4.23.1"
 description = "State-of-the-art Machine Learning for JAX, PyTorch and TensorFlow"
 category = "main"
 optional = false
@@ -1437,54 +1437,55 @@ python-versions = ">=3.7.0"
 
 [package.dependencies]
 filelock = "*"
-huggingface-hub = ">=0.1.0,<1.0"
+huggingface-hub = ">=0.10.0,<1.0"
 numpy = ">=1.17"
 packaging = ">=20.0"
 pyyaml = ">=5.1"
 regex = "!=2019.12.17"
 requests = "*"
-tokenizers = ">=0.11.1,<0.11.3 || >0.11.3,<0.13"
+tokenizers = ">=0.11.1,<0.11.3 || >0.11.3,<0.14"
 tqdm = ">=4.27"
 
 [package.extras]
-all = ["Pillow", "codecarbon (==1.2.0)", "flax (>=0.3.5)", "jax (>=0.2.8,!=0.3.2,<=0.3.6)", "jaxlib (>=0.1.65,<=0.3.6)", "librosa", "onnxconverter-common", "optax (>=0.0.8)", "optuna", "phonemizer", "protobuf (<=3.20.1)", "pyctcdecode (>=0.3.0)", "ray[tune]", "sentencepiece (>=0.1.91,!=0.1.92)", "sigopt", "tensorflow (>=2.3)", "tf2onnx", "timm", "tokenizers (>=0.11.1,!=0.11.3,<0.13)", "torch (>=1.0)", "torchaudio"]
+accelerate = ["accelerate (>=0.10.0)"]
+all = ["Pillow", "accelerate (>=0.10.0)", "codecarbon (==1.2.0)", "flax (>=0.4.1)", "jax (>=0.2.8,!=0.3.2,<=0.3.6)", "jaxlib (>=0.1.65,<=0.3.6)", "librosa", "onnxconverter-common", "optax (>=0.0.8)", "optuna", "phonemizer", "protobuf (<=3.20.2)", "pyctcdecode (>=0.3.0)", "ray[tune]", "sentencepiece (>=0.1.91,!=0.1.92)", "sigopt", "tensorflow (>=2.4)", "tensorflow-text", "tf2onnx", "timm", "tokenizers (>=0.11.1,!=0.11.3,<0.14)", "torch (>=1.7,!=1.12.0)", "torchaudio"]
 audio = ["librosa", "phonemizer", "pyctcdecode (>=0.3.0)"]
 codecarbon = ["codecarbon (==1.2.0)"]
-deepspeed = ["deepspeed (>=0.6.4)"]
-deepspeed-testing = ["GitPython (<3.1.19)", "black (>=22.0,<23.0)", "cookiecutter (==1.7.3)", "datasets", "deepspeed (>=0.6.4)", "faiss-cpu", "hf-doc-builder (>=0.3.0)", "nltk", "optuna", "parameterized", "protobuf (<=3.20.1)", "psutil", "pytest", "pytest-timeout", "pytest-xdist", "rjieba", "rouge-score", "sacrebleu (>=1.4.12,<2.0.0)", "sacremoses", "timeout-decorator"]
-dev = ["GitPython (<3.1.19)", "Pillow", "black (>=22.0,<23.0)", "codecarbon (==1.2.0)", "cookiecutter (==1.7.3)", "datasets", "faiss-cpu", "flake8 (>=3.8.3)", "flax (>=0.3.5)", "fugashi (>=1.0)", "hf-doc-builder", "hf-doc-builder (>=0.3.0)", "ipadic (>=1.0.0,<2.0)", "isort (>=5.5.4)", "jax (>=0.2.8,!=0.3.2,<=0.3.6)", "jaxlib (>=0.1.65,<=0.3.6)", "librosa", "nltk", "onnxconverter-common", "optax (>=0.0.8)", "optuna", "parameterized", "phonemizer", "protobuf (<=3.20.1)", "psutil", "pyctcdecode (>=0.3.0)", "pytest", "pytest-timeout", "pytest-xdist", "ray[tune]", "rjieba", "rouge-score", "sacrebleu (>=1.4.12,<2.0.0)", "sacremoses", "scikit-learn", "sentencepiece (>=0.1.91,!=0.1.92)", "sigopt", "tensorflow (>=2.3)", "tf2onnx", "timeout-decorator", "timm", "tokenizers (>=0.11.1,!=0.11.3,<0.13)", "torch (>=1.0)", "torchaudio", "unidic (>=1.0.2)", "unidic-lite (>=1.0.7)"]
-dev-tensorflow = ["GitPython (<3.1.19)", "Pillow", "black (>=22.0,<23.0)", "cookiecutter (==1.7.3)", "datasets", "faiss-cpu", "flake8 (>=3.8.3)", "hf-doc-builder", "hf-doc-builder (>=0.3.0)", "isort (>=5.5.4)", "librosa", "nltk", "onnxconverter-common", "onnxruntime (>=1.4.0)", "onnxruntime-tools (>=1.4.2)", "parameterized", "phonemizer", "protobuf (<=3.20.1)", "psutil", "pyctcdecode (>=0.3.0)", "pytest", "pytest-timeout", "pytest-xdist", "rjieba", "rouge-score", "sacrebleu (>=1.4.12,<2.0.0)", "sacremoses", "scikit-learn", "sentencepiece (>=0.1.91,!=0.1.92)", "tensorflow (>=2.3)", "tf2onnx", "timeout-decorator", "tokenizers (>=0.11.1,!=0.11.3,<0.13)"]
-dev-torch = ["GitPython (<3.1.19)", "Pillow", "black (>=22.0,<23.0)", "codecarbon (==1.2.0)", "cookiecutter (==1.7.3)", "datasets", "faiss-cpu", "flake8 (>=3.8.3)", "fugashi (>=1.0)", "hf-doc-builder", "hf-doc-builder (>=0.3.0)", "ipadic (>=1.0.0,<2.0)", "isort (>=5.5.4)", "librosa", "nltk", "onnxruntime (>=1.4.0)", "onnxruntime-tools (>=1.4.2)", "optuna", "parameterized", "phonemizer", "protobuf (<=3.20.1)", "psutil", "pyctcdecode (>=0.3.0)", "pytest", "pytest-timeout", "pytest-xdist", "ray[tune]", "rjieba", "rouge-score", "sacrebleu (>=1.4.12,<2.0.0)", "sacremoses", "scikit-learn", "sentencepiece (>=0.1.91,!=0.1.92)", "sigopt", "timeout-decorator", "timm", "tokenizers (>=0.11.1,!=0.11.3,<0.13)", "torch (>=1.0)", "torchaudio", "unidic (>=1.0.2)", "unidic-lite (>=1.0.7)"]
-docs = ["Pillow", "codecarbon (==1.2.0)", "flax (>=0.3.5)", "hf-doc-builder", "jax (>=0.2.8,!=0.3.2,<=0.3.6)", "jaxlib (>=0.1.65,<=0.3.6)", "librosa", "onnxconverter-common", "optax (>=0.0.8)", "optuna", "phonemizer", "protobuf (<=3.20.1)", "pyctcdecode (>=0.3.0)", "ray[tune]", "sentencepiece (>=0.1.91,!=0.1.92)", "sigopt", "tensorflow (>=2.3)", "tf2onnx", "timm", "tokenizers (>=0.11.1,!=0.11.3,<0.13)", "torch (>=1.0)", "torchaudio"]
+deepspeed = ["accelerate (>=0.10.0)", "deepspeed (>=0.6.5)"]
+deepspeed-testing = ["GitPython (<3.1.19)", "accelerate (>=0.10.0)", "beautifulsoup4", "black (==22.3)", "cookiecutter (==1.7.3)", "datasets (!=2.5.0)", "deepspeed (>=0.6.5)", "dill (<0.3.5)", "evaluate (>=0.2.0)", "faiss-cpu", "hf-doc-builder (>=0.3.0)", "nltk", "optuna", "parameterized", "protobuf (<=3.20.2)", "psutil", "pytest", "pytest-timeout", "pytest-xdist", "rjieba", "rouge-score (!=0.0.7,!=0.0.8,!=0.1,!=0.1.1)", "sacrebleu (>=1.4.12,<2.0.0)", "sacremoses", "safetensors (>=0.2.1)", "timeout-decorator"]
+dev = ["GitPython (<3.1.19)", "Pillow", "accelerate (>=0.10.0)", "beautifulsoup4", "black (==22.3)", "codecarbon (==1.2.0)", "cookiecutter (==1.7.3)", "datasets (!=2.5.0)", "dill (<0.3.5)", "evaluate (>=0.2.0)", "faiss-cpu", "flake8 (>=3.8.3)", "flax (>=0.4.1)", "fugashi (>=1.0)", "hf-doc-builder", "hf-doc-builder (>=0.3.0)", "ipadic (>=1.0.0,<2.0)", "isort (>=5.5.4)", "jax (>=0.2.8,!=0.3.2,<=0.3.6)", "jaxlib (>=0.1.65,<=0.3.6)", "librosa", "nltk", "onnxconverter-common", "optax (>=0.0.8)", "optuna", "parameterized", "phonemizer", "protobuf (<=3.20.2)", "psutil", "pyctcdecode (>=0.3.0)", "pyknp (>=0.6.1)", "pytest", "pytest-timeout", "pytest-xdist", "ray[tune]", "rjieba", "rouge-score (!=0.0.7,!=0.0.8,!=0.1,!=0.1.1)", "sacrebleu (>=1.4.12,<2.0.0)", "sacremoses", "safetensors (>=0.2.1)", "scikit-learn", "sentencepiece (>=0.1.91,!=0.1.92)", "sigopt", "sudachidict-core (>=20220729)", "sudachipy (>=0.6.6)", "tensorflow (>=2.4)", "tensorflow-text", "tf2onnx", "timeout-decorator", "timm", "tokenizers (>=0.11.1,!=0.11.3,<0.14)", "torch (>=1.7,!=1.12.0)", "torchaudio", "unidic (>=1.0.2)", "unidic-lite (>=1.0.7)"]
+dev-tensorflow = ["GitPython (<3.1.19)", "Pillow", "beautifulsoup4", "black (==22.3)", "cookiecutter (==1.7.3)", "datasets (!=2.5.0)", "dill (<0.3.5)", "evaluate (>=0.2.0)", "faiss-cpu", "flake8 (>=3.8.3)", "hf-doc-builder", "hf-doc-builder (>=0.3.0)", "isort (>=5.5.4)", "librosa", "nltk", "onnxconverter-common", "onnxruntime (>=1.4.0)", "onnxruntime-tools (>=1.4.2)", "parameterized", "phonemizer", "protobuf (<=3.20.2)", "psutil", "pyctcdecode (>=0.3.0)", "pytest", "pytest-timeout", "pytest-xdist", "rjieba", "rouge-score (!=0.0.7,!=0.0.8,!=0.1,!=0.1.1)", "sacrebleu (>=1.4.12,<2.0.0)", "sacremoses", "safetensors (>=0.2.1)", "scikit-learn", "sentencepiece (>=0.1.91,!=0.1.92)", "tensorflow (>=2.4)", "tensorflow-text", "tf2onnx", "timeout-decorator", "tokenizers (>=0.11.1,!=0.11.3,<0.14)"]
+dev-torch = ["GitPython (<3.1.19)", "Pillow", "beautifulsoup4", "black (==22.3)", "codecarbon (==1.2.0)", "cookiecutter (==1.7.3)", "datasets (!=2.5.0)", "dill (<0.3.5)", "evaluate (>=0.2.0)", "faiss-cpu", "flake8 (>=3.8.3)", "fugashi (>=1.0)", "hf-doc-builder", "hf-doc-builder (>=0.3.0)", "ipadic (>=1.0.0,<2.0)", "isort (>=5.5.4)", "librosa", "nltk", "onnxruntime (>=1.4.0)", "onnxruntime-tools (>=1.4.2)", "optuna", "parameterized", "phonemizer", "protobuf (<=3.20.2)", "psutil", "pyctcdecode (>=0.3.0)", "pyknp (>=0.6.1)", "pytest", "pytest-timeout", "pytest-xdist", "ray[tune]", "rjieba", "rouge-score (!=0.0.7,!=0.0.8,!=0.1,!=0.1.1)", "sacrebleu (>=1.4.12,<2.0.0)", "sacremoses", "safetensors (>=0.2.1)", "scikit-learn", "sentencepiece (>=0.1.91,!=0.1.92)", "sigopt", "sudachidict-core (>=20220729)", "sudachipy (>=0.6.6)", "timeout-decorator", "timm", "tokenizers (>=0.11.1,!=0.11.3,<0.14)", "torch (>=1.7,!=1.12.0)", "torchaudio", "unidic (>=1.0.2)", "unidic-lite (>=1.0.7)"]
+docs = ["Pillow", "accelerate (>=0.10.0)", "codecarbon (==1.2.0)", "flax (>=0.4.1)", "hf-doc-builder", "jax (>=0.2.8,!=0.3.2,<=0.3.6)", "jaxlib (>=0.1.65,<=0.3.6)", "librosa", "onnxconverter-common", "optax (>=0.0.8)", "optuna", "phonemizer", "protobuf (<=3.20.2)", "pyctcdecode (>=0.3.0)", "ray[tune]", "sentencepiece (>=0.1.91,!=0.1.92)", "sigopt", "tensorflow (>=2.4)", "tensorflow-text", "tf2onnx", "timm", "tokenizers (>=0.11.1,!=0.11.3,<0.14)", "torch (>=1.7,!=1.12.0)", "torchaudio"]
 docs-specific = ["hf-doc-builder"]
 fairscale = ["fairscale (>0.3)"]
-flax = ["flax (>=0.3.5)", "jax (>=0.2.8,!=0.3.2,<=0.3.6)", "jaxlib (>=0.1.65,<=0.3.6)", "optax (>=0.0.8)"]
+flax = ["flax (>=0.4.1)", "jax (>=0.2.8,!=0.3.2,<=0.3.6)", "jaxlib (>=0.1.65,<=0.3.6)", "optax (>=0.0.8)"]
 flax-speech = ["librosa", "phonemizer", "pyctcdecode (>=0.3.0)"]
 ftfy = ["ftfy"]
 integrations = ["optuna", "ray[tune]", "sigopt"]
-ja = ["fugashi (>=1.0)", "ipadic (>=1.0.0,<2.0)", "unidic (>=1.0.2)", "unidic-lite (>=1.0.7)"]
+ja = ["fugashi (>=1.0)", "ipadic (>=1.0.0,<2.0)", "pyknp (>=0.6.1)", "sudachidict-core (>=20220729)", "sudachipy (>=0.6.6)", "unidic (>=1.0.2)", "unidic-lite (>=1.0.7)"]
 modelcreation = ["cookiecutter (==1.7.3)"]
 onnx = ["onnxconverter-common", "onnxruntime (>=1.4.0)", "onnxruntime-tools (>=1.4.2)", "tf2onnx"]
 onnxruntime = ["onnxruntime (>=1.4.0)", "onnxruntime-tools (>=1.4.2)"]
 optuna = ["optuna"]
-quality = ["GitPython (<3.1.19)", "black (>=22.0,<23.0)", "flake8 (>=3.8.3)", "hf-doc-builder (>=0.3.0)", "isort (>=5.5.4)"]
+quality = ["GitPython (<3.1.19)", "black (==22.3)", "datasets (!=2.5.0)", "flake8 (>=3.8.3)", "hf-doc-builder (>=0.3.0)", "isort (>=5.5.4)"]
 ray = ["ray[tune]"]
-retrieval = ["datasets", "faiss-cpu"]
+retrieval = ["datasets (!=2.5.0)", "faiss-cpu"]
 sagemaker = ["sagemaker (>=2.31.0)"]
-sentencepiece = ["protobuf (<=3.20.1)", "sentencepiece (>=0.1.91,!=0.1.92)"]
+sentencepiece = ["protobuf (<=3.20.2)", "sentencepiece (>=0.1.91,!=0.1.92)"]
 serving = ["fastapi", "pydantic", "starlette", "uvicorn"]
 sigopt = ["sigopt"]
 sklearn = ["scikit-learn"]
 speech = ["librosa", "phonemizer", "pyctcdecode (>=0.3.0)", "torchaudio"]
-testing = ["GitPython (<3.1.19)", "black (>=22.0,<23.0)", "cookiecutter (==1.7.3)", "datasets", "faiss-cpu", "hf-doc-builder (>=0.3.0)", "nltk", "parameterized", "protobuf (<=3.20.1)", "psutil", "pytest", "pytest-timeout", "pytest-xdist", "rjieba", "rouge-score", "sacrebleu (>=1.4.12,<2.0.0)", "sacremoses", "timeout-decorator"]
-tf = ["onnxconverter-common", "tensorflow (>=2.3)", "tf2onnx"]
-tf-cpu = ["onnxconverter-common", "tensorflow-cpu (>=2.3)", "tf2onnx"]
+testing = ["GitPython (<3.1.19)", "beautifulsoup4", "black (==22.3)", "cookiecutter (==1.7.3)", "datasets (!=2.5.0)", "dill (<0.3.5)", "evaluate (>=0.2.0)", "faiss-cpu", "hf-doc-builder (>=0.3.0)", "nltk", "parameterized", "protobuf (<=3.20.2)", "psutil", "pytest", "pytest-timeout", "pytest-xdist", "rjieba", "rouge-score (!=0.0.7,!=0.0.8,!=0.1,!=0.1.1)", "sacrebleu (>=1.4.12,<2.0.0)", "sacremoses", "safetensors (>=0.2.1)", "timeout-decorator"]
+tf = ["onnxconverter-common", "tensorflow (>=2.4)", "tensorflow-text", "tf2onnx"]
+tf-cpu = ["onnxconverter-common", "tensorflow-cpu (>=2.3)", "tensorflow-text", "tf2onnx"]
 tf-speech = ["librosa", "phonemizer", "pyctcdecode (>=0.3.0)"]
 timm = ["timm"]
-tokenizers = ["tokenizers (>=0.11.1,!=0.11.3,<0.13)"]
-torch = ["torch (>=1.0)"]
+tokenizers = ["tokenizers (>=0.11.1,!=0.11.3,<0.14)"]
+torch = ["torch (>=1.7,!=1.12.0)"]
 torch-speech = ["librosa", "phonemizer", "pyctcdecode (>=0.3.0)", "torchaudio"]
-torchhub = ["filelock", "huggingface-hub (>=0.1.0,<1.0)", "importlib-metadata", "numpy (>=1.17)", "packaging (>=20.0)", "protobuf (<=3.20.1)", "regex (!=2019.12.17)", "requests", "sentencepiece (>=0.1.91,!=0.1.92)", "tokenizers (>=0.11.1,!=0.11.3,<0.13)", "torch (>=1.0)", "tqdm (>=4.27)"]
+torchhub = ["filelock", "huggingface-hub (>=0.10.0,<1.0)", "importlib-metadata", "numpy (>=1.17)", "packaging (>=20.0)", "protobuf (<=3.20.2)", "regex (!=2019.12.17)", "requests", "sentencepiece (>=0.1.91,!=0.1.92)", "tokenizers (>=0.11.1,!=0.11.3,<0.14)", "torch (>=1.7,!=1.12.0)", "tqdm (>=4.27)"]
 vision = ["Pillow"]
 
 [[package]]
@@ -1620,7 +1621,7 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8,<3.11"
-content-hash = "5f66fa3377cbdd7691286690b75c93cd5d26e44c26e6a4a995edc3d682a08872"
+content-hash = "ca765950d11ec1118dacc491dacf236a4ade334ea13a692c3bcf948a51276fd6"
 
 [metadata.files]
 absl-py = [
@@ -3002,8 +3003,8 @@ traitlets = [
     {file = "traitlets-5.5.0.tar.gz", hash = "sha256:b122f9ff2f2f6c1709dab289a05555be011c87828e911c0cf4074b85cb780a79"},
 ]
 transformers = [
-    {file = "transformers-4.19.4-py3-none-any.whl", hash = "sha256:572d8ecbff29ec53769e0459b4334ebd1038f75ad25119a3006f8816643dccc4"},
-    {file = "transformers-4.19.4.tar.gz", hash = "sha256:b8c0f9816b4c4c2f0265b24d0a0b9d4ae8b7b98fc779d63f92e3c121c4c2d483"},
+    {file = "transformers-4.23.1-py3-none-any.whl", hash = "sha256:51bf21775296945bb665f8669c44cbacc1c61a9964c3d8aa2030fd30f940427b"},
+    {file = "transformers-4.23.1.tar.gz", hash = "sha256:f91085a31634efee509bcb0588d95b57713dcb990e516ffbe7c9a1813be14552"},
 ]
 typer = [
     {file = "typer-0.6.1-py3-none-any.whl", hash = "sha256:54b19e5df18654070a82f8c2aa1da456a4ac16a2a83e6dcd9f170e291c56338e"},
