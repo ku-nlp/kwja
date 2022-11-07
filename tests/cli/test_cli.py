@@ -9,6 +9,11 @@ def test_version():
     _ = runner.invoke(app, args=["--version"])
 
 
+def test_device():
+    ret = runner.invoke(app, args=["--device", "tpu"])
+    assert isinstance(ret.exception, SystemExit)
+
+
 # def test_text_input():
 #     _ = runner.invoke(app, args=["--text", "おはよう"])
 #
