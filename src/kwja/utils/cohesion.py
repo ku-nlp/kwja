@@ -69,12 +69,12 @@ class CohesionKNPWriter:
         for document in self.documents:
             if prediction := did2prediction.get(document.doc_id):  # (phrase, rel)
                 for base_phrase, pred in zip(document.base_phrases, prediction):
-                    base_phrase.rels = self._to_rels(pred, document.base_phrases)
+                    base_phrase.rel_tags = self._to_rels(pred, document.base_phrases)
             else:
                 if skip_untagged is True:
                     continue
                 for base_phrase in document.base_phrases:
-                    base_phrase.rels = []
+                    base_phrase.rel_tags.clear()
             orig_doc_id = to_orig_doc_id(document.doc_id)
             target_sentences = extract_target_sentences(document)
             for sentence in target_sentences:

@@ -78,7 +78,9 @@ class DependencyParsingMetric(Metric):
                 dependency_manager = DependencyManager()
 
                 for base_phrase in sentence.base_phrases:
+                    assert base_phrase.parent_index is not None
                     gold_head = base_phrase.parent_index + 1
+                    assert base_phrase.dep_type is not None
                     gold_deprel = base_phrase.dep_type
                     gold_lines.append(self._to_conll_line(base_phrase, gold_head, gold_deprel))
 
@@ -119,6 +121,7 @@ class DependencyParsingMetric(Metric):
                 for morpheme in sentence.morphemes:
                     gold_head = morpheme.parent.index + 1 if morpheme.parent else 0
                     if morpheme == morpheme.base_phrase.head:
+                        assert morpheme.base_phrase.dep_type is not None
                         gold_deprel = morpheme.base_phrase.dep_type
                     else:
                         gold_deprel = DepType.DEPENDENCY

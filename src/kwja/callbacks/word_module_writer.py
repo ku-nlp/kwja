@@ -405,6 +405,7 @@ class WordModuleWriter(BasePredictionWriter):
                     else:
                         self._resolve_dependency(base_phrase, dependency_manager)
 
+                assert base_phrase.parent_index is not None
                 if base_phrase.parent_index == -1:
                     base_phrase.phrase.parent_index = -1
                     base_phrase.phrase.dep_type = DepType.DEPENDENCY
@@ -425,7 +426,7 @@ class WordModuleWriter(BasePredictionWriter):
     ) -> None:
         all_rel_types = [t for ts in task_to_rel_types.values() for t in ts]
         for base_phrase in document.base_phrases:
-            base_phrase.rels.clear()
+            base_phrase.rel_tags.clear()
             rel_tags = self._to_rels(
                 [logits[base_phrase.head.global_index] for logits in cohesion_logits],
                 document.base_phrases,
@@ -436,7 +437,7 @@ class WordModuleWriter(BasePredictionWriter):
             for task, rel_types in task_to_rel_types.items():
                 extractor = task_to_extractors[task]
                 if extractor.is_target(base_phrase):
-                    base_phrase.rels += [rel for rel in rel_tags if rel.type in rel_types]
+                    base_phrase.rel_tags += [rel for rel in rel_tags if rel.type in rel_types]
 
     @staticmethod
     def _add_discourse(document: Document, discourse_preds: List[List[int]]) -> None:
