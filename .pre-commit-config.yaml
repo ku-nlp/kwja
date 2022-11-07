@@ -25,3 +25,4 @@ repos:
           - hydra-core==1.2.0
           - torch==1.12.1
           - transformers==4.24.0
+          - rhoknp==0.4.8
