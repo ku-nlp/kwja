@@ -1092,7 +1092,7 @@ rsa = ["oauthlib[signedtoken] (>=3.0.0)"]
 
 [[package]]
 name = "rhoknp"
-version = "0.4.6"
+version = "0.4.8"
 description = "Yet another Python binding for Juman++/KNP/KWJA"
 category = "main"
 optional = false
@@ -1620,7 +1620,7 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8,<3.11"
-content-hash = "573772b7e4cf703ce19e3758842631c1aad05b2a382a3eaf260e08d6262b2b8c"
+content-hash = "dd3120c0987b13c82444784fbce8743e3f727c0ced62b294b7881bcb333ecb56"
 
 [metadata.files]
 absl-py = [
@@ -2724,8 +2724,8 @@ requests-oauthlib = [
     {file = "requests_oauthlib-1.3.1-py2.py3-none-any.whl", hash = "sha256:2577c501a2fb8d05a304c09d090d6e47c306fef15809d102b327cf8364bddab5"},
 ]
 rhoknp = [
-    {file = "rhoknp-0.4.6-py3-none-any.whl", hash = "sha256:27796588674c245a8fd8c48ee21e0fe196dc8e6501f50c4ae74b9fbe5e1bc500"},
-    {file = "rhoknp-0.4.6.tar.gz", hash = "sha256:1462d34cc310bbd5680c1a51adafff5114952f615e9c7cee0ad06dfc078b4847"},
+    {file = "rhoknp-0.4.8-py3-none-any.whl", hash = "sha256:fe81980ef0ab22949d404b25dd0fc8345cdd1fe911afad7c5e93032bbabc8a31"},
+    {file = "rhoknp-0.4.8.tar.gz", hash = "sha256:8a71fe21ee9168914edb1d436928bab346340321af2a7823cae077880f463312"},
 ]
 rich = [
     {file = "rich-12.6.0-py3-none-any.whl", hash = "sha256:a4eb26484f2c82589bd9a17c73d32a010b1e29d89f1604cd9bf3a2097b81bb5e"},
