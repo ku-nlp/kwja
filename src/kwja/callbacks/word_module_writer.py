@@ -7,6 +7,7 @@ from io import TextIOBase
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Set, TextIO, Tuple, Union
 
+import numpy as np
 import pytorch_lightning as pl
 import torch
 from jinf import Jinf
@@ -404,6 +405,7 @@ class WordModuleWriter(BasePredictionWriter):
                     else:
                         self._resolve_dependency(base_phrase, dependency_manager)
 
+                assert base_phrase.parent_index is not None
                 if base_phrase.parent_index == -1:
                     base_phrase.phrase.parent_index = -1
                     base_phrase.phrase.dep_type = DepType.DEPENDENCY
@@ -416,7 +418,7 @@ class WordModuleWriter(BasePredictionWriter):
     def _add_cohesion(
         self,
         document: Document,
-        cohesion_preds: List[List[int]],
+        cohesion_logits: List[List[List[int]]],  # (rel, src, dst)
         task_to_rel_types: Dict[CohesionTask, List[str]],
         exophora_referents: List[ExophoraReferent],
         index_to_special: Dict[int, str],
@@ -424,10 +426,10 @@ class WordModuleWriter(BasePredictionWriter):
     ) -> None:
         all_rel_types = [t for ts in task_to_rel_types.values() for t in ts]
         for base_phrase in document.base_phrases:
-            base_phrase.rels = RelTagList()
+            base_phrase.rel_tags.clear()
             rel_tags = self._to_rels(
-                [preds[base_phrase.head.global_index] for preds in cohesion_preds],
-                document.morphemes,
+                [logits[base_phrase.head.global_index] for logits in cohesion_logits],
+                document.base_phrases,
                 all_rel_types,
                 exophora_referents,
                 index_to_special,
@@ -435,7 +437,7 @@ class WordModuleWriter(BasePredictionWriter):
             for task, rel_types in task_to_rel_types.items():
                 extractor = task_to_extractors[task]
                 if extractor.is_target(base_phrase):
-                    base_phrase.rels += [rel for rel in rel_tags if rel.type in rel_types]
+                    base_phrase.rel_tags += [rel for rel in rel_tags if rel.type in rel_types]
 
     @staticmethod
     def _add_discourse(document: Document, discourse_preds: List[List[int]]) -> None:
@@ -457,31 +459,34 @@ class WordModuleWriter(BasePredictionWriter):
 
     @staticmethod
     def _to_rels(
-        prediction: List[int],  # (rel)
-        morphemes: List[Morpheme],
+        rel_logits: List[List[int]],  # (rel, dst)
+        base_phrases: List[BasePhrase],
         rel_types: List[str],
         exophora_referents: List[ExophoraReferent],
         index_to_special: Dict[int, str],
     ) -> RelTagList:
         rel_tags = RelTagList()
-        assert len(rel_types) == len(prediction)
-        for relation, morpheme_index in zip(rel_types, prediction):
-            if morpheme_index < 0:
-                continue  # non-target phrase
-            if 0 <= morpheme_index < len(morphemes):
+        assert len(rel_types) == len(rel_logits)
+        for relation, logits in zip(rel_types, rel_logits):
+            head_logits = [logits[base_phrase.head.global_index] for base_phrase in base_phrases] + [
+                logits[idx] for idx in index_to_special.keys()
+            ]
+            base_phrase_index: int = np.argmax(head_logits).item()
+            if 0 <= base_phrase_index < len(base_phrases):
                 # endophora
-                prediction_bp: BasePhrase = morphemes[morpheme_index].base_phrase
+                prediction = base_phrases[base_phrase_index]
                 rel_tags.append(
                     RelTag(
                         type=relation,
-                        target=prediction_bp.head.text,
-                        sid=prediction_bp.sentence.sid,
-                        base_phrase_index=prediction_bp.index,
+                        target=prediction.head.text,
+                        sid=prediction.sentence.sid,
+                        base_phrase_index=prediction.index,
                         mode=None,
                     )
                 )
-            elif special_token := index_to_special.get(morpheme_index):
+            else:
                 # exophora
+                special_token = list(index_to_special.values())[base_phrase_index - len(base_phrases)]
                 if special_token in [str(e) for e in exophora_referents]:  # exclude [NULL], [NA], and [ROOT]
                     rel_tags.append(
                         RelTag(
@@ -492,9 +497,6 @@ class WordModuleWriter(BasePredictionWriter):
                             mode=None,
                         )
                     )
-            else:
-                raise ValueError(f"invalid morpheme index: {morpheme_index} in {morphemes[0].document.doc_id}")
-
         return rel_tags
 
     def write_on_batch_end(
@@ -528,7 +530,7 @@ class WordModuleWriter(BasePredictionWriter):
             dim=2,
         ).indices
         batch_dependency_type_preds = torch.argmax(prediction["dependency_type_logits"], dim=3)
-        batch_cohesion_preds = torch.argmax(prediction["cohesion_logits"], dim=3)  # (b, rel, word)
+        batch_cohesion_logits = prediction["cohesion_logits"]  # (b, rel, word, word)
         batch_discourse_parsing_preds = torch.argmax(prediction["discourse_parsing_logits"], dim=3)
         for (
             tokens,
@@ -544,7 +546,7 @@ class WordModuleWriter(BasePredictionWriter):
             base_phrase_feature_logits,
             dependency_preds,
             dependency_type_preds,
-            cohesion_preds,
+            cohesion_logits,
             discourse_parsing_preds,
         ) in zip(
             batch_tokens,
@@ -560,7 +562,7 @@ class WordModuleWriter(BasePredictionWriter):
             batch_base_phrase_feature_logits.tolist(),
             batch_dependency_preds.tolist(),
             batch_dependency_type_preds.tolist(),
-            batch_cohesion_preds.tolist(),
+            batch_cohesion_logits.tolist(),
             batch_discourse_parsing_preds.tolist(),
         ):
             example: Union[WordExampleSet, WordInferenceExample] = dataset.examples[example_id]
@@ -589,7 +591,7 @@ class WordModuleWriter(BasePredictionWriter):
             self._add_dependency(document, dependency_preds, dependency_type_preds, dataset.special_to_index)
             self._add_cohesion(
                 document,
-                cohesion_preds,
+                cohesion_logits,
                 dataset.cohesion_task_to_rel_types,
                 dataset.exophora_referents,
                 dataset.index_to_special,

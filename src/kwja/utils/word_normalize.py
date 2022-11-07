@@ -319,9 +319,9 @@ class SentenceDenormalizer:
             if not self._is_normal_morpheme(morpheme):
                 continue
             surf2 = self.md.denormalize(morpheme)
-            if surf2 != morpheme.surf:
+            if surf2 != morpheme.text:
                 if np.random.rand() < prob:
-                    morpheme.attributes.surf = surf2
+                    morpheme.text = surf2
                     prob *= 0.1
             else:
                 prob = min(prob * 1.5, p)

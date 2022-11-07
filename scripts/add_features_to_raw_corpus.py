@@ -69,6 +69,7 @@ class JumanppAugmenter:
     ) -> None:
         for original_morpheme, augmented_morpheme in zip(original_sentence.morphemes, augmented_sentence.morphemes):
             # Jumanpp may override reading
+            assert augmented_morpheme.attributes is not None
             augmented_morpheme.attributes.reading = original_morpheme.reading
             if update_original and not original_sentence.need_knp:
                 # add Semantics
@@ -106,8 +107,9 @@ def extract_named_entities(tagged_sentence: Sentence) -> List[Tuple[str, List[Mo
     named_entities = []
     category, morphemes_buff = "", []
     for morpheme in tagged_sentence.morphemes:
-        if "NE" in morpheme.semantics:
-            cat, span = morpheme.semantics["NE"].split(":")
+        if ne_tag := morpheme.semantics.get("NE"):
+            assert isinstance(ne_tag, str)
+            cat, span = ne_tag.split(":")
             if span in {"single", "head"}:
                 category, morphemes_buff = cat, [morpheme]
             elif span in {"middle", "tail"} and cat == category:
@@ -158,23 +160,23 @@ def is_target_base_phrase_feature(k: str, v: Any) -> bool:
 
 def refresh(document: Document) -> None:
     for morpheme in document.morphemes:
-        feature_dict = {}
+        feature_dict = FeatureDict()
         if morpheme.base_phrase.head == morpheme:
             feature_dict["基本句-主辞"] = True
         for feature in SUB_WORD_FEATURES:
             k, *vs = feature.split(":")
             if k in morpheme.features:
                 feature_dict[k] = morpheme.features[k]
-        morpheme.features = FeatureDict(feature_dict)
+        morpheme.features = feature_dict
         morpheme.semantics.clear()
 
     for base_phrase in document.base_phrases:
-        feature_dict = {}
+        feature_dict = FeatureDict()
         for feature in BASE_PHRASE_FEATURES:
             k, *vs = feature.split(":")
             if k in base_phrase.features and is_target_base_phrase_feature(k, base_phrase.features[k]):
                 feature_dict[k] = base_phrase.features[k]
-        base_phrase.features = FeatureDict(feature_dict)
+        base_phrase.features = feature_dict
 
     for phrase in document.phrases:
         phrase.features.clear()

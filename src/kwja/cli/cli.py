@@ -1,4 +1,5 @@
 import os
+from enum import Enum
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import List, Optional
@@ -36,6 +37,13 @@ MODEL_SIZE2CHECKPOINT_URL = {
         "word_discourse": f"{_CHECKPOINT_BASE_URL}/v1.0/disc_roberta-large_seq256.ckpt",
     },
 }
+
+
+class Device(str, Enum):
+    auto = "auto"
+    cpu = "cpu"
+    gpu = "gpu"
+
 
 suppress_debug_info()
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -309,7 +317,10 @@ def main(
     model_size: str = typer.Option(
         "base", callback=model_size_callback, help="Model size to be used. Please specify 'base' or 'large'."
     ),
-    device: str = typer.Option("cpu", help="Device to be used. Please specify 'cpu' or 'gpu'."),
+    device: Device = typer.Option(
+        Device.auto,
+        help="Device to be used. Please specify 'auto', 'cpu' or 'gpu'.",
+    ),
     typo_batch_size: int = typer.Option(1, help="Batch size for typo module."),
     char_batch_size: int = typer.Option(1, help="Batch size for char module."),
     word_batch_size: int = typer.Option(1, help="Batch size for word module."),
@@ -327,7 +338,7 @@ def main(
             input_text = f.read()
 
     processor: CLIProcessor = CLIProcessor(
-        specified_device=device,
+        specified_device=device.value,
         model_size=model_size,
         typo_batch_size=typo_batch_size,
         char_batch_size=char_batch_size,
