@@ -1,0 +1,5 @@
+defaults:
+  - /datamodule/base/word@wac
+
+wac:
+  path: ${oc.env:DATA_DIR}/wac/train
