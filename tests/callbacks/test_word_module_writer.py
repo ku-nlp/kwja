@@ -3,6 +3,7 @@ import tempfile
 import textwrap
 from pathlib import Path
 
+import pytorch_lightning as pl
 import torch
 from omegaconf import ListConfig
 from rhoknp.props import DepType
@@ -219,7 +220,9 @@ def test_write_on_batch_end():
             juman_file=pathlib.Path(juman_file.name),
         )
         trainer = MockTrainer([DataLoader(dataset)])
-        writer.write_on_batch_end(trainer, ..., prediction, ..., ..., ..., ...)  # noqa
+        module = pl.LightningModule()
+        module.hparams["dependency_topk"] = 4
+        writer.write_on_batch_end(trainer, module, prediction, ..., ..., ..., ...)  # noqa
         expected_knp = textwrap.dedent(
             f"""\
             # S-ID:test-0-0 kwja:{kwja.__version__}
