@@ -42,9 +42,9 @@ include = [
 
 [tool.poetry.dependencies]
 python = ">=3.8,<3.11"
-torch = "^1.11"
+torch = ">=1.11,<1.13"
 torchmetrics = "^0.10.2"
-pytorch-lightning = "^1.7"
+pytorch-lightning = "~1.7.7"
 omegaconf = "^2.1"
 hydra-core = "^1.2"
 tokenizers = "^0.12.1"
