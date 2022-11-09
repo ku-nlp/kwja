@@ -5,9 +5,9 @@ from statistics import mean
 from typing import Any, Dict, Optional
 
 import hydra
+import pytorch_lightning as pl
 import torch
 from omegaconf import DictConfig, OmegaConf
-from pytorch_lightning.core.lightning import LightningModule
 from transformers import PretrainedConfig
 
 from kwja.evaluators.cohesion_analysis_metric import CohesionAnalysisMetric
@@ -38,7 +38,7 @@ class WordTask(Enum):
     DISCOURSE_PARSING = "discourse_parsing"
 
 
-class WordModule(LightningModule):
+class WordModule(pl.LightningModule):
     def __init__(self, hparams: DictConfig) -> None:
         super().__init__()
         OmegaConf.resolve(hparams)

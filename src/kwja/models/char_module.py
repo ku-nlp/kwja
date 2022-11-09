@@ -2,9 +2,9 @@ import copy
 from typing import Any, Dict, Optional
 
 import hydra
+import pytorch_lightning as pl
 import torch
 from omegaconf import DictConfig, OmegaConf
-from pytorch_lightning.core.lightning import LightningModule
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 from transformers import PretrainedConfig
 
@@ -16,7 +16,7 @@ from kwja.models.models.word_segmenter import WordSegmenter
 from kwja.utils.util import filter_dict_items
 
 
-class CharModule(LightningModule):
+class CharModule(pl.LightningModule):
     def __init__(self, hparams: DictConfig) -> None:
         super().__init__()
         OmegaConf.resolve(hparams)

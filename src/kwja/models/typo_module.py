@@ -2,9 +2,9 @@ import copy
 from typing import Any, Dict, Optional, Union
 
 import hydra
+import pytorch_lightning as pl
 import torch
 from omegaconf import DictConfig, OmegaConf
-from pytorch_lightning.core.lightning import LightningModule
 from transformers import PretrainedConfig
 
 from kwja.evaluators.typo_correction_metric import TypoCorrectionMetric
@@ -13,7 +13,7 @@ from kwja.models.models.typo_corrector import TypoCorrector
 from kwja.utils.util import filter_dict_items
 
 
-class TypoModule(LightningModule):
+class TypoModule(pl.LightningModule):
     def __init__(self, hparams: DictConfig) -> None:
         super().__init__()
         OmegaConf.resolve(hparams)
