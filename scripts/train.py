@@ -1,5 +1,6 @@
 import logging
 import math
+import warnings
 from typing import List, Optional
 
 import hydra
@@ -10,11 +11,18 @@ from dotenv import load_dotenv
 from omegaconf import DictConfig, ListConfig, OmegaConf
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.loggers import LightningLoggerBase
+from pytorch_lightning.utilities.warnings import PossibleUserWarning
 
 from kwja.datamodule.datamodule import DataModule
 
 hf_logging.set_verbosity(hf_logging.ERROR)
 logging.getLogger("rhoknp").setLevel(logging.ERROR)
+warnings.filterwarnings(
+    "ignore",
+    r"It is recommended to use .+ when logging on epoch level in distributed setting to accumulate the metric across"
+    r" devices",
+    category=PossibleUserWarning,
+)
 OmegaConf.register_new_resolver("concat", lambda x, y: x + y)
 
 
