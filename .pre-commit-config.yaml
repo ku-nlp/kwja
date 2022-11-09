@@ -22,7 +22,8 @@ repos:
     hooks:
       - id: mypy
         additional_dependencies:
+          - rhoknp==0.4.8
           - hydra-core==1.2.0
           - torch==1.12.1
           - transformers==4.23.1
-          - rhoknp==0.4.8
+          - tokenizers==0.12.1
