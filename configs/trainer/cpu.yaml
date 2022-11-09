@@ -4,5 +4,7 @@ accumulate_grad_batches: null
 max_epochs: 50
 min_epochs: 1
 accelerator: "cpu"
-strategy: ddp
+strategy:
+  _target_: pytorch_lightning.strategies.DDPStrategy
+  find_unused_parameters: false
 precision: 32
