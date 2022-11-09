@@ -7,13 +7,14 @@ from io import TextIOBase
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Set, TextIO, Tuple, Union
 
+import numpy as np
 import pytorch_lightning as pl
 import torch
 from jinf import Jinf
 from pytorch_lightning.callbacks import BasePredictionWriter
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
 from rhoknp.cohesion import ExophoraReferent, RelTag, RelTagList
-from rhoknp.props import DepType, FeatureDict, NamedEntity, NamedEntityCategory, SemanticsDict
+from rhoknp.props import DepType, NamedEntity, NamedEntityCategory, SemanticsDict
 from rhoknp.units.morpheme import MorphemeAttributes
 
 from kwja.datamodule.datasets import WordDataset, WordInferenceDataset
@@ -25,12 +26,14 @@ from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TYPES,
     CONJTYPE_CONJFORM_TYPE2ID,
+    CONJTYPE_TYPES,
     INDEX2CONJFORM_TYPE,
     INDEX2CONJTYPE_TYPE,
     INDEX2DEPENDENCY_TYPE,
     INDEX2DISCOURSE_RELATION,
     INDEX2POS_TYPE,
     INDEX2SUBPOS_TYPE,
+    INFLECTABLE,
     NE_TAGS,
     POS_SUBPOS_TYPE2ID,
     POS_TYPE2ID,
@@ -71,6 +74,118 @@ class WordModuleWriter(BasePredictionWriter):
             self.destination.parent.mkdir(exist_ok=True, parents=True)
             if self.destination.exists():
                 os.remove(str(self.destination))
+
+    def write_on_batch_end(
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        prediction: Any,
+        batch_indices: Optional[Sequence[int]],
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int,
+    ) -> None:
+        sentences: List[Sentence] = []
+        dataloaders = trainer.predict_dataloaders
+        batch_tokens = prediction["tokens"]
+        batch_example_ids = prediction["example_ids"]
+        dataloader_idx = prediction["dataloader_idx"]
+        dataset: Union[WordDataset, WordInferenceDataset] = dataloaders[dataloader_idx].dataset
+        batch_reading_subword_map = prediction["reading_subword_map"]
+        batch_reading_preds = torch.argmax(prediction["reading_prediction_logits"], dim=2)
+        batch_pos_logits = prediction["word_analysis_pos_logits"]
+        batch_subpos_logits = prediction["word_analysis_subpos_logits"]
+        batch_conjtype_logits = prediction["word_analysis_conjtype_logits"]
+        batch_conjform_logits = prediction["word_analysis_conjform_logits"]
+        batch_word_feature_logits = prediction["word_feature_logits"]
+        batch_ne_tag_preds = torch.argmax(prediction["ne_logits"], dim=2)
+        batch_base_phrase_feature_logits = prediction["base_phrase_feature_logits"]
+        batch_dependency_preds = torch.topk(
+            prediction["dependency_logits"],
+            k=pl_module.hparams.dependency_topk,
+            dim=2,
+        ).indices
+        batch_dependency_type_preds = torch.argmax(prediction["dependency_type_logits"], dim=3)
+        batch_cohesion_logits = prediction["cohesion_logits"]  # (b, rel, word, word)
+        batch_discourse_parsing_preds = torch.argmax(prediction["discourse_parsing_logits"], dim=3)
+        for (
+            tokens,
+            example_id,
+            reading_subword_map,
+            reading_preds,
+            pos_logits,
+            subpos_logits,
+            conjtype_logits,
+            conjform_logits,
+            word_feature_logits,
+            ne_tag_preds,
+            base_phrase_feature_logits,
+            dependency_preds,
+            dependency_type_preds,
+            cohesion_logits,
+            discourse_parsing_preds,
+        ) in zip(
+            batch_tokens,
+            batch_example_ids,
+            batch_reading_subword_map.tolist(),
+            batch_reading_preds.tolist(),
+            batch_pos_logits,
+            batch_subpos_logits,
+            batch_conjtype_logits,
+            batch_conjform_logits,
+            batch_word_feature_logits.tolist(),
+            batch_ne_tag_preds.tolist(),
+            batch_base_phrase_feature_logits.tolist(),
+            batch_dependency_preds.tolist(),
+            batch_dependency_type_preds.tolist(),
+            batch_cohesion_logits.tolist(),
+            batch_discourse_parsing_preds.tolist(),
+        ):
+            example: Union[WordExampleSet, WordInferenceExample] = dataset.examples[example_id]
+            doc_id = example.doc_id
+            document = dataset.doc_id2document[doc_id]
+            readings = [self.id2reading[pred] for pred in reading_preds]
+            word_reading_preds = get_word_level_readings(readings, tokens.split(" "), reading_subword_map)
+            pos_preds, subpos_preds, conjtype_preds, conjform_preds = self._get_mrph_type_preds(
+                pos_logits=pos_logits,
+                subpos_logits=subpos_logits,
+                conjtype_logits=conjtype_logits,
+                conjform_logits=conjform_logits,
+            )
+            morphemes = self._create_morphemes(
+                [m.text for m in document.morphemes],
+                [m.lemma if m.attributes is not None else m.text for m in document.morphemes],
+                word_reading_preds,
+                pos_preds,
+                subpos_preds,
+                conjtype_preds,
+                conjform_preds,
+            )
+            document = self._chunk_morphemes(document, morphemes, word_feature_logits)
+            document.doc_id = doc_id
+            for sentence in extract_target_sentences(document):
+                self._add_base_phrase_features(sentence, base_phrase_feature_logits)
+                self._add_named_entities(sentence, ne_tag_preds)
+                self._add_dependency(sentence, dependency_preds, dependency_type_preds, dataset.special_to_index)
+            self._add_cohesion(
+                document,
+                cohesion_logits,
+                dataset.cohesion_task_to_rel_types,
+                dataset.exophora_referents,
+                dataset.index_to_special,
+                dataset.extractors,
+            )
+            document = document.reparse()  # reparse to get clauses
+            document.doc_id = doc_id
+            self._add_discourse(document, discourse_parsing_preds)
+            sentences += extract_target_sentences(document)
+
+        output_string = "".join(sentence.to_knp() for sentence in sentences)
+        if isinstance(self.destination, Path):
+            with self.destination.open("a") as f:
+                f.write(output_string)
+        elif isinstance(self.destination, TextIOBase):
+            self.destination.write(output_string)
 
     def _create_morphemes(
         self,
@@ -167,7 +282,7 @@ class WordModuleWriter(BasePredictionWriter):
                 conjform=conjform,
                 conjform_id=conjform_id,
             )
-            morpheme = Morpheme(word, attributes, SemanticsDict(semantics), FeatureDict(semantics))
+            morpheme = Morpheme(word, attributes=attributes, semantics=SemanticsDict(semantics))
             morphemes.append(morpheme)
             if len(homograph_ops) >= 1:
                 range_list = []
@@ -185,11 +300,11 @@ class WordModuleWriter(BasePredictionWriter):
                             semantics2 = v
                         else:
                             raise NotImplementedError
-                    morpheme2 = Morpheme(
-                        word, attributes2, SemanticsDict(semantics2), FeatureDict(semantics2), homograph=True
+                    homograph = Morpheme(
+                        word, attributes=attributes2, semantics=SemanticsDict(semantics2), homograph=True
                     )
                     # rhoknp coverts homographs into KNP's ALT features
-                    morpheme.homographs.append(morpheme2)
+                    morpheme.homographs.append(homograph)
         return morphemes
 
     @staticmethod
@@ -198,51 +313,52 @@ class WordModuleWriter(BasePredictionWriter):
         subpos_logits: torch.Tensor,
         conjtype_logits: torch.Tensor,
         conjform_logits: torch.Tensor,
-    ) -> Tuple[List[List[int]], List[List[int]], List[List[int]], List[List[int]]]:
-        batch_pos_preds: List[List[int]] = torch.argmax(pos_logits, dim=-1).tolist()
-        batch_subpos_logits: List[List[List[float]]] = subpos_logits.tolist()
-        refined_batch_subpos_preds: List[List[int]] = []
-        for batch_idx, batch_pos_pred in enumerate(batch_pos_preds):
-            refined_subpos_preds: List[int] = []
-            for pos_idx, pos in enumerate(batch_pos_pred):
-                possible_subpos_ids: Set[int] = {
-                    SUBPOS_TYPES.index(x) for x in POS_SUBPOS_TYPE2ID[INDEX2POS_TYPE[pos]].keys()
-                }
-                refined_subpos_pred: int = 0
-                refined_subpos_logit: float = float("-inf")
-                for logit_idx, logit in enumerate(batch_subpos_logits[batch_idx][pos_idx]):
-                    if logit_idx in possible_subpos_ids and logit > refined_subpos_logit:
-                        refined_subpos_pred = logit_idx
-                        refined_subpos_logit = logit
-                refined_subpos_preds.append(refined_subpos_pred)
-            refined_batch_subpos_preds.append(refined_subpos_preds)
+    ) -> Tuple[List[int], List[int], List[int], List[int]]:
+        pos_preds: List[int] = torch.argmax(pos_logits, dim=1).tolist()
+        subpos_logits_list: List[List[float]] = subpos_logits.tolist()
+        subpos_preds: List[int] = []
+        for mrph_idx, pos_pred in enumerate(pos_preds):
+            possible_subpos_ids: Set[int] = {
+                SUBPOS_TYPES.index(x) for x in POS_SUBPOS_TYPE2ID[INDEX2POS_TYPE[pos_pred]].keys()
+            }
+            subpos_logit: float = float("-inf")
+            subpos_pred: int = 0
+            for logit_idx, logit in enumerate(subpos_logits_list[mrph_idx]):
+                if logit_idx in possible_subpos_ids and logit > subpos_logit:
+                    subpos_logit = logit
+                    subpos_pred = logit_idx
+            subpos_preds.append(subpos_pred)
 
-        batch_conjtype_preds: List[List[int]] = torch.argmax(conjtype_logits, dim=-1).tolist()
-        batch_conjform_logits: List[List[List[float]]] = conjform_logits.tolist()
-        refined_batch_conjform_preds: List[List[int]] = []
-        for batch_idx, batch_conjtype_pred in enumerate(batch_conjtype_preds):
-            refined_conjform_preds: List[int] = []
-            for conjtype_idx, conjtype in enumerate(batch_conjtype_pred):
+        conjtype_preds: List[int] = torch.argmax(conjtype_logits, dim=1).tolist()
+        conjform_logits_list: List[List[float]] = conjform_logits.tolist()
+        conjform_preds: List[int] = []
+        for mrph_idx, (pos_pred, subpos_pred, conjtype_pred) in enumerate(zip(pos_preds, subpos_preds, conjtype_preds)):
+            pos: str = INDEX2POS_TYPE[pos_pred]
+            subpos: str = INDEX2SUBPOS_TYPE[subpos_pred]
+            if (pos, subpos) in INFLECTABLE:
                 possible_conjform_ids: Set[int] = {
-                    CONJFORM_TYPES.index(x) for x in CONJTYPE_CONJFORM_TYPE2ID[INDEX2CONJTYPE_TYPE[conjtype]].keys()
+                    CONJFORM_TYPES.index(x)
+                    for x in CONJTYPE_CONJFORM_TYPE2ID[INDEX2CONJTYPE_TYPE[conjtype_pred]].keys()
                 }
-                refined_conjform_pred: int = 0
-                refined_conjform_logit: float = float("-inf")
-                for logit_idx, logit in enumerate(batch_conjform_logits[batch_idx][conjtype_idx]):
-                    if logit_idx in possible_conjform_ids and logit > refined_conjform_logit:
-                        refined_conjform_pred = logit_idx
-                        refined_conjform_logit = logit
-                refined_conjform_preds.append(refined_conjform_pred)
-            refined_batch_conjform_preds.append(refined_conjform_preds)
+                conjform_logit: float = float("-inf")
+                conjform_pred: int = 0
+                for logit_idx, logit in enumerate(conjform_logits_list[mrph_idx]):
+                    if logit_idx in possible_conjform_ids and logit > conjform_logit:
+                        conjform_logit = logit
+                        conjform_pred = logit_idx
+            else:
+                conjtype_preds[mrph_idx] = CONJTYPE_TYPES.index("*")
+                conjform_pred = CONJTYPE_CONJFORM_TYPE2ID["*"]["*"]
+            conjform_preds.append(conjform_pred)
 
-        return batch_pos_preds, refined_batch_subpos_preds, batch_conjtype_preds, refined_batch_conjform_preds
+        return pos_preds, subpos_preds, conjtype_preds, conjform_preds
 
     @staticmethod
     def _chunk_morphemes(
-        document: Document, morphemes: List[Morpheme], word_feature_preds: List[List[float]]
+        document: Document, morphemes: List[Morpheme], word_feature_logits: List[List[float]]
     ) -> Document:
-        assert len(morphemes) <= len(word_feature_preds)
-        sentences = []
+        assert len(morphemes) <= len(word_feature_logits)
+        new_sentences = []
         for sentence in document.sentences:
             phrases_buff = []
             base_phrases_buff = []
@@ -255,15 +371,14 @@ class WordModuleWriter(BasePredictionWriter):
                     base_phrase_head_prob,
                     base_phrase_end_prob,
                     phrase_end_prob,
-                    declinable_word_surf_head,
-                    declinable_word_surf_end,
-                ) = word_feature_preds[i]
+                    inflectable_word_surf_head_prob,
+                    inflectable_word_surf_end_prob,
+                ) = word_feature_logits[i]
                 if base_phrase_head_prob >= 0.5:
                     morpheme.features["基本句-主辞"] = True
-                # TODO: refactor & set strict condition
-                if declinable_word_surf_head >= 0.5:
+                if inflectable_word_surf_head_prob >= 0.5:
                     morpheme.features["用言表記先頭"] = True
-                if declinable_word_surf_end >= 0.5:
+                if inflectable_word_surf_end_prob >= 0.5:
                     morpheme.features["用言表記末尾"] = True
                 # even if base_phrase_end_prob is low, if phrase_end_prob is high enough, create chunk here
                 if base_phrase_end_prob >= 0.5 or base_phrase_end_prob + phrase_end_prob >= 1.0:
@@ -288,64 +403,61 @@ class WordModuleWriter(BasePredictionWriter):
                 phrase.base_phrases = base_phrases_buff
                 phrases_buff.append(phrase)
 
-            sentence = sentence.reparse()  # reparse to get clauses
-            sentence.phrases = phrases_buff
-            sentence.from_knp(sentence.to_knp())
-            sentences.append(sentence)
-        return Document.from_sentences(sentences)
+            new_sentence = Sentence()
+            new_sentence.comment = sentence.comment
+            new_sentence.phrases = phrases_buff
+            new_sentences.append(new_sentence)
+        return Document.from_sentences(new_sentences)
 
     @staticmethod
-    def _add_base_phrase_features(document: Document, base_phrase_feature_preds: List[List[float]]) -> None:
-        for sentence in document.sentences:
-            base_phrases = sentence.base_phrases
-            if len(base_phrases) == 0:
-                continue
-
-            clause_start_index_set: Set[int] = {0}
-            for base_phrase in base_phrases:
-                for feature, pred in zip(
-                    BASE_PHRASE_FEATURES, base_phrase_feature_preds[base_phrase.head.global_index]
+    def _add_base_phrase_features(sentence: Sentence, base_phrase_feature_logits: List[List[float]]) -> None:
+        phrases = sentence.phrases
+        clause_boundary, clause_start = None, 0
+        for phrase in phrases:
+            for base_phrase in phrase.base_phrases:
+                for feature, prob in zip(
+                    BASE_PHRASE_FEATURES, base_phrase_feature_logits[base_phrase.head.global_index]
                 ):
-                    if feature != "節-主辞" and pred >= 0.5:
+                    if feature.startswith("節-区切") and prob >= 0.5:
+                        clause_boundary = feature
+                    elif feature != "節-主辞" and prob >= 0.5:
                         k, *vs = feature.split(":")
                         base_phrase.features[k] = ":".join(vs) or True
-                    if feature.startswith("節-区切") and pred >= 0.5:
-                        clause_start_index_set.add(base_phrase.index + 1)
-            if base_phrases[-1].features.get("節-区切", False) is False:
-                clause_start_index_set.add(len(base_phrases))
-            clause_start_indices: List[int] = sorted(clause_start_index_set)
+            if phrase == phrases[-1] and clause_boundary is None:
+                clause_boundary = "節-区切"
 
-            for span in zip(clause_start_indices[:-1], clause_start_indices[1:]):
-                clause = base_phrases[slice(*span)]
-                clause_head_scores = [
-                    base_phrase_feature_preds[base_phrase.head.global_index][BASE_PHRASE_FEATURES.index("節-主辞")]
-                    for base_phrase in clause
+            if clause_boundary:
+                k, *vs = clause_boundary.split(":")
+                phrase.base_phrases[-1].features[k] = ":".join(vs) or True
+                base_phrases = [bp for p in phrases[clause_start : phrase.index + 1] for bp in p.base_phrases]
+                clause_head_probs = [
+                    base_phrase_feature_logits[base_phrase.head.global_index][BASE_PHRASE_FEATURES.index("節-主辞")]
+                    for base_phrase in base_phrases
                 ]
-                clause_head = clause[clause_head_scores.index(max(clause_head_scores))]
+                clause_head = base_phrases[clause_head_probs.index(max(clause_head_probs))]
                 clause_head.features["節-主辞"] = True
+                clause_boundary, clause_start = None, phrase.index + 1
 
     @staticmethod
-    def _add_named_entities(document: Document, ne_tag_preds: List[int]) -> None:
-        for sentence in document.sentences:
-            morphemes = sentence.morphemes
-            category = ""
-            morphemes_buff = []
-            for morpheme, ne_tag_pred in zip(morphemes, ne_tag_preds):
-                ne_tag: str = NE_TAGS[ne_tag_pred]
-                if ne_tag.startswith("B-"):
-                    category = ne_tag[2:]
-                    morphemes_buff.append(morpheme)
-                elif ne_tag.startswith("I-") and ne_tag[2:] == category:
-                    morphemes_buff.append(morpheme)
-                else:
-                    if morphemes_buff:
-                        named_entity = NamedEntity(category=NamedEntityCategory(category), morphemes=morphemes_buff)
-                        # NE feature must be tagged to the last base phrase the named entity contains
-                        morphemes_buff[-1].base_phrase.features[
-                            "NE"
-                        ] = f"{named_entity.category.value}:{named_entity.text}"
-                    category = ""
-                    morphemes_buff = []
+    def _add_named_entities(sentence: Sentence, ne_tag_preds: List[int]) -> None:
+        category = ""
+        morphemes_buff = []
+        for morpheme in sentence.morphemes:
+            ne_tag_pred = ne_tag_preds[morpheme.global_index]
+            ne_tag: str = NE_TAGS[ne_tag_pred]
+            if ne_tag.startswith("B-"):
+                category = ne_tag[2:]
+                morphemes_buff.append(morpheme)
+            elif ne_tag.startswith("I-") and ne_tag[2:] == category:
+                morphemes_buff.append(morpheme)
+            else:
+                if morphemes_buff:
+                    named_entity = NamedEntity(category=NamedEntityCategory(category), morphemes=morphemes_buff)
+                    # NE feature must be tagged to the last base phrase the named entity contains
+                    named_entity_text = named_entity.text.replace('"', r"\"")
+                    morphemes_buff[-1].base_phrase.features["NE"] = f"{named_entity.category.value}:{named_entity_text}"
+                category = ""
+                morphemes_buff = []
 
     @staticmethod
     def _resolve_dependency(base_phrase: BasePhrase, dependency_manager: DependencyManager) -> None:
@@ -373,53 +485,53 @@ class WordModuleWriter(BasePredictionWriter):
 
     def _add_dependency(
         self,
-        document: Document,
+        sentence: Sentence,
         dependency_preds: List[List[int]],
         dependency_type_preds: List[List[int]],
         special_to_index: Dict[str, int],
     ) -> None:
-        for sentence in extract_target_sentences(document):
-            base_phrases = sentence.base_phrases
-            morpheme_global_index2base_phrase_index = {
-                morpheme.global_index: base_phrase.index
-                for base_phrase in base_phrases
-                for morpheme in base_phrase.morphemes
-            }
-            morpheme_global_index2base_phrase_index[special_to_index["[ROOT]"]] = -1
-            dependency_manager = DependencyManager()
-            for base_phrase in base_phrases:
-                for parent_morpheme_global_index, dependency_type_id in zip(
-                    dependency_preds[base_phrase.head.global_index],
-                    dependency_type_preds[base_phrase.head.global_index],
-                ):
-                    parent_index = morpheme_global_index2base_phrase_index[parent_morpheme_global_index]
-                    dependency_manager.add_edge(base_phrase.index, parent_index)
-                    if dependency_manager.has_cycle() or (parent_index == -1 and dependency_manager.root):
-                        dependency_manager.remove_edge(base_phrase.index, parent_index)
-                    else:
-                        base_phrase.parent_index = parent_index
-                        base_phrase.dep_type = INDEX2DEPENDENCY_TYPE[dependency_type_id]
-                        break
+        base_phrases = sentence.base_phrases
+        morpheme_global_index2base_phrase_index = {
+            morpheme.global_index: base_phrase.index
+            for base_phrase in base_phrases
+            for morpheme in base_phrase.morphemes
+        }
+        morpheme_global_index2base_phrase_index[special_to_index["[ROOT]"]] = -1
+        dependency_manager = DependencyManager()
+        for base_phrase in base_phrases:
+            for parent_morpheme_global_index, dependency_type_id in zip(
+                dependency_preds[base_phrase.head.global_index],
+                dependency_type_preds[base_phrase.head.global_index],
+            ):
+                parent_index = morpheme_global_index2base_phrase_index[parent_morpheme_global_index]
+                dependency_manager.add_edge(base_phrase.index, parent_index)
+                if dependency_manager.has_cycle() or (parent_index == -1 and dependency_manager.root):
+                    dependency_manager.remove_edge(base_phrase.index, parent_index)
                 else:
-                    if base_phrase == base_phrases[-1] and not dependency_manager.root:
-                        base_phrase.parent_index = -1
-                        base_phrase.dep_type = DepType.DEPENDENCY
-                    else:
-                        self._resolve_dependency(base_phrase, dependency_manager)
+                    base_phrase.parent_index = parent_index
+                    base_phrase.dep_type = INDEX2DEPENDENCY_TYPE[dependency_type_id]
+                    break
+            else:
+                if base_phrase == base_phrases[-1] and not dependency_manager.root:
+                    base_phrase.parent_index = -1
+                    base_phrase.dep_type = DepType.DEPENDENCY
+                else:
+                    self._resolve_dependency(base_phrase, dependency_manager)
 
-                if base_phrase.parent_index == -1:
-                    base_phrase.phrase.parent_index = -1
-                    base_phrase.phrase.dep_type = DepType.DEPENDENCY
-                    dependency_manager.root = True
-                # base_phrase.phrase.parent_index is None and
-                elif base_phrase.phrase != base_phrases[base_phrase.parent_index].phrase:
-                    base_phrase.phrase.parent_index = base_phrases[base_phrase.parent_index].phrase.index
-                    base_phrase.phrase.dep_type = base_phrase.dep_type
+            assert base_phrase.parent_index is not None
+            if base_phrase.parent_index == -1:
+                base_phrase.phrase.parent_index = -1
+                base_phrase.phrase.dep_type = DepType.DEPENDENCY
+                dependency_manager.root = True
+            # base_phrase.phrase.parent_index is None and
+            elif base_phrase.phrase != base_phrases[base_phrase.parent_index].phrase:
+                base_phrase.phrase.parent_index = base_phrases[base_phrase.parent_index].phrase.index
+                base_phrase.phrase.dep_type = base_phrase.dep_type
 
     def _add_cohesion(
         self,
         document: Document,
-        cohesion_preds: List[List[int]],
+        cohesion_logits: List[List[List[int]]],  # (rel, src, dst)
         task_to_rel_types: Dict[CohesionTask, List[str]],
         exophora_referents: List[ExophoraReferent],
         index_to_special: Dict[int, str],
@@ -427,10 +539,10 @@ class WordModuleWriter(BasePredictionWriter):
     ) -> None:
         all_rel_types = [t for ts in task_to_rel_types.values() for t in ts]
         for base_phrase in document.base_phrases:
-            base_phrase.rels = RelTagList()
+            base_phrase.rel_tags.clear()
             rel_tags = self._to_rels(
-                [preds[base_phrase.head.global_index] for preds in cohesion_preds],
-                document.morphemes,
+                [logits[base_phrase.head.global_index] for logits in cohesion_logits],
+                document.base_phrases,
                 all_rel_types,
                 exophora_referents,
                 index_to_special,
@@ -438,7 +550,7 @@ class WordModuleWriter(BasePredictionWriter):
             for task, rel_types in task_to_rel_types.items():
                 extractor = task_to_extractors[task]
                 if extractor.is_target(base_phrase):
-                    base_phrase.rels += [rel for rel in rel_tags if rel.type in rel_types]
+                    base_phrase.rel_tags += [rel for rel in rel_tags if rel.type in rel_types]
 
     @staticmethod
     def _add_discourse(document: Document, discourse_preds: List[List[int]]) -> None:
@@ -460,31 +572,34 @@ class WordModuleWriter(BasePredictionWriter):
 
     @staticmethod
     def _to_rels(
-        prediction: List[int],  # (rel)
-        morphemes: List[Morpheme],
+        rel_logits: List[List[int]],  # (rel, dst)
+        base_phrases: List[BasePhrase],
         rel_types: List[str],
         exophora_referents: List[ExophoraReferent],
         index_to_special: Dict[int, str],
     ) -> RelTagList:
         rel_tags = RelTagList()
-        assert len(rel_types) == len(prediction)
-        for relation, morpheme_index in zip(rel_types, prediction):
-            if morpheme_index < 0:
-                continue  # non-target phrase
-            if 0 <= morpheme_index < len(morphemes):
+        assert len(rel_types) == len(rel_logits)
+        for relation, logits in zip(rel_types, rel_logits):
+            head_logits = [logits[base_phrase.head.global_index] for base_phrase in base_phrases] + [
+                logits[idx] for idx in index_to_special.keys()
+            ]
+            base_phrase_index: int = np.argmax(head_logits).item()
+            if 0 <= base_phrase_index < len(base_phrases):
                 # endophora
-                prediction_bp: BasePhrase = morphemes[morpheme_index].base_phrase
+                prediction = base_phrases[base_phrase_index]
                 rel_tags.append(
                     RelTag(
                         type=relation,
-                        target=prediction_bp.head.text,
-                        sid=prediction_bp.sentence.sid,
-                        base_phrase_index=prediction_bp.index,
+                        target=prediction.head.text,
+                        sid=prediction.sentence.sid,
+                        base_phrase_index=prediction.index,
                         mode=None,
                     )
                 )
-            elif special_token := index_to_special.get(morpheme_index):
+            else:
                 # exophora
+                special_token = list(index_to_special.values())[base_phrase_index - len(base_phrases)]
                 if special_token in [str(e) for e in exophora_referents]:  # exclude [NULL], [NA], and [ROOT]
                     rel_tags.append(
                         RelTag(
@@ -495,117 +610,7 @@ class WordModuleWriter(BasePredictionWriter):
                             mode=None,
                         )
                     )
-            else:
-                raise ValueError(f"invalid morpheme index: {morpheme_index} in {morphemes[0].document.doc_id}")
-
         return rel_tags
-
-    def write_on_batch_end(
-        self,
-        trainer: pl.Trainer,
-        pl_module: pl.LightningModule,
-        prediction: Any,
-        batch_indices: Optional[Sequence[int]],
-        batch: Any,
-        batch_idx: int,
-        dataloader_idx: int,
-    ) -> None:
-        sentences: List[Sentence] = []
-        dataloaders = trainer.predict_dataloaders
-        batch_tokens = prediction["tokens"]
-        batch_example_ids = prediction["example_ids"]
-        dataloader_idx = prediction["dataloader_idx"]
-        dataset: Union[WordDataset, WordInferenceDataset] = dataloaders[dataloader_idx].dataset
-        batch_reading_subword_map = prediction["reading_subword_map"]
-        batch_reading_preds = torch.argmax(prediction["reading_prediction_logits"], dim=-1)
-        (batch_pos_preds, batch_subpos_preds, batch_conjtype_preds, batch_conjform_preds,) = self._get_mrph_type_preds(
-            pos_logits=prediction["word_analysis_pos_logits"],
-            subpos_logits=prediction["word_analysis_subpos_logits"],
-            conjtype_logits=prediction["word_analysis_conjtype_logits"],
-            conjform_logits=prediction["word_analysis_conjform_logits"],
-        )
-        batch_ne_tag_preds = torch.argmax(prediction["ne_logits"], dim=-1)
-        batch_word_feature_preds = prediction["word_feature_logits"]
-        batch_base_phrase_feature_preds = prediction["base_phrase_feature_logits"]
-        batch_dependency_preds = torch.topk(
-            prediction["dependency_logits"],
-            k=4,  # TODO
-            dim=2,
-        ).indices
-        batch_dependency_type_preds = torch.argmax(prediction["dependency_type_logits"], dim=3)
-        batch_cohesion_preds = torch.argmax(prediction["cohesion_logits"], dim=3)  # (b, rel, word)
-        batch_discourse_parsing_preds = torch.argmax(prediction["discourse_parsing_logits"], dim=3)
-        for (
-            tokens,
-            example_id,
-            reading_subword_map,
-            reading_preds,
-            pos_preds,
-            subpos_preds,
-            conjtype_preds,
-            conjform_preds,
-            word_feature_preds,
-            ne_tag_preds,
-            base_phrase_feature_preds,
-            dependency_preds,
-            dependency_type_preds,
-            cohesion_preds,
-            discourse_parsing_preds,
-        ) in zip(
-            batch_tokens,
-            batch_example_ids,
-            batch_reading_subword_map.tolist(),
-            batch_reading_preds.tolist(),
-            batch_pos_preds,
-            batch_subpos_preds,
-            batch_conjtype_preds,
-            batch_conjform_preds,
-            batch_word_feature_preds.tolist(),
-            batch_ne_tag_preds.tolist(),
-            batch_base_phrase_feature_preds.tolist(),
-            batch_dependency_preds.tolist(),
-            batch_dependency_type_preds.tolist(),
-            batch_cohesion_preds.tolist(),
-            batch_discourse_parsing_preds.tolist(),
-        ):
-            example: Union[WordExampleSet, WordInferenceExample] = dataset.examples[example_id]
-            doc_id = example.doc_id
-            document = dataset.doc_id2document[doc_id]
-            readings = [self.id2reading[pred] for pred in reading_preds]
-            word_reading_preds = get_word_level_readings(readings, tokens.split(" "), reading_subword_map)
-            morphemes = self._create_morphemes(
-                [m.text for m in document.morphemes],
-                [m.lemma if m.attributes is not None else m.text for m in document.morphemes],
-                word_reading_preds,
-                pos_preds,
-                subpos_preds,
-                conjtype_preds,
-                conjform_preds,
-            )
-            document = self._chunk_morphemes(document, morphemes, word_feature_preds)
-            document.doc_id = doc_id
-            self._add_base_phrase_features(document, base_phrase_feature_preds)
-            self._add_named_entities(document, ne_tag_preds)
-            self._add_dependency(document, dependency_preds, dependency_type_preds, dataset.special_to_index)
-            self._add_cohesion(
-                document,
-                cohesion_preds,
-                dataset.cohesion_task_to_rel_types,
-                dataset.exophora_referents,
-                dataset.index_to_special,
-                dataset.extractors,
-            )
-            document = document.reparse()  # reparse to get clauses
-            document.doc_id = doc_id
-            self._add_discourse(document, discourse_parsing_preds)
-            sentences += extract_target_sentences(document)
-
-        output_string = "".join(sentence.to_knp() for sentence in sentences)
-        if isinstance(self.destination, Path):
-            with self.destination.open("a") as f:
-                f.write(output_string)
-        elif isinstance(self.destination, TextIOBase):
-            self.destination.write(output_string)
 
     def write_on_epoch_end(
         self,

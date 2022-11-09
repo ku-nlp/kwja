@@ -30,6 +30,7 @@ class DependencyExample:
             for base_phrase in sentence.base_phrases:
                 for morpheme in base_phrase.morphemes:
                     if morpheme == base_phrase.head:
+                        assert base_phrase.dep_type is not None
                         dependency_type = base_phrase.dep_type
                     else:
                         dependency_type = DepType.DEPENDENCY

@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Union
 
 import torch
 from torch.utils.data import Dataset
@@ -27,10 +27,10 @@ class TypoInferenceDataset(Dataset):
     def __len__(self) -> int:
         return len(self.texts)
 
-    def __getitem__(self, index: int) -> Dict[str, torch.Tensor]:
+    def __getitem__(self, index: int) -> Dict[str, Union[torch.Tensor, str]]:
         return self.encode(self.texts[index])
 
-    def encode(self, text: str) -> Dict[str, torch.Tensor]:
+    def encode(self, text: str) -> Dict[str, Union[torch.Tensor, str]]:
         encoding: BatchEncoding = self.tokenizer(
             text + TYPO_DUMMY_TOKEN,
             truncation=True,

@@ -47,7 +47,7 @@ class CohesionAnalysisMetric(Metric):
         knp_writer = CohesionKNPWriter(dataset)
         assert len(self.example_ids) == len(self.predictions), f"{len(self.example_ids)} vs {len(self.predictions)}"
         predictions: Dict[int, List[List[int]]] = {
-            eid.item(): prediction.tolist() for eid, prediction in zip(self.example_ids, self.predictions)
+            int(eid.item()): prediction.tolist() for eid, prediction in zip(self.example_ids, self.predictions)
         }
         documents_pred = knp_writer.write(predictions, destination=None)
         targets2label = {

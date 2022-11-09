@@ -7,9 +7,9 @@ SUB_DOC_PAT: re.Pattern = re.compile(r"^(?P<did>[a-zA-Z\d\-_]+?)-split(?P<stride
 
 
 def is_target_sentence(sentence: Sentence) -> bool:
-    if sentence.doc_id is None:
+    if sentence.document.doc_id is None:
         return True
-    match = SUB_DOC_PAT.match(sentence.doc_id)
+    match = SUB_DOC_PAT.match(sentence.document.doc_id)
     if match is None:
         return True
     stride = int(match.group("stride"))

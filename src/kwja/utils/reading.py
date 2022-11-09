@@ -231,7 +231,7 @@ class ReadingAligner:
         # build lattice
         # no node can cross boundaries
         td_lattice: List[List[List[Node]]] = []
-        td_holder: List[List[Tuple[Optional[Node], Optional[Node], int]]] = []
+        td_holder: List[List[Tuple[Optional[Node], Optional[Node], float]]] = []
         node: Optional[Node] = None
         node_prev: Optional[Node] = None
         for i in range(len(surf)):

@@ -195,10 +195,10 @@ class WordDataset(BaseDataset):
     def __len__(self) -> int:
         return len(self.examples)
 
-    def __getitem__(self, index: int) -> Dict[str, torch.Tensor]:
+    def __getitem__(self, index: int) -> Dict[str, Union[torch.Tensor, str]]:
         return self.encode(self.examples[index])
 
-    def encode(self, example: WordExampleSet) -> Dict[str, torch.Tensor]:
+    def encode(self, example: WordExampleSet) -> Dict[str, Union[torch.Tensor, str]]:
         merged_encoding: Encoding = Encoding.merge([example.encoding, self.special_encoding])
 
         document = self.doc_id2document[example.doc_id]
@@ -270,7 +270,6 @@ class WordDataset(BaseDataset):
         for morpheme_index, candidates in dependency_example.candidates.items():
             for candidate_index in candidates + [self.special_to_index["[ROOT]"]]:
                 dependency_mask[morpheme_index][candidate_index] = True
-
         dependency_types: List[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
         for morpheme_index, dependency_type in dependency_example.dependency_types.items():
             dependency_types[morpheme_index] = DEPENDENCY_TYPE2INDEX[dependency_type]

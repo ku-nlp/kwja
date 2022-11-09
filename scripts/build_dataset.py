@@ -69,6 +69,7 @@ class JumanppAugmenter:
     ) -> None:
         for original_morpheme, augmented_morpheme in zip(original_sentence.morphemes, augmented_sentence.morphemes):
             # Jumanpp may override reading
+            assert augmented_morpheme.attributes is not None
             augmented_morpheme.attributes.reading = original_morpheme.reading
             if update_original and not original_sentence.need_knp:
                 # add Semantics
@@ -106,8 +107,9 @@ def extract_named_entities(tagged_sentence: Sentence) -> List[Tuple[str, List[Mo
     named_entities = []
     category, morphemes_buff = "", []
     for morpheme in tagged_sentence.morphemes:
-        if "NE" in morpheme.semantics:
-            cat, span = morpheme.semantics["NE"].split(":")
+        if ne_tag := morpheme.semantics.get("NE"):
+            assert isinstance(ne_tag, str)
+            cat, span = ne_tag.split(":")
             if span in {"single", "head"}:
                 category, morphemes_buff = cat, [morpheme]
             elif span in {"middle", "tail"} and cat == category:

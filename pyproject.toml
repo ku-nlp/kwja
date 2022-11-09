@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "kwja"
-version = "1.2.0"
+version = "1.2.2"
 description = "A unified language analyzer for Japanese"
 authors = [
     "Hirokazu Kiyomaru <kiyomaru@i.kyoto-u.ac.jp>",
@@ -48,14 +48,14 @@ pytorch-lightning = "^1.7"
 omegaconf = "^2.1"
 hydra-core = "^1.2"
 tokenizers = "^0.12.1"
-transformers = "~4.19.2"
+transformers = "~4.23.1"
+rhoknp = "0.4.8"
 typer = "^0.6.1"
 sentencepiece = "^0.1.96"
 protobuf = "^3.19"
 seqeval = "^1.2.2"
 rich = "^12.4.4"
-rhoknp = "^0.4.3"
-python-Levenshtein = "^0.12.2"
+python-Levenshtein = "^0.20.8"
 ipadic = "^1.0.0"
 python-dotenv = "^0.21.0"
 pandas = "^1.4"
@@ -76,6 +76,8 @@ kyoto-reader = "^2.5"
 pytest-profiling = "^1.7"
 pytest = "^7.1"
 pytest-cov = "^4.0"
+ipdb = "^0.13.9"
+types-attrs = "^19.1.0"
 
 [build-system]
 requires = ["poetry-core"]

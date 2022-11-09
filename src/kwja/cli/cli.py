@@ -1,4 +1,5 @@
 import os
+from enum import Enum
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import List, Optional
@@ -11,6 +12,7 @@ import typer
 from omegaconf import OmegaConf
 from pytorch_lightning.trainer.states import TrainerFn
 from rhoknp import Document
+from rhoknp.utils.reader import chunk_by_document
 
 import kwja
 from kwja.callbacks.word_module_discourse_writer import WordModuleDiscourseWriter
@@ -35,6 +37,13 @@ MODEL_SIZE2CHECKPOINT_URL = {
         "word_discourse": f"{_CHECKPOINT_BASE_URL}/v1.0/disc_roberta-large_seq256.ckpt",
     },
 }
+
+
+class Device(str, Enum):
+    auto = "auto"
+    cpu = "cpu"
+    gpu = "gpu"
+
 
 suppress_debug_info()
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -268,16 +277,25 @@ class CLIProcessor:
         )
 
     def output_word_result(self) -> None:
-        document: Document = Document.from_knp(self.word_path.read_text())
-        # Remove the result of discourse relation analysis by the jointly learned model.
-        for base_phrase in document.base_phrases:
-            if "談話関係" in base_phrase.features:
-                del base_phrase.features["談話関係"]
-        print(document.to_knp(), end="")
+        knp_texts = []
+        with self.word_path.open(mode="r") as f:
+            for knp_text in chunk_by_document(f):
+                document = Document.from_knp(knp_text)
+                # Remove the result of discourse relation analysis by the jointly learned model.
+                for base_phrase in document.base_phrases:
+                    if "談話関係" in base_phrase.features:
+                        del base_phrase.features["談話関係"]
+                knp_texts.append(document.to_knp())
+        print("\n".join(knp_texts), end="")
 
     def output_word_discourse_result(self) -> None:
-        discourse_document: Document = Document.from_knp(self.word_discourse_path.read_text())
-        print(discourse_document.to_knp(), end="")
+        print(self.word_discourse_path.read_text(), end="")
+
+    def refresh(self) -> None:
+        self.typo_path.unlink(missing_ok=True)
+        self.char_path.unlink(missing_ok=True)
+        self.word_path.unlink(missing_ok=True)
+        self.word_discourse_path.unlink(missing_ok=True)
 
 
 def version_callback(value: bool) -> None:
@@ -299,7 +317,10 @@ def main(
     model_size: str = typer.Option(
         "base", callback=model_size_callback, help="Model size to be used. Please specify 'base' or 'large'."
     ),
-    device: str = typer.Option("cpu", help="Device to be used. Please specify 'cpu' or 'gpu'."),
+    device: Device = typer.Option(
+        Device.auto,
+        help="Device to be used. Please specify 'auto', 'cpu' or 'gpu'.",
+    ),
     typo_batch_size: int = typer.Option(1, help="Batch size for typo module."),
     char_batch_size: int = typer.Option(1, help="Batch size for char module."),
     word_batch_size: int = typer.Option(1, help="Batch size for word module."),
@@ -317,7 +338,7 @@ def main(
             input_text = f.read()
 
     processor: CLIProcessor = CLIProcessor(
-        specified_device=device,
+        specified_device=device.value,
         model_size=model_size,
         typo_batch_size=typo_batch_size,
         char_batch_size=char_batch_size,
@@ -358,6 +379,7 @@ def main(
         while True:
             inp = input()
             if inp == "EOD":
+                processor.refresh()
                 processor.apply_typo([input_text])
                 processor.apply_char()
                 processor.apply_word()

@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Fix scripts for building datasets to support latest rhoknp and remove dependency on kyoto-reader.
 
+## [1.2.2] - 2022-11-07
+### Fixed
+- Fix a bug where cohesion analysis results are sometimes weird.
+
+## [1.2.1] - 2022-11-04
+### Fixed
+- Fix bugs of word module writer and interactive mode.
+
 ## [1.2.0] - 2022-10-27
 ### Added
 - Add option to change batch size to CLI.
