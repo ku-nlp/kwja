@@ -246,7 +246,7 @@ class WordModuleWriter(BasePredictionWriter):
         document: Document, morphemes: List[Morpheme], word_feature_logits: List[List[float]]
     ) -> Document:
         assert len(morphemes) <= len(word_feature_logits)
-        sentences = []
+        new_sentences = []
         for sentence in document.sentences:
             phrases_buff = []
             base_phrases_buff = []
@@ -291,14 +291,15 @@ class WordModuleWriter(BasePredictionWriter):
                 phrase.base_phrases = base_phrases_buff
                 phrases_buff.append(phrase)
 
-            sentence.phrases = phrases_buff
-            sentence = sentence.reparse()
-            sentences.append(sentence)
-        return Document.from_sentences(sentences)
+            new_sentence = Sentence()
+            new_sentence.comment = sentence.comment
+            new_sentence.phrases = phrases_buff
+            new_sentences.append(new_sentence)
+        return Document.from_sentences(new_sentences)
 
     @staticmethod
     def _add_base_phrase_features(document: Document, base_phrase_feature_logits: List[List[float]]) -> None:
-        for sentence in document.sentences:
+        for sentence in extract_target_sentences(document):
             phrases = sentence.phrases
             clause_boundary, clause_start = None, 0
             for phrase in phrases:
@@ -328,22 +329,26 @@ class WordModuleWriter(BasePredictionWriter):
 
     @staticmethod
     def _add_named_entities(document: Document, ne_tag_preds: List[int]) -> None:
-        category = ""
-        morphemes_buff = []
-        for morpheme, ne_tag_pred in zip(document.morphemes, ne_tag_preds):
-            ne_tag: str = NE_TAGS[ne_tag_pred]
-            if ne_tag.startswith("B-"):
-                category = ne_tag[2:]
-                morphemes_buff.append(morpheme)
-            elif ne_tag.startswith("I-") and ne_tag[2:] == category:
-                morphemes_buff.append(morpheme)
-            else:
-                if morphemes_buff:
-                    named_entity = NamedEntity(category=NamedEntityCategory(category), morphemes=morphemes_buff)
-                    # NE feature must be tagged to the last base phrase the named entity contains
-                    morphemes_buff[-1].base_phrase.features["NE"] = f"{named_entity.category.value}:{named_entity.text}"
-                category = ""
-                morphemes_buff = []
+        for sentence in extract_target_sentences(document):
+            category = ""
+            morphemes_buff = []
+            for morpheme in sentence.morphemes:
+                ne_tag_pred = ne_tag_preds[morpheme.global_index]
+                ne_tag: str = NE_TAGS[ne_tag_pred]
+                if ne_tag.startswith("B-"):
+                    category = ne_tag[2:]
+                    morphemes_buff.append(morpheme)
+                elif ne_tag.startswith("I-") and ne_tag[2:] == category:
+                    morphemes_buff.append(morpheme)
+                else:
+                    if morphemes_buff:
+                        named_entity = NamedEntity(category=NamedEntityCategory(category), morphemes=morphemes_buff)
+                        # NE feature must be tagged to the last base phrase the named entity contains
+                        morphemes_buff[-1].base_phrase.features[
+                            "NE"
+                        ] = f"{named_entity.category.value}:{named_entity.text}"
+                    category = ""
+                    morphemes_buff = []
 
     @staticmethod
     def _resolve_dependency(base_phrase: BasePhrase, dependency_manager: DependencyManager) -> None:
@@ -376,7 +381,7 @@ class WordModuleWriter(BasePredictionWriter):
         dependency_type_preds: List[List[int]],
         special_to_index: Dict[str, int],
     ) -> None:
-        for sentence in document.sentences:
+        for sentence in extract_target_sentences(document):
             base_phrases = sentence.base_phrases
             morpheme_global_index2base_phrase_index = {
                 morpheme.global_index: base_phrase.index
@@ -586,6 +591,7 @@ class WordModuleWriter(BasePredictionWriter):
                 conjform_preds,
             )
             document = self._chunk_morphemes(document, morphemes, word_feature_logits)
+            document.doc_id = doc_id
             self._add_base_phrase_features(document, base_phrase_feature_logits)
             self._add_named_entities(document, ne_tag_preds)
             self._add_dependency(document, dependency_preds, dependency_type_preds, dataset.special_to_index)

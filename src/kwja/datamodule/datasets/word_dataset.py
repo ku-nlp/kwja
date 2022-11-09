@@ -270,7 +270,6 @@ class WordDataset(BaseDataset):
         for morpheme_index, candidates in dependency_example.candidates.items():
             for candidate_index in candidates + [self.special_to_index["[ROOT]"]]:
                 dependency_mask[morpheme_index][candidate_index] = True
-
         dependency_types: List[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
         for morpheme_index, dependency_type in dependency_example.dependency_types.items():
             dependency_types[morpheme_index] = DEPENDENCY_TYPE2INDEX[dependency_type]
