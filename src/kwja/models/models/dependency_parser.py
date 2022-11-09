@@ -9,7 +9,7 @@ from kwja.utils.constants import DEPENDENCY_TYPE2INDEX, IGNORE_INDEX
 
 
 class DependencyParser(nn.Module):
-    def __init__(self, pretrained_model_config: PretrainedConfig, k: int) -> None:
+    def __init__(self, pretrained_model_config: PretrainedConfig, topk: int) -> None:
         super().__init__()
         hidden_size = pretrained_model_config.hidden_size
         # Dependency Parsing as Head Selection [Zhang+ EACL2017]
@@ -31,7 +31,7 @@ class DependencyParser(nn.Module):
             )
         )
 
-        self.k = k
+        self.topk = topk
 
     def forward(self, pooled_outputs: torch.Tensor, dependencies: Optional[torch.Tensor] = None):
         # (b, seq, h)
@@ -40,13 +40,13 @@ class DependencyParser(nn.Module):
         dependency_logits = self.v_a(torch.tanh(h_i.unsqueeze(1) + h_j.unsqueeze(2))).squeeze(-1)
 
         pooled_outputs = pooled_outputs.unsqueeze(2)
-        batch_size, sequence_len, k, hidden_size = pooled_outputs.shape
+        batch_size, sequence_len, topk, hidden_size = pooled_outputs.shape
         if dependencies is not None:
             # gather_indexにIGNORE(=-100)を渡すことはできないので、0に上書き
             dependencies = (dependencies * dependencies.ne(IGNORE_INDEX)).unsqueeze(2).unsqueeze(3)
         else:
-            dependencies = torch.topk(dependency_logits, self.k, dim=2).indices.unsqueeze(3)
-            k = self.k
+            dependencies = torch.topk(dependency_logits, self.topk, dim=2).indices.unsqueeze(3)
+            topk = self.topk
 
         # head_hidden_states[0][0][0] == pooled_outputs[0][dependencies[0][0][0]]
         # head_hidden_states[0][1][0] == pooled_outputs[0][dependencies[0][1][0]]
@@ -54,13 +54,13 @@ class DependencyParser(nn.Module):
         head_hidden_states = torch.gather(
             pooled_outputs.expand(batch_size, sequence_len, sequence_len, hidden_size),
             dim=2,
-            index=dependencies.expand(batch_size, sequence_len, k, hidden_size),
+            index=dependencies.expand(batch_size, sequence_len, topk, hidden_size),
         )
-        # (b, seq, 1 or k, num_dependency_types)
+        # (b, seq, 1 or topk, num_dependency_types)
         dependency_type_logits = self.dependency_type_head(
             torch.cat(
                 [
-                    pooled_outputs.expand(batch_size, sequence_len, k, hidden_size),
+                    pooled_outputs.expand(batch_size, sequence_len, topk, hidden_size),
                     head_hidden_states,
                 ],
                 dim=-1,

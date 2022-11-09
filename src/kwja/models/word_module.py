@@ -207,7 +207,7 @@ class WordModule(LightningModule):
             "example_ids": batch["example_ids"],
             "dependency_predictions": torch.topk(
                 outputs["relation_analyzer_outputs"]["dependency_logits"],
-                self.hparams.k,
+                self.hparams.dependency_topk,
                 dim=2,
             ).indices,
             "dependency_type_predictions": torch.argmax(
@@ -351,7 +351,7 @@ class WordModule(LightningModule):
             "example_ids": batch["example_ids"],
             "dependency_predictions": torch.topk(
                 outputs["relation_analyzer_outputs"]["dependency_logits"],
-                self.hparams.k,
+                self.hparams.dependency_topk,
                 dim=2,
             ).indices,
             "dependency_type_predictions": torch.argmax(

@@ -102,7 +102,7 @@ class WordModuleWriter(BasePredictionWriter):
         batch_base_phrase_feature_logits = prediction["base_phrase_feature_logits"]
         batch_dependency_preds = torch.topk(
             prediction["dependency_logits"],
-            k=4,  # TODO
+            k=pl_module.hparams.dependency_topk,
             dim=2,
         ).indices
         batch_dependency_type_preds = torch.argmax(prediction["dependency_type_logits"], dim=3)

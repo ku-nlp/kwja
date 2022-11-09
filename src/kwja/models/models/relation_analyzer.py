@@ -19,7 +19,7 @@ class RelationAnalyzer(nn.Module):
 
         self.dependency_parser = DependencyParser(
             pretrained_model_config=pretrained_model_config,
-            k=hparams.k,
+            topk=hparams.dependency_topk,
         )
         self.cohesion_analyzer = CohesionAnalyzer(
             pretrained_model_config=pretrained_model_config,
