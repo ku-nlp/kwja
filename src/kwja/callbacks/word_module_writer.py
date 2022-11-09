@@ -163,9 +163,10 @@ class WordModuleWriter(BasePredictionWriter):
             )
             document = self._chunk_morphemes(document, morphemes, word_feature_logits)
             document.doc_id = doc_id
-            self._add_base_phrase_features(document, base_phrase_feature_logits)
-            self._add_named_entities(document, ne_tag_preds)
-            self._add_dependency(document, dependency_preds, dependency_type_preds, dataset.special_to_index)
+            for sentence in extract_target_sentences(document):
+                self._add_base_phrase_features(sentence, base_phrase_feature_logits)
+                self._add_named_entities(sentence, ne_tag_preds)
+                self._add_dependency(sentence, dependency_preds, dependency_type_preds, dataset.special_to_index)
             self._add_cohesion(
                 document,
                 cohesion_logits,
@@ -409,57 +410,53 @@ class WordModuleWriter(BasePredictionWriter):
         return Document.from_sentences(new_sentences)
 
     @staticmethod
-    def _add_base_phrase_features(document: Document, base_phrase_feature_logits: List[List[float]]) -> None:
-        for sentence in extract_target_sentences(document):
-            phrases = sentence.phrases
-            clause_boundary, clause_start = None, 0
-            for phrase in phrases:
-                for base_phrase in phrase.base_phrases:
-                    for feature, prob in zip(
-                        BASE_PHRASE_FEATURES, base_phrase_feature_logits[base_phrase.head.global_index]
-                    ):
-                        if feature.startswith("節-区切") and prob >= 0.5:
-                            clause_boundary = feature
-                        elif feature != "節-主辞" and prob >= 0.5:
-                            k, *vs = feature.split(":")
-                            base_phrase.features[k] = ":".join(vs) or True
-                if phrase == phrases[-1] and clause_boundary is None:
-                    clause_boundary = "節-区切"
+    def _add_base_phrase_features(sentence: Sentence, base_phrase_feature_logits: List[List[float]]) -> None:
+        phrases = sentence.phrases
+        clause_boundary, clause_start = None, 0
+        for phrase in phrases:
+            for base_phrase in phrase.base_phrases:
+                for feature, prob in zip(
+                    BASE_PHRASE_FEATURES, base_phrase_feature_logits[base_phrase.head.global_index]
+                ):
+                    if feature.startswith("節-区切") and prob >= 0.5:
+                        clause_boundary = feature
+                    elif feature != "節-主辞" and prob >= 0.5:
+                        k, *vs = feature.split(":")
+                        base_phrase.features[k] = ":".join(vs) or True
+            if phrase == phrases[-1] and clause_boundary is None:
+                clause_boundary = "節-区切"
 
-                if clause_boundary:
-                    k, *vs = clause_boundary.split(":")
-                    phrase.base_phrases[-1].features[k] = ":".join(vs) or True
-                    base_phrases = [bp for p in phrases[clause_start : phrase.index + 1] for bp in p.base_phrases]
-                    clause_head_probs = [
-                        base_phrase_feature_logits[base_phrase.head.global_index][BASE_PHRASE_FEATURES.index("節-主辞")]
-                        for base_phrase in base_phrases
-                    ]
-                    clause_head = base_phrases[clause_head_probs.index(max(clause_head_probs))]
-                    clause_head.features["節-主辞"] = True
-                    clause_boundary, clause_start = None, phrase.index + 1
+            if clause_boundary:
+                k, *vs = clause_boundary.split(":")
+                phrase.base_phrases[-1].features[k] = ":".join(vs) or True
+                base_phrases = [bp for p in phrases[clause_start : phrase.index + 1] for bp in p.base_phrases]
+                clause_head_probs = [
+                    base_phrase_feature_logits[base_phrase.head.global_index][BASE_PHRASE_FEATURES.index("節-主辞")]
+                    for base_phrase in base_phrases
+                ]
+                clause_head = base_phrases[clause_head_probs.index(max(clause_head_probs))]
+                clause_head.features["節-主辞"] = True
+                clause_boundary, clause_start = None, phrase.index + 1
 
     @staticmethod
-    def _add_named_entities(document: Document, ne_tag_preds: List[int]) -> None:
-        for sentence in extract_target_sentences(document):
-            category = ""
-            morphemes_buff = []
-            for morpheme in sentence.morphemes:
-                ne_tag_pred = ne_tag_preds[morpheme.global_index]
-                ne_tag: str = NE_TAGS[ne_tag_pred]
-                if ne_tag.startswith("B-"):
-                    category = ne_tag[2:]
-                    morphemes_buff.append(morpheme)
-                elif ne_tag.startswith("I-") and ne_tag[2:] == category:
-                    morphemes_buff.append(morpheme)
-                else:
-                    if morphemes_buff:
-                        named_entity = NamedEntity(category=NamedEntityCategory(category), morphemes=morphemes_buff)
-                        # NE feature must be tagged to the last base phrase the named entity contains
-                        morphemes_buff[-1].base_phrase.features[
-                            "NE"
-                        ] = f"{named_entity.category.value}:{named_entity.text}"
-                    category = ""
-                    morphemes_buff = []
+    def _add_named_entities(sentence: Sentence, ne_tag_preds: List[int]) -> None:
+        category = ""
+        morphemes_buff = []
+        for morpheme in sentence.morphemes:
+            ne_tag_pred = ne_tag_preds[morpheme.global_index]
+            ne_tag: str = NE_TAGS[ne_tag_pred]
+            if ne_tag.startswith("B-"):
+                category = ne_tag[2:]
+                morphemes_buff.append(morpheme)
+            elif ne_tag.startswith("I-") and ne_tag[2:] == category:
+                morphemes_buff.append(morpheme)
+            else:
+                if morphemes_buff:
+                    named_entity = NamedEntity(category=NamedEntityCategory(category), morphemes=morphemes_buff)
+                    # NE feature must be tagged to the last base phrase the named entity contains
+                    morphemes_buff[-1].base_phrase.features["NE"] = f"{named_entity.category.value}:{named_entity.text}"
+                category = ""
+                morphemes_buff = []
 
     @staticmethod
     def _resolve_dependency(base_phrase: BasePhrase, dependency_manager: DependencyManager) -> None:
@@ -487,49 +484,48 @@ class WordModuleWriter(BasePredictionWriter):
 
     def _add_dependency(
         self,
-        document: Document,
+        sentence: Sentence,
         dependency_preds: List[List[int]],
         dependency_type_preds: List[List[int]],
         special_to_index: Dict[str, int],
     ) -> None:
-        for sentence in extract_target_sentences(document):
-            base_phrases = sentence.base_phrases
-            morpheme_global_index2base_phrase_index = {
-                morpheme.global_index: base_phrase.index
-                for base_phrase in base_phrases
-                for morpheme in base_phrase.morphemes
-            }
-            morpheme_global_index2base_phrase_index[special_to_index["[ROOT]"]] = -1
-            dependency_manager = DependencyManager()
-            for base_phrase in base_phrases:
-                for parent_morpheme_global_index, dependency_type_id in zip(
-                    dependency_preds[base_phrase.head.global_index],
-                    dependency_type_preds[base_phrase.head.global_index],
-                ):
-                    parent_index = morpheme_global_index2base_phrase_index[parent_morpheme_global_index]
-                    dependency_manager.add_edge(base_phrase.index, parent_index)
-                    if dependency_manager.has_cycle() or (parent_index == -1 and dependency_manager.root):
-                        dependency_manager.remove_edge(base_phrase.index, parent_index)
-                    else:
-                        base_phrase.parent_index = parent_index
-                        base_phrase.dep_type = INDEX2DEPENDENCY_TYPE[dependency_type_id]
-                        break
+        base_phrases = sentence.base_phrases
+        morpheme_global_index2base_phrase_index = {
+            morpheme.global_index: base_phrase.index
+            for base_phrase in base_phrases
+            for morpheme in base_phrase.morphemes
+        }
+        morpheme_global_index2base_phrase_index[special_to_index["[ROOT]"]] = -1
+        dependency_manager = DependencyManager()
+        for base_phrase in base_phrases:
+            for parent_morpheme_global_index, dependency_type_id in zip(
+                dependency_preds[base_phrase.head.global_index],
+                dependency_type_preds[base_phrase.head.global_index],
+            ):
+                parent_index = morpheme_global_index2base_phrase_index[parent_morpheme_global_index]
+                dependency_manager.add_edge(base_phrase.index, parent_index)
+                if dependency_manager.has_cycle() or (parent_index == -1 and dependency_manager.root):
+                    dependency_manager.remove_edge(base_phrase.index, parent_index)
                 else:
-                    if base_phrase == base_phrases[-1] and not dependency_manager.root:
-                        base_phrase.parent_index = -1
-                        base_phrase.dep_type = DepType.DEPENDENCY
-                    else:
-                        self._resolve_dependency(base_phrase, dependency_manager)
+                    base_phrase.parent_index = parent_index
+                    base_phrase.dep_type = INDEX2DEPENDENCY_TYPE[dependency_type_id]
+                    break
+            else:
+                if base_phrase == base_phrases[-1] and not dependency_manager.root:
+                    base_phrase.parent_index = -1
+                    base_phrase.dep_type = DepType.DEPENDENCY
+                else:
+                    self._resolve_dependency(base_phrase, dependency_manager)
 
-                assert base_phrase.parent_index is not None
-                if base_phrase.parent_index == -1:
-                    base_phrase.phrase.parent_index = -1
-                    base_phrase.phrase.dep_type = DepType.DEPENDENCY
-                    dependency_manager.root = True
-                # base_phrase.phrase.parent_index is None and
-                elif base_phrase.phrase != base_phrases[base_phrase.parent_index].phrase:
-                    base_phrase.phrase.parent_index = base_phrases[base_phrase.parent_index].phrase.index
-                    base_phrase.phrase.dep_type = base_phrase.dep_type
+            assert base_phrase.parent_index is not None
+            if base_phrase.parent_index == -1:
+                base_phrase.phrase.parent_index = -1
+                base_phrase.phrase.dep_type = DepType.DEPENDENCY
+                dependency_manager.root = True
+            # base_phrase.phrase.parent_index is None and
+            elif base_phrase.phrase != base_phrases[base_phrase.parent_index].phrase:
+                base_phrase.phrase.parent_index = base_phrases[base_phrase.parent_index].phrase.index
+                base_phrase.phrase.dep_type = base_phrase.dep_type
 
     def _add_cohesion(
         self,
