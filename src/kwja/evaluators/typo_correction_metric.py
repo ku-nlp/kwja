@@ -5,6 +5,8 @@ from torchmetrics.functional import accuracy
 
 
 class TypoCorrectionMetric:
+    full_state_update = False
+
     def __init__(self) -> None:
         pass
 

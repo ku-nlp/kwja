@@ -8,6 +8,8 @@ from kwja.utils.reading import UNK_ID
 
 
 class ReadingPredictorMetric(Metric):
+    full_state_update = False
+
     def __init__(self) -> None:
         super().__init__()
         self.add_state("predictions", default=[], dist_reduce_fx="cat")

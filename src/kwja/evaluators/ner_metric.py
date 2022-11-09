@@ -10,6 +10,8 @@ from kwja.utils.constants import IGNORE_INDEX, NE_TAGS
 
 
 class NERMetric(Metric):
+    full_state_update = False
+
     def __init__(self) -> None:
         super().__init__()
         self.add_state("example_ids", default=[], dist_reduce_fx="cat")
