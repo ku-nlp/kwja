@@ -8,6 +8,8 @@ from kwja.utils.constants import IGNORE_INDEX, INDEX2WORD_NORM_TYPE, WORD_NORM_T
 
 
 class WordNormalizationMetric(Metric):
+    full_state_update = False
+
     def __init__(self) -> None:
         super().__init__()
         self.add_state("norm_preds", default=[], dist_reduce_fx="cat")

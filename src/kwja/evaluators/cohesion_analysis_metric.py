@@ -12,7 +12,7 @@ from kwja.utils.cohesion import CohesionKNPWriter
 
 
 class CohesionAnalysisMetric(Metric):
-    full_state_update: bool = False
+    full_state_update = False
 
     def __init__(self):
         super().__init__()

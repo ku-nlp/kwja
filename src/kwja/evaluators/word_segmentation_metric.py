@@ -10,7 +10,7 @@ from kwja.utils.constants import IGNORE_INDEX, INDEX2SEG_TYPE
 
 
 class WordSegmentationMetric(Metric):
-    full_state_update: bool = False
+    full_state_update = False
 
     def __init__(self) -> None:
         super().__init__()

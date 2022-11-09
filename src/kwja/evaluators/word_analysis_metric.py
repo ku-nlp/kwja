@@ -8,6 +8,8 @@ from kwja.utils.constants import IGNORE_INDEX
 
 
 class WordAnalysisMetric(Metric):
+    full_state_update = False
+
     def __init__(self) -> None:
         super().__init__()
         self.add_state("pos_preds", default=[], dist_reduce_fx="cat")

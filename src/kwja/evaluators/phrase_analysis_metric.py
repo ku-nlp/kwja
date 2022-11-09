@@ -11,6 +11,8 @@ from kwja.utils.constants import BASE_PHRASE_FEATURES, IGNORE_INDEX, SUB_WORD_FE
 
 
 class PhraseAnalysisMetric(Metric):
+    full_state_update = False
+
     def __init__(self) -> None:
         super().__init__()
         self.add_state("example_ids", default=[], dist_reduce_fx="cat")
