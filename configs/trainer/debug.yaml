@@ -8,7 +8,5 @@ min_epochs: 1
 #limit_val_batches: 10
 #limit_test_batches: 10
 accelerator: "auto"     # set gpu or cpu automatically
-strategy:
-  _target_: pytorch_lightning.strategies.DDPStrategy
-  find_unused_parameters: true
+strategy: ddp
 precision: 32
