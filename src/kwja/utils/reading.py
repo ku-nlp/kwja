@@ -176,11 +176,14 @@ class ReadingAligner:
         self.kanji_dic = kanji_dic
 
     def align(self, sequence: Union[Sentence, Document]) -> List[Tuple[str, str]]:
-        inp = " ".join([morpheme.surf for morpheme in sequence.morphemes])
-        reading_list = []
+        reading_list: List[str] = []
 
         # assumption: morphemes are never combined
-        subword_list = self.tokenizer.tokenize(inp)
+        subword_list: List[str] = self.tokenizer(
+            [morpheme.surf for morpheme in sequence.morphemes],
+            add_special_tokens=False,
+            is_split_into_words=True,
+        ).tokens()
         subwords_per_morpheme = []
         for subword in subword_list:
             if subword[0] == self.DELIMITER:
