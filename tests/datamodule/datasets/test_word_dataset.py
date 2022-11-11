@@ -79,7 +79,6 @@ def test_getitem():
         assert "discourse_relations" in item
         assert "cohesion_target" in item
         assert "cohesion_mask" in item
-        assert "tokens" in item
         assert item["example_ids"] == i
         assert item["input_ids"].shape == (max_seq_length,)
         assert item["attention_mask"].shape == (max_seq_length,)
