@@ -87,7 +87,6 @@ class WordModuleWriter(BasePredictionWriter):
     ) -> None:
         sentences: List[Sentence] = []
         dataloaders = trainer.predict_dataloaders
-        batch_tokens = prediction["tokens"]
         batch_example_ids = prediction["example_ids"]
         dataloader_idx = prediction["dataloader_idx"]
         dataset: Union[WordDataset, WordInferenceDataset] = dataloaders[dataloader_idx].dataset
@@ -109,7 +108,6 @@ class WordModuleWriter(BasePredictionWriter):
         batch_cohesion_logits = prediction["cohesion_logits"]  # (b, rel, word, word)
         batch_discourse_parsing_preds = torch.argmax(prediction["discourse_parsing_logits"], dim=3)
         for (
-            tokens,
             example_id,
             reading_subword_map,
             reading_preds,
@@ -125,7 +123,6 @@ class WordModuleWriter(BasePredictionWriter):
             cohesion_logits,
             discourse_parsing_preds,
         ) in zip(
-            batch_tokens,
             batch_example_ids,
             batch_reading_subword_map.tolist(),
             batch_reading_preds.tolist(),
@@ -145,7 +142,8 @@ class WordModuleWriter(BasePredictionWriter):
             doc_id = example.doc_id
             document = dataset.doc_id2document[doc_id]
             readings = [self.id2reading[pred] for pred in reading_preds]
-            word_reading_preds = get_word_level_readings(readings, tokens.split(" "), reading_subword_map)
+            decoded_tokens: List[str] = [dataset.tokenizer.decode(id_) for id_ in example.encoding.ids]
+            word_reading_preds = get_word_level_readings(readings, decoded_tokens, reading_subword_map)
             pos_preds, subpos_preds, conjtype_preds, conjform_preds = self._get_mrph_type_preds(
                 pos_logits=pos_logits,
                 subpos_logits=subpos_logits,

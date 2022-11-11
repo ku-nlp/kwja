@@ -452,7 +452,6 @@ class WordModule(pl.LightningModule):
         batch["training"] = False
         outputs: Dict[str, Dict[str, torch.Tensor]] = self(**batch)
         return {
-            "tokens": batch["tokens"],
             "example_ids": batch["example_ids"],
             "dataloader_idx": dataloader_idx or 0,
             "reading_subword_map": batch["reading_subword_map"],

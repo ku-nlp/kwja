@@ -195,10 +195,10 @@ class WordDataset(BaseDataset):
     def __len__(self) -> int:
         return len(self.examples)
 
-    def __getitem__(self, index: int) -> Dict[str, Union[torch.Tensor, str]]:
+    def __getitem__(self, index: int) -> Dict[str, torch.Tensor]:
         return self.encode(self.examples[index])
 
-    def encode(self, example: WordExampleSet) -> Dict[str, Union[torch.Tensor, str]]:
+    def encode(self, example: WordExampleSet) -> Dict[str, torch.Tensor]:
         merged_encoding: Encoding = Encoding.merge([example.encoding, self.special_encoding])
 
         document = self.doc_id2document[example.doc_id]
@@ -328,7 +328,6 @@ class WordDataset(BaseDataset):
             "discourse_relations": torch.tensor(discourse_relations, dtype=torch.long),
             "cohesion_target": torch.tensor(cohesion_target, dtype=torch.int),
             "cohesion_mask": torch.tensor(cohesion_mask, dtype=torch.bool),
-            "tokens": " ".join(self.tokenizer.decode(id_) for id_ in merged_encoding.ids),
         }
 
     def dump_prediction(

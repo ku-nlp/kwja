@@ -139,7 +139,7 @@ class WordInferenceDataset(BaseDataset):
     def __len__(self) -> int:
         return len(self.examples)
 
-    def __getitem__(self, index: int) -> Dict[str, Union[torch.Tensor, str]]:
+    def __getitem__(self, index: int) -> Dict[str, torch.Tensor]:
         return self.encode(self.examples[index])
 
     def _load_examples(self, documents: List[Document]) -> List[WordInferenceExample]:
@@ -173,7 +173,7 @@ class WordInferenceDataset(BaseDataset):
             logger.error("No examples to process. Make sure any texts are given and they are not too long.")
         return examples
 
-    def encode(self, example: WordInferenceExample) -> Dict[str, Union[torch.Tensor, str]]:
+    def encode(self, example: WordInferenceExample) -> Dict[str, torch.Tensor]:
         document = self.doc_id2document[example.doc_id]
 
         target_mask = [False for _ in range(self.max_seq_length)]
@@ -215,7 +215,6 @@ class WordInferenceDataset(BaseDataset):
             "cohesion_mask": torch.tensor(cohesion_mask, dtype=torch.bool)
             .unsqueeze(0)
             .expand(len(self.cohesion_rel_types), self.max_seq_length, self.max_seq_length),
-            "tokens": " ".join(self.tokenizer.decode(id_) for id_ in merged_encoding.ids),
         }
 
     def _gen_subword_map(self, encoding: Encoding, include_additional_words: bool = True) -> List[List[bool]]:
