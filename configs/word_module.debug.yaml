@@ -25,7 +25,7 @@ training_tasks:
   - discourse_parsing
 
 # for dependency parser
-k: 4
+dependency_topk: 4
 
 # for discourse parser
 discourse_parsing_threshold: 0.0
