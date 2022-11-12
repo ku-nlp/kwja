@@ -147,8 +147,7 @@ class WordInferenceDataset(BaseDataset):
         idx = 0
         for document in documents:
             encoding: Encoding = self.tokenizer(
-                [morpheme.text for morpheme in document.morphemes],
-                is_split_into_words=True,
+                " ".join(m.text for m in document.morphemes),
                 padding=PaddingStrategy.MAX_LENGTH,
                 truncation=False,
                 max_length=self.max_seq_length - self.num_special_tokens,
@@ -229,8 +228,4 @@ class WordInferenceDataset(BaseDataset):
         return subword_map
 
     def _get_tokenized_len(self, source: Union[Document, Sentence]) -> int:
-        return len(
-            self.tokenizer([m.text for m in source.morphemes], add_special_tokens=False, is_split_into_words=True)[
-                "input_ids"
-            ]
-        )
+        return len(self.tokenizer.tokenize(" ".join(m.text for m in source.morphemes)))

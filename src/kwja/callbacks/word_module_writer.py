@@ -195,6 +195,7 @@ class WordModuleWriter(BasePredictionWriter):
         conjtype_preds: List[int],
         conjform_preds: List[int],
     ) -> List[Morpheme]:
+        assert len(words) == len(norms) == len(reading_preds)
         morphemes = []
         for word, norm, reading, pos_index, subpos_index, conjtype_index, conjform_index in zip(
             words, norms, reading_preds, pos_preds, subpos_preds, conjtype_preds, conjform_preds
