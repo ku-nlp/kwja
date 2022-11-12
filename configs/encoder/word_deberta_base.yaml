@@ -1,2 +1,2 @@
-model_name_or_path: ${oc.env:MODEL_DIR}/word-deberta-base
-max_seq_length: 256
+_target_: transformers.AutoModel.from_pretrained
+pretrained_model_name_or_path: ${oc.env:MODEL_DIR}/word-deberta-base

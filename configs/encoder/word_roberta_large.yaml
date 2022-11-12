@@ -1,2 +1,3 @@
-model_name_or_path: nlp-waseda/roberta-large-japanese-seq512
-max_seq_length: 256
+_target_: transformers.AutoModel.from_pretrained
+pretrained_model_name_or_path: nlp-waseda/roberta-large-japanese-seq512
+add_pooling_layer: false
