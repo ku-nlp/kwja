@@ -106,7 +106,7 @@ venv.bak/
 data
 !tests/data
 model
-!configs/model/
+!configs/encoder/
 result
 
 # config

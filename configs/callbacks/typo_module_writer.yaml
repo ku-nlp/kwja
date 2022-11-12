@@ -4,5 +4,5 @@ prediction_writer:
   extended_vocab_path: ${dataset.extended_vocab_path}
   confidence_threshold: ${confidence_threshold}
   pred_filename: "predict"
-  model_name_or_path: ${model.model_name_or_path}
+  model_name_or_path: ${encoder.model_name_or_path}
   tokenizer_kwargs: ${dataset.tokenizer_kwargs}

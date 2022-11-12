@@ -13,7 +13,7 @@ class WordEncoder(nn.Module):
         super().__init__()
         self.hparams = hparams
         self.pretrained_model: PreTrainedModel = AutoModel.from_pretrained(
-            hparams.model.model_name_or_path, add_pooling_layer=False
+            hparams.encoder.model_name_or_path, add_pooling_layer=False
         )
         if hasattr(hparams.dataset, "special_tokens"):
             self.pretrained_model.resize_token_embeddings(

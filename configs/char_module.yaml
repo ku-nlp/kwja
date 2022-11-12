@@ -4,7 +4,7 @@ defaults:
   - datamodule: char
   - dataset: char
   - logger: wandb
-  - model: char_roberta_large
+  - encoder: char_roberta_large
   - module: char
   - optimizer: adamw
   - scheduler: constant_schedule_with_warmup
