@@ -11,6 +11,7 @@ defaults:
   - trainer: default
   - _self_
 
+max_seq_length: 512
 do_predict_after_train: true
 checkpoint_path: ""
 
