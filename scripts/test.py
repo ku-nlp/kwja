@@ -1,5 +1,4 @@
 import logging
-import math
 from typing import List, Optional
 
 import hydra
@@ -39,17 +38,9 @@ def main(eval_cfg: DictConfig):
     logger: Optional[LightningLoggerBase] = hydra.utils.instantiate(cfg.logger) if is_debug is False else None
     callbacks: List[Callback] = list(map(hydra.utils.instantiate, cfg.get("callbacks", {}).values()))
 
-    # Calculate gradient_accumulation_steps assuming DDP
     num_devices: int = len(cfg.devices) if isinstance(cfg.devices, (list, ListConfig)) else cfg.devices
-    cfg.trainer.accumulate_grad_batches = math.ceil(
-        cfg.effective_batch_size / (cfg.max_batches_per_device * num_devices)
-    )
-    batches_per_device = cfg.effective_batch_size // (num_devices * cfg.trainer.accumulate_grad_batches)
-    # if effective_batch_size % (accumulate_grad_batches * num_devices) != 0, then
-    # error of at most accumulate_grad_batches * num_devices compared to the original effective_batch_size
-    # otherwise, no error
-    cfg.effective_batch_size = batches_per_device * num_devices * cfg.trainer.accumulate_grad_batches
-    cfg.datamodule.batch_size = batches_per_device
+    cfg.effective_batch_size = cfg.max_batches_per_device * num_devices
+    cfg.datamodule.batch_size = cfg.max_batches_per_device
 
     trainer: pl.Trainer = hydra.utils.instantiate(
         cfg.trainer,

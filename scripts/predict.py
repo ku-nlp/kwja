@@ -4,7 +4,7 @@ import hydra
 import pytorch_lightning as pl
 import transformers.utils.logging as hf_logging
 from dotenv import load_dotenv
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig, ListConfig, OmegaConf
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.trainer.states import TrainerFn
 
@@ -35,6 +35,10 @@ def main(eval_cfg: DictConfig):
     for k, v in cfg.get("callbacks", {}).items():
         if k == "prediction_writer":
             callbacks.append(hydra.utils.instantiate(v))
+
+    num_devices: int = len(cfg.devices) if isinstance(cfg.devices, (list, ListConfig)) else cfg.devices
+    cfg.effective_batch_size = cfg.max_batches_per_device * num_devices
+    cfg.datamodule.batch_size = cfg.max_batches_per_device
 
     trainer: pl.Trainer = hydra.utils.instantiate(
         cfg.trainer,

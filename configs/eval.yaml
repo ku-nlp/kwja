@@ -23,7 +23,6 @@ dependency_topk: 4
 discourse_parsing_threshold: 0.0
 
 # environment dependent settings
-#effective_batch_size: 16  # TODO: maximize automatically
 num_workers: -1
 devices: ${oc.env:GPUS,1}
 max_batches_per_device: 4
