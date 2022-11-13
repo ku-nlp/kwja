@@ -14,14 +14,22 @@ hf_logging.set_verbosity(hf_logging.ERROR)
 OmegaConf.register_new_resolver("concat", lambda x, y: x + y)
 
 
-@hydra.main(version_base=None, config_path="../configs")
-def main(cfg: DictConfig):
+@hydra.main(version_base=None, config_path="../configs", config_name="eval")
+def main(eval_cfg: DictConfig):
     load_dotenv()
-    if isinstance(cfg.devices, str):
+    if isinstance(eval_cfg.devices, str):
         try:
-            cfg.devices = [int(x) for x in cfg.devices.split(",")]
+            eval_cfg.devices = [int(x) for x in eval_cfg.devices.split(",")]
         except ValueError:
-            cfg.devices = None
+            eval_cfg.devices = None
+
+    # Load saved model and config
+    model: pl.LightningModule = hydra.utils.call(eval_cfg.module.load_from_checkpoint, _recursive_=False)
+
+    train_cfg: DictConfig = model.hparams
+    OmegaConf.set_struct(train_cfg, False)  # enable to add new key-value pairs
+    cfg = OmegaConf.merge(train_cfg, eval_cfg)
+    assert isinstance(cfg, DictConfig)
 
     callbacks: List[Callback] = []
     for k, v in cfg.get("callbacks", {}).items():
@@ -34,7 +42,6 @@ def main(cfg: DictConfig):
         callbacks=callbacks,
         devices=cfg.devices,
     )
-    model: pl.LightningModule = hydra.utils.call(cfg.module.load_from_checkpoint, hparams=cfg, _recursive_=False)
 
     datamodule = DataModule(cfg=cfg.datamodule)
     datamodule.setup(stage=TrainerFn.TESTING)
