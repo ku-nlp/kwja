@@ -108,6 +108,7 @@ data
 model
 !configs/encoder/
 result
+outputs
 
 # config
 configs/base.yaml
