@@ -99,8 +99,4 @@ class BaseDataset(Dataset):
         return sub_documents
 
     def _get_tokenized_len(self, source: Union[Document, Sentence]) -> int:
-        return len(
-            self.tokenizer([m.text for m in source.morphemes], add_special_tokens=False, is_split_into_words=True)[
-                "input_ids"
-            ]
-        )
+        return len(self.tokenizer.tokenize(" ".join(m.text for m in source.morphemes)))

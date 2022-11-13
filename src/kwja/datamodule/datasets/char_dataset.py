@@ -110,4 +110,4 @@ class CharDataset(BaseDataset):
         }
 
     def _get_tokenized_len(self, source: Union[Document, Sentence]) -> int:
-        return len(self.tokenizer(source.text, add_special_tokens=False)["input_ids"])
+        return len(self.tokenizer.tokenize(source.text))

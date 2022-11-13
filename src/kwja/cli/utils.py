@@ -10,10 +10,11 @@ import torch
 import transformers.utils.logging as hf_logging
 from torch.hub import download_url_to_file
 
+import kwja
+
 ENV_KWJA_CACHE_DIR = "KWJA_CACHE_DIR"
 ENV_XDG_CACHE_HOME = "XDG_CACHE_HOME"
 DEFAULT_CACHE_DIR = Path.home() / ".cache"
-
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,7 @@ def download_checkpoint_from_url(
     """
 
     if checkpoint_dir is None:
-        checkpoint_dir = _get_kwja_cache_dir()
+        checkpoint_dir = _get_kwja_cache_dir() / _get_model_version()
     else:
         checkpoint_dir = Path(checkpoint_dir)
     checkpoint_dir.mkdir(exist_ok=True)
@@ -63,6 +64,18 @@ def _get_kwja_cache_dir() -> Path:
     if path := os.getenv(ENV_XDG_CACHE_HOME):
         cache_dir = Path(path)
     return cache_dir / "kwja"
+
+
+def _get_model_version() -> str:
+    version_map = {
+        ("1", "0"): "v1.0",
+        ("1", "1"): "v1.0",
+        ("1", "2"): "v1.0",
+        ("1", "3"): "v1.3",
+        # ("1", "4"): "v1.3",
+    }
+    version_fields = kwja.__version__.split(".")
+    return version_map[(version_fields[0], version_fields[1])]
 
 
 def prepare_device(device_name: str) -> Tuple[str, torch.device]:

@@ -179,11 +179,7 @@ class ReadingAligner:
         reading_list: List[str] = []
 
         # assumption: morphemes are never combined
-        subword_list: List[str] = self.tokenizer(
-            [morpheme.surf for morpheme in sequence.morphemes],
-            add_special_tokens=False,
-            is_split_into_words=True,
-        ).tokens()
+        subword_list: List[str] = self.tokenizer.tokenize(" ".join(m.text for m in sequence.morphemes))
         subwords_per_morpheme = []
         for subword in subword_list:
             if subword[0] == self.DELIMITER:

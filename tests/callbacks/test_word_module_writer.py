@@ -95,7 +95,8 @@ def test_write_on_batch_end():
                 [False, False, True, False, False],
                 [False, False, False, True, False],
                 [False, False, False, False, True],
-                [False, True, False, False, False],
+                [False, False, False, False, False],
+                [False, False, False, False, False],
             ]
         ],
         dtype=torch.bool,

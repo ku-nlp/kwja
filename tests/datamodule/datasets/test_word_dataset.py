@@ -132,8 +132,7 @@ def test_encode():
         )
     )
     encoding = dataset.tokenizer(
-        [morpheme.text for morpheme in document.morphemes],
-        is_split_into_words=True,
+        " ".join(m.text for m in document.morphemes),
         padding=PaddingStrategy.MAX_LENGTH,
         truncation=False,
         max_length=dataset.max_seq_length - dataset.num_special_tokens,
