@@ -60,7 +60,12 @@ def main(eval_cfg: DictConfig):
 
     datamodule = DataModule(cfg=cfg.datamodule)
     datamodule.setup(stage=TrainerFn.TESTING)
-    dataloader = datamodule.test_dataloader()  # or val_dataloader()
+    if cfg.eval_set == "test":
+        dataloader = datamodule.test_dataloader()
+    elif cfg.eval_set == "valid":
+        dataloader = datamodule.val_dataloader()
+    else:
+        raise ValueError(f"invalid eval_set: {cfg.eval_set}")
     trainer.test(model=model, dataloaders=dataloader)
 
 
