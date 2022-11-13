@@ -112,5 +112,6 @@ class TypoModule(pl.LightningModule):
     def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         hparams: DictConfig = copy.deepcopy(checkpoint["hyper_parameters"])
         OmegaConf.set_struct(hparams, False)
-        hparams = filter_dict_items(hparams, self.hparams.hparams_to_ignore_on_save)
-        checkpoint["hyper_parameters"] = {"hparams": hparams}
+        if self.hparams.ignore_hparams_on_save:
+            hparams = filter_dict_items(hparams, self.hparams.hparams_to_ignore_on_save)
+        checkpoint["hyper_parameters"] = hparams
