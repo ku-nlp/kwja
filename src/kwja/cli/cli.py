@@ -184,6 +184,7 @@ class CLIProcessor:
         hparams.dataset.reading_resource_path = reading_resource_path
         hparams.callbacks.prediction_writer.reading_resource_path = reading_resource_path
         hparams.callbacks.prediction_writer.jumandic_path = jumandic_path
+        hparams.dependency_topk = 4  # TODO: remove after published model is updated
         self.word_model = WordModule.load_from_checkpoint(
             str(word_checkpoint_path),
             hparams=hparams,
