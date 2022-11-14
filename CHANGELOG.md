@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Fixed
 - Fix scripts for building datasets to support latest rhoknp and remove dependency on kyoto-reader.
+- Support versioning of local cache directory.
 
 ## [1.2.2] - 2022-11-07
 ### Fixed
