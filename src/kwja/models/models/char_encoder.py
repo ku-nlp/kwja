@@ -1,19 +1,16 @@
 from typing import Dict
 
+import hydra
 import torch
 import torch.nn as nn
 from omegaconf import DictConfig
-from transformers import AutoModel, PreTrainedModel
+from transformers import PreTrainedModel
 
 
 class CharEncoder(nn.Module):
     def __init__(self, hparams: DictConfig) -> None:
         super().__init__()
-        self.hparams = hparams
-
-        self.pretrained_model: PreTrainedModel = AutoModel.from_pretrained(
-            hparams.model.model_name_or_path, add_pooling_layer=False
-        )
+        self.pretrained_model: PreTrainedModel = hydra.utils.call(hparams.encoder)
         if hasattr(hparams.dataset, "special_tokens"):
             self.pretrained_model.resize_token_embeddings(
                 self.pretrained_model.config.vocab_size + len(hparams.dataset.special_tokens)

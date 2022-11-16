@@ -106,8 +106,9 @@ venv.bak/
 data
 !tests/data
 model
-!configs/model/
+!configs/encoder/
 result
+outputs
 
 # config
 configs/base.yaml

@@ -1,0 +1,3 @@
+_target_: transformers.AutoModel.from_pretrained
+pretrained_model_name_or_path: nlp-waseda/roberta-base-japanese
+add_pooling_layer: false

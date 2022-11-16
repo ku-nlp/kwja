@@ -4,13 +4,14 @@ defaults:
   - datamodule: word
   - dataset: word
   - logger: wandb
-  - model: word_roberta_large
+  - encoder: word_roberta_large
   - module: word
   - optimizer: adamw
   - scheduler: constant_schedule_with_warmup
   - trainer: default
   - _self_
 
+max_seq_length: 256
 do_predict_after_train: true
 checkpoint_path: ""
 document_split_stride: 1
@@ -25,8 +26,7 @@ training_tasks:
   - discourse_parsing
 
 # for dependency parser
-k: 4  # TODO: remove
-dependency_topk: ${k}
+dependency_topk: 4
 
 # for discourse parser
 discourse_parsing_threshold: 0.0
@@ -60,6 +60,7 @@ devices: ${oc.env:GPUS,0}
 max_batches_per_device: 1
 num_workers: 0
 
+ignore_hparams_on_save: false
 hparams_to_ignore_on_save:
   - project
   - work_dir
