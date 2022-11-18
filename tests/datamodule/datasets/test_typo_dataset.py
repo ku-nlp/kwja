@@ -12,7 +12,6 @@ def test_init():
 
 def test_getitem():
     max_seq_length = 512
-    # TODO: use roberta
     dataset = TypoDataset(
         path=str(path),
         extended_vocab_path=f"{path}/extended_vocab.txt",

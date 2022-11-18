@@ -9,7 +9,6 @@ from kwja.utils.constants import IGNORE_INDEX, SEG_TYPES
 here = Path(__file__).absolute().parent
 path = here.joinpath("knp_files")
 
-# TODO: use roberta
 char_dataset_kwargs = dict(
     document_split_stride=1,
     model_name_or_path="ku-nlp/roberta-base-japanese-char-wwm",

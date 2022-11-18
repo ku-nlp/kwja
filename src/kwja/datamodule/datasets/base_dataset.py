@@ -85,12 +85,9 @@ class BaseDataset(Dataset):
                     break
                 start += 1
 
-            # TODO: fix rhoknp to keep comments in sentence
-            comments = [s.comment for s in document.sentences[start:end]]
             sub_document = Document.from_sentences(document.sentences[start:end])
             sub_doc_id = to_sub_doc_id(document.doc_id, sub_idx, stride=stride)
-            for comment, sentence in zip(comments, sub_document.sentences):
-                sentence.comment = comment
+            for sentence in sub_document.sentences:
                 sentence.doc_id = sub_doc_id
             sub_document.doc_id = sub_doc_id
             sub_documents.append(sub_document)
