@@ -3,6 +3,7 @@ import itertools
 import logging
 import os
 import sys
+from collections import defaultdict
 from io import TextIOBase
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Set, TextIO, Tuple, Union
@@ -42,7 +43,7 @@ from kwja.utils.constants import (
 from kwja.utils.dependency_parsing import DependencyManager
 from kwja.utils.jumandic import JumanDic
 from kwja.utils.reading import get_reading2id, get_word_level_readings
-from kwja.utils.sub_document import extract_target_sentences
+from kwja.utils.sub_document import extract_target_sentences, to_orig_doc_id
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +76,8 @@ class WordModuleWriter(BasePredictionWriter):
             if self.destination.exists():
                 os.remove(str(self.destination))
 
+        self.doc_id2analyzed_sentences: Dict[str, Dict[str, Sentence]] = defaultdict(dict)
+
     def write_on_batch_end(
         self,
         trainer: pl.Trainer,
@@ -85,7 +88,6 @@ class WordModuleWriter(BasePredictionWriter):
         batch_idx: int,
         dataloader_idx: int,
     ) -> None:
-        sentences: List[Sentence] = []
         dataloaders = trainer.predict_dataloaders
         batch_example_ids = prediction["example_ids"]
         dataloader_idx = prediction["dataloader_idx"]
@@ -165,6 +167,13 @@ class WordModuleWriter(BasePredictionWriter):
                 self._add_base_phrase_features(sentence, base_phrase_feature_logits)
                 self._add_named_entities(sentence, ne_tag_preds)
                 self._add_dependency(sentence, dependency_preds, dependency_type_preds, dataset.special_to_index)
+            orig_doc_id = to_orig_doc_id(doc_id)
+            sentences = [
+                self.doc_id2analyzed_sentences[orig_doc_id].get(sentence.sid) or sentence
+                for sentence in document.sentences
+            ]
+            document = Document.from_sentences(sentences)
+            document.doc_id = doc_id
             self._add_cohesion(
                 document,
                 cohesion_logits,
@@ -173,17 +182,19 @@ class WordModuleWriter(BasePredictionWriter):
                 dataset.index_to_special,
                 dataset.extractors,
             )
-            document = document.reparse()  # reparse to get clauses
-            document.doc_id = doc_id
             self._add_discourse(document, discourse_parsing_preds)
-            sentences += extract_target_sentences(document)
+            for sentence in extract_target_sentences(document):
+                self.doc_id2analyzed_sentences[orig_doc_id][sentence.sid] = sentence
 
-        output_string = "".join(sentence.to_knp() for sentence in sentences)
-        if isinstance(self.destination, Path):
-            with self.destination.open("a") as f:
-                f.write(output_string)
-        elif isinstance(self.destination, TextIOBase):
-            self.destination.write(output_string)
+            # TODO: 解析の終了判定の実装
+            if False:
+                analyzed_sentences = self.doc_id2analyzed_sentences[orig_doc_id].values()
+                output_string = "".join(sentence.to_knp() for sentence in analyzed_sentences)
+                if isinstance(self.destination, Path):
+                    with self.destination.open("a") as f:
+                        f.write(output_string)
+                elif isinstance(self.destination, TextIOBase):
+                    self.destination.write(output_string)
 
     def _create_morphemes(
         self,
