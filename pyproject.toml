@@ -69,13 +69,15 @@ kwja = "kwja.cli.cli:app"
 
 [tool.poetry.group.dev.dependencies]
 wandb = "^0.13.3"
-pytest-profiling = "^1.7"
-pytest = "^7.1"
-pytest-cov = "^4.0"
 ipdb = "^0.13.9"
 types-attrs = "^19.1.0"
 python-Levenshtein = "^0.20.8"
 dartsclone = "^0.10.2"
+
+[tool.poetry.group.test.dependencies]
+pytest = "^7.1"
+pytest-profiling = "^1.7"
+pytest-cov = "^4.0"
 
 [build-system]
 requires = ["poetry-core"]
