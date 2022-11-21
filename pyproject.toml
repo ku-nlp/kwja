@@ -43,12 +43,12 @@ include = [
 [tool.poetry.dependencies]
 python = ">=3.8,<3.11"
 torch = ">=1.11,<1.13"
-torchmetrics = "^0.10.2"
+transformers = "~4.23.1"
+tokenizers = "^0.13.2"
 pytorch-lightning = "~1.8.1"
+torchmetrics = "^0.10.2"
 omegaconf = "^2.1"
 hydra-core = "^1.2"
-tokenizers = "^0.13.2"
-transformers = "~4.23.1"
 rhoknp = "0.4.8"
 typer = ">=0.6.1,<0.8.0"
 sentencepiece = "^0.1.97"
@@ -65,17 +65,17 @@ tqdm = "^4.64"
 kwja = "kwja.cli.cli:app"
 
 [tool.poetry.group.dev.dependencies]
-rich = "^12.4"
-wandb = "^0.13.3"
-ipdb = "^0.13.9"
-types-attrs = "^19.1.0"
-Levenshtein = "^0.20.8"
 dartsclone = "^0.10.2"
+Levenshtein = "^0.20.8"
+ipdb = "^0.13.9"
+rich = "^12.4"
+types-attrs = "^19.1.0"
+wandb = "^0.13.3"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7.1"
-pytest-profiling = "^1.7"
 pytest-cov = "^4.0"
+pytest-profiling = "^1.7"
 
 [build-system]
 requires = ["poetry-core"]
