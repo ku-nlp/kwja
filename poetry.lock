@@ -984,17 +984,6 @@ python-versions = ">=3.7"
 cli = ["click (>=5.0)"]
 
 [[package]]
-name = "python-levenshtein"
-version = "0.20.8"
-description = "Python extension for computing string edit distances and similarities."
-category = "dev"
-optional = false
-python-versions = ">=3.6"
-
-[package.dependencies]
-Levenshtein = "0.20.8"
-
-[[package]]
 name = "pytorch-lightning"
 version = "1.8.2"
 description = "PyTorch Lightning is the lightweight PyTorch wrapper for ML researchers. Scale your models. Write less boilerplate."
@@ -1648,7 +1637,7 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8,<3.11"
-content-hash = "ae0a60adb7d78dc9088bd1c9e9fe4f6405beaebbabdf5bf814482abc12b85ed2"
+content-hash = "252c5957207da19cb61c437b57cb5f0e4940569b8ed095be2a690269e2bf1d91"
 
 [metadata.files]
 absl-py = [
@@ -2705,10 +2694,6 @@ python-dateutil = [
 python-dotenv = [
     {file = "python-dotenv-0.21.0.tar.gz", hash = "sha256:b77d08274639e3d34145dfa6c7008e66df0f04b7be7a75fd0d5292c191d79045"},
     {file = "python_dotenv-0.21.0-py3-none-any.whl", hash = "sha256:1684eb44636dd462b66c3ee016599815514527ad99965de77f43e0944634a7e5"},
-]
-python-levenshtein = [
-    {file = "python-Levenshtein-0.20.8.tar.gz", hash = "sha256:c2d68fc480394ef87e20097d9c1605ae101340f0a8060c518eacd2e634b190f8"},
-    {file = "python_Levenshtein-0.20.8-py3-none-any.whl", hash = "sha256:a932f149c72d2707963947ba9df9729ac36983d2e9db4eb93e4d5b69a8899070"},
 ]
 pytorch-lightning = [
     {file = "pytorch-lightning-1.8.2.tar.gz", hash = "sha256:480f3396cd63888c4e5ec2f21c02fe662a2b035d9634e6f31fcf1197a36ebd15"},
