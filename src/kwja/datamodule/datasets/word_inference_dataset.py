@@ -18,7 +18,7 @@ import kwja
 from kwja.datamodule.datasets.base_dataset import BaseDataset
 from kwja.datamodule.examples import CohesionTask
 from kwja.datamodule.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
-from kwja.utils.sub_document import extract_target_sentences
+from kwja.utils.sub_document import extract_target_sentences, to_orig_doc_id
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +78,7 @@ class WordInferenceDataset(BaseDataset):
             CohesionTask.COREFERENCE: CoreferenceExtractor(self.exophora_referents, restrict_cohesion_target),
             CohesionTask.BRIDGING: BridgingExtractor(self.bar_rels, self.exophora_referents, restrict_cohesion_target),
         }
+        self.orig_doc_id2end_doc_id: Dict[str, str] = {}
         self.examples: List[WordInferenceExample] = self._load_examples(self.documents)
         self.special_encoding: Encoding = self.tokenizer(
             self.special_tokens,
@@ -167,6 +168,7 @@ class WordInferenceDataset(BaseDataset):
                 )
             )
             idx += 1
+            self.orig_doc_id2end_doc_id[to_orig_doc_id(document.doc_id)] = document.doc_id
 
         if len(examples) == 0:
             logger.error("No examples to process. Make sure any texts are given and they are not too long.")

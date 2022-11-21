@@ -186,8 +186,7 @@ class WordModuleWriter(BasePredictionWriter):
             for sentence in extract_target_sentences(document):
                 self.doc_id2analyzed_sentences[orig_doc_id][sentence.sid] = sentence
 
-            # TODO: 解析の終了判定の実装
-            if False:
+            if doc_id == dataset.orig_doc_id2end_doc_id[orig_doc_id]:
                 analyzed_sentences = self.doc_id2analyzed_sentences[orig_doc_id].values()
                 output_string = "".join(sentence.to_knp() for sentence in analyzed_sentences)
                 if isinstance(self.destination, Path):
