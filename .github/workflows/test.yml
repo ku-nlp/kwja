@@ -28,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: |
           poetry config virtualenvs.create false
-          poetry install --no-interaction
+          poetry install --no-interaction --without dev
       - name: Run tests
         run: |
           poetry run pytest --cov=./ --cov-report=xml

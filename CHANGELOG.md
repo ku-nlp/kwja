@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix scripts for building datasets to support latest rhoknp and remove dependency on kyoto-reader.
 - Support versioning of local cache directory.
 
+### Removed
+- Remove unused main dependencies, `rich`, `python-Levenshtein`, `ipadic`, `tinydb`, `BetterJSONStorage`, and `dartsclone`.
+
 ## [1.2.2] - 2022-11-07
 ### Fixed
 - Fix a bug where cohesion analysis results are sometimes weird.
@@ -62,7 +65,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove an unnecessary dependency, `fugashi`.
 
-[Unreleased]: https://github.com/ku-nlp/kwja/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/ku-nlp/kwja/compare/v1.2.2...HEAD
+[1.2.2]: https://github.com/ku-nlp/kwja/compare/v1.2.1...v1.2.2
+[1.2.1]: https://github.com/ku-nlp/kwja/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/ku-nlp/kwja/compare/v1.1.2...v1.2.0
 [1.1.2]: https://github.com/ku-nlp/kwja/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/ku-nlp/kwja/compare/v1.1.0...v1.1.1
