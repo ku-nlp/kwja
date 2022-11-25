@@ -17,8 +17,8 @@ def test_update() -> None:
     )
     predicted = gold
     gold = predicted
-    metric.update([predicted], [gold])
-    metric.update([predicted], [gold])
+    metric.update([predicted], [gold], [0])
+    metric.update([predicted], [gold], [1])
 
 
 def test_evaluate_word_segmentation_0() -> None:

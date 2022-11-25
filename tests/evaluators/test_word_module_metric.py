@@ -20,6 +20,6 @@ def test_char_module_metric_perfect() -> None:
         """
     )
     gold = predicted
-    metric.update([predicted], [gold])
-    metric.update([predicted], [gold])  # Add the same data twice.
+    metric.update([predicted], [gold], [0])
+    metric.update([predicted], [gold], [1])  # Add the same data twice.
     # TODO: Run metric.compute() and check the result.
