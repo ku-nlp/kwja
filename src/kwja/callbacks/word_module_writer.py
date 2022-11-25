@@ -194,6 +194,7 @@ class WordModuleWriter(BasePredictionWriter):
                         f.write(output_string)
                 elif isinstance(self.destination, TextIOBase):
                     self.destination.write(output_string)
+                del self.doc_id2analyzed_sentences[orig_doc_id]
 
     def _create_morphemes(
         self,
