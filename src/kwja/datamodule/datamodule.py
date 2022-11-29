@@ -36,13 +36,13 @@ class DataModule(pl.LightningDataModule):
         pass
 
     def setup(self, stage: Optional[str] = None) -> None:
-        if stage in (TrainerFn.FITTING, TrainerFn.TUNING):
+        if stage == TrainerFn.FITTING:
             self.train_dataset = ConcatDataset(hydra.utils.instantiate(config) for config in self.cfg.train.values())
-        if stage in (TrainerFn.FITTING, TrainerFn.TUNING, TrainerFn.VALIDATING, TrainerFn.TESTING):
+        if stage in (TrainerFn.FITTING, TrainerFn.VALIDATING, TrainerFn.TESTING):
             self.valid_datasets = {corpus: hydra.utils.instantiate(config) for corpus, config in self.cfg.valid.items()}
-        if stage in (TrainerFn.TESTING,):
+        if stage == TrainerFn.TESTING:
             self.test_datasets = {corpus: hydra.utils.instantiate(config) for corpus, config in self.cfg.test.items()}
-        if stage in (TrainerFn.PREDICTING,):
+        if stage == TrainerFn.PREDICTING:
             self.predict_dataset = hydra.utils.instantiate(self.cfg.predict)
 
     def train_dataloader(self) -> DataLoader:
