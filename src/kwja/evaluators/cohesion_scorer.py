@@ -114,7 +114,7 @@ class SubScorer:
         cases (list[str]): 評価の対象とする格
         bridging (bool): 橋渡し照応の評価を行うかどうか (default: False)
         coreference (bool): 共参照の評価を行うかどうか (default: False)
-        exophora_referents (list[ExophoraReferent]): 「不特定:人１」などを「不特定:人」として評価するためのマップ
+        exophora_referents (list[ExophoraReferent]): 評価の対象とする外界照応の照応先
         pas_target (str): 述語項構造解析において述語として扱う対象
 
     Attributes:
@@ -126,7 +126,7 @@ class SubScorer:
         bridging (bool): 橋渡し照応の評価を行うかどうか
         coreference (bool): 共参照の評価を行うかどうか
         comp_result (dict[tuple, str]): 正解と予測を比較した結果を格納するための辞書
-        exophora_referents (list[ExophoraReferent]): 「不特定:人１」などを「不特定:人」として評価するためのマップ
+        exophora_referents (list[ExophoraReferent]): 評価の対象とする外界照応の照応先
         predicates_pred: (list[Predicate]): システム予測文書に含まれる述語
         bridgings_pred: (list[Predicate]): システム予測文書に含まれる橋渡し照応詞
         mentions_pred: (list[BasePhrase]): システム予測文書に含まれるメンション
