@@ -227,9 +227,11 @@ class SubScorer:
                     predicate_gold = global_index2predicate_gold[global_index]
                     args_gold = predicate_gold.pas.get_arguments(case, relax=False)
                     args_gold = self._filter_args(args_gold, predicate_gold)
-                    args_gold_relaxed = predicate_gold.pas.get_arguments(case, relax=True)
+                    args_gold_relaxed = predicate_gold.pas.get_arguments(case, relax=True, include_nonidentical=True)
                     if case == "ガ":
-                        args_gold_relaxed += predicate_gold.pas.get_arguments("判ガ", relax=True)
+                        args_gold_relaxed += predicate_gold.pas.get_arguments(
+                            "判ガ", relax=True, include_nonidentical=True
+                        )
                 else:
                     args_gold = args_gold_relaxed = []
 
@@ -317,8 +319,10 @@ class SubScorer:
                 antecedents_gold: List[Argument] = self._filter_args(
                     anaphor_gold.pas.get_arguments("ノ", relax=False), anaphor_gold
                 )
-                antecedents_gold_relaxed: List[Argument] = anaphor_gold.pas.get_arguments("ノ", relax=True)
-                antecedents_gold_relaxed += anaphor_gold.pas.get_arguments("ノ？", relax=True)
+                antecedents_gold_relaxed: List[Argument] = anaphor_gold.pas.get_arguments(
+                    "ノ", relax=True, include_nonidentical=True
+                )
+                antecedents_gold_relaxed += anaphor_gold.pas.get_arguments("ノ？", relax=True, include_nonidentical=True)
                 antecedents_gold_relaxed = self._filter_args(antecedents_gold_relaxed, anaphor_gold)
             else:
                 antecedents_gold = antecedents_gold_relaxed = []
