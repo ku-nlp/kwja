@@ -14,7 +14,7 @@ defaults:
 max_seq_length: 128
 do_predict_after_train: false
 checkpoint_path: ""
-document_split_stride: 1
+document_split_stride: 2
 training_tasks:
   - reading_prediction
   - word_analysis

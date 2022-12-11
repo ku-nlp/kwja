@@ -6,7 +6,7 @@ repos:
       - id: trailing-whitespace
       - id: check-yaml
   - repo: https://github.com/psf/black
-    rev: 22.6.0
+    rev: 22.10.0
     hooks:
       - id: black
   - repo: https://github.com/PyCQA/flake8
@@ -26,4 +26,4 @@ repos:
           - hydra-core==1.2.0
           - torch==1.12.1
           - transformers==4.23.1
-          - tokenizers==0.12.1
+          - tokenizers==0.13.2
