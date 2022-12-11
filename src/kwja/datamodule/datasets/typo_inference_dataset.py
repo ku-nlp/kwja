@@ -1,4 +1,5 @@
 from typing import Dict, List, Union
+from unicodedata import normalize
 
 import torch
 from torch.utils.data import Dataset
@@ -17,7 +18,7 @@ class TypoInferenceDataset(Dataset):
         tokenizer_kwargs: dict = None,
         **_,  # accept `extended_vocab_path` as a keyword argument
     ) -> None:
-        self.texts = [text.strip() for text in texts]
+        self.texts = [self._normalize(text.strip()) for text in texts]
         self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             model_name_or_path,
             **(tokenizer_kwargs or {}),
@@ -44,3 +45,7 @@ class TypoInferenceDataset(Dataset):
             "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
             "texts": text,
         }
+
+    def _normalize(self, text):
+        normalized = normalize("NFKC", text).replace(" ", "␣").replace('"', "＂")
+        return normalized

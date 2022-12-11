@@ -1,9 +1,10 @@
 import logging
 from functools import cached_property
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 from rhoknp import Document, Sentence
+from rhoknp.utils.reader import chunk_by_document
 from torch.utils.data import Dataset
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
@@ -12,26 +13,32 @@ from kwja.utils.sub_document import to_sub_doc_id
 logger = logging.getLogger(__name__)
 
 
-class BaseDataset(Dataset):
+class BaseInferenceDataset(Dataset):
     def __init__(
         self,
-        source: Union[Path, str],
+        texts: List[str],
         document_split_stride: int,
         model_name_or_path: str,
         max_seq_length: int,
         tokenizer_kwargs: dict,
-        ext: str = "knp",
+        doc_id_prefix: Optional[str] = None,
+        juman_file: Optional[Path] = None,
+        knp_file: Optional[Path] = None,
     ) -> None:
         self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             model_name_or_path,
             **tokenizer_kwargs,
         )
         self.max_seq_length = max_seq_length
-        self.orig_documents: List[Document]
-        if isinstance(source, str):
-            source = Path(source)
-        assert source.is_dir()
-        self.orig_documents = self._load_documents(source, ext)
+        if knp_file is not None:
+            with knp_file.open(mode="r") as f:
+                orig_documents = [Document.from_knp(c) for c in chunk_by_document(f)]
+        elif juman_file is not None:
+            with juman_file.open(mode="r") as f:
+                orig_documents = [Document.from_jumanpp(c) for c in chunk_by_document(f)]
+        else:
+            orig_documents = self._create_documents_from_texts(list(texts), doc_id_prefix)
+        self.orig_documents: List[Document] = orig_documents
         self.doc_id2document: Dict[str, Document] = {}
         for orig_document in self.orig_documents:
             self.doc_id2document.update(
@@ -50,15 +57,8 @@ class BaseDataset(Dataset):
         return list(self.doc_id2document.values())
 
     @staticmethod
-    def _load_documents(document_dir: Path, ext: str = "knp") -> List[Document]:
-        documents = []
-        for path in sorted(document_dir.glob(f"*.{ext}")):
-            # TODO: fix document files that raise exception
-            try:
-                documents.append(Document.from_knp(path.read_text()))
-            except AssertionError:
-                logger.warning(f"{path} is not a valid knp file.")
-        return documents
+    def _create_documents_from_texts(texts: List[str], doc_id_prefix: Optional[str]) -> List[Document]:
+        raise NotImplementedError
 
     def _split_document(self, document: Document, max_token_length: int, stride: int) -> List[Document]:
         cum_lens = [0]
@@ -97,3 +97,6 @@ class BaseDataset(Dataset):
 
     def _get_tokenized_len(self, source: Union[Document, Sentence]) -> int:
         return len(self.tokenizer.tokenize(" ".join(m.text for m in source.morphemes)))
+
+    def _normalize(self, text):
+        raise NotImplementedError

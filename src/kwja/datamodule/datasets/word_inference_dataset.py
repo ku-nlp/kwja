@@ -10,12 +10,11 @@ from omegaconf import ListConfig
 from rhoknp import Document, Morpheme, Sentence
 from rhoknp.cohesion import ExophoraReferent
 from rhoknp.units.morpheme import MorphemeAttributes
-from rhoknp.utils.reader import chunk_by_document
 from tokenizers import Encoding
 from transformers.utils import PaddingStrategy
 
 import kwja
-from kwja.datamodule.datasets.base_dataset import BaseDataset
+from kwja.datamodule.datasets.base_inference_dataset import BaseInferenceDataset
 from kwja.datamodule.examples import CohesionTask
 from kwja.datamodule.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
 from kwja.utils.sub_document import extract_target_sentences, to_orig_doc_id
@@ -30,7 +29,7 @@ class WordInferenceExample:
     encoding: Encoding
 
 
-class WordInferenceDataset(BaseDataset):
+class WordInferenceDataset(BaseInferenceDataset):
     def __init__(
         self,
         texts: ListConfig,
@@ -49,15 +48,16 @@ class WordInferenceDataset(BaseDataset):
         knp_file: Optional[Path] = None,
         **_,  # accept reading_resource_path
     ) -> None:
-        if knp_file is not None:
-            with open(knp_file) as f:
-                documents = [Document.from_knp(c) for c in chunk_by_document(f)]
-        elif juman_file is not None:
-            with open(juman_file) as f:
-                documents = [Document.from_jumanpp(c) for c in chunk_by_document(f)]
-        else:
-            documents = self._create_documents_from_texts(list(texts), doc_id_prefix)
-        super().__init__(documents, document_split_stride, model_name_or_path, max_seq_length, tokenizer_kwargs or {})
+        super().__init__(
+            list(texts),
+            document_split_stride,
+            model_name_or_path,
+            max_seq_length,
+            tokenizer_kwargs or {},
+            doc_id_prefix=doc_id_prefix,
+            juman_file=juman_file,
+            knp_file=knp_file,
+        )
 
         self.exophora_referents = [ExophoraReferent(s) for s in exophora_referents]
         self.special_tokens: List[str] = list(special_tokens)
