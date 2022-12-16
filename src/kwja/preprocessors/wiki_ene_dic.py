@@ -7,7 +7,8 @@ from pathlib import Path
 from typing import Dict, List, Set, Union
 
 import dartsclone
-from tqdm import tqdm
+
+from kwja.utils.progress_bar import track
 
 BAD_ENE_PATTERNS: List[str] = [
     r"^1\.7\.19\.",  # 芸術作品名
@@ -42,7 +43,7 @@ class WikiDicPreprocessor:
     def _load_json(path: str) -> List[dict]:
         entries: List[dict] = []
         with Path(path).open() as f:
-            for line in tqdm(f, desc="load original json file..."):
+            for line in track(f, description="Loading original json file..."):
                 entries.append(json.loads(line))
         return entries
 
@@ -73,7 +74,7 @@ class WikiDicPreprocessor:
 
     def get_filtered_entries(self, save_filtered_results: bool = False) -> List[dict]:
         converted_entries: Dict[str, set] = {}
-        for entry in tqdm(self.entries, desc="process filtering..."):
+        for entry in track(self.entries, description="Processing filtering..."):
             m = self.title_pattern.match(entry["title"])
             entry["title_normalized"] = entry["title"] if m is None else m[1]
             if self._is_bad_entry(entry):
