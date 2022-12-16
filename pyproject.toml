@@ -60,7 +60,7 @@ jinf = "^1.0.4"
 importlib-resources = "^5.10"
 jaconv = "^0.3"
 pure-cdb = "^4.0"
-tqdm = "^4.64"
+rich = "^12.4"
 
 [tool.poetry.scripts]
 kwja = "kwja.cli.cli:app"
@@ -69,7 +69,6 @@ kwja = "kwja.cli.cli:app"
 dartsclone = "^0.10.2"
 Levenshtein = "^0.20.8"
 ipdb = "^0.13.9"
-rich = "^12.4"
 types-attrs = "^19.1.0"
 wandb = "^0.13.3"
 
