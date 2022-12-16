@@ -5,13 +5,13 @@ from typing import Dict, List, Union
 
 import torch
 from rhoknp import Document, Sentence
-from tqdm import tqdm
 from transformers import BatchEncoding
 from transformers.utils import PaddingStrategy
 
 from kwja.datamodule.datasets.base_dataset import BaseDataset
 from kwja.datamodule.examples.char_feature import CharFeatureExample
 from kwja.utils.constants import IGNORE_INDEX
+from kwja.utils.progress_bar import track
 from kwja.utils.word_normalize import SentenceDenormalizer
 
 logger = logging.getLogger(__name__)
@@ -57,7 +57,7 @@ class CharDataset(BaseDataset):
     def _load_examples(self, documents: List[Document]) -> List[CharExampleSet]:
         examples = []
         idx = 0
-        for document in tqdm(documents, dynamic_ncols=True):
+        for document in track(documents, description="Loading examples"):
             for sentence in document.sentences:
                 self.denormalizer.denormalize(sentence, self.denormalize_prob)
             encoding: BatchEncoding = self.tokenizer(

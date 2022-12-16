@@ -6,6 +6,7 @@ from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
 from kwja.utils.constants import TYPO_DUMMY_TOKEN
+from kwja.utils.progress_bar import track
 
 
 class TypoInferenceDataset(Dataset):
@@ -17,7 +18,7 @@ class TypoInferenceDataset(Dataset):
         tokenizer_kwargs: dict = None,
         **_,  # accept `extended_vocab_path` as a keyword argument
     ) -> None:
-        self.texts = [text.strip() for text in texts]
+        self.texts = [text.strip() for text in track(texts, description="Loading documents")]
         self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             model_name_or_path,
             **(tokenizer_kwargs or {}),
