@@ -1,2 +1,4 @@
 progress_bar:
   _target_: pytorch_lightning.callbacks.RichProgressBar
+  console_kwargs:
+    stderr: True
