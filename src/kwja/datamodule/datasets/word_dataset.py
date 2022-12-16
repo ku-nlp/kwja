@@ -9,7 +9,6 @@ from rhoknp import Document, Sentence
 from rhoknp.cohesion import ExophoraReferent
 from scipy.special import softmax
 from tokenizers import Encoding
-from tqdm import tqdm
 from transformers.utils import PaddingStrategy
 
 from kwja.datamodule.datasets.base_dataset import BaseDataset
@@ -37,6 +36,7 @@ from kwja.utils.constants import (
     WORD_FEATURES,
 )
 from kwja.utils.kanjidic import KanjiDic
+from kwja.utils.progress_bar import track
 from kwja.utils.reading import ReadingAligner, get_reading2id
 from kwja.utils.sub_document import extract_target_sentences
 
@@ -131,7 +131,7 @@ class WordDataset(BaseDataset):
     def _load_examples(self, documents: List[Document]) -> List[WordExampleSet]:
         examples = []
         idx = 0
-        for document in tqdm(documents, dynamic_ncols=True):
+        for document in track(documents, description="Loading examples"):
             encoding: Encoding = self.tokenizer(
                 " ".join(m.text for m in document.morphemes),
                 padding=PaddingStrategy.MAX_LENGTH,

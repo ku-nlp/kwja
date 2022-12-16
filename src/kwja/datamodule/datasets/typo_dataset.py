@@ -8,6 +8,7 @@ from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
 from kwja.utils.constants import TYPO_DUMMY_TOKEN, TYPO_OPN2TOKEN
+from kwja.utils.progress_bar import track
 
 
 class TypoDataset(Dataset):
@@ -46,7 +47,7 @@ class TypoDataset(Dataset):
     @staticmethod
     def load_documents(path: Path) -> List[Dict[str, Union[str, List[str]]]]:
         documents: List[Dict[str, Union[str, List[str]]]] = []
-        for file_path in sorted(path.glob("**/*.jsonl")):
+        for file_path in track(sorted(path.glob("**/*.jsonl")), description="Loading documents"):
             with file_path.open(mode="r", encoding="utf-8") as f:
                 for line in f:
                     documents.append(json.loads(line))

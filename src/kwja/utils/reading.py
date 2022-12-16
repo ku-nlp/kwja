@@ -12,6 +12,8 @@ from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from kwja.utils.kanjidic import KanjiDic
 
+logger = logging.getLogger(__name__)
+
 # KATAKANA-HIRAGANA PROLONGED SOUND MARK (0x30fc)
 # "〜"(0x301C)  "⁓" (U+2053)、Full-width tilde:
 # "～" (U+FF5E)、tilde operator: "∼" (U+223C)
@@ -189,7 +191,7 @@ class ReadingAligner:
                 subwords_per_morpheme[-1].append(subword)
         # assert(len(subwords_per_morpheme) == len(sequence.morphemes))
         if len(subwords_per_morpheme) != len(sequence.morphemes):
-            logging.warning(f"something wrong with subword segmentation: {subword_list}")
+            logger.warning(f"something wrong with subword segmentation: {subword_list}")
             raise ValueError
         for morpheme, subwords in zip(sequence.morphemes, subwords_per_morpheme):
             reading_list.extend(self._align_morpheme(morpheme, subwords))
@@ -217,7 +219,7 @@ class ReadingAligner:
             boundaries.append(pos)
         surf = "".join(subwords)
         if surf != morpheme.surf:
-            logging.warning(f"non-identical surf forms: {morpheme.surf}\t{surf}")
+            logger.warning(f"non-identical surf forms: {morpheme.surf}\t{surf}")
 
         @dataclass
         class Node:
@@ -358,7 +360,7 @@ class ReadingAligner:
             node, node_prev, _ = td_holder[node.i][node.j]
         seg.reverse()
         if td_holder[-1][-1][2] >= 1000:
-            logging.warning("{}\t{}\t{}".format(seg, reading, subwords))
+            logger.warning("{}\t{}\t{}".format(seg, reading, subwords))
 
         # dummy
         posI, posJ = 0, 0
@@ -442,14 +444,14 @@ if __name__ == "__main__":
     subreading_counter: Dict[str, int] = Counter()
     for pathglob in args.input:
         for fpath in glob.glob(pathglob):
-            logging.info(f"processing {fpath}")
+            logger.info(f"processing {fpath}")
             document = Document.from_knp(open(fpath).read())
             try:
                 for subword, subreading in aligner.align(document):
                     # print(aligner.align(document))
                     subreading_counter[subreading] += 1
             except ValueError:
-                logging.warning(f"skip {document.doc_id} for an error")
+                logger.warning(f"skip {document.doc_id} for an error")
     for subreading, count in sorted(
         sorted(subreading_counter.items(), key=lambda pair: pair[0]), key=lambda pair: pair[1], reverse=True
     ):

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Fix scripts for building datasets to support latest rhoknp and remove dependency on kyoto-reader.
 - Support versioning of local cache directory.
+- Enable progress bar while executing kwja command
 
 ### Removed
 - Remove unused main dependencies, `rich`, `python-Levenshtein`, `ipadic`, `tinydb`, `BetterJSONStorage`, and `dartsclone`.

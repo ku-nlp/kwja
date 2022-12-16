@@ -7,6 +7,7 @@ from rhoknp import Document, Sentence
 from torch.utils.data import Dataset
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
+from kwja.utils.progress_bar import track
 from kwja.utils.sub_document import to_sub_doc_id
 
 logger = logging.getLogger(__name__)
@@ -35,7 +36,7 @@ class BaseDataset(Dataset):
         else:
             self.orig_documents = source
         self.doc_id2document: Dict[str, Document] = {}
-        for orig_document in self.orig_documents:
+        for orig_document in track(self.orig_documents, description="Splitting documents"):
             self.doc_id2document.update(
                 {
                     document.doc_id: document
@@ -54,7 +55,7 @@ class BaseDataset(Dataset):
     @staticmethod
     def _load_documents(document_dir: Path, ext: str = "knp") -> List[Document]:
         documents = []
-        for path in sorted(document_dir.glob(f"*.{ext}")):
+        for path in track(sorted(document_dir.glob(f"*.{ext}")), description="Loading documents"):
             # TODO: fix document files that raise exception
             try:
                 documents.append(Document.from_knp(path.read_text()))

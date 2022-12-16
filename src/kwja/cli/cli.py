@@ -112,13 +112,13 @@ class CLIProcessor:
         self.typo_model.hparams.callbacks.prediction_writer.extended_vocab_path = str(extended_vocab_path)
         self.typo_trainer = pl.Trainer(
             logger=False,
-            enable_progress_bar=False,
             callbacks=[
                 hydra.utils.instantiate(
                     self.typo_model.hparams.callbacks.prediction_writer,
                     output_dir=str(self.tmp_dir.name),
                     pred_filename=self.typo_path.stem,
-                )
+                ),
+                hydra.utils.instantiate(self.typo_model.hparams.callbacks.progress_bar),
             ],
             accelerator=self.device_name,
             devices=1,
@@ -147,13 +147,13 @@ class CLIProcessor:
         self.char_model.hparams.datamodule.batch_size = self.char_batch_size
         self.char_trainer = pl.Trainer(
             logger=False,
-            enable_progress_bar=False,
             callbacks=[
                 hydra.utils.instantiate(
                     self.char_model.hparams.callbacks.prediction_writer,
                     output_dir=str(self.tmp_dir.name),
                     pred_filename=self.char_path.stem,
-                )
+                ),
+                hydra.utils.instantiate(self.char_model.hparams.callbacks.progress_bar),
             ],
             accelerator=self.device_name,
             devices=1,
@@ -177,7 +177,7 @@ class CLIProcessor:
     def load_word(self) -> None:
         word_checkpoint_path: Path = download_checkpoint_from_url(MODEL_SIZE2CHECKPOINT_URL[self.model_size]["word"])
         word_checkpoint = torch.load(str(word_checkpoint_path), map_location=lambda storage, loc: storage)
-        hparams = word_checkpoint["hyper_parameters"]["hparams"]
+        hparams = word_checkpoint["hyper_parameters"]
         reading_resource_path = resource_path / "reading_prediction"
         jumandic_path = resource_path / "jumandic"
         hparams.datamodule.predict.reading_resource_path = reading_resource_path
@@ -199,13 +199,13 @@ class CLIProcessor:
         self.word_model.hparams.callbacks.prediction_writer.jumandic_path = jumandic_path
         self.word_trainer = pl.Trainer(
             logger=False,
-            enable_progress_bar=False,
             callbacks=[
                 hydra.utils.instantiate(
                     self.word_model.hparams.callbacks.prediction_writer,
                     output_dir=str(self.tmp_dir.name),
                     pred_filename=self.word_path.stem,
-                )
+                ),
+                hydra.utils.instantiate(self.word_model.hparams.callbacks.progress_bar),
             ],
             accelerator=self.device_name,
             devices=1,
@@ -233,7 +233,7 @@ class CLIProcessor:
         word_discourse_checkpoint = torch.load(
             str(word_discourse_checkpoint_path), map_location=lambda storage, loc: storage
         )
-        hparams = word_discourse_checkpoint["hyper_parameters"]["hparams"]
+        hparams = word_discourse_checkpoint["hyper_parameters"]
         reading_resource_path = resource_path / "reading_prediction"
         jumandic_path = resource_path / "jumandic"
         hparams.datamodule.predict.reading_resource_path = reading_resource_path
@@ -252,12 +252,12 @@ class CLIProcessor:
         self.word_discourse_model.hparams.dataset.reading_resource_path = reading_resource_path
         self.word_discourse_trainer = pl.Trainer(
             logger=False,
-            enable_progress_bar=False,
             callbacks=[
                 WordModuleDiscourseWriter(
                     output_dir=str(self.tmp_dir.name),
                     pred_filename=self.word_discourse_path.stem,
-                )
+                ),
+                hydra.utils.instantiate(self.word_discourse_model.hparams.callbacks.progress_bar),
             ],
             accelerator=self.device_name,
             devices=1,

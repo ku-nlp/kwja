@@ -11,6 +11,7 @@ from transformers.utils import PaddingStrategy
 
 import kwja
 from kwja.datamodule.datasets.base_dataset import BaseDataset
+from kwja.utils.progress_bar import track
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,7 @@ class CharInferenceDataset(BaseDataset):
     def _load_examples(self, documents: List[Document]) -> List[CharInferenceExample]:
         examples = []
         idx = 0
-        for document in documents:
+        for document in track(documents, description="Loading examples"):
             encoding: BatchEncoding = self.tokenizer(
                 document.text,
                 truncation=False,
@@ -85,7 +86,9 @@ class CharInferenceDataset(BaseDataset):
     def _create_documents_from_texts(texts: List[str], doc_id_prefix: Optional[str]) -> List[Document]:
         senter = RegexSenter()
         # split text into sentences
-        documents: List[Document] = [senter.apply_to_document(text) for text in texts]
+        documents: List[Document] = [
+            senter.apply_to_document(text) for text in track(texts, description="Loading documents")
+        ]
         if doc_id_prefix is None:
             doc_id_prefix = datetime.now().strftime("%Y%m%d%H%M")
         doc_id_width = len(str(len(documents)))
