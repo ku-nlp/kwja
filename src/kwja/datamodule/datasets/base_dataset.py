@@ -86,10 +86,12 @@ class BaseDataset(Dataset):
                     break
                 start += 1
 
-            sub_document = Document.from_sentences(document.sentences[start:end])
+            sentences = document.sentences[start:end]
+            sub_document = Document.from_sentences(sentences)
             sub_doc_id = to_sub_doc_id(document.doc_id, sub_idx, stride=stride)
-            for sentence in sub_document.sentences:
-                sentence.doc_id = sub_doc_id
+            for sentence, sub_sentence in zip(sentences, sub_document.sentences):
+                sub_sentence.doc_id = sub_doc_id
+                sub_sentence.sid = sentence.sid
             sub_document.doc_id = sub_doc_id
             sub_documents.append(sub_document)
             sub_idx += 1
