@@ -66,7 +66,7 @@ class CharModuleWriter(BasePredictionWriter):
     ) -> None:
         sentences: List[Sentence] = []
         dataloaders = trainer.predict_dataloaders
-        dataset: Union[CharDataset, CharInferenceDataset] = dataloaders[prediction["dataloader_idx"]].dataset
+        dataset: Union[CharDataset, CharInferenceDataset] = dataloaders[dataloader_idx].dataset
         special_ids = {
             special_id
             for special_id in dataset.tokenizer.all_special_ids

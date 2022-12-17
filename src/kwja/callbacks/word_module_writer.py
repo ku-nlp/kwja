@@ -91,7 +91,6 @@ class WordModuleWriter(BasePredictionWriter):
     ) -> None:
         dataloaders = trainer.predict_dataloaders
         batch_example_ids = prediction["example_ids"]
-        dataloader_idx = prediction["dataloader_idx"]
         dataset: Union[WordDataset, WordInferenceDataset] = dataloaders[dataloader_idx].dataset
         batch_reading_subword_map = prediction["reading_subword_map"]
         batch_reading_preds = torch.argmax(prediction["reading_prediction_logits"], dim=2)
