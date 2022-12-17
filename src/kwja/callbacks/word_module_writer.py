@@ -463,8 +463,7 @@ class WordModuleWriter(BasePredictionWriter):
                 if morphemes_buff:
                     named_entity = NamedEntity(category=NamedEntityCategory(category), morphemes=morphemes_buff)
                     # NE feature must be tagged to the last base phrase the named entity contains
-                    named_entity_text = named_entity.text.replace('"', r"\"")
-                    morphemes_buff[-1].base_phrase.features["NE"] = f"{named_entity.category.value}:{named_entity_text}"
+                    morphemes_buff[-1].base_phrase.features["NE"] = f"{named_entity.category.value}:{named_entity.text}"
                 category = ""
                 morphemes_buff = []
 
