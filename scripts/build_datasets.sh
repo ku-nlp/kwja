@@ -12,29 +12,29 @@ usage() {
 
 while getopts h-: opt; do
   if [[ $opt = "-" ]]; then
-    opt=`echo ${OPTARG} | awk -F "=" '{print $1}'`
-		OPTARG=`echo ${OPTARG} | awk -F "=" '{print $2}'`
+    opt=$(echo "${OPTARG}" | awk -F "=" '{print $1}')
+    OPTARG=$(echo "${OPTARG}" | awk -F "=" '{print $2}')
   fi
 
   case "$opt" in
-    work-dir)
-      WORK_DIR=$OPTARG
-      ;;
-    out-dir)
-      OUT_DIR=$OPTARG
-      ;;
-    jobs)
-      JOBS=$OPTARG
-      ;;
-    h|help)
-      usage
-			exit 0
-			;;
-    *)
-			echo "invalid option -- $opt"
-      usage
-			exit 1
-			;;
+  work-dir)
+    WORK_DIR=$OPTARG
+    ;;
+  out-dir)
+    OUT_DIR=$OPTARG
+    ;;
+  jobs)
+    JOBS=$OPTARG
+    ;;
+  h | help)
+    usage
+    exit 0
+    ;;
+  *)
+    echo "invalid option -- $opt"
+    usage
+    exit 1
+    ;;
   esac
 done
 
