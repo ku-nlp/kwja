@@ -2,6 +2,7 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Optional, Union
+from unicodedata import normalize
 
 import torch
 from omegaconf import ListConfig
@@ -11,6 +12,7 @@ from transformers.utils import PaddingStrategy
 
 import kwja
 from kwja.datamodule.datasets.base_dataset import BaseDataset
+from kwja.utils.constants import TRANSLATION_TABLE
 from kwja.utils.progress_bar import track
 
 logger = logging.getLogger(__name__)
@@ -99,6 +101,15 @@ class CharInferenceDataset(BaseDataset):
                 sentence.sid = f"{document.doc_id}-{sent_idx:0{sent_id_width}}"
                 sentence.misc_comment = f"kwja:{kwja.__version__}"
         return documents
+
+    def _normalize(self, document):
+        for sentence in document.sentences:
+            normalized = normalize("NFKC", sentence.text).translate(TRANSLATION_TABLE)
+            if normalized != sentence.text:
+                logger.warning(f"apply normalization ({sentence.text} -> {normalized})")
+                sentence.text = normalized
+        document.text = "".join(sentence.text for sentence in document.sentences)
+        return document
 
     def _get_tokenized_len(self, source: Union[Document, Sentence]) -> int:
         return len(self.tokenizer.tokenize(source.text))

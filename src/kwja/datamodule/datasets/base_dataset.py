@@ -37,6 +37,7 @@ class BaseDataset(Dataset):
             self.orig_documents = source
         self.doc_id2document: Dict[str, Document] = {}
         for orig_document in track(self.orig_documents, description="Splitting documents"):
+            orig_document = self._normalize(orig_document)
             self.doc_id2document.update(
                 {
                     document.doc_id: document
@@ -62,6 +63,9 @@ class BaseDataset(Dataset):
             except AssertionError:
                 logger.warning(f"{path} is not a valid knp file.")
         return documents
+
+    def _normalize(self, document: Document) -> Document:
+        return document
 
     def _split_document(self, document: Document, max_token_length: int, stride: int) -> List[Document]:
         cum_lens = [0]
