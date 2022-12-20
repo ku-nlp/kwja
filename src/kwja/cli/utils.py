@@ -46,7 +46,7 @@ def download_checkpoint_from_url(
         checkpoint_dir = _get_kwja_cache_dir() / _get_model_version()
     else:
         checkpoint_dir = Path(checkpoint_dir)
-    checkpoint_dir.mkdir(exist_ok=True)
+    checkpoint_dir.mkdir(exist_ok=True, parents=True)
 
     parts = urlparse(url)
     filename = os.path.basename(parts.path)
