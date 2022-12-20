@@ -185,10 +185,10 @@ class WordModuleWriter(BasePredictionWriter):
             self._add_discourse(document, discourse_parsing_preds)
             for sentence in extract_target_sentences(document):
                 self.doc_id2analyzed_sentence[orig_doc_id][sentence.sid] = sentence
-            prev_doc_id = self.prev_doc_id or orig_doc_id
-            if orig_doc_id != prev_doc_id:
-                self.write_document(self.doc_id2analyzed_sentence[prev_doc_id])
-                self.doc_id2analyzed_sentence[prev_doc_id].clear()
+            self.prev_doc_id = self.prev_doc_id or orig_doc_id
+            if orig_doc_id != self.prev_doc_id:
+                self.write_document(self.doc_id2analyzed_sentence[self.prev_doc_id])
+                self.doc_id2analyzed_sentence[self.prev_doc_id].clear()
                 self.prev_doc_id = orig_doc_id
         if batch_idx == len(dataloaders[dataloader_idx]) - 1:
             for doc_id, sid2analyzed_sentence in self.doc_id2analyzed_sentence.items():
