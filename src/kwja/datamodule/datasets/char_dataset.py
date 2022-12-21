@@ -2,6 +2,7 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Union
+from unicodedata import normalize
 
 import torch
 from rhoknp import Document, Sentence
@@ -10,7 +11,7 @@ from transformers.utils import PaddingStrategy
 
 from kwja.datamodule.datasets.base_dataset import BaseDataset
 from kwja.datamodule.examples.char_feature import CharFeatureExample
-from kwja.utils.constants import IGNORE_INDEX
+from kwja.utils.constants import IGNORE_INDEX, TRANSLATION_TABLE
 from kwja.utils.progress_bar import track
 from kwja.utils.word_normalize import SentenceDenormalizer
 
@@ -108,6 +109,15 @@ class CharDataset(BaseDataset):
             "seg_types": torch.tensor(seg_types, dtype=torch.long),
             "norm_types": torch.tensor(norm_types, dtype=torch.long),
         }
+
+    def _normalize(self, document):
+        for morpheme in document.morphemes:
+            normalized = normalize("NFKC", morpheme.text).translate(TRANSLATION_TABLE)
+            if normalized != morpheme.text:
+                logger.warning(f"apply normalization ({morpheme.text} -> {normalized})")
+                morpheme.text = normalized
+                setattr(morpheme.attributes, "lemma", normalize("NFKC", morpheme.lemma).translate(TRANSLATION_TABLE))
+        return document
 
     def _get_tokenized_len(self, source: Union[Document, Sentence]) -> int:
         return len(self.tokenizer.tokenize(source.text))

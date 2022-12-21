@@ -42,7 +42,7 @@ class CharModuleWriter(BasePredictionWriter):
             surf,
             MorphemeAttributes(
                 reading="_",
-                lemma=norm,
+                lemma=norm or surf,
                 pos="未定義語",
                 pos_id=15,
                 subpos="その他",
@@ -66,7 +66,7 @@ class CharModuleWriter(BasePredictionWriter):
     ) -> None:
         sentences: List[Sentence] = []
         dataloaders = trainer.predict_dataloaders
-        dataset: Union[CharDataset, CharInferenceDataset] = dataloaders[prediction["dataloader_idx"]].dataset
+        dataset: Union[CharDataset, CharInferenceDataset] = dataloaders[dataloader_idx].dataset
         special_ids = {
             special_id
             for special_id in dataset.tokenizer.all_special_ids
@@ -108,8 +108,9 @@ class CharModuleWriter(BasePredictionWriter):
                     word_surf += char
                     word_norm_ops.append(word_normalizer_types[char_idx])
                     char_idx += 1
-                word_norm = get_normalized(word_surf, word_norm_ops, strict=False)
-                morphemes.append(self.create_morpheme(word_surf, word_norm))
+                if word_surf:
+                    word_norm = get_normalized(word_surf, word_norm_ops, strict=False)
+                    morphemes.append(self.create_morpheme(word_surf, word_norm))
                 sentence.morphemes = morphemes
             sentences += extract_target_sentences(document)
 

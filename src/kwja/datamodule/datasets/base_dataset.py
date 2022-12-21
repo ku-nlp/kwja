@@ -37,6 +37,7 @@ class BaseDataset(Dataset):
             self.orig_documents = source
         self.doc_id2document: Dict[str, Document] = {}
         for orig_document in track(self.orig_documents, description="Splitting documents"):
+            orig_document = self._normalize(orig_document)
             self.doc_id2document.update(
                 {
                     document.doc_id: document
@@ -63,6 +64,9 @@ class BaseDataset(Dataset):
                 logger.warning(f"{path} is not a valid knp file.")
         return documents
 
+    def _normalize(self, document: Document) -> Document:
+        return document
+
     def _split_document(self, document: Document, max_token_length: int, stride: int) -> List[Document]:
         cum_lens = [0]
         for sentence in document.sentences:
@@ -86,13 +90,16 @@ class BaseDataset(Dataset):
                     break
                 start += 1
 
-            sub_document = Document.from_sentences(document.sentences[start:end])
+            sentences = document.sentences[start:end]
+            sub_document = Document.from_sentences(sentences)
             sub_doc_id = to_sub_doc_id(document.doc_id, sub_idx, stride=stride)
-            for sentence in sub_document.sentences:
-                sentence.doc_id = sub_doc_id
+            for sentence, sub_sentence in zip(sentences, sub_document.sentences):
+                sub_sentence.doc_id = sub_doc_id
+                sub_sentence.sid = sentence.sid
             sub_document.doc_id = sub_doc_id
             sub_documents.append(sub_document)
             sub_idx += 1
+            stride = max(min(stride, len(document.sentences) - end), 1)
             end += stride
         return sub_documents
 

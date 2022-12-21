@@ -73,7 +73,6 @@ class WordModuleDiscourseWriter(BasePredictionWriter):
         sentences: List[Sentence] = []
         dataloaders = trainer.predict_dataloaders
         batch_example_ids = prediction["example_ids"]
-        dataloader_idx = prediction["dataloader_idx"]
         dataset: Union[WordDataset, WordInferenceDataset] = dataloaders[dataloader_idx].dataset
         batch_discourse_parsing_preds = torch.argmax(prediction["discourse_parsing_logits"], dim=3)
         for (example_id, discourse_parsing_preds) in zip(

@@ -10,3 +10,4 @@ exophora_referents: ${exophora_referents}
 cohesion_tasks: ${cohesion_tasks}
 reading_resource_path: ${dataset.reading_resource_path}
 document_split_stride: ${document_split_stride}
+is_split_into_words: ${is_split_into_words}

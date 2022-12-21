@@ -71,8 +71,10 @@ class WordDataset(BaseDataset):
         model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
         max_seq_length: int = 512,
         tokenizer_kwargs: dict = None,
+        is_split_into_words: bool = False,
     ) -> None:
         self.path = Path(path)
+        self.is_split_into_words = is_split_into_words
         super().__init__(
             self.path,
             document_split_stride,
@@ -132,11 +134,15 @@ class WordDataset(BaseDataset):
         examples = []
         idx = 0
         for document in track(documents, description="Loading examples"):
+            words: Union[List[str], str] = [m.text for m in document.morphemes]
+            if self.is_split_into_words is False:
+                words = " ".join(words)
             encoding: Encoding = self.tokenizer(
-                " ".join(m.text for m in document.morphemes),
+                words,
                 padding=PaddingStrategy.MAX_LENGTH,
                 truncation=False,
                 max_length=self.max_seq_length - self.num_special_tokens,
+                is_split_into_words=self.is_split_into_words,
             ).encodings[0]
             if len(encoding.ids) > self.max_seq_length - self.num_special_tokens:
                 continue
@@ -421,4 +427,8 @@ class WordDataset(BaseDataset):
         return scores_set, candidates_set  # word level
 
     def _get_tokenized_len(self, source: Union[Document, Sentence]) -> int:
-        return len(self.tokenizer.tokenize(" ".join(m.text for m in source.morphemes)))
+        words: Union[List[str], str] = [m.text for m in source.morphemes]
+        if self.is_split_into_words is False:
+            words = " ".join(words)
+        encoding = self.tokenizer(words, add_special_tokens=False, is_split_into_words=self.is_split_into_words)[0]
+        return len(encoding.ids)

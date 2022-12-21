@@ -180,7 +180,6 @@ def test_write_on_batch_end():
     prediction = {
         "tokens": tokens,
         "example_ids": [0],
-        "dataloader_idx": 0,
         "reading_subword_map": reading_subword_map,
         "reading_prediction_logits": reading_prediction_logits,
         "word_analysis_pos_logits": word_analysis_pos_logits,
@@ -223,7 +222,7 @@ def test_write_on_batch_end():
         trainer = MockTrainer([DataLoader(dataset)])
         module = pl.LightningModule()
         module.hparams["dependency_topk"] = 4
-        writer.write_on_batch_end(trainer, module, prediction, ..., ..., ..., ...)  # noqa
+        writer.write_on_batch_end(trainer, module, prediction, ..., ..., 0, 0)  # noqa
         expected_knp = textwrap.dedent(
             f"""\
             # S-ID:test-0-0 kwja:{kwja.__version__}

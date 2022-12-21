@@ -143,7 +143,6 @@ class CharModule(pl.LightningModule):
         outputs: Dict[str, Dict[str, torch.Tensor]] = self(**batch)
         return {
             "example_ids": batch["example_ids"],
-            "dataloader_idx": dataloader_idx or 0,
             "input_ids": batch["input_ids"],
             "word_segmenter_logits": outputs["word_segmenter_outputs"]["logits"],
             "word_normalizer_logits": outputs["word_normalizer_outputs"]["logits"],
