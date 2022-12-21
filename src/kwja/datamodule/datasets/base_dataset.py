@@ -99,6 +99,7 @@ class BaseDataset(Dataset):
             sub_document.doc_id = sub_doc_id
             sub_documents.append(sub_document)
             sub_idx += 1
+            stride = max(min(stride, len(document.sentences) - end), 1)
             end += stride
         return sub_documents
 
