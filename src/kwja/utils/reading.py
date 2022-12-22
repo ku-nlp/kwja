@@ -421,7 +421,7 @@ def get_word_level_readings(readings: List[str], tokens: List[str], subword_map:
         if item:
             ret.append(item)
         elif any(flags):
-            ret.append("\u00A0")
+            ret.append("␣")
     return ret
 
 
