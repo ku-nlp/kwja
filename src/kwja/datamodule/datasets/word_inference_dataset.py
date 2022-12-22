@@ -199,14 +199,29 @@ class WordInferenceDataset(BaseDataset):
                         dependency_mask[i][j] = True
                 dependency_mask[i][self.special_to_index["[ROOT]"]] = True
 
-        cohesion_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
-        num_morphemes = len(document.morphemes)
-        for i in range(num_morphemes):
-            for j in range(num_morphemes):
-                if i != j:
-                    cohesion_mask[i][j] = True
-            for special_index in self.cohesion_special_indices:
-                cohesion_mask[i][special_index] = True
+        candidates_list: List[List[List[int]]] = []  # (task, src, tgt)
+        morphemes = document.morphemes
+        if CohesionTask.PAS_ANALYSIS in self.cohesion_tasks:
+            candidates: List[List[int]] = [[] for _ in range(self.max_seq_length)]
+            for i, src_morpheme in enumerate(morphemes):
+                candidates[i] = self._get_candidate_morpheme_indices(morphemes, src_morpheme)
+                candidates[i] += self.cohesion_special_indices
+            candidates_list.extend([candidates] * len(self.pas_cases))
+        if CohesionTask.BRIDGING in self.cohesion_tasks:
+            candidates = [[] for _ in range(self.max_seq_length)]
+            for i, src_morpheme in enumerate(morphemes):
+                candidates[i] = self._get_candidate_morpheme_indices(morphemes, src_morpheme)
+                candidates[i] += self.cohesion_special_indices
+            candidates_list.append(candidates)
+        if CohesionTask.COREFERENCE in self.cohesion_tasks:
+            candidates = [[] for _ in range(self.max_seq_length)]
+            for i, src_morpheme in enumerate(morphemes):
+                candidates[i] = self._get_candidate_morpheme_indices(morphemes, src_morpheme, coreference=True)
+                candidates[i] += self.cohesion_special_indices
+            candidates_list.append(candidates)
+        cohesion_mask = [
+            [[(x in cs) for x in range(self.max_seq_length)] for cs in candidates] for candidates in candidates_list
+        ]  # False -> mask, True -> keep
 
         merged_encoding: Encoding = Encoding.merge([example.encoding, self.special_encoding])
 
@@ -220,9 +235,7 @@ class WordInferenceDataset(BaseDataset):
                 self._gen_subword_map(merged_encoding, include_additional_words=False), dtype=torch.bool
             ),
             "intra_mask": torch.tensor(dependency_mask, dtype=torch.bool),
-            "cohesion_mask": torch.tensor(cohesion_mask, dtype=torch.bool)
-            .unsqueeze(0)
-            .expand(len(self.cohesion_rel_types), self.max_seq_length, self.max_seq_length),
+            "cohesion_mask": torch.tensor(cohesion_mask, dtype=torch.bool),
         }
 
     def _gen_subword_map(self, encoding: Encoding, include_additional_words: bool = True) -> List[List[bool]]:
@@ -242,3 +255,21 @@ class WordInferenceDataset(BaseDataset):
             words = " ".join(words)
         encoding = self.tokenizer(words, add_special_tokens=False, is_split_into_words=self.is_split_into_words)[0]
         return len(encoding.ids)
+
+    @staticmethod
+    def _get_candidate_morpheme_indices(
+        morphemes: List[Morpheme],
+        source_morpheme: Morpheme,
+        coreference: bool = False,
+    ) -> List[int]:
+        candidates: List[int] = []
+        for target_morpheme in morphemes:
+            if target_morpheme.global_index < source_morpheme.global_index:
+                candidates.append(target_morpheme.global_index)
+            elif coreference is False:
+                if (
+                    target_morpheme.global_index > source_morpheme.global_index
+                    and target_morpheme.sentence.sid == source_morpheme.sentence.sid
+                ):
+                    candidates.append(target_morpheme.global_index)
+        return candidates
