@@ -1857,19 +1857,20 @@ use-chardet-on-py3 = ["chardet (>=3.0.2,<6)"]
 
 [[package]]
 name = "rhoknp"
-version = "0.4.8"
+version = "1.0.2"
 description = "Yet another Python binding for Juman++/KNP/KWJA"
 category = "main"
 optional = false
 python-versions = ">=3.8,<3.12"
 files = [
-    {file = "rhoknp-0.4.8-py3-none-any.whl", hash = "sha256:fe81980ef0ab22949d404b25dd0fc8345cdd1fe911afad7c5e93032bbabc8a31"},
-    {file = "rhoknp-0.4.8.tar.gz", hash = "sha256:8a71fe21ee9168914edb1d436928bab346340321af2a7823cae077880f463312"},
+    {file = "rhoknp-1.0.2-py3-none-any.whl", hash = "sha256:d6a489ba78ff99f7e44e1919400b109113dd1925ad7a610bf26303ecde4ef41e"},
+    {file = "rhoknp-1.0.2.tar.gz", hash = "sha256:8f420952b4d63b1400e980837b0aa2ece3e7969abaf815391c2b2b7cadd21168"},
 ]
 
 [package.dependencies]
 PyYAML = ">=6.0,<7.0"
-typer = ">=0.6.1,<0.7.0"
+rich = ">=12.6,<13.0"
+typer = ">=0.6.1,<0.8"
 
 [[package]]
 name = "rich"
@@ -2696,4 +2697,4 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.11"
-content-hash = "2441a2a06acab8c949907b661d3b6d94a3e345b9ec1b00345358f030659a9f22"
+content-hash = "bf4ecef254ded07267f1659c6cfc86f6452a04ba320a303473afef772f8d6213"
