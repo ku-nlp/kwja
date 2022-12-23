@@ -8,7 +8,6 @@ import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks import BasePredictionWriter
 from rhoknp import Morpheme, Sentence
-from rhoknp.units.morpheme import MorphemeAttributes
 
 from kwja.datamodule.datasets import CharDataset, CharInferenceDataset
 from kwja.datamodule.datasets.char_dataset import CharExampleSet
@@ -40,18 +39,16 @@ class CharModuleWriter(BasePredictionWriter):
     def create_morpheme(surf: str, norm: str) -> Morpheme:
         return Morpheme(
             surf,
-            MorphemeAttributes(
-                reading="_",
-                lemma=norm or surf,
-                pos="未定義語",
-                pos_id=15,
-                subpos="その他",
-                subpos_id=1,
-                conjtype="*",
-                conjtype_id=0,
-                conjform="*",
-                conjform_id=0,
-            ),
+            reading="_",
+            lemma=norm or surf,
+            pos="未定義語",
+            pos_id=15,
+            subpos="その他",
+            subpos_id=1,
+            conjtype="*",
+            conjtype_id=0,
+            conjform="*",
+            conjform_id=0,
         )
 
     def write_on_batch_end(
