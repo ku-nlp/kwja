@@ -16,7 +16,6 @@ from pytorch_lightning.callbacks import BasePredictionWriter
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
 from rhoknp.cohesion import ExophoraReferent, RelTag, RelTagList
 from rhoknp.props import DepType, NamedEntity, NamedEntityCategory, SemanticsDict
-from rhoknp.units.morpheme import MorphemeAttributes
 
 from kwja.datamodule.datasets import WordDataset, WordInferenceDataset
 from kwja.datamodule.datasets.word_dataset import WordExampleSet
@@ -154,7 +153,7 @@ class WordModuleWriter(BasePredictionWriter):
             )
             morphemes = self._create_morphemes(
                 [m.text for m in document.morphemes],
-                [m.lemma if m.attributes is not None else m.text for m in document.morphemes],
+                [m.lemma for m in document.morphemes],
                 word_reading_preds,
                 pos_preds,
                 subpos_preds,
@@ -223,7 +222,7 @@ class WordModuleWriter(BasePredictionWriter):
 
             # create lemma using norm, conjtype and conjform
             if conjtype == "*":
-                lemma = norm
+                lemma: str = norm
             else:
                 for ambig_surf_spec in self.ambig_surf_specs:
                     if conjtype != ambig_surf_spec["conjtype"]:
@@ -279,7 +278,8 @@ class WordModuleWriter(BasePredictionWriter):
                             "values": semantics_list,
                         }
                     )
-            attributes = MorphemeAttributes(
+            morpheme = Morpheme(
+                word,
                 reading=reading,
                 lemma=lemma,
                 pos=pos,
@@ -290,27 +290,40 @@ class WordModuleWriter(BasePredictionWriter):
                 conjtype_id=conjtype_id,
                 conjform=conjform,
                 conjform_id=conjform_id,
+                semantics=SemanticsDict(semantics),
             )
-            morpheme = Morpheme(word, attributes=attributes, semantics=SemanticsDict(semantics))
+
             morphemes.append(morpheme)
             if len(homograph_ops) >= 1:
                 range_list = []
                 for homograph_op in homograph_ops:
                     range_list.append(range(len(homograph_op["values"])))
                 for op_idx_list in itertools.product(*range_list):
-                    attributes2 = copy.deepcopy(attributes)
+                    lemma2 = lemma
                     semantics2 = copy.deepcopy(semantics)
                     for i, j in enumerate(op_idx_list):
                         homograph_op = homograph_ops[i]
                         v = homograph_op["values"][j]
                         if homograph_op["type"] == "lemma":
-                            setattr(attributes2, "lemma", v)
+                            lemma2 = v
                         elif homograph_op["type"] == "semantics":
                             semantics2 = v
                         else:
                             raise NotImplementedError
                     homograph = Morpheme(
-                        word, attributes=attributes2, semantics=SemanticsDict(semantics2), homograph=True
+                        word,
+                        reading=reading,
+                        lemma=lemma2,
+                        pos=pos,
+                        pos_id=pos_id,
+                        subpos=subpos,
+                        subpos_id=subpos_id,
+                        conjtype=conjtype,
+                        conjtype_id=conjtype_id,
+                        conjform=conjform,
+                        conjform_id=conjform_id,
+                        semantics=SemanticsDict(semantics2),
+                        homograph=True,
                     )
                     # rhoknp coverts homographs into KNP's ALT features
                     morpheme.homographs.append(homograph)

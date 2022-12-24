@@ -218,6 +218,7 @@ class SubScorer:
                 if global_index in global_index2predicate_pred:
                     predicate_pred = global_index2predicate_pred[global_index]
                     args_pred = predicate_pred.pas.get_arguments(case, relax=False)
+                    args_pred = self._filter_args(args_pred, predicate_pred)
                 else:
                     args_pred = []
                 # this project predicts one argument for one predicate
@@ -232,6 +233,7 @@ class SubScorer:
                         args_gold_relaxed += predicate_gold.pas.get_arguments(
                             "判ガ", relax=True, include_nonidentical=True
                         )
+                    args_gold_relaxed = self._filter_args(args_gold_relaxed, predicate_gold)
                 else:
                     args_gold = args_gold_relaxed = []
 
@@ -276,10 +278,16 @@ class SubScorer:
     def _filter_args(self, args: List[Argument], predicate: Predicate) -> List[Argument]:
         filtered_args = []
         for arg in args:
+            arg = copy.copy(arg)
+            if arg.case.endswith("≒"):
+                arg.case = arg.case[:-1]
+            if arg.case == "判ガ":
+                arg.case = "ガ"
+            if arg.case == "ノ？":
+                arg.case = "ノ"
             if isinstance(arg, ExophoraArgument):
-                arg = copy.copy(arg)
                 arg.exophora_referent.index = None  # 「不特定:人１」なども「不特定:人」として扱う
-                if arg.exophora_referent not in self.exophora_referents:  # filter out non-target exophors
+                if arg.exophora_referent not in self.exophora_referents:
                     continue
             else:
                 assert isinstance(arg, EndophoraArgument)
@@ -431,7 +439,7 @@ class SubScorer:
 
     @staticmethod
     def _filter_mentions(tgt_mentions: Set[BasePhrase], src_mention: BasePhrase) -> Set[BasePhrase]:
-        """filter out cataphora"""
+        """filter out cataphora mentions"""
         return {tgt_mention for tgt_mention in tgt_mentions if tgt_mention.global_index < src_mention.global_index}
 
     def _filter_exophora_referents(self, exophora_referents: List[ExophoraReferent]) -> Set[str]:

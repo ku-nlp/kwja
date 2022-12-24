@@ -116,7 +116,7 @@ class CharDataset(BaseDataset):
             if normalized != morpheme.text:
                 logger.warning(f"apply normalization ({morpheme.text} -> {normalized})")
                 morpheme.text = normalized
-                setattr(morpheme.attributes, "lemma", normalize("NFKC", morpheme.lemma).translate(TRANSLATION_TABLE))
+                morpheme.lemma = normalize("NFKC", morpheme.lemma).translate(TRANSLATION_TABLE)
         return document
 
     def _get_tokenized_len(self, source: Union[Document, Sentence]) -> int:

@@ -69,8 +69,7 @@ class JumanppAugmenter:
     ) -> None:
         for original_morpheme, augmented_morpheme in zip(original_sentence.morphemes, augmented_sentence.morphemes):
             # Jumanpp may override reading
-            assert augmented_morpheme.attributes is not None
-            augmented_morpheme.attributes.reading = original_morpheme.reading
+            augmented_morpheme.reading = original_morpheme.reading
             if update_original and not original_sentence.need_knp:
                 # add Semantics
                 for k, v in augmented_morpheme.semantics.items():
