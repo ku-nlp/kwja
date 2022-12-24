@@ -8,6 +8,8 @@ defaults:
 checkpoint_path: null  # path to trained checkpoint
 eval_set: test  # test or valid
 
+# TODO: fix `test.py`, `predict.py`, and `analyze.py` for the following settings to take effect
+
 document_split_stride: 1
 
 # for typo correction
