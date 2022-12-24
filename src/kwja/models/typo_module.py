@@ -16,7 +16,6 @@ from kwja.utils.util import filter_dict_items
 class TypoModule(pl.LightningModule):
     def __init__(self, hparams: DictConfig) -> None:
         super().__init__()
-        OmegaConf.resolve(hparams)
         self.save_hyperparameters(hparams)
 
         self.char_encoder: CharEncoder = CharEncoder(hparams)

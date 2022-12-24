@@ -19,7 +19,6 @@ from kwja.utils.util import filter_dict_items
 class CharModule(pl.LightningModule):
     def __init__(self, hparams: DictConfig) -> None:
         super().__init__()
-        OmegaConf.resolve(hparams)
         self.save_hyperparameters(hparams)
 
         self.valid_corpora = list(hparams.datamodule.valid.keys()) if "valid" in hparams.datamodule else []

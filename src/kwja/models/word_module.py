@@ -41,7 +41,6 @@ class WordTask(Enum):
 class WordModule(pl.LightningModule):
     def __init__(self, hparams: DictConfig) -> None:
         super().__init__()
-        OmegaConf.resolve(hparams)
         self.save_hyperparameters(hparams)
         self.training_tasks = list(map(WordTask, self.hparams.training_tasks))
 
