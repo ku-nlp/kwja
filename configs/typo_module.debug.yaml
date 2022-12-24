@@ -3,7 +3,7 @@ defaults:
   - callbacks: [early_stopping, model_checkpoint, model_summary, typo_module_writer, progress_bar]
   - datamodule: typo
   - dataset: typo
-  - logger: wandb
+  - logger: null
   - encoder: char_roberta_base
   - module: typo
   - optimizer: adamw

@@ -3,7 +3,7 @@ defaults:
   - callbacks: [early_stopping, model_checkpoint, model_summary, word_module_writer, progress_bar]
   - datamodule: word
   - dataset: word
-  - logger: wandb
+  - logger: null
   - encoder: word_roberta_base
   - module: word
   - optimizer: adamw
