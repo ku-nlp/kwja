@@ -1,6 +1,6 @@
 defaults:
   - base
-  - callbacks: [early_stopping, model_checkpoint, model_summary, progress_bar]
+  - callbacks: [early_stopping, model_checkpoint, model_summary, word_module_writer, progress_bar]
   - datamodule: word
   - dataset: word
   - logger: wandb
@@ -12,7 +12,7 @@ defaults:
   - _self_
 
 max_seq_length: 128
-do_predict_after_train: false
+do_predict_after_train: true
 checkpoint_path: ""
 document_split_stride: 2
 is_split_into_words: false
