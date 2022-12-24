@@ -63,7 +63,7 @@ def main(cfg: DictConfig):
     model: pl.LightningModule = hydra.utils.instantiate(cfg.module.cls, hparams=cfg, _recursive_=False)
 
     trainer.fit(model=model, datamodule=datamodule)
-    trainer.test(model=model, datamodule=datamodule, ckpt_path="best")
+    trainer.test(model=model, datamodule=datamodule, ckpt_path="best" if not trainer.fast_dev_run else None)
     if cfg.do_predict_after_train:
         trainer.predict(
             model=model,
