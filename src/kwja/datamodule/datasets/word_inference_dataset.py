@@ -3,7 +3,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Literal, Optional, Union
 
 import torch
 from omegaconf import ListConfig
@@ -47,7 +47,6 @@ class WordInferenceDataset(BaseDataset):
         doc_id_prefix: Optional[str] = None,
         juman_file: Optional[Path] = None,
         knp_file: Optional[Path] = None,
-        is_split_into_words: bool = False,
         **_,  # accept reading_resource_path
     ) -> None:
         if knp_file is not None:
@@ -60,7 +59,14 @@ class WordInferenceDataset(BaseDataset):
                 ]
         else:
             documents = self._create_documents_from_texts(list(texts), doc_id_prefix)
-        self.is_split_into_words = is_split_into_words
+        if model_name_or_path in [
+            "nlp-waseda/roberta-base-japanese",
+            "nlp-waseda/roberta-large-japanese",
+            "nlp-waseda/roberta-large-japanese-seq512",
+        ]:
+            self.tokenizer_input_format: Literal["words", "text"] = "words"
+        else:
+            self.tokenizer_input_format = "text"
         super().__init__(documents, document_split_stride, model_name_or_path, max_seq_length, tokenizer_kwargs or {})
 
         self.exophora_referents = [ExophoraReferent(s) for s in exophora_referents]
@@ -150,15 +156,15 @@ class WordInferenceDataset(BaseDataset):
         examples = []
         idx = 0
         for document in track(documents, description="Loading examples"):
-            words: Union[List[str], str] = [m.text for m in document.morphemes]
-            if self.is_split_into_words is False:
-                words = " ".join(words)
+            tokenizer_input: Union[List[str], str] = [m.text for m in document.morphemes]
+            if self.tokenizer_input_format == "text":
+                tokenizer_input = " ".join(tokenizer_input)
             encoding: Encoding = self.tokenizer(
-                words,
+                tokenizer_input,
                 padding=PaddingStrategy.MAX_LENGTH,
                 truncation=False,
                 max_length=self.max_seq_length - self.num_special_tokens,
-                is_split_into_words=self.is_split_into_words,
+                is_split_into_words=self.tokenizer_input_format == "words",
             ).encodings[0]
             if len(encoding.ids) > self.max_seq_length - self.num_special_tokens:
                 continue
@@ -249,10 +255,12 @@ class WordInferenceDataset(BaseDataset):
         return subword_map
 
     def _get_tokenized_len(self, source: Union[Document, Sentence]) -> int:
-        words: Union[List[str], str] = [m.text for m in source.morphemes]
-        if self.is_split_into_words is False:
-            words = " ".join(words)
-        encoding = self.tokenizer(words, add_special_tokens=False, is_split_into_words=self.is_split_into_words)[0]
+        tokenizer_input: Union[List[str], str] = [m.text for m in source.morphemes]
+        if self.tokenizer_input_format == "text":
+            tokenizer_input = " ".join(tokenizer_input)
+        encoding = self.tokenizer(
+            tokenizer_input, add_special_tokens=False, is_split_into_words=self.tokenizer_input_format == "words"
+        ).encodings[0]
         return len(encoding.ids)
 
     @staticmethod
