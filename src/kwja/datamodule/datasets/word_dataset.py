@@ -110,7 +110,9 @@ class WordDataset(BaseDataset):
         self.index_to_special: Dict[int, str] = {v: k for k, v in self.special_to_index.items()}
         self.reading_resource_path = Path(reading_resource_path)
         self.reading2id = get_reading2id(str(self.reading_resource_path / "vocab.txt"))
-        self.reading_aligner = ReadingAligner(self.tokenizer, KanjiDic(str(self.reading_resource_path / "kanjidic")))
+        self.reading_aligner = ReadingAligner(
+            self.tokenizer, self.tokenizer_input_format, KanjiDic(str(self.reading_resource_path / "kanjidic"))
+        )
         self.examples: List[WordExampleSet] = self._load_examples(self.documents)
         self.special_encoding: Encoding = self.tokenizer(
             self.special_tokens,
