@@ -2,8 +2,9 @@ import copy
 import logging
 import re
 import unicodedata
+from collections import defaultdict
 from dataclasses import dataclass
-from typing import Dict, Final, List, Optional, Tuple, Union
+from typing import Dict, Final, List, Literal, Optional, Tuple, Union
 
 import jaconv
 import numpy as np
@@ -170,25 +171,30 @@ def get_reading2id(path: str) -> Dict[str, int]:
 
 
 class ReadingAligner:
-    DELIMITER = "▁"
     kana_re = re.compile("^[\u3041-\u30FF]+$")
 
-    def __init__(self, tokenizer: PreTrainedTokenizerBase, kanji_dic: KanjiDic) -> None:
+    def __init__(
+        self, tokenizer: PreTrainedTokenizerBase, tokenizer_input_format: Literal["words", "text"], kanji_dic: KanjiDic
+    ) -> None:
         self.tokenizer = tokenizer
+        self.tokenizer_input_format = tokenizer_input_format
         self.kanji_dic = kanji_dic
 
     def align(self, sequence: Union[Sentence, Document]) -> List[Tuple[str, str]]:
         reading_list: List[str] = []
 
         # assumption: morphemes are never combined
-        subword_list: List[str] = self.tokenizer.tokenize(" ".join(m.text for m in sequence.morphemes))
-        subwords_per_morpheme = []
-        for subword in subword_list:
-            if subword[0] == self.DELIMITER:
-                subwords_per_morpheme.append([subword[1:]])
-            else:
-                assert len(subwords_per_morpheme) > 0
-                subwords_per_morpheme[-1].append(subword)
+        tokenizer_input: Union[List[str], str] = [m.text for m in sequence.morphemes]
+        if self.tokenizer_input_format == "text":
+            tokenizer_input = " ".join(tokenizer_input)
+        encoding = self.tokenizer(
+            tokenizer_input, add_special_tokens=False, is_split_into_words=self.tokenizer_input_format == "words"
+        ).encodings[0]
+        subword_list = self.tokenizer.convert_ids_to_tokens(encoding.ids)
+        word_id2subwords = defaultdict(list)
+        for token_id, word_id in enumerate(encoding.word_ids):
+            word_id2subwords[word_id].append(self.tokenizer.decode(encoding.ids[token_id]))
+        subwords_per_morpheme = [value for value in word_id2subwords.values()]
         # assert(len(subwords_per_morpheme) == len(sequence.morphemes))
         if len(subwords_per_morpheme) != len(sequence.morphemes):
             logger.warning(f"something wrong with subword segmentation: {subword_list}")
@@ -436,7 +442,15 @@ if __name__ == "__main__":
 
     tokenizer = AutoTokenizer.from_pretrained(args.model)
     kanjidic = KanjiDic(args.kanjidic)
-    aligner = ReadingAligner(tokenizer, kanjidic)
+    if args.model in [
+        "nlp-waseda/roberta-base-japanese",
+        "nlp-waseda/roberta-large-japanese",
+        "nlp-waseda/roberta-large-japanese-seq512",
+    ]:
+        tokenizer_input_format: Literal["words", "text"] = "words"
+    else:
+        tokenizer_input_format = "text"
+    aligner = ReadingAligner(tokenizer, tokenizer_input_format, kanjidic)
 
     import glob
     from collections import Counter

@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Literal, Tuple, Union
 
 import torch
 from omegaconf import ListConfig
@@ -71,10 +71,16 @@ class WordDataset(BaseDataset):
         model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
         max_seq_length: int = 512,
         tokenizer_kwargs: dict = None,
-        is_split_into_words: bool = False,
     ) -> None:
         self.path = Path(path)
-        self.is_split_into_words = is_split_into_words
+        if model_name_or_path in [
+            "nlp-waseda/roberta-base-japanese",
+            "nlp-waseda/roberta-large-japanese",
+            "nlp-waseda/roberta-large-japanese-seq512",
+        ]:
+            self.tokenizer_input_format: Literal["words", "text"] = "words"
+        else:
+            self.tokenizer_input_format = "text"
         super().__init__(
             self.path,
             document_split_stride,
@@ -104,7 +110,9 @@ class WordDataset(BaseDataset):
         self.index_to_special: Dict[int, str] = {v: k for k, v in self.special_to_index.items()}
         self.reading_resource_path = Path(reading_resource_path)
         self.reading2id = get_reading2id(str(self.reading_resource_path / "vocab.txt"))
-        self.reading_aligner = ReadingAligner(self.tokenizer, KanjiDic(str(self.reading_resource_path / "kanjidic")))
+        self.reading_aligner = ReadingAligner(
+            self.tokenizer, self.tokenizer_input_format, KanjiDic(str(self.reading_resource_path / "kanjidic"))
+        )
         self.examples: List[WordExampleSet] = self._load_examples(self.documents)
         self.special_encoding: Encoding = self.tokenizer(
             self.special_tokens,
@@ -134,15 +142,15 @@ class WordDataset(BaseDataset):
         examples = []
         idx = 0
         for document in track(documents, description="Loading examples"):
-            words: Union[List[str], str] = [m.text for m in document.morphemes]
-            if self.is_split_into_words is False:
-                words = " ".join(words)
+            tokenizer_input: Union[List[str], str] = [m.text for m in document.morphemes]
+            if self.tokenizer_input_format == "text":
+                tokenizer_input = " ".join(tokenizer_input)
             encoding: Encoding = self.tokenizer(
-                words,
+                tokenizer_input,
                 padding=PaddingStrategy.MAX_LENGTH,
                 truncation=False,
                 max_length=self.max_seq_length - self.num_special_tokens,
-                is_split_into_words=self.is_split_into_words,
+                is_split_into_words=self.tokenizer_input_format == "words",
             ).encodings[0]
             if len(encoding.ids) > self.max_seq_length - self.num_special_tokens:
                 continue
@@ -427,8 +435,10 @@ class WordDataset(BaseDataset):
         return scores_set, candidates_set  # word level
 
     def _get_tokenized_len(self, source: Union[Document, Sentence]) -> int:
-        words: Union[List[str], str] = [m.text for m in source.morphemes]
-        if self.is_split_into_words is False:
-            words = " ".join(words)
-        encoding = self.tokenizer(words, add_special_tokens=False, is_split_into_words=self.is_split_into_words)[0]
+        tokenizer_input: Union[List[str], str] = [m.text for m in source.morphemes]
+        if self.tokenizer_input_format == "text":
+            tokenizer_input = " ".join(tokenizer_input)
+        encoding = self.tokenizer(
+            tokenizer_input, add_special_tokens=False, is_split_into_words=self.tokenizer_input_format == "words"
+        ).encodings[0]
         return len(encoding.ids)
