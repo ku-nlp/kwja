@@ -10,7 +10,7 @@ import wandb
 from dotenv import load_dotenv
 from omegaconf import DictConfig, ListConfig, OmegaConf
 from pytorch_lightning.callbacks import Callback
-from pytorch_lightning.loggers import LightningLoggerBase
+from pytorch_lightning.loggers import Logger
 from pytorch_lightning.utilities.warnings import PossibleUserWarning
 
 from kwja.datamodule.datamodule import DataModule
@@ -36,7 +36,7 @@ def main(cfg: DictConfig):
             cfg.devices = None
     cfg.seed = pl.seed_everything(seed=cfg.seed, workers=True)
 
-    logger: Optional[LightningLoggerBase] = cfg.get("logger") and hydra.utils.instantiate(cfg.get("logger"))
+    logger: Optional[Logger] = cfg.get("logger") and hydra.utils.instantiate(cfg.get("logger"))
     callbacks: List[Callback] = list(map(hydra.utils.instantiate, cfg.get("callbacks", {}).values()))
 
     # Calculate gradient_accumulation_steps assuming DDP
