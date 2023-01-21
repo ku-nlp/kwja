@@ -16,27 +16,11 @@ from rhoknp.utils.reader import chunk_by_document
 
 import kwja
 from kwja.callbacks.word_module_discourse_writer import WordModuleDiscourseWriter
-from kwja.cli.utils import download_checkpoint_from_url, prepare_device, suppress_debug_info
+from kwja.cli.utils import download_checkpoint, prepare_device, suppress_debug_info
 from kwja.datamodule.datamodule import DataModule
 from kwja.models.char_module import CharModule
 from kwja.models.typo_module import TypoModule
 from kwja.models.word_module import WordModule
-
-_CHECKPOINT_BASE_URL = "https://lotus.kuee.kyoto-u.ac.jp/kwja"
-MODEL_SIZE2CHECKPOINT_URL = {
-    "base": {
-        "typo": f"{_CHECKPOINT_BASE_URL}/v1.0/typo_roberta-base-wwm_seq512.ckpt",
-        "char": f"{_CHECKPOINT_BASE_URL}/v1.0/char_roberta-base-wwm_seq512.ckpt",
-        "word": f"{_CHECKPOINT_BASE_URL}/v1.0/word_roberta-base_seq128.ckpt",
-        "word_discourse": f"{_CHECKPOINT_BASE_URL}/v1.0/disc_roberta-base_seq128.ckpt",
-    },
-    "large": {
-        "typo": f"{_CHECKPOINT_BASE_URL}/v1.0/typo_roberta-large-wwm_seq512.ckpt",
-        "char": f"{_CHECKPOINT_BASE_URL}/v1.0/char_roberta-large-wwm_seq512.ckpt",
-        "word": f"{_CHECKPOINT_BASE_URL}/v1.0/word_roberta-large_seq256.ckpt",
-        "word_discourse": f"{_CHECKPOINT_BASE_URL}/v1.0/disc_roberta-large_seq256.ckpt",
-    },
-}
 
 
 class Device(str, Enum):
@@ -101,7 +85,7 @@ class CLIProcessor:
         return split_texts
 
     def load_typo(self) -> None:
-        typo_checkpoint_path: Path = download_checkpoint_from_url(MODEL_SIZE2CHECKPOINT_URL[self.model_size]["typo"])
+        typo_checkpoint_path: Path = download_checkpoint(task="typo", model_size=self.model_size)
         self.typo_model = TypoModule.load_from_checkpoint(str(typo_checkpoint_path), map_location=self.device)
         extended_vocab_path = resource_path / "typo_correction/multi_char_vocab.txt"
         if self.typo_model is None:
@@ -140,7 +124,7 @@ class CLIProcessor:
         del self.typo_model, self.typo_trainer
 
     def load_char(self) -> None:
-        char_checkpoint_path: Path = download_checkpoint_from_url(MODEL_SIZE2CHECKPOINT_URL[self.model_size]["char"])
+        char_checkpoint_path: Path = download_checkpoint(task="char", model_size=self.model_size)
         self.char_model = CharModule.load_from_checkpoint(str(char_checkpoint_path), map_location=self.device)
         if self.char_model is None:
             raise ValueError("char model does not exist")
@@ -175,7 +159,7 @@ class CLIProcessor:
         del self.char_model, self.char_trainer
 
     def load_word(self) -> None:
-        word_checkpoint_path: Path = download_checkpoint_from_url(MODEL_SIZE2CHECKPOINT_URL[self.model_size]["word"])
+        word_checkpoint_path: Path = download_checkpoint(task="word", model_size=self.model_size)
         word_checkpoint = torch.load(str(word_checkpoint_path), map_location=lambda storage, loc: storage)
         hparams = word_checkpoint["hyper_parameters"]
         reading_resource_path = resource_path / "reading_prediction"
@@ -227,9 +211,7 @@ class CLIProcessor:
         del self.word_model, self.word_trainer
 
     def load_word_discourse(self) -> None:
-        word_discourse_checkpoint_path: Path = download_checkpoint_from_url(
-            MODEL_SIZE2CHECKPOINT_URL[self.model_size]["word_discourse"]
-        )
+        word_discourse_checkpoint_path: Path = download_checkpoint(task="word_discourse", model_size=self.model_size)
         word_discourse_checkpoint = torch.load(
             str(word_discourse_checkpoint_path), map_location=lambda storage, loc: storage
         )

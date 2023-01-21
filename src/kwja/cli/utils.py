@@ -16,6 +16,22 @@ ENV_KWJA_CACHE_DIR = "KWJA_CACHE_DIR"
 ENV_XDG_CACHE_HOME = "XDG_CACHE_HOME"
 DEFAULT_CACHE_DIR = Path.home() / ".cache"
 
+_CHECKPOINT_BASE_URL = "https://lotus.kuee.kyoto-u.ac.jp"
+_CHECKPOINT_FILE_NAMES = {
+    "base": {
+        "typo": "typo_roberta-base-wwm_seq512.ckpt",
+        "char": "char_roberta-base-wwm_seq512.ckpt",
+        "word": "word_roberta-base_seq128.ckpt",
+        "word_discourse": "disc_roberta-base_seq128.ckpt",
+    },
+    "large": {
+        "typo": "typo_roberta-large-wwm_seq512.ckpt",
+        "char": "char_roberta-large-wwm_seq512.ckpt",
+        "word": "word_roberta-large_seq256.ckpt",
+        "word_discourse": "disc_roberta-large_seq256.ckpt",
+    },
+}
+
 logger = logging.getLogger(__name__)
 
 
@@ -28,8 +44,9 @@ def suppress_debug_info() -> None:
     hf_logging.set_verbosity(hf_logging.ERROR)
 
 
-def download_checkpoint_from_url(
-    url: str,
+def download_checkpoint(
+    task: str,
+    model_size: str,
     checkpoint_dir: Optional[Union[str, Path]] = None,
     progress: bool = True,
 ) -> Path:
@@ -37,7 +54,8 @@ def download_checkpoint_from_url(
     If the object is already present in `checkpoint_dir`, just return the path to the object.
 
     Args:
-        url: URL of the object to download
+        task: typo, char, word, or word_discourse
+        model_size: base or large
         checkpoint_dir: directory in which to save the object
         progress: whether to display a progress bar to stderr
     """
@@ -48,12 +66,14 @@ def download_checkpoint_from_url(
         checkpoint_dir = Path(checkpoint_dir)
     checkpoint_dir.mkdir(exist_ok=True, parents=True)
 
-    parts = urlparse(url)
+    remote_checkpoint_path = Path("/kwja") / _get_model_version() / _CHECKPOINT_FILE_NAMES[model_size][task]
+    checkpoint_url = _CHECKPOINT_BASE_URL + str(remote_checkpoint_path)
+    parts = urlparse(checkpoint_url)
     filename = os.path.basename(parts.path)
     checkpoint_path = checkpoint_dir / filename
     if checkpoint_path.exists() is False:
-        sys.stderr.write(f'Downloading: "{url}" to {checkpoint_path}\n')
-        download_url_to_file(url, str(checkpoint_path), None, progress=progress)
+        sys.stderr.write(f'Downloading: "{checkpoint_url}" to {checkpoint_path}\n')
+        download_url_to_file(checkpoint_url, str(checkpoint_path), None, progress=progress)
     return checkpoint_path
 
 
