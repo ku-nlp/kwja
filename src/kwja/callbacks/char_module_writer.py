@@ -7,7 +7,7 @@ from typing import Any, List, Optional, Sequence, TextIO, Union
 import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks import BasePredictionWriter
-from rhoknp import Morpheme, Sentence
+from rhoknp import Document, Morpheme, Sentence
 
 from kwja.datamodule.datasets import CharDataset, CharInferenceDataset
 from kwja.datamodule.datasets.char_dataset import CharExampleSet
@@ -90,8 +90,11 @@ class CharModuleWriter(BasePredictionWriter):
                 if input_id not in special_ids
             ]
             char_idx = 0
-            document = dataset.doc_id2document[example.doc_id]
-            for sentence in document.sentences:
+            orig_document = dataset.doc_id2document[example.doc_id]
+            document = Document.from_sentences(orig_document.sentences)  # メモリリーク対策
+            document.doc_id = orig_document.doc_id
+            for orig_sentence, sentence in zip(orig_document.sentences, document.sentences):
+                sentence.sid = orig_sentence.sid
                 Morpheme.count = 0
                 morphemes: List[Morpheme] = []
                 word_surf: str = ""
