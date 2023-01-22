@@ -1,4 +1,5 @@
 import json
+from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Union
 
@@ -37,12 +38,13 @@ class TypoDataset(Dataset):
         self.max_seq_length: int = max_seq_length
 
         self.opn2id: Dict[str, int] = self.get_opn2id(path=Path(extended_vocab_path))
+        self.stash: Dict[int, List[str]] = defaultdict(list)
 
     def __len__(self) -> int:
         return len(self.documents)
 
     def __getitem__(self, index: int) -> Dict[str, Union[torch.Tensor, str]]:
-        return self.encode(self.documents[index])
+        return self.encode(index)
 
     @staticmethod
     def load_documents(path: Path) -> List[Dict[str, Union[str, List[str]]]]:
@@ -60,7 +62,8 @@ class TypoDataset(Dataset):
                 opn2id[str(line.strip())] = len(opn2id)
         return opn2id
 
-    def encode(self, document: Dict[str, Union[str, List[str]]]) -> Dict[str, Union[torch.Tensor, str]]:
+    def encode(self, example_id: int) -> Dict[str, Union[torch.Tensor, str]]:
+        document = self.documents[example_id]
         if isinstance(document["pre_text"], list):
             raise ValueError('document["pre_text"] must be string')
         encoding: BatchEncoding = self.tokenizer(
@@ -94,6 +97,7 @@ class TypoDataset(Dataset):
         ins_labels = ins_labels + [self.pad_token_id] * (self.max_seq_length - len(ins_labels))
 
         return {
+            "example_ids": torch.tensor(example_id, dtype=torch.long),
             "input_ids": torch.tensor(input_ids, dtype=torch.long),
             "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
             "kdr_labels": torch.tensor(kdr_labels, dtype=torch.long),

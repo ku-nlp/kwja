@@ -10,6 +10,7 @@ from omegaconf import DictConfig
 from pytorch_lightning.callbacks import BasePredictionWriter
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
+from kwja.datamodule.datasets import TypoDataset, TypoInferenceDataset
 from kwja.utils.constants import TOKEN2TYPO_OPN
 
 
@@ -112,6 +113,8 @@ class TypoModuleWriter(BasePredictionWriter):
         batch_idx: int,
         dataloader_idx: int,
     ) -> None:
+        dataloaders = trainer.predict_dataloaders
+        dataset: Union[TypoDataset, TypoInferenceDataset] = dataloaders[dataloader_idx].dataset
         kdr_preds: List[List[str]] = self.convert_id2opn(
             opn_ids_list=self.get_opn_ids_list(
                 batch_values=prediction["kdr_values"],
@@ -129,8 +132,13 @@ class TypoModuleWriter(BasePredictionWriter):
             opn_prefix="I",
         )
         results = []
-        for idx in range(len(prediction["kdr_values"])):
+        for idx, example_id in enumerate(prediction["example_ids"].tolist()):
+            if example_id in dataset.stash:
+                texts = dataset.stash.pop(example_id)
+                results.extend(texts)
             seq_len: int = len(prediction["texts"][idx])
+            if seq_len == 0:
+                continue
             # the prediction of the dummy token (= "<dummy>") at the end of the input is used for insertion only.
             results.append(
                 self.apply_opn(
@@ -139,6 +147,10 @@ class TypoModuleWriter(BasePredictionWriter):
                     inss=ins_preds[idx][: seq_len + 1],
                 )
             )
+        if batch_idx == len(dataloaders[dataloader_idx]) - 1:
+            for texts in dataset.stash.values():
+                results.extend(texts)
+            dataset.stash.clear()
 
         output_string = "".join(result + "\nEOD\n" for result in results)  # Append EOD to the end of each result
         if isinstance(self.destination, Path):
