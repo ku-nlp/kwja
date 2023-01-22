@@ -95,6 +95,7 @@ class CharModuleWriter(BasePredictionWriter):
             document.doc_id = orig_document.doc_id
             for orig_sentence, sentence in zip(orig_document.sentences, document.sentences):
                 sentence.sid = orig_sentence.sid
+                sentence.misc_comment = orig_sentence.misc_comment
                 Morpheme.count = 0
                 morphemes: List[Morpheme] = []
                 word_surf: str = ""

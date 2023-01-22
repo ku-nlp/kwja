@@ -14,7 +14,7 @@ class TypoInferenceDataset(Dataset):
     def __init__(
         self,
         texts: List[str],
-        model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
+        model_name_or_path: str = "ku-nlp/roberta-base-japanese-char-wwm",
         max_seq_length: int = 512,
         tokenizer_kwargs: dict = None,
         **_,  # accept `extended_vocab_path` as a keyword argument
