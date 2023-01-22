@@ -78,7 +78,8 @@ class CLIProcessor:
             input_text_with_eod: str = stripped_input_text + "\nEOD"
             for text in input_text_with_eod.split("\n"):
                 if text == "EOD":
-                    split_texts.append(split_text.rstrip())
+                    normalized = split_text.replace("${", "$␣{").replace("#", "♯")
+                    split_texts.append(normalized.rstrip())
                     split_text = ""
                 else:
                     split_text += f"{text}\n"
