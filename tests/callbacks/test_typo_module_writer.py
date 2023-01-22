@@ -78,11 +78,7 @@ def test_write_on_batch_end():
             "ins_indices": ins_indices,
         }
 
-        dataset = TypoInferenceDataset(
-            texts=ListConfig(texts),
-            model_name_or_path="ku-nlp/roberta-base-japanese-char-wwm",
-            max_seq_length=9,
-        )
+        dataset = TypoInferenceDataset(ListConfig(texts), max_seq_length=9)
         trainer = MockTrainer([DataLoader(dataset)])
         writer.write_on_batch_end(trainer, ..., prediction, ..., ..., 0, 0)
         with open(writer.destination) as f:
