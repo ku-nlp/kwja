@@ -136,6 +136,9 @@ class SequenceSplitter:
         self.sequence_lengths = sequence_lengths
         self.max_length = max_length
         self.stride = stride
+        self._cumulative_lengths = [0]
+        for length in sequence_lengths:
+            self._cumulative_lengths.append(self._cumulative_lengths[-1] + length)
 
     def split_with_overlap(self) -> Generator[Tuple[SpanCandidate, list], None, None]:
         """
@@ -151,7 +154,7 @@ class SequenceSplitter:
             yield span, candidates
         return None
 
-    def search_sub_sequence_span(self, prev_start, prev_end) -> Tuple[SpanCandidate, list]:
+    def search_sub_sequence_span(self, prev_start, prev_end) -> Tuple[SpanCandidate, List[SpanCandidate]]:
         candidates: List[SpanCandidate] = []
         # search start index
         for start in range(prev_start, len(self.sequence_lengths)):
@@ -159,29 +162,27 @@ class SequenceSplitter:
                 return self._choose_best_candidate(candidates), candidates  # return the last span
             # search end index
             end = prev_end + 1
-            candidates.append(SpanCandidate(1, sum(self.sequence_lengths[start:end]), start, end))
-            if sum(self.sequence_lengths[start:end]) > self.max_length:
+            candidates.append(SpanCandidate(1, self._get_sub_sequence_length(start, end), start, end))
+            if self._get_sub_sequence_length(start, end) > self.max_length:
                 continue  # even a single item exceeds the max length
             while (
-                end + 1 <= len(self.sequence_lengths) and sum(self.sequence_lengths[start : end + 1]) <= self.max_length
+                end + 1 <= len(self.sequence_lengths)
+                and self._get_sub_sequence_length(start, end + 1) <= self.max_length
             ):
                 end += 1
             if end - prev_end >= self.stride:
-                if prev_end == 0:
-                    span_candidate = SpanCandidate(end, sum(self.sequence_lengths[start:end]), start, end)  # first span
-                else:
-                    span_candidate = SpanCandidate(
-                        self.stride,
-                        sum(self.sequence_lengths[start : prev_end + self.stride]),
-                        start,
-                        prev_end + self.stride,
-                    )
-                candidates.append(span_candidate)
-                return span_candidate, candidates
+                if prev_end > 0:
+                    end = prev_end + self.stride  # non-first span
+                span = SpanCandidate(end - prev_end, self._get_sub_sequence_length(start, end), start, end)
+                candidates.append(span)
+                return span, candidates
             else:
                 # stride condition is not satisfied
-                candidates.append(SpanCandidate(end - prev_end, sum(self.sequence_lengths[start:end]), start, end))
+                candidates.append(SpanCandidate(end - prev_end, self._get_sub_sequence_length(start, end), start, end))
         return self._choose_best_candidate(candidates), candidates  # return the last span
+
+    def _get_sub_sequence_length(self, start: int, end: int) -> int:
+        return self._cumulative_lengths[end] - self._cumulative_lengths[start]
 
     def _choose_best_candidate(self, candidates: List[SpanCandidate]) -> SpanCandidate:
         return sorted(candidates, key=self._get_priority_score, reverse=True)[0]
