@@ -110,6 +110,22 @@ class BaseDataset(Dataset):
 def split_with_overlap(
     sequence_lengths: List[int], max_length: int, stride: int
 ) -> Generator[Tuple[int, int], None, None]:
+    """
+    This function splits a sequence into sub-sequences where items can be overlapped.
+    The split sub-sequences satisfy the following conditions:
+    1. The union of the sub-sequences covers the original sequence.
+    2. The length of each sub-sequence is less than or equal to `max_length`, unless the above is not violated.
+    3. The difference of the end index between two consecutive sub-sequences is equal to `stride`, unless the above are not violated.
+    4. The length of each sub-sequence is maximized.
+
+    Args:
+        sequence_lengths: A list of item lengths.
+        max_length: The maximum length of a sub-sequence span.
+        stride: The stride of the sub-sequence span.
+
+    Returns:
+        A generator of sub-sequence spans.
+    """
     prev_start, prev_end = 0, 0
     while prev_end < len(sequence_lengths):
         start, end = search_sub_document_span(sequence_lengths, max_length, stride, prev_start, prev_end)
@@ -126,11 +142,10 @@ def search_sub_document_span(
     for start in range(prev_start, len(sequence_lengths)):
         # search end index
         end = prev_end + 1
-        while end <= len(sequence_lengths):
-            if sum(sequence_lengths[start:end]) > max_length:
-                end -= 1
-                break
+        while end <= len(sequence_lengths) and sum(sequence_lengths[start:end]) <= max_length:
             end += 1
+        if end > prev_end + 1:
+            end -= 1
         if end - prev_end >= stride:
             if prev_end == 0:
                 return start, end  # first span
