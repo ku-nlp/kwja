@@ -12,7 +12,7 @@ cases = [
         "max_length": random.randint(10, 500),
         "stride": random.randint(1, 10),
     }
-    for _ in range(10)
+    for _ in range(100)
 ]
 
 

@@ -137,15 +137,18 @@ def split_with_overlap(
 def search_sub_document_span(
     sequence_lengths: List[int], max_length: int, stride: int, prev_start, prev_end
 ) -> Tuple[int, int]:
-    buff = []
+    buff: List[Tuple[int, int]] = []
     # search start index
     for start in range(prev_start, len(sequence_lengths)):
+        if start > prev_end:
+            return buff[-1][0], buff[-1][1]  # return the last span
         # search end index
         end = prev_end + 1
-        while end <= len(sequence_lengths) and sum(sequence_lengths[start:end]) <= max_length:
+        buff.append((start, end))
+        if sum(sequence_lengths[start:end]) > max_length:
+            continue  # even a single item exceeds the max length
+        while end + 1 <= len(sequence_lengths) and sum(sequence_lengths[start : end + 1]) <= max_length:
             end += 1
-        if end > prev_end + 1:
-            end -= 1
         if end - prev_end >= stride:
             if prev_end == 0:
                 return start, end  # first span
@@ -153,6 +156,4 @@ def search_sub_document_span(
                 return start, prev_end + stride
         else:
             buff.append((start, end))  # stride condition is not satisfied
-        if start >= prev_end:
-            return buff[-1][0], buff[-1][1]  # return the last span
     return buff[-1][0], buff[-1][1]  # return the last span
