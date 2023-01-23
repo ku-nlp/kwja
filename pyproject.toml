@@ -63,9 +63,6 @@ jaconv = "^0.3"
 pure-cdb = "^4.0"
 rich = "^12.4"
 
-[tool.poetry.scripts]
-kwja = "kwja.cli.cli:app"
-
 [tool.poetry.group.dev.dependencies]
 dartsclone = "^0.10.2"
 Levenshtein = "^0.20.8"
@@ -77,6 +74,9 @@ wandb = "^0.13.3"
 pytest = "^7.1"
 pytest-cov = "^4.0"
 pytest-profiling = "^1.7"
+
+[tool.poetry.scripts]
+kwja = "kwja.cli.cli:app"
 
 [build-system]
 requires = ["poetry-core"]
