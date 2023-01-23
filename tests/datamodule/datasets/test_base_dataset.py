@@ -35,7 +35,7 @@ def test_split_document():
     assert len(dataset.orig_documents) == 2
     assert [doc.doc_id for doc in dataset.orig_documents] == ["000", "1"]
     assert len(dataset.documents) == 3
-    assert [doc.doc_id for doc in dataset.documents] == ["000-split100", "000-split101", "1"]
+    assert [doc.doc_id for doc in dataset.documents] == ["000-s1i0", "000-s1i1", "1"]
 
 
 def test_split_document_overflow():
@@ -43,4 +43,4 @@ def test_split_document_overflow():
     assert len(dataset.orig_documents) == 2
     assert [doc.doc_id for doc in dataset.orig_documents] == ["000", "1"]
     assert len(dataset.documents) == 3
-    assert [doc.doc_id for doc in dataset.documents] == ["000-split100", "000-split101", "1-split100"]
+    assert [doc.doc_id for doc in dataset.documents] == ["000-s1i0", "000-s1i1", "1-s1i0"]

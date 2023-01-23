@@ -190,7 +190,7 @@ class WordModuleWriter(BasePredictionWriter):
                 self.doc_id2analyzed_sentence[self.prev_doc_id].clear()
                 self.prev_doc_id = orig_doc_id
         if batch_idx == len(dataloaders[dataloader_idx]) - 1:
-            for doc_id, sid2analyzed_sentence in self.doc_id2analyzed_sentence.items():
+            for sid2analyzed_sentence in self.doc_id2analyzed_sentence.values():
                 self.write_document(sid2analyzed_sentence)
             self.doc_id2analyzed_sentence.clear()
 

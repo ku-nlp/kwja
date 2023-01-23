@@ -96,6 +96,7 @@ class BaseDataset(Dataset):
             for sentence, sub_sentence in zip(sentences, sub_document.sentences):
                 sub_sentence.doc_id = sub_doc_id
                 sub_sentence.sid = sentence.sid
+                sub_sentence.misc_comment = sentence.misc_comment
             sub_document.doc_id = sub_doc_id
             sub_documents.append(sub_document)
             sub_idx += 1

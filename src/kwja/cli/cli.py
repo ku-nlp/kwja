@@ -78,13 +78,18 @@ class CLIProcessor:
             input_text_with_eod: str = stripped_input_text + "\nEOD"
             for text in input_text_with_eod.split("\n"):
                 if text == "EOD":
-                    split_texts.append(split_text.rstrip())
+                    # hydra.utils.instantiateを実行する際に文字列${...}を補間しようとするのを防ぐ
+                    normalized = split_text.replace("${", "$␣{")
+                    # "#"で始まる行がコメント行と誤認識されることを防ぐ
+                    normalized = normalized.replace("#", "♯")
+                    split_texts.append(normalized.rstrip())
                     split_text = ""
                 else:
                     split_text += f"{text}\n"
         return split_texts
 
     def load_typo(self) -> None:
+        typer.echo("Loading typo model", err=True)
         typo_checkpoint_path: Path = download_checkpoint(task="typo", model_size=self.model_size)
         self.typo_model = TypoModule.load_from_checkpoint(str(typo_checkpoint_path), map_location=self.device)
         extended_vocab_path = resource_path / "typo_correction/multi_char_vocab.txt"
@@ -124,6 +129,7 @@ class CLIProcessor:
         del self.typo_model, self.typo_trainer
 
     def load_char(self) -> None:
+        typer.echo("Loading char model", err=True)
         char_checkpoint_path: Path = download_checkpoint(task="char", model_size=self.model_size)
         self.char_model = CharModule.load_from_checkpoint(str(char_checkpoint_path), map_location=self.device)
         if self.char_model is None:
@@ -159,6 +165,7 @@ class CLIProcessor:
         del self.char_model, self.char_trainer
 
     def load_word(self) -> None:
+        typer.echo("Loading word model", err=True)
         word_checkpoint_path: Path = download_checkpoint(task="word", model_size=self.model_size)
         word_checkpoint = torch.load(str(word_checkpoint_path), map_location=lambda storage, loc: storage)
         hparams = word_checkpoint["hyper_parameters"]
@@ -211,6 +218,7 @@ class CLIProcessor:
         del self.word_model, self.word_trainer
 
     def load_word_discourse(self) -> None:
+        typer.echo("Loading word discourse model", err=True)
         word_discourse_checkpoint_path: Path = download_checkpoint(task="word_discourse", model_size=self.model_size)
         word_discourse_checkpoint = torch.load(
             str(word_discourse_checkpoint_path), map_location=lambda storage, loc: storage
@@ -288,8 +296,8 @@ def version_callback(value: bool) -> None:
 
 
 def model_size_callback(value: str) -> str:
-    if value not in ["base", "large"]:
-        raise typer.BadParameter("model must be one of 'base' or 'large'")
+    if value not in ["tiny", "base", "large"]:
+        raise typer.BadParameter("model must be one of 'tiny', 'base', or 'large'")
     return value
 
 
@@ -298,7 +306,7 @@ def main(
     text: Optional[str] = typer.Option(None, help="Text to be analyzed."),
     filename: Optional[Path] = typer.Option(None, help="File to be analyzed."),
     model_size: str = typer.Option(
-        "base", callback=model_size_callback, help="Model size to be used. Please specify 'base' or 'large'."
+        "base", callback=model_size_callback, help="Model size to be used. Please specify 'tiny', 'base', or 'large'."
     ),
     device: Device = typer.Option(
         Device.auto,
@@ -351,13 +359,13 @@ def main(
             processor.apply_word_discourse()
             processor.output_word_discourse_result()
     else:
-        typer.echo('Please end your input with a new line and type "EOD"', err=True)
         processor.load_typo()
         processor.load_char()
         processor.load_word()
         if discourse:
             processor.load_word_discourse()
 
+        typer.echo('Please end your input with a new line and type "EOD"', err=True)
         input_text = ""
         while True:
             inp = input()

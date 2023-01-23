@@ -3,7 +3,7 @@ from typing import List
 
 from rhoknp import Document, Sentence
 
-SUB_DOC_PAT: re.Pattern = re.compile(r"^(?P<did>[a-zA-Z\d\-_]+?)-split(?P<stride>[1-9])(?P<idx>\d{2})$")
+SUB_DOC_PAT: re.Pattern = re.compile(r"^(?P<did>[a-zA-Z\d\-_]+?)-s(?P<stride>\d+?)i(?P<idx>\d+?)$")
 
 
 def is_target_sentence(sentence: Sentence) -> bool:
@@ -33,4 +33,4 @@ def to_orig_doc_id(doc_id: str) -> str:
 
 
 def to_sub_doc_id(doc_id: str, idx: int, stride: int = 1) -> str:
-    return f"{doc_id}-split{stride}{idx:02}"
+    return f"{doc_id}-s{stride}i{idx}"

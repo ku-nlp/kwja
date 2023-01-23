@@ -68,6 +68,7 @@ class CharDataset(BaseDataset):
                 max_length=self.max_seq_length,
             )
             if len(encoding.input_ids) > self.max_seq_length:
+                logger.warning(f"Length of sub document is too long: {document.text}")
                 continue
 
             char_feature_example = CharFeatureExample()
