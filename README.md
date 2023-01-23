@@ -70,7 +70,7 @@ KWJA ＫWＪＡ KWJA 名詞 6 固有名詞 3 * 0 * 0 <基本句-主辞>
 
 Here are some other options for `kwja` command:
 
-`--model-size`: Model size to be used. Please specify 'base' or 'large'.
+`--model-size`: Model size to be used. Please specify 'tiny', 'base' (default) or 'large'.
 
 `--device`: Device to be used. Please specify 'cpu' or 'gpu'.
 
