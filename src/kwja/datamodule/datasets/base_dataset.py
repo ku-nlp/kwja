@@ -1,7 +1,7 @@
 import logging
 from functools import cached_property
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Dict, Generator, List, Tuple, Union
 
 from rhoknp import Document, Sentence
 from torch.utils.data import Dataset
@@ -105,3 +105,39 @@ class BaseDataset(Dataset):
 
     def _get_tokenized_len(self, source: Union[Document, Sentence]) -> int:
         return len(self.tokenizer.tokenize(" ".join(m.text for m in source.morphemes)))
+
+
+def split_with_overlap(
+    sequence_lengths: List[int], max_length: int, stride: int
+) -> Generator[Tuple[int, int], None, None]:
+    prev_start, prev_end = 0, 0
+    while prev_end < len(sequence_lengths):
+        start, end = search_sub_document_span(sequence_lengths, max_length, stride, prev_start, prev_end)
+        prev_start, prev_end = start, end
+        yield start, end
+    return None
+
+
+def search_sub_document_span(
+    sequence_lengths: List[int], max_length: int, stride: int, prev_start, prev_end
+) -> Tuple[int, int]:
+    buff = []
+    # search start index
+    for start in range(prev_start, len(sequence_lengths)):
+        # search end index
+        end = prev_end + 1
+        while end <= len(sequence_lengths):
+            if sum(sequence_lengths[start:end]) > max_length:
+                end -= 1
+                break
+            end += 1
+        if end - prev_end >= stride:
+            if prev_end == 0:
+                return start, end  # first span
+            else:
+                return start, prev_end + stride
+        else:
+            buff.append((start, end))  # stride condition is not satisfied
+        if start >= prev_end:
+            return buff[-1][0], buff[-1][1]  # return the last span
+    return buff[-1][0], buff[-1][1]  # return the last span
