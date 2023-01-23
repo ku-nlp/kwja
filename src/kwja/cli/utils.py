@@ -19,16 +19,16 @@ DEFAULT_CACHE_DIR = Path.home() / ".cache"
 _CHECKPOINT_BASE_URL = "https://lotus.kuee.kyoto-u.ac.jp"
 _CHECKPOINT_FILE_NAMES = {
     "base": {
-        "typo": "typo_roberta-base-wwm_seq512.ckpt",
-        "char": "char_roberta-base-wwm_seq512.ckpt",
-        "word": "word_roberta-base_seq128.ckpt",
-        "word_discourse": "disc_roberta-base_seq128.ckpt",
+        "typo": "typo_roberta-base-wwm.ckpt",
+        "char": "char_roberta-base-wwm.ckpt",
+        "word": "word_roberta-base.ckpt",
+        "word_discourse": "disc_roberta-base.ckpt",
     },
     "large": {
-        "typo": "typo_roberta-large-wwm_seq512.ckpt",
-        "char": "char_roberta-large-wwm_seq512.ckpt",
-        "word": "word_roberta-large_seq256.ckpt",
-        "word_discourse": "disc_roberta-large_seq256.ckpt",
+        "typo": "typo_roberta-large-wwm.ckpt",
+        "char": "char_roberta-large-wwm.ckpt",
+        "word": "word_roberta-large.ckpt",
+        "word_discourse": "disc_roberta-large.ckpt",
     },
 }
 
