@@ -296,8 +296,8 @@ def version_callback(value: bool) -> None:
 
 
 def model_size_callback(value: str) -> str:
-    if value not in ["base", "large"]:
-        raise typer.BadParameter("model must be one of 'base' or 'large'")
+    if value not in ["tiny", "base", "large"]:
+        raise typer.BadParameter("model must be one of 'tiny', 'base', or 'large'")
     return value
 
 
@@ -306,7 +306,7 @@ def main(
     text: Optional[str] = typer.Option(None, help="Text to be analyzed."),
     filename: Optional[Path] = typer.Option(None, help="File to be analyzed."),
     model_size: str = typer.Option(
-        "base", callback=model_size_callback, help="Model size to be used. Please specify 'base' or 'large'."
+        "base", callback=model_size_callback, help="Model size to be used. Please specify 'tiny', 'base', or 'large'."
     ),
     device: Device = typer.Option(
         Device.auto,

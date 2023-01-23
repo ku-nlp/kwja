@@ -18,6 +18,12 @@ DEFAULT_CACHE_DIR = Path.home() / ".cache"
 
 _CHECKPOINT_BASE_URL = "https://lotus.kuee.kyoto-u.ac.jp"
 _CHECKPOINT_FILE_NAMES = {
+    "tiny": {
+        "typo": "typo_deberta-v2-tiny-wwm.ckpt",
+        "char": "char_deberta-v2-tiny-wwm.ckpt",
+        "word": "word_deberta-v2-tiny.ckpt",
+        "word_discourse": "disc_deberta-v2-tiny.ckpt",
+    },
     "base": {
         "typo": "typo_roberta-base-wwm.ckpt",
         "char": "char_roberta-base-wwm.ckpt",
