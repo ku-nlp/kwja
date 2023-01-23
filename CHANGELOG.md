@@ -5,13 +5,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Enable progress bar while executing kwja command.
+- Add benchmark script.
+- Implement text normalization in char module.
+- Add tiny model.
+
 ### Fixed
 - Fix scripts for building datasets to support latest rhoknp and remove dependency on kyoto-reader.
 - Support versioning of local cache directory.
-- Enable progress bar while executing kwja command
+- Stash unsuitable documents so as not to discard them while applying typo module.
+- Fix bugs of document_split_stride, readling aligner, and writers.
 
 ### Removed
-- Remove unused main dependencies, `rich`, `python-Levenshtein`, `ipadic`, `tinydb`, `BetterJSONStorage`, and `dartsclone`.
+- Remove unused main dependencies, `python-Levenshtein`, `ipadic`, `tinydb`, `BetterJSONStorage`, and `dartsclone`.
 
 ## [1.2.2] - 2022-11-07
 ### Fixed
