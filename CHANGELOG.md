@@ -15,7 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix scripts for building datasets to support latest rhoknp and remove dependency on kyoto-reader.
 - Support versioning of local cache directory.
 - Stash unsuitable documents so as not to discard them while applying typo module.
-- Fix bugs of document_split_stride, readling aligner, and writers.
+- Fix bugs of document_split_stride, reading aligner, and writers.
+- Fix phrase masking in cohesion analysis
 
 ### Removed
 - Remove unused main dependencies, `python-Levenshtein`, `ipadic`, `tinydb`, `BetterJSONStorage`, and `dartsclone`.
