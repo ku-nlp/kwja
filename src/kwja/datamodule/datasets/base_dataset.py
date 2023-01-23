@@ -154,33 +154,45 @@ class SequenceSplitter:
             yield span, candidates
         return None
 
-    def search_sub_sequence_span(self, prev_start, prev_end) -> Tuple[SpanCandidate, List[SpanCandidate]]:
+    def search_sub_sequence_span(self, prev_start: int, prev_end: int) -> Tuple[SpanCandidate, List[SpanCandidate]]:
+        # if self.stride == -1:
+        #     start = prev_end
+        #     end = self._search_end(start, initial=prev_end + 1)
+        #     span = self._gen_span_candidate(start, end, stride=end - prev_end)
+        #     return span, [span]
+
         candidates: List[SpanCandidate] = []
         # search start index
         for start in range(prev_start, len(self.sequence_lengths)):
             if start > prev_end:
                 return self._choose_best_candidate(candidates), candidates
-            # search end index
-            end = prev_end + 1
-            span = SpanCandidate(1, self._get_sub_sequence_length(start, end), start, end)
+            end = self._search_end(start, initial=prev_end + 1)  # search end index
+            span = self._gen_span_candidate(start, end, stride=end - prev_end)
             candidates.append(span)
             if span.length > self.max_length:
+                # length condition is not satisfied. Try another start index.
                 continue
-            while (
-                end + 1 <= len(self.sequence_lengths)
-                and self._get_sub_sequence_length(start, end + 1) <= self.max_length
-            ):
-                end += 1
-            if end - prev_end >= self.stride:
-                if prev_end > 0:
-                    end = prev_end + self.stride  # non-first span
-                span = SpanCandidate(end - prev_end, self._get_sub_sequence_length(start, end), start, end)
+            if span.stride < self.stride:
+                # stride condition is not satisfied. Try another start index.
+                continue
+            if prev_end > 0:
+                # non-first span
+                end = prev_end + self.stride
+                span = self._gen_span_candidate(start, end, stride=self.stride)
                 candidates.append(span)
-                return span, candidates
-            else:
-                # stride condition is not satisfied. Save the candidate and try another start index.
-                candidates.append(SpanCandidate(end - prev_end, self._get_sub_sequence_length(start, end), start, end))
+            return span, candidates
         return self._choose_best_candidate(candidates), candidates
+
+    def _search_end(self, start: int, initial: int) -> int:
+        end = initial
+        while (
+            end + 1 <= len(self.sequence_lengths) and self._get_sub_sequence_length(start, end + 1) <= self.max_length
+        ):
+            end += 1
+        return end
+
+    def _gen_span_candidate(self, start: int, end: int, stride: int) -> SpanCandidate:
+        return SpanCandidate(stride, self._get_sub_sequence_length(start, end), start, end)
 
     def _get_sub_sequence_length(self, start: int, end: int) -> int:
         return self._cumulative_lengths[end] - self._cumulative_lengths[start]
