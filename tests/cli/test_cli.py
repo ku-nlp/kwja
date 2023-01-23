@@ -14,9 +14,9 @@ def test_device():
     assert isinstance(ret.exception, SystemExit)
 
 
-# def test_text_input():
-#     _ = runner.invoke(app, args=["--text", "おはよう"])
-#
-#
-# def test_file_input():
-#     _ = runner.invoke(app, args=["--filename", "./sample.txt"])
+def test_text_input():
+    _ = runner.invoke(app, args=["--model-size", "tiny", "--text", "おはよう"])
+
+
+def test_file_input():
+    _ = runner.invoke(app, args=["--model-size", "tiny", "--filename", "./sample.txt"])

@@ -24,7 +24,7 @@ WORD_NORM_TYPES = ("K", "D", "V", "S", "P", "E")
 INDEX2WORD_NORM_TYPE = {index: word_norm_type for index, word_norm_type in enumerate(WORD_NORM_TYPES)}
 IGNORE_WORD_NORM_TYPE = "_"
 
-TRANSLATION_TABLE = str.maketrans(' \t"▁', "␣␣“▂", "".join(chr(i) for i in [*range(32), *range(127, 160)]))  # 制御文字は削除
+TRANSLATION_TABLE = str.maketrans(' "▁', "␣“▂", "".join(chr(i) for i in [*range(32), *range(127, 160)]))  # 制御文字は削除
 
 # 品詞
 POS_TYPE2ID = {

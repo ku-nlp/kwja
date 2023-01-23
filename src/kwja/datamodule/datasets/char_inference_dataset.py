@@ -57,9 +57,7 @@ class CharInferenceDataset(BaseDataset):
                 max_length=self.max_seq_length,
             )
             if len(encoding["input_ids"]) > self.max_seq_length:
-                continue
-            if len(document.text) != self._get_tokenized_len(document):
-                logger.warning(f"Document length and tokenized length mismatch: {document.text}")
+                logger.warning(f"Length of sub document is too long: {document.text}")
                 continue
 
             examples.append(
