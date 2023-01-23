@@ -159,12 +159,13 @@ class SequenceSplitter:
         # search start index
         for start in range(prev_start, len(self.sequence_lengths)):
             if start > prev_end:
-                return self._choose_best_candidate(candidates), candidates  # return the last span
+                return self._choose_best_candidate(candidates), candidates
             # search end index
             end = prev_end + 1
-            candidates.append(SpanCandidate(1, self._get_sub_sequence_length(start, end), start, end))
-            if self._get_sub_sequence_length(start, end) > self.max_length:
-                continue  # even a single item exceeds the max length
+            span = SpanCandidate(1, self._get_sub_sequence_length(start, end), start, end)
+            candidates.append(span)
+            if span.length > self.max_length:
+                continue
             while (
                 end + 1 <= len(self.sequence_lengths)
                 and self._get_sub_sequence_length(start, end + 1) <= self.max_length
@@ -177,9 +178,9 @@ class SequenceSplitter:
                 candidates.append(span)
                 return span, candidates
             else:
-                # stride condition is not satisfied
+                # stride condition is not satisfied. Save the candidate and try another start index.
                 candidates.append(SpanCandidate(end - prev_end, self._get_sub_sequence_length(start, end), start, end))
-        return self._choose_best_candidate(candidates), candidates  # return the last span
+        return self._choose_best_candidate(candidates), candidates
 
     def _get_sub_sequence_length(self, start: int, end: int) -> int:
         return self._cumulative_lengths[end] - self._cumulative_lengths[start]

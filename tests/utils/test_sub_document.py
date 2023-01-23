@@ -17,8 +17,7 @@ cases = [
 
 
 def test_split_spans():
-    sequence_lengths = [20, 40, 30, 50, 20, 50]
-    splitter = SequenceSplitter(sequence_lengths, max_length=100, stride=1)
+    splitter = SequenceSplitter(sequence_lengths=[20, 40, 30, 50, 20, 50], max_length=100, stride=1)
     actual_spans = list(splitter.split_with_overlap())
     expected_spans = [
         (0, 3),  # [20, 40, 30]
@@ -35,7 +34,7 @@ def test_split_conditions(case: Dict[str, Any]):
     sequence_lengths: List[int] = case["sequence_lengths"]
     max_length: int = case["max_length"]
     stride: int = case["stride"]
-    splitter = SequenceSplitter(sequence_lengths, max_length=max_length, stride=stride)
+    splitter = SequenceSplitter(sequence_lengths, max_length, stride)
     sequence_ids = list(range(len(sequence_lengths)))
     union_ids = set()
     for idx, (span, candidates) in enumerate(splitter.split_with_overlap()):
