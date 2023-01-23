@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
 from typing import Dict, Generator, List, Tuple, Union
@@ -108,11 +109,17 @@ class BaseDataset(Dataset):
         return len(self.tokenizer.tokenize(" ".join(m.text for m in source.morphemes)))
 
 
-def split_with_overlap(
-    sequence_lengths: List[int], max_length: int, stride: int
-) -> Generator[Tuple[int, int], None, None]:
+@dataclass(frozen=True)
+class SpanCandidate:
+    stride: int
+    length: int
+    start: int
+    end: int
+
+
+class SequenceSplitter:
     """
-    This function splits a sequence into sub-sequences where items can be overlapped.
+    This class splits a sequence into sub-sequences where items can be overlapped.
     The split sub-sequences satisfy the following conditions:
     1. The union of the sub-sequences covers the original sequence.
     2. The length of each sub-sequence is less than or equal to `max_length`, unless the above is not violated.
@@ -123,38 +130,66 @@ def split_with_overlap(
         sequence_lengths: A list of item lengths.
         max_length: The maximum length of a sub-sequence span.
         stride: The stride of the sub-sequence span.
-
-    Returns:
-        A generator of sub-sequence spans.
     """
-    prev_start, prev_end = 0, 0
-    while prev_end < len(sequence_lengths):
-        start, end = search_sub_document_span(sequence_lengths, max_length, stride, prev_start, prev_end)
-        prev_start, prev_end = start, end
-        yield start, end
-    return None
 
+    def __init__(self, sequence_lengths: List[int], max_length: int, stride: int) -> None:
+        self.sequence_lengths = sequence_lengths
+        self.max_length = max_length
+        self.stride = stride
 
-def search_sub_document_span(
-    sequence_lengths: List[int], max_length: int, stride: int, prev_start, prev_end
-) -> Tuple[int, int]:
-    buff: List[Tuple[int, int]] = []
-    # search start index
-    for start in range(prev_start, len(sequence_lengths)):
-        if start > prev_end:
-            return buff[-1][0], buff[-1][1]  # return the last span
-        # search end index
-        end = prev_end + 1
-        buff.append((start, end))
-        if sum(sequence_lengths[start:end]) > max_length:
-            continue  # even a single item exceeds the max length
-        while end + 1 <= len(sequence_lengths) and sum(sequence_lengths[start : end + 1]) <= max_length:
-            end += 1
-        if end - prev_end >= stride:
-            if prev_end == 0:
-                return start, end  # first span
+    def split_with_overlap(self) -> Generator[Tuple[SpanCandidate, list], None, None]:
+        """
+        This function splits a sequence into sub-sequences where items can be overlapped.
+
+        Returns:
+            A generator of sub-sequence spans.
+        """
+        prev_start, prev_end = 0, 0
+        while prev_end < len(self.sequence_lengths):
+            span, candidates = self.search_sub_sequence_span(prev_start, prev_end)
+            prev_start, prev_end = span.start, span.end
+            yield span, candidates
+        return None
+
+    def search_sub_sequence_span(self, prev_start, prev_end) -> Tuple[SpanCandidate, list]:
+        candidates: List[SpanCandidate] = []
+        # search start index
+        for start in range(prev_start, len(self.sequence_lengths)):
+            if start > prev_end:
+                return self._choose_best_candidate(candidates), candidates  # return the last span
+            # search end index
+            end = prev_end + 1
+            candidates.append(SpanCandidate(1, sum(self.sequence_lengths[start:end]), start, end))
+            if sum(self.sequence_lengths[start:end]) > self.max_length:
+                continue  # even a single item exceeds the max length
+            while (
+                end + 1 <= len(self.sequence_lengths) and sum(self.sequence_lengths[start : end + 1]) <= self.max_length
+            ):
+                end += 1
+            if end - prev_end >= self.stride:
+                if prev_end == 0:
+                    span_candidate = SpanCandidate(end, sum(self.sequence_lengths[start:end]), start, end)  # first span
+                else:
+                    span_candidate = SpanCandidate(
+                        self.stride,
+                        sum(self.sequence_lengths[start : prev_end + self.stride]),
+                        start,
+                        prev_end + self.stride,
+                    )
+                candidates.append(span_candidate)
+                return span_candidate, candidates
             else:
-                return start, prev_end + stride
+                # stride condition is not satisfied
+                candidates.append(SpanCandidate(end - prev_end, sum(self.sequence_lengths[start:end]), start, end))
+        return self._choose_best_candidate(candidates), candidates  # return the last span
+
+    def _choose_best_candidate(self, candidates: List[SpanCandidate]) -> SpanCandidate:
+        return sorted(candidates, key=self._get_priority_score, reverse=True)[0]
+
+    def _get_priority_score(self, span: SpanCandidate) -> int:
+        if span.length <= self.max_length:
+            weight = self.max_length + 1  # can be any larger number
+            score = (span.stride == self.stride) * weight + span.length
         else:
-            buff.append((start, end))  # stride condition is not satisfied
-    return buff[-1][0], buff[-1][1]  # return the last span
+            score = -span.length
+        return score
