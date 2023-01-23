@@ -5,9 +5,9 @@ from statistics import mean
 from typing import Any, Dict, Optional
 
 import hydra
+import pytorch_lightning as pl
 import torch
 from omegaconf import DictConfig, OmegaConf
-from pytorch_lightning.core.lightning import LightningModule
 from transformers import PretrainedConfig
 
 from kwja.evaluators.cohesion_analysis_metric import CohesionAnalysisMetric
@@ -38,10 +38,9 @@ class WordTask(Enum):
     DISCOURSE_PARSING = "discourse_parsing"
 
 
-class WordModule(LightningModule):
+class WordModule(pl.LightningModule):
     def __init__(self, hparams: DictConfig) -> None:
         super().__init__()
-        OmegaConf.resolve(hparams)
         self.save_hyperparameters(hparams)
         self.training_tasks = list(map(WordTask, self.hparams.training_tasks))
 
@@ -207,7 +206,7 @@ class WordModule(LightningModule):
             "example_ids": batch["example_ids"],
             "dependency_predictions": torch.topk(
                 outputs["relation_analyzer_outputs"]["dependency_logits"],
-                self.hparams.k,
+                self.hparams.dependency_topk,
                 dim=2,
             ).indices,
             "dependency_type_predictions": torch.argmax(
@@ -351,7 +350,7 @@ class WordModule(LightningModule):
             "example_ids": batch["example_ids"],
             "dependency_predictions": torch.topk(
                 outputs["relation_analyzer_outputs"]["dependency_logits"],
-                self.hparams.k,
+                self.hparams.dependency_topk,
                 dim=2,
             ).indices,
             "dependency_type_predictions": torch.argmax(
@@ -452,9 +451,7 @@ class WordModule(LightningModule):
         batch["training"] = False
         outputs: Dict[str, Dict[str, torch.Tensor]] = self(**batch)
         return {
-            "tokens": batch["tokens"],
             "example_ids": batch["example_ids"],
-            "dataloader_idx": dataloader_idx or 0,
             "reading_subword_map": batch["reading_subword_map"],
             "reading_prediction_logits": outputs["reading_predictor_outputs"]["logits"],
             "word_analysis_pos_logits": outputs["word_analyzer_outputs"]["pos_logits"],
@@ -509,5 +506,6 @@ class WordModule(LightningModule):
     def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         hparams: DictConfig = copy.deepcopy(checkpoint["hyper_parameters"])
         OmegaConf.set_struct(hparams, False)
-        hparams = filter_dict_items(hparams, self.hparams.hparams_to_ignore_on_save)
-        checkpoint["hyper_parameters"] = {"hparams": hparams}
+        if self.hparams.ignore_hparams_on_save:
+            hparams = filter_dict_items(hparams, self.hparams.hparams_to_ignore_on_save)
+        checkpoint["hyper_parameters"] = hparams

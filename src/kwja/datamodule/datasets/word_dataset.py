@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Literal, Tuple, Union
 
 import torch
 from omegaconf import ListConfig
@@ -9,7 +9,6 @@ from rhoknp import Document, Sentence
 from rhoknp.cohesion import ExophoraReferent
 from scipy.special import softmax
 from tokenizers import Encoding
-from tqdm import tqdm
 from transformers.utils import PaddingStrategy
 
 from kwja.datamodule.datasets.base_dataset import BaseDataset
@@ -37,6 +36,7 @@ from kwja.utils.constants import (
     WORD_FEATURES,
 )
 from kwja.utils.kanjidic import KanjiDic
+from kwja.utils.progress_bar import track
 from kwja.utils.reading import ReadingAligner, get_reading2id
 from kwja.utils.sub_document import extract_target_sentences
 
@@ -73,6 +73,14 @@ class WordDataset(BaseDataset):
         tokenizer_kwargs: dict = None,
     ) -> None:
         self.path = Path(path)
+        if model_name_or_path in [
+            "nlp-waseda/roberta-base-japanese",
+            "nlp-waseda/roberta-large-japanese",
+            "nlp-waseda/roberta-large-japanese-seq512",
+        ]:
+            self.tokenizer_input_format: Literal["words", "text"] = "words"
+        else:
+            self.tokenizer_input_format = "text"
         super().__init__(
             self.path,
             document_split_stride,
@@ -102,7 +110,9 @@ class WordDataset(BaseDataset):
         self.index_to_special: Dict[int, str] = {v: k for k, v in self.special_to_index.items()}
         self.reading_resource_path = Path(reading_resource_path)
         self.reading2id = get_reading2id(str(self.reading_resource_path / "vocab.txt"))
-        self.reading_aligner = ReadingAligner(self.tokenizer, KanjiDic(str(self.reading_resource_path / "kanjidic")))
+        self.reading_aligner = ReadingAligner(
+            self.tokenizer, self.tokenizer_input_format, KanjiDic(str(self.reading_resource_path / "kanjidic"))
+        )
         self.examples: List[WordExampleSet] = self._load_examples(self.documents)
         self.special_encoding: Encoding = self.tokenizer(
             self.special_tokens,
@@ -131,13 +141,16 @@ class WordDataset(BaseDataset):
     def _load_examples(self, documents: List[Document]) -> List[WordExampleSet]:
         examples = []
         idx = 0
-        for document in tqdm(documents, dynamic_ncols=True):
+        for document in track(documents, description="Loading examples"):
+            tokenizer_input: Union[List[str], str] = [m.text for m in document.morphemes]
+            if self.tokenizer_input_format == "text":
+                tokenizer_input = " ".join(tokenizer_input)
             encoding: Encoding = self.tokenizer(
-                [morpheme.text for morpheme in document.morphemes],
-                is_split_into_words=True,
+                tokenizer_input,
                 padding=PaddingStrategy.MAX_LENGTH,
                 truncation=False,
                 max_length=self.max_seq_length - self.num_special_tokens,
+                is_split_into_words=self.tokenizer_input_format == "words",
             ).encodings[0]
             if len(encoding.ids) > self.max_seq_length - self.num_special_tokens:
                 continue
@@ -195,10 +208,10 @@ class WordDataset(BaseDataset):
     def __len__(self) -> int:
         return len(self.examples)
 
-    def __getitem__(self, index: int) -> Dict[str, Union[torch.Tensor, str]]:
+    def __getitem__(self, index: int) -> Dict[str, torch.Tensor]:
         return self.encode(self.examples[index])
 
-    def encode(self, example: WordExampleSet) -> Dict[str, Union[torch.Tensor, str]]:
+    def encode(self, example: WordExampleSet) -> Dict[str, torch.Tensor]:
         merged_encoding: Encoding = Encoding.merge([example.encoding, self.special_encoding])
 
         document = self.doc_id2document[example.doc_id]
@@ -270,7 +283,6 @@ class WordDataset(BaseDataset):
         for morpheme_index, candidates in dependency_example.candidates.items():
             for candidate_index in candidates + [self.special_to_index["[ROOT]"]]:
                 dependency_mask[morpheme_index][candidate_index] = True
-
         dependency_types: List[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
         for morpheme_index, dependency_type in dependency_example.dependency_types.items():
             dependency_types[morpheme_index] = DEPENDENCY_TYPE2INDEX[dependency_type]
@@ -329,7 +341,6 @@ class WordDataset(BaseDataset):
             "discourse_relations": torch.tensor(discourse_relations, dtype=torch.long),
             "cohesion_target": torch.tensor(cohesion_target, dtype=torch.int),
             "cohesion_mask": torch.tensor(cohesion_mask, dtype=torch.bool),
-            "tokens": " ".join(self.tokenizer.decode(id_) for id_ in merged_encoding.ids),
         }
 
     def dump_prediction(
@@ -424,8 +435,10 @@ class WordDataset(BaseDataset):
         return scores_set, candidates_set  # word level
 
     def _get_tokenized_len(self, source: Union[Document, Sentence]) -> int:
-        return len(
-            self.tokenizer([m.text for m in source.morphemes], add_special_tokens=False, is_split_into_words=True)[
-                "input_ids"
-            ]
-        )
+        tokenizer_input: Union[List[str], str] = [m.text for m in source.morphemes]
+        if self.tokenizer_input_format == "text":
+            tokenizer_input = " ".join(tokenizer_input)
+        encoding = self.tokenizer(
+            tokenizer_input, add_special_tokens=False, is_split_into_words=self.tokenizer_input_format == "words"
+        ).encodings[0]
+        return len(encoding.ids)

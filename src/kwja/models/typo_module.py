@@ -2,9 +2,9 @@ import copy
 from typing import Any, Dict, Optional, Union
 
 import hydra
+import pytorch_lightning as pl
 import torch
 from omegaconf import DictConfig, OmegaConf
-from pytorch_lightning.core.lightning import LightningModule
 from transformers import PretrainedConfig
 
 from kwja.evaluators.typo_correction_metric import TypoCorrectionMetric
@@ -13,10 +13,9 @@ from kwja.models.models.typo_corrector import TypoCorrector
 from kwja.utils.util import filter_dict_items
 
 
-class TypoModule(LightningModule):
+class TypoModule(pl.LightningModule):
     def __init__(self, hparams: DictConfig) -> None:
         super().__init__()
-        OmegaConf.resolve(hparams)
         self.save_hyperparameters(hparams)
 
         self.char_encoder: CharEncoder = CharEncoder(hparams)
@@ -62,6 +61,7 @@ class TypoModule(LightningModule):
         ins_probs = torch.softmax(outputs["ins_logits"][:, 1:, :], dim=-1)  # (b, seq_len - 1, ins_label_num)
         ins_values, ins_indices = torch.max(ins_probs, dim=-1)
         return {
+            "example_ids": batch["example_ids"],
             "texts": batch["texts"],
             "kdr_values": kdr_values,
             "kdr_indices": kdr_indices,
@@ -112,5 +112,6 @@ class TypoModule(LightningModule):
     def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         hparams: DictConfig = copy.deepcopy(checkpoint["hyper_parameters"])
         OmegaConf.set_struct(hparams, False)
-        hparams = filter_dict_items(hparams, self.hparams.hparams_to_ignore_on_save)
-        checkpoint["hyper_parameters"] = {"hparams": hparams}
+        if self.hparams.ignore_hparams_on_save:
+            hparams = filter_dict_items(hparams, self.hparams.hparams_to_ignore_on_save)
+        checkpoint["hyper_parameters"] = hparams

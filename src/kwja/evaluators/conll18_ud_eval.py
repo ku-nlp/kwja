@@ -94,7 +94,8 @@ from __future__ import division, print_function
 # import argparse  # FIX
 # import io        # FIX
 import sys
-import unicodedata
+
+# import unicodedata  # FIX
 import unittest
 from dataclasses import dataclass  # FIX
 from typing import List
@@ -293,9 +294,10 @@ def load_conllu(lines: List[str]):  # FIX
         # Delete spaces from FORM, so gold.characters == system.characters
         # even if one of them tokenizes the space. Use any Unicode character
         # with category Zs.
-        columns[FORM] = "".join(filter(lambda c: unicodedata.category(c) != "Zs", columns[FORM]))
-        if not columns[FORM]:
-            raise UDError("There is an empty FORM in the CoNLL-U file")
+        # FIX
+        # columns[FORM] = "".join(filter(lambda c: unicodedata.category(c) != "Zs", columns[FORM]))
+        # if not columns[FORM]:
+        #     raise UDError("There is an empty FORM in the CoNLL-U file")
 
         # Save token
         ud.characters.extend(columns[FORM])

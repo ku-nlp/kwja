@@ -18,7 +18,7 @@ class TypoCorrector(nn.Module):
         self.hparams = hparams
 
         self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-            hparams.model.model_name_or_path,
+            hparams.encoder.pretrained_model_name_or_path,
             **hydra.utils.instantiate(hparams.dataset.tokenizer_kwargs, _convert_="partial"),
         )
 

@@ -4,17 +4,10 @@ prediction_writer:
   reading_resource_path: ${dataset.reading_resource_path}
   pred_filename: "predict"
   jumandic_path: kwja/resource/jumandic
-  ambig_surf_specs: [
-    {
-      conjtype: "イ形容詞アウオ段",
-      conjform: "エ基本形",
-    },
-    {
-      conjtype: "イ形容詞イ段",
-      conjform: "エ基本形",
-    },
-    {
-      conjtype: "イ形容詞イ段特殊",
-      conjform: "エ基本形",
-    },
-  ]
+  ambig_surf_specs:
+    - conjtype: "イ形容詞アウオ段"
+      conjform: "エ基本形"
+    - conjtype: "イ形容詞イ段"
+      conjform: "エ基本形"
+    - conjtype: "イ形容詞イ段特殊"
+      conjform: "エ基本形"

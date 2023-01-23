@@ -1,0 +1,30 @@
+defaults:
+  - callbacks: [progress_bar.yaml]
+  - logger: null
+  - module: null  # typo, char, or word
+  - _self_
+
+# required settings
+checkpoint_path: null  # path to trained checkpoint
+eval_set: test  # test or valid
+
+# TODO: fix `test.py`, `predict.py`, and `analyze.py` for the following settings to take effect
+
+document_split_stride: 1
+
+# for typo correction
+confidence_threshold: 0.9
+
+# for word normalization
+denormalize_prob: 0.0
+
+# for dependency parsing
+dependency_topk: 4
+
+# discourse parsing
+discourse_parsing_threshold: 0.0
+
+# environment dependent settings
+num_workers: -1
+devices: ${oc.env:GPUS,1}
+max_batches_per_device: 4

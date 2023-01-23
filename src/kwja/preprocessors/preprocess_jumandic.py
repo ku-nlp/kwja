@@ -4,9 +4,8 @@ import sys
 from argparse import ArgumentParser
 from pathlib import Path
 
-from tqdm import tqdm
-
 from kwja.utils.jumandic import JumanDic
+from kwja.utils.progress_bar import track
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s: %(message)s", level=logging.DEBUG)
@@ -50,7 +49,7 @@ def main():
         rows = list(dicreader)
     # entries = {}
     entries = []
-    for row in tqdm(rows):
+    for row in track(rows):
         surf, _, _, _, pos, subpos, conjform, conjtype, lemma, reading, repname, sem = row
         semantics = ""
         if repname != "*":

@@ -1,2 +1,0 @@
-model_name_or_path: ku-nlp/roberta-large-japanese-char-wwm
-max_seq_length: 512

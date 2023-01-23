@@ -2,8 +2,11 @@ import tempfile
 import textwrap
 
 import torch
+from omegaconf import ListConfig
+from torch.utils.data import DataLoader
 
 from kwja.callbacks.typo_module_writer import TypoModuleWriter
+from kwja.datamodule.datasets.typo_inference_dataset import TypoInferenceDataset
 from kwja.utils.constants import TYPO_OPN2TOKEN
 
 
@@ -18,6 +21,11 @@ def test_init():
                 "additional_special_tokens": ["<k>", "<d>", "<_>", "<dummy>"],
             },
         )
+
+
+class MockTrainer:
+    def __init__(self, predict_dataloaders):
+        self.predict_dataloaders = predict_dataloaders
 
 
 def test_write_on_batch_end():
@@ -62,13 +70,17 @@ def test_write_on_batch_end():
         ins_probs = torch.softmax(ins_logits[:, 1:, :], dim=-1)
         ins_values, ins_indices = torch.max(ins_probs, dim=-1)
         prediction = {
+            "example_ids": torch.tensor([0], dtype=torch.long),
             "texts": texts,
             "kdr_values": kdr_values,
             "kdr_indices": kdr_indices,
             "ins_values": ins_values,
             "ins_indices": ins_indices,
         }
-        writer.write_on_batch_end(..., ..., prediction, ..., ..., ..., ...)
+
+        dataset = TypoInferenceDataset(ListConfig(texts), max_seq_length=9)
+        trainer = MockTrainer([DataLoader(dataset)])
+        writer.write_on_batch_end(trainer, ..., prediction, ..., ..., 0, 0)
         with open(writer.destination) as f:
             assert f.read() == textwrap.dedent(
                 """\

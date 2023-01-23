@@ -1,2 +1,0 @@
-model_name_or_path: nlp-waseda/roberta-large-japanese-seq512
-max_seq_length: 256

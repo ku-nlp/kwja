@@ -3,6 +3,7 @@ import tempfile
 import textwrap
 from pathlib import Path
 
+import pytorch_lightning as pl
 import torch
 from omegaconf import ListConfig
 from rhoknp.props import DepType
@@ -94,7 +95,8 @@ def test_write_on_batch_end():
                 [False, False, True, False, False],
                 [False, False, False, True, False],
                 [False, False, False, False, True],
-                [False, True, False, False, False],
+                [False, False, False, False, False],
+                [False, False, False, False, False],
             ]
         ],
         dtype=torch.bool,
@@ -178,7 +180,6 @@ def test_write_on_batch_end():
     prediction = {
         "tokens": tokens,
         "example_ids": [0],
-        "dataloader_idx": 0,
         "reading_subword_map": reading_subword_map,
         "reading_prediction_logits": reading_prediction_logits,
         "word_analysis_pos_logits": word_analysis_pos_logits,
@@ -219,7 +220,9 @@ def test_write_on_batch_end():
             juman_file=pathlib.Path(juman_file.name),
         )
         trainer = MockTrainer([DataLoader(dataset)])
-        writer.write_on_batch_end(trainer, ..., prediction, ..., ..., ..., ...)  # noqa
+        module = pl.LightningModule()
+        module.hparams["dependency_topk"] = 4
+        writer.write_on_batch_end(trainer, module, prediction, ..., ..., 0, 0)  # noqa
         expected_knp = textwrap.dedent(
             f"""\
             # S-ID:test-0-0 kwja:{kwja.__version__}

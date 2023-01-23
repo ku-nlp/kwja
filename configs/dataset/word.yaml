@@ -2,4 +2,4 @@ special_tokens: ${concat:${exophora_referents},["[NULL]", "[NA]", "[ROOT]"]}
 tokenizer_kwargs:
   additional_special_tokens: ${dataset.special_tokens}
   _convert_: all
-reading_resource_path: ${oc.env:DATA_DIR}/reading_prediction
+reading_resource_path: kwja/resource/reading_prediction

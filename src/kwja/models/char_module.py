@@ -2,9 +2,9 @@ import copy
 from typing import Any, Dict, Optional
 
 import hydra
+import pytorch_lightning as pl
 import torch
 from omegaconf import DictConfig, OmegaConf
-from pytorch_lightning.core.lightning import LightningModule
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 from transformers import PretrainedConfig
 
@@ -16,10 +16,9 @@ from kwja.models.models.word_segmenter import WordSegmenter
 from kwja.utils.util import filter_dict_items
 
 
-class CharModule(LightningModule):
+class CharModule(pl.LightningModule):
     def __init__(self, hparams: DictConfig) -> None:
         super().__init__()
-        OmegaConf.resolve(hparams)
         self.save_hyperparameters(hparams)
 
         self.valid_corpora = list(hparams.datamodule.valid.keys()) if "valid" in hparams.datamodule else []
@@ -143,7 +142,6 @@ class CharModule(LightningModule):
         outputs: Dict[str, Dict[str, torch.Tensor]] = self(**batch)
         return {
             "example_ids": batch["example_ids"],
-            "dataloader_idx": dataloader_idx or 0,
             "input_ids": batch["input_ids"],
             "word_segmenter_logits": outputs["word_segmenter_outputs"]["logits"],
             "word_normalizer_logits": outputs["word_normalizer_outputs"]["logits"],
@@ -188,5 +186,6 @@ class CharModule(LightningModule):
     def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         hparams: DictConfig = copy.deepcopy(checkpoint["hyper_parameters"])
         OmegaConf.set_struct(hparams, False)
-        hparams = filter_dict_items(hparams, self.hparams.hparams_to_ignore_on_save)
-        checkpoint["hyper_parameters"] = {"hparams": hparams}
+        if self.hparams.ignore_hparams_on_save:
+            hparams = filter_dict_items(hparams, self.hparams.hparams_to_ignore_on_save)
+        checkpoint["hyper_parameters"] = hparams

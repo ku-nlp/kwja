@@ -1,19 +1,20 @@
 defaults:
   - base
-  - callbacks: [early_stopping, model_checkpoint, model_summary, progress_bar]
+  - callbacks: [early_stopping, model_checkpoint, model_summary, word_module_writer, progress_bar]
   - datamodule: word
   - dataset: word
-  - logger: wandb
-  - model: word_roberta_base
+  - logger: null
+  - encoder: word_roberta_base
   - module: word
   - optimizer: adamw
   - scheduler: constant_schedule_with_warmup
   - trainer: debug
   - _self_
 
-do_predict_after_train: false
+max_seq_length: 128
+do_predict_after_train: true
 checkpoint_path: ""
-document_split_stride: 1
+document_split_stride: 2
 training_tasks:
   - reading_prediction
   - word_analysis
@@ -25,7 +26,7 @@ training_tasks:
   - discourse_parsing
 
 # for dependency parser
-k: 4
+dependency_topk: 4
 
 # for discourse parser
 discourse_parsing_threshold: 0.0
@@ -59,4 +60,5 @@ devices: ${oc.env:GPUS,0}
 max_batches_per_device: 2
 num_workers: 0
 
+ignore_hparams_on_save: false
 hparams_to_ignore_on_save: []

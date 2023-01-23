@@ -1,0 +1,5 @@
+defaults:
+  - /datamodule/base/char@wac
+
+wac:
+  path: ${oc.env:DATA_DIR}/wac/test

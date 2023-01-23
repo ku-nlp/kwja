@@ -7,6 +7,7 @@ from rhoknp import Document, Sentence
 from torch.utils.data import Dataset
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
+from kwja.utils.progress_bar import track
 from kwja.utils.sub_document import to_sub_doc_id
 
 logger = logging.getLogger(__name__)
@@ -35,7 +36,8 @@ class BaseDataset(Dataset):
         else:
             self.orig_documents = source
         self.doc_id2document: Dict[str, Document] = {}
-        for orig_document in self.orig_documents:
+        for orig_document in track(self.orig_documents, description="Splitting documents"):
+            orig_document = self._normalize(orig_document)
             self.doc_id2document.update(
                 {
                     document.doc_id: document
@@ -54,13 +56,16 @@ class BaseDataset(Dataset):
     @staticmethod
     def _load_documents(document_dir: Path, ext: str = "knp") -> List[Document]:
         documents = []
-        for path in sorted(document_dir.glob(f"*.{ext}")):
+        for path in track(sorted(document_dir.glob(f"*.{ext}")), description="Loading documents"):
             # TODO: fix document files that raise exception
             try:
                 documents.append(Document.from_knp(path.read_text()))
             except AssertionError:
                 logger.warning(f"{path} is not a valid knp file.")
         return documents
+
+    def _normalize(self, document: Document) -> Document:
+        return document
 
     def _split_document(self, document: Document, max_token_length: int, stride: int) -> List[Document]:
         cum_lens = [0]
@@ -85,22 +90,19 @@ class BaseDataset(Dataset):
                     break
                 start += 1
 
-            # TODO: fix rhoknp to keep comments in sentence
-            comments = [s.comment for s in document.sentences[start:end]]
-            sub_document = Document.from_sentences(document.sentences[start:end])
+            sentences = document.sentences[start:end]
+            sub_document = Document.from_sentences(sentences)
             sub_doc_id = to_sub_doc_id(document.doc_id, sub_idx, stride=stride)
-            for comment, sentence in zip(comments, sub_document.sentences):
-                sentence.comment = comment
-                sentence.doc_id = sub_doc_id
+            for sentence, sub_sentence in zip(sentences, sub_document.sentences):
+                sub_sentence.doc_id = sub_doc_id
+                sub_sentence.sid = sentence.sid
+                sub_sentence.misc_comment = sentence.misc_comment
             sub_document.doc_id = sub_doc_id
             sub_documents.append(sub_document)
             sub_idx += 1
+            stride = max(min(stride, len(document.sentences) - end), 1)
             end += stride
         return sub_documents
 
     def _get_tokenized_len(self, source: Union[Document, Sentence]) -> int:
-        return len(
-            self.tokenizer([m.text for m in source.morphemes], add_special_tokens=False, is_split_into_words=True)[
-                "input_ids"
-            ]
-        )
+        return len(self.tokenizer.tokenize(" ".join(m.text for m in source.morphemes)))

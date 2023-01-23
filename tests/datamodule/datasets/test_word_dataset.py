@@ -79,7 +79,6 @@ def test_getitem():
         assert "discourse_relations" in item
         assert "cohesion_target" in item
         assert "cohesion_mask" in item
-        assert "tokens" in item
         assert item["example_ids"] == i
         assert item["input_ids"].shape == (max_seq_length,)
         assert item["attention_mask"].shape == (max_seq_length,)
@@ -133,8 +132,7 @@ def test_encode():
         )
     )
     encoding = dataset.tokenizer(
-        [morpheme.text for morpheme in document.morphemes],
-        is_split_into_words=True,
+        " ".join(m.text for m in document.morphemes),
         padding=PaddingStrategy.MAX_LENGTH,
         truncation=False,
         max_length=dataset.max_seq_length - dataset.num_special_tokens,

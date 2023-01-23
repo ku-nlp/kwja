@@ -2,6 +2,7 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Optional, Union
+from unicodedata import normalize
 
 import torch
 from omegaconf import ListConfig
@@ -11,6 +12,8 @@ from transformers.utils import PaddingStrategy
 
 import kwja
 from kwja.datamodule.datasets.base_dataset import BaseDataset
+from kwja.utils.constants import TRANSLATION_TABLE
+from kwja.utils.progress_bar import track
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +49,7 @@ class CharInferenceDataset(BaseDataset):
     def _load_examples(self, documents: List[Document]) -> List[CharInferenceExample]:
         examples = []
         idx = 0
-        for document in documents:
+        for document in track(documents, description="Loading examples"):
             encoding: BatchEncoding = self.tokenizer(
                 document.text,
                 truncation=False,
@@ -54,9 +57,7 @@ class CharInferenceDataset(BaseDataset):
                 max_length=self.max_seq_length,
             )
             if len(encoding["input_ids"]) > self.max_seq_length:
-                continue
-            if len(document.text) != self._get_tokenized_len(document):
-                logger.warning(f"Document length and tokenized length mismatch: {document.text}")
+                logger.warning(f"Length of sub document is too long: {document.text}")
                 continue
 
             examples.append(
@@ -85,7 +86,9 @@ class CharInferenceDataset(BaseDataset):
     def _create_documents_from_texts(texts: List[str], doc_id_prefix: Optional[str]) -> List[Document]:
         senter = RegexSenter()
         # split text into sentences
-        documents: List[Document] = [senter.apply_to_document(text) for text in texts]
+        documents: List[Document] = [
+            senter.apply_to_document(text) for text in track(texts, description="Loading documents")
+        ]
         if doc_id_prefix is None:
             doc_id_prefix = datetime.now().strftime("%Y%m%d%H%M")
         doc_id_width = len(str(len(documents)))
@@ -97,5 +100,14 @@ class CharInferenceDataset(BaseDataset):
                 sentence.misc_comment = f"kwja:{kwja.__version__}"
         return documents
 
+    def _normalize(self, document):
+        for sentence in document.sentences:
+            normalized = normalize("NFKC", sentence.text).translate(TRANSLATION_TABLE)
+            if normalized != sentence.text:
+                logger.warning(f"apply normalization ({sentence.text} -> {normalized})")
+                sentence.text = normalized
+        document.text = "".join(sentence.text for sentence in document.sentences)
+        return document
+
     def _get_tokenized_len(self, source: Union[Document, Sentence]) -> int:
-        return len(self.tokenizer(source.text, add_special_tokens=False)["input_ids"])
+        return len(self.tokenizer.tokenize(source.text))

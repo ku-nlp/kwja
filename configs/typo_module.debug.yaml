@@ -1,17 +1,18 @@
 defaults:
   - base
-  - callbacks: [early_stopping, model_checkpoint, model_summary, progress_bar]
+  - callbacks: [early_stopping, model_checkpoint, model_summary, typo_module_writer, progress_bar]
   - datamodule: typo
   - dataset: typo
-  - logger: wandb
-  - model: char_roberta_base
+  - logger: null
+  - encoder: char_roberta_base
   - module: typo
   - optimizer: adamw
   - scheduler: constant_schedule_with_warmup
   - trainer: debug
   - _self_
 
-do_predict_after_train: false
+max_seq_length: 128
+do_predict_after_train: true
 checkpoint_path: ""
 
 # set monitor and mode for early_stopping and model_checkpoint
@@ -29,4 +30,5 @@ devices: ${oc.env:GPUS,0}
 max_batches_per_device: 2
 num_workers: 0
 
+ignore_hparams_on_save: false
 hparams_to_ignore_on_save: []
