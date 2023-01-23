@@ -78,7 +78,10 @@ class CLIProcessor:
             input_text_with_eod: str = stripped_input_text + "\nEOD"
             for text in input_text_with_eod.split("\n"):
                 if text == "EOD":
-                    normalized = split_text.replace("${", "$␣{").replace("#", "♯")
+                    # hydra.utils.instantiateを実行する際に文字列${...}を補間しようとするのを防ぐ
+                    normalized = split_text.replace("${", "$␣{")
+                    # "#"で始まる行がコメント行と誤認識されることを防ぐ
+                    normalized = normalized.replace("#", "♯")
                     split_texts.append(normalized.rstrip())
                     split_text = ""
                 else:
