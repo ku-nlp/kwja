@@ -69,31 +69,18 @@ class BaseDataset(Dataset):
         return document
 
     def _split_document(self, document: Document, max_token_length: int, stride: int) -> List[Document]:
-        cum_lens = [0]
-        for sentence in document.sentences:
-            num_tokens = self._get_tokenized_len(sentence)
-            cum_lens.append(cum_lens[-1] + num_tokens)
-        if cum_lens[-1] <= max_token_length:
+        sentence_tokens = [self._get_tokenized_len(sentence) for sentence in document.sentences]
+        if sum(sentence_tokens) <= max_token_length:
             return [document]
 
-        end = 1
-        # end を探索
-        while end < len(document.sentences) and cum_lens[end + 1] - cum_lens[0] <= max_token_length:
-            end += 1
-
+        splitter = SequenceSplitter(sentence_tokens, max_token_length, stride)
         sub_documents: List[Document] = []
         sub_idx = 0
-        while end <= len(document.sentences):
-            start = 0
-            # start を探索
-            while cum_lens[end] - cum_lens[start] > max_token_length:
-                if start == end - 1:
-                    break
-                start += 1
-
-            sentences = document.sentences[start:end]
+        for span in splitter.split_with_overlap():
+            assert isinstance(span, SpanCandidate)
+            sentences = document.sentences[span.start : span.end]
             sub_document = Document.from_sentences(sentences)
-            sub_doc_id = to_sub_doc_id(document.doc_id, sub_idx, stride=stride)
+            sub_doc_id = to_sub_doc_id(document.doc_id, sub_idx, stride=span.stride)
             for sentence, sub_sentence in zip(sentences, sub_document.sentences):
                 sub_sentence.doc_id = sub_doc_id
                 sub_sentence.sid = sentence.sid
@@ -101,8 +88,6 @@ class BaseDataset(Dataset):
             sub_document.doc_id = sub_doc_id
             sub_documents.append(sub_document)
             sub_idx += 1
-            stride = max(min(stride, len(document.sentences) - end), 1)
-            end += stride
         return sub_documents
 
     def _get_tokenized_len(self, source: Union[Document, Sentence]) -> int:
@@ -140,9 +125,14 @@ class SequenceSplitter:
         for length in sequence_lengths:
             self._cumulative_lengths.append(self._cumulative_lengths[-1] + length)
 
-    def split_with_overlap(self) -> Generator[Tuple[SpanCandidate, list], None, None]:
+    def split_with_overlap(
+        self, return_candidates: bool = False
+    ) -> Union[Generator[Tuple[SpanCandidate, List[SpanCandidate]], None, None], Generator[SpanCandidate, None, None]]:
         """
         This function splits a sequence into sub-sequences where items can be overlapped.
+
+        Args:
+            return_candidates: If True, this function returns a list of candidates for each sub-sequence span.
 
         Returns:
             A generator of sub-sequence spans.
@@ -151,7 +141,10 @@ class SequenceSplitter:
         while prev_end < len(self.sequence_lengths):
             span, candidates = self.search_sub_sequence_span(prev_start, prev_end)
             prev_start, prev_end = span.start, span.end
-            yield span, candidates
+            if return_candidates:
+                yield span, candidates
+            else:
+                yield span
         return None
 
     def search_sub_sequence_span(self, prev_start: int, prev_end: int) -> Tuple[SpanCandidate, List[SpanCandidate]]:
