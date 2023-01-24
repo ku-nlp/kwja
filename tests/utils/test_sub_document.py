@@ -3,7 +3,7 @@ from typing import Any, Dict, List
 
 import pytest
 
-from kwja.datamodule.datasets.base_dataset import SequenceSplitter, SpanCandidate
+from kwja.utils.sub_document import SequenceSplitter, SpanCandidate
 
 random.seed(0)
 cases = [
@@ -38,7 +38,11 @@ def test_split_conditions(case: Dict[str, Any]):
     splitter = SequenceSplitter(sequence_lengths, max_length, stride)
     sequence_ids = list(range(len(sequence_lengths)))
     union_ids = set()
-    for idx, (span, candidates) in enumerate(splitter.split_with_overlap(return_candidates=True)):
+    for idx, item in enumerate(splitter.split_with_overlap(return_candidates=True)):
+        assert isinstance(item, tuple)
+        span: SpanCandidate
+        candidates: List[SpanCandidate]
+        span, candidates = item
         assert 0 <= span.start < span.end <= len(sequence_lengths)  # start and end index are in valid range
         union_ids.update(sequence_ids[span.start : span.end])
         if span.length > max_length:
