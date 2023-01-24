@@ -13,12 +13,8 @@ def is_target_sentence(sentence: Sentence) -> bool:
     match = SUB_DOC_PAT.match(sentence.document.doc_id)
     if match is None:
         return True
-    stride = int(match.group("stride"))
-    idx = int(match.group("idx"))
-    if idx == 0:
-        return True
-    else:
-        return sentence in sentence.document.sentences[-stride:]
+    stride = int(match["stride"])
+    return sentence in sentence.document.sentences[-stride:]
 
 
 def extract_target_sentences(document: Document) -> List[Sentence]:
@@ -30,7 +26,7 @@ def to_orig_doc_id(doc_id: str) -> str:
     if match is None:
         return doc_id
     else:
-        return match.group("did")
+        return match["did"]
 
 
 def to_sub_doc_id(doc_id: str, idx: int, stride: int = 1) -> str:
