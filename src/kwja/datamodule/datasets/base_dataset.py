@@ -75,7 +75,7 @@ class BaseDataset(Dataset):
         splitter = SequenceSplitter(sentence_tokens, max_token_length, stride)
         sub_documents: List[Document] = []
         sub_idx = 0
-        for span in splitter.split_with_overlap():
+        for span in splitter.split_into_spans():
             assert isinstance(span, SpanCandidate)
             sentences = document.sentences[span.start : span.end]
             sub_document = Document.from_sentences(sentences)

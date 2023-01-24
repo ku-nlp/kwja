@@ -57,7 +57,7 @@ class SequenceSplitter:
     Args:
         sequence_lengths: A list of item lengths.
         max_length: The maximum length of a sub-sequence span.
-        stride: The stride of the sub-sequence span.
+        stride: The stride of the sub-sequence span. -1 to dynamically determine the maximum stride by eliminating overlap.
     """
 
     def __init__(self, sequence_lengths: List[int], max_length: int, stride: int) -> None:
@@ -68,11 +68,11 @@ class SequenceSplitter:
         for length in sequence_lengths:
             self._cumulative_lengths.append(self._cumulative_lengths[-1] + length)
 
-    def split_with_overlap(
+    def split_into_spans(
         self, return_candidates: bool = False
     ) -> Iterator[Union[Tuple[SpanCandidate, List[SpanCandidate]], SpanCandidate]]:
         """
-        This function splits a sequence into sub-sequences where items can be overlapped.
+        This function splits a sequence into sub-sequences. Each sub-sequence is represented as a span.
 
         Args:
             return_candidates: If True, this function returns a list of candidates for each sub-sequence span.
@@ -90,11 +90,11 @@ class SequenceSplitter:
                 yield span
 
     def search_sub_sequence_span(self, prev_start: int, prev_end: int) -> Tuple[SpanCandidate, List[SpanCandidate]]:
-        # if self.stride == -1:
-        #     start = prev_end
-        #     end = self._search_end(start, initial=prev_end + 1)
-        #     span = self._gen_span_candidate(start, end, stride=end - prev_end)
-        #     return span, [span]
+        if self.stride == -1:
+            start = prev_end
+            end = self._search_end(start, initial=prev_end + 1)
+            span = self._gen_span_candidate(start, end, stride=end - prev_end)
+            return span, [span]
 
         candidates: List[SpanCandidate] = []
         # search start index
