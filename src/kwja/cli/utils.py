@@ -98,7 +98,8 @@ def _get_model_version() -> str:
         ("1", "1"): "v1.0",
         ("1", "2"): "v1.0",
         ("1", "3"): "v1.3",
-        # ("1", "4"): "v1.3",
+        ("1", "4"): "v1.3",
+        # ("1", "5"): "v1.3",
     }
     version_fields = kwja.__version__.split(".")
     return version_map[(version_fields[0], version_fields[1])]
