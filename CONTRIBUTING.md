@@ -57,7 +57,7 @@ Options:
 - `--input-dir, -i`: path to the JumanDIC dir.
 - `--output-dir, -o`: path to a directory where processed data are saved.
 
-## Build dataset for training typo module
+## Building dataset for training typo module
 
 You must preprocess Japanese Wikipedia Typo Dataset.
 
@@ -71,7 +71,7 @@ Options:
 - `--output-dir, -o`: path to directory to save. Default: `./data`
 - `--num-valid-samples, -n`: number of validation data. Default: `1000`
 
-## Build datasets for training word module
+## Building datasets for training word module
 
 "build_datasets.sh" performs formatting KWDLC and annotated FKC corpus.
 
@@ -145,8 +145,32 @@ Server environment (using GPU):
 poetry run python scripts/train.py -cn char_module.debug devices=[0]
 ```
 
-## Run unit test
+## Running unit test
 
 ```shell
 poetry run pytest
 ```
+
+## Releasing a new version
+
+- Checkout `main` branch
+- Update `CHANGELOG.md`
+- Edit `pyproject.toml` and and update `tool.poetry.version`
+- Update dependencies
+
+    ```shell
+    poetry update
+    ```
+
+- Add a new tag and push changes
+
+    ```shell
+    git tag -a v0.1.0 -m "Release v0.1.0"
+    git push origin v0.1.0
+    ```
+
+- If CI is passed, publish to PyPI
+
+    ```shell
+    poetry publish [--username $PYPI_USERNAME] [--password $PYPI_PASSWORD]
+    ```
