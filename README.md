@@ -80,8 +80,7 @@ Here are some other options for `kwja` command:
 
 `--word-batch-size`: Batch size for word module.
 
-`--discourse`: Whether to perform discourse relation analysis. Default value is True. If you do not need the results of discourse relation analysis, please specify `--no-discourse`.
-
+`--tasks`: Tasks to be performed. Please specify 'typo', 'char', 'typo,char', 'char,word', 'typo,char,word', 'char,word,word_discourse' or 'typo,char,word,word_discourse'.
 
 You can read a KNP format file with [rhoknp](https://github.com/ku-nlp/rhoknp).
 
