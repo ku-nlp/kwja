@@ -155,7 +155,7 @@ poetry run pytest
 
 - Checkout `main` branch
 - Update `CHANGELOG.md`
-- Edit `pyproject.toml` and and update `tool.poetry.version`
+- Edit `pyproject.toml` and update `tool.poetry.version`
 - Update dependencies
 
     ```shell
@@ -166,11 +166,12 @@ poetry run pytest
 
     ```shell
     git tag -a v0.1.0 -m "Release v0.1.0"
-    git push origin v0.1.0
+    git push --follow-tags
     ```
 
 - If CI is passed, publish to PyPI
 
     ```shell
+    poetry build
     poetry publish [--username $PYPI_USERNAME] [--password $PYPI_PASSWORD]
     ```
