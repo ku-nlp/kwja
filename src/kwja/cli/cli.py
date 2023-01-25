@@ -29,6 +29,14 @@ class Device(str, Enum):
     gpu = "gpu"
 
 
+class Task:
+    def __init__(self, tasks: List[str]):
+        self.typo = "typo" in tasks
+        self.char = "char" in tasks
+        self.word = "word" in tasks
+        self.word_discourse = "word_discourse" in tasks
+
+
 suppress_debug_info()
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 OmegaConf.register_new_resolver("concat", lambda x, y: x + y)
@@ -149,10 +157,13 @@ class CLIProcessor:
             devices=1,
         )
 
-    def apply_char(self) -> None:
+    def apply_char(self, input_texts: List[str] = None) -> None:
         if self.char_model is None:
             raise ValueError("char model does not exist")
-        self.char_model.hparams.datamodule.predict.texts = self._split_input_texts([self.typo_path.read_text()])
+        if input_texts is None:
+            self.char_model.hparams.datamodule.predict.texts = self._split_input_texts([self.typo_path.read_text()])
+        else:
+            self.char_model.hparams.datamodule.predict.texts = self._split_input_texts(input_texts)
         char_datamodule = DataModule(cfg=self.char_model.hparams.datamodule)
         char_datamodule.setup(stage=TrainerFn.PREDICTING)
         if self.char_trainer is None:
@@ -267,6 +278,25 @@ class CLIProcessor:
             return_predictions=False,
         )
 
+    def output_typo_result(self) -> None:
+        typo_texts: List[str] = []
+        with self.typo_path.open(mode="r") as f:
+            for line in f:
+                if line.strip() != "EOD":
+                    typo_texts.append(line.strip())
+        print("\n".join(typo_texts))
+
+    def output_char_result(self) -> None:
+        char_texts: List[str] = []
+        with self.char_path.open(mode="r") as f:
+            for juman_text in chunk_by_document(f):
+                char_text: List[str] = []
+                document = Document.from_jumanpp(juman_text)
+                for morpheme in document.morphemes:
+                    char_text.append(morpheme.text)
+                char_texts.append(" ".join(char_text))
+        print("\n".join(char_texts))
+
     def output_word_result(self) -> None:
         knp_texts = []
         with self.word_path.open(mode="r") as f:
@@ -301,6 +331,30 @@ def model_size_callback(value: str) -> str:
     return value
 
 
+def tasks_callback(value: str) -> str:
+    tasks: List[str] = value.split(",")
+    if len(tasks) == 0:
+        raise typer.BadParameter("task must be specified")
+    for task in tasks:
+        if task not in ["typo", "char", "word", "word_discourse"]:
+            raise typer.BadParameter("invalid task name is contained")
+    valid_task_combinations: List[List[str]] = [
+        ["typo"],
+        ["char"],
+        ["char", "typo"],
+        ["char", "word"],
+        ["char", "typo", "word"],
+        ["char", "word", "word_discourse"],
+        ["char", "typo", "word", "word_discourse"],
+    ]
+    sorted_task: List[str] = sorted(tasks)
+    if sorted_task not in valid_task_combinations:
+        raise typer.BadParameter(
+            "task combination is invalid. Please specify one of 'typo', 'char', 'typo,char', 'char,word', 'typo,char,word', 'char,word,word_discourse' or 'typo,char,word,word_discourse'"
+        )
+    return value
+
+
 @app.command()
 def main(
     text: Optional[str] = typer.Option(None, help="Text to be analyzed."),
@@ -315,7 +369,7 @@ def main(
     typo_batch_size: int = typer.Option(1, help="Batch size for typo module."),
     char_batch_size: int = typer.Option(1, help="Batch size for char module."),
     word_batch_size: int = typer.Option(1, help="Batch size for word module."),
-    discourse: Optional[bool] = typer.Option(True, help="Whether to perform discourse relation analysis."),
+    tasks: str = typer.Option("typo,char,word,word_discourse", callback=tasks_callback, help="Tasks to be performed."),
     _: Optional[bool] = typer.Option(None, "--version", callback=version_callback, is_eager=True),
 ) -> None:
     input_text: Optional[str] = None
@@ -328,6 +382,7 @@ def main(
         with Path(filename).open() as f:
             input_text = f.read()
 
+    specified_task: Task = Task(tasks=tasks.split(","))
     processor: CLIProcessor = CLIProcessor(
         specified_device=device.value,
         model_size=model_size,
@@ -340,29 +395,53 @@ def main(
         if input_text.strip() == "":
             raise typer.Exit()
 
-        processor.load_typo()
-        processor.apply_typo([input_text])
-        processor.del_typo()
-
-        processor.load_char()
-        processor.apply_char()
-        processor.del_char()
-
-        processor.load_word()
-        processor.apply_word()
-        processor.del_word()
-
-        if not discourse:
-            processor.output_word_result()
+        if specified_task.typo:
+            processor.load_typo()
+            processor.apply_typo([input_text])
+            processor.del_typo()
+            if specified_task.char:
+                processor.load_char()
+                processor.apply_char()
+                processor.del_char()
+                if specified_task.word:
+                    processor.load_word()
+                    processor.apply_word()
+                    processor.del_word()
+                    if specified_task.word_discourse:
+                        processor.load_word_discourse()
+                        processor.apply_word_discourse()
+                        processor.output_word_discourse_result()
+                    else:
+                        processor.output_word_result()
+                else:
+                    processor.output_char_result()
+            else:
+                processor.output_typo_result()
         else:
-            processor.load_word_discourse()
-            processor.apply_word_discourse()
-            processor.output_word_discourse_result()
+            processor.load_char()
+            processor.apply_char([input_text])
+            processor.del_char()
+            if specified_task.word:
+                processor.load_word()
+                processor.apply_word()
+                processor.del_word()
+                if specified_task.word_discourse:
+                    processor.load_word_discourse()
+                    processor.apply_word_discourse()
+                    processor.output_word_discourse_result()
+                else:
+                    processor.output_word_result()
+            else:
+                processor.output_char_result()
+
     else:
-        processor.load_typo()
-        processor.load_char()
-        processor.load_word()
-        if discourse:
+        if specified_task.typo:
+            processor.load_typo()
+        if specified_task.char:
+            processor.load_char()
+        if specified_task.word:
+            processor.load_word()
+        if specified_task.word_discourse:
             processor.load_word_discourse()
 
         typer.echo('Please end your input with a new line and type "EOD"', err=True)
@@ -371,16 +450,32 @@ def main(
             inp = input()
             if inp == "EOD":
                 processor.refresh()
-                processor.apply_typo([input_text])
-                processor.apply_char()
-                processor.apply_word()
-                if not discourse:
-                    processor.output_word_result()
-                    print("EOD")  # To indicate the end of the output.
+                if specified_task.typo:
+                    processor.apply_typo([input_text])
+                    if specified_task.char:
+                        processor.apply_char()
+                        if specified_task.word:
+                            processor.apply_word()
+                            if specified_task.word_discourse:
+                                processor.apply_word_discourse()
+                                processor.output_word_discourse_result()
+                            else:
+                                processor.output_word_result()
+                        else:
+                            processor.output_char_result()
+                    else:
+                        processor.output_typo_result()
                 else:
-                    processor.apply_word_discourse()
-                    processor.output_word_discourse_result()
-                    print("EOD")  # To indicate the end of the output.
+                    processor.apply_char([input_text])
+                    if specified_task.word:
+                        processor.apply_word()
+                        if specified_task.word_discourse:
+                            processor.apply_word_discourse()
+                        else:
+                            processor.output_word_result()
+                    else:
+                        processor.output_char_result()
+                print("EOD")  # To indicate the end of the output.
                 input_text = ""
             else:
                 input_text += inp + "\n"
