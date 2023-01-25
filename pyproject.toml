@@ -61,7 +61,7 @@ jinf = "^1.0.4"
 importlib-resources = "^5.10"
 jaconv = "^0.3"
 pure-cdb = "^4.0"
-rich = "^12.4"
+rich = ">=12.4"
 
 [tool.poetry.group.dev.dependencies]
 dartsclone = "^0.10.2"
