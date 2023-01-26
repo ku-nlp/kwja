@@ -10,7 +10,7 @@ import wandb
 from dotenv import load_dotenv
 from omegaconf import DictConfig, ListConfig, OmegaConf
 from pytorch_lightning.callbacks import Callback
-from pytorch_lightning.loggers import LightningLoggerBase
+from pytorch_lightning.loggers import Logger
 from pytorch_lightning.utilities.warnings import PossibleUserWarning
 
 from kwja.datamodule.datamodule import DataModule
@@ -36,8 +36,7 @@ def main(cfg: DictConfig):
             cfg.devices = None
     cfg.seed = pl.seed_everything(seed=cfg.seed, workers=True)
 
-    is_debug: bool = True if "fast_dev_run" in cfg.trainer else False
-    logger: Optional[LightningLoggerBase] = hydra.utils.instantiate(cfg.logger) if not is_debug else None
+    logger: Optional[Logger] = cfg.get("logger") and hydra.utils.instantiate(cfg.get("logger"))
     callbacks: List[Callback] = list(map(hydra.utils.instantiate, cfg.get("callbacks", {}).values()))
 
     # Calculate gradient_accumulation_steps assuming DDP
@@ -64,7 +63,7 @@ def main(cfg: DictConfig):
     model: pl.LightningModule = hydra.utils.instantiate(cfg.module.cls, hparams=cfg, _recursive_=False)
 
     trainer.fit(model=model, datamodule=datamodule)
-    trainer.test(model=model, datamodule=datamodule, ckpt_path="best" if not is_debug else None)
+    trainer.test(model=model, datamodule=datamodule, ckpt_path="best" if not trainer.fast_dev_run else None)
     if cfg.do_predict_after_train:
         trainer.predict(
             model=model,

@@ -7,8 +7,7 @@ from typing import Any, List, Optional, Sequence, TextIO, Union
 import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks import BasePredictionWriter
-from rhoknp import Morpheme, Sentence
-from rhoknp.units.morpheme import MorphemeAttributes
+from rhoknp import Document, Morpheme, Sentence
 
 from kwja.datamodule.datasets import CharDataset, CharInferenceDataset
 from kwja.datamodule.datasets.char_dataset import CharExampleSet
@@ -40,18 +39,16 @@ class CharModuleWriter(BasePredictionWriter):
     def create_morpheme(surf: str, norm: str) -> Morpheme:
         return Morpheme(
             surf,
-            MorphemeAttributes(
-                reading="_",
-                lemma=norm,
-                pos="未定義語",
-                pos_id=15,
-                subpos="その他",
-                subpos_id=1,
-                conjtype="*",
-                conjtype_id=0,
-                conjform="*",
-                conjform_id=0,
-            ),
+            reading="_",
+            lemma=norm or surf,
+            pos="未定義語",
+            pos_id=15,
+            subpos="その他",
+            subpos_id=1,
+            conjtype="*",
+            conjtype_id=0,
+            conjform="*",
+            conjform_id=0,
         )
 
     def write_on_batch_end(
@@ -66,7 +63,7 @@ class CharModuleWriter(BasePredictionWriter):
     ) -> None:
         sentences: List[Sentence] = []
         dataloaders = trainer.predict_dataloaders
-        dataset: Union[CharDataset, CharInferenceDataset] = dataloaders[prediction["dataloader_idx"]].dataset
+        dataset: Union[CharDataset, CharInferenceDataset] = dataloaders[dataloader_idx].dataset
         special_ids = {
             special_id
             for special_id in dataset.tokenizer.all_special_ids
@@ -93,8 +90,12 @@ class CharModuleWriter(BasePredictionWriter):
                 if input_id not in special_ids
             ]
             char_idx = 0
-            document = dataset.doc_id2document[example.doc_id]
-            for sentence in document.sentences:
+            orig_document = dataset.doc_id2document[example.doc_id]
+            document = Document.from_sentences(orig_document.sentences)  # メモリリーク対策
+            document.doc_id = orig_document.doc_id
+            for orig_sentence, sentence in zip(orig_document.sentences, document.sentences):
+                sentence.sid = orig_sentence.sid
+                sentence.misc_comment = orig_sentence.misc_comment
                 Morpheme.count = 0
                 morphemes: List[Morpheme] = []
                 word_surf: str = ""
@@ -108,8 +109,9 @@ class CharModuleWriter(BasePredictionWriter):
                     word_surf += char
                     word_norm_ops.append(word_normalizer_types[char_idx])
                     char_idx += 1
-                word_norm = get_normalized(word_surf, word_norm_ops, strict=False)
-                morphemes.append(self.create_morpheme(word_surf, word_norm))
+                if word_surf:
+                    word_norm = get_normalized(word_surf, word_norm_ops, strict=False)
+                    morphemes.append(self.create_morpheme(word_surf, word_norm))
                 sentence.morphemes = morphemes
             sentences += extract_target_sentences(document)
 

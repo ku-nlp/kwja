@@ -7,7 +7,7 @@ import transformers.utils.logging as hf_logging
 from dotenv import load_dotenv
 from omegaconf import DictConfig, ListConfig, OmegaConf
 from pytorch_lightning.callbacks import Callback
-from pytorch_lightning.loggers import LightningLoggerBase
+from pytorch_lightning.loggers import Logger
 from pytorch_lightning.trainer.states import TrainerFn
 
 from kwja.datamodule.datamodule import DataModule
@@ -34,8 +34,7 @@ def main(eval_cfg: DictConfig):
     cfg = OmegaConf.merge(train_cfg, eval_cfg)
     assert isinstance(cfg, DictConfig)
 
-    is_debug: bool = True if "fast_dev_run" in cfg.trainer else False
-    logger: Optional[LightningLoggerBase] = hydra.utils.instantiate(cfg.logger) if is_debug is False else None
+    logger: Optional[Logger] = cfg.get("logger") and hydra.utils.instantiate(cfg.get("logger"))
     callbacks: List[Callback] = list(map(hydra.utils.instantiate, cfg.get("callbacks", {}).values()))
 
     num_devices: int = len(cfg.devices) if isinstance(cfg.devices, (list, ListConfig)) else cfg.devices

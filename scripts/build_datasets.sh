@@ -1,16 +1,48 @@
-#!/usr/bin/zsh
+#!/usr/bin/env bash
 
-while getopts w:j:o: OPT
-do
-  case $OPT in
-    w) WORK_DIR="$OPTARG" ;;
-    j) JOBS="$OPTARG" ;;
-    o) OUT_DIR="$OPTARG" ;;
-    *)
-      echo "invalid option"
-      exit ;;
+JOBS=1
+
+usage() {
+  echo "Usage: scripts/build_dataset.sh --work-dir=\${WORK_DIR} --out-dir=\${OUT_DIR} --jobs=${JOBS}"
+  echo "*** NOTE: specify arguments with \"=\" ***"
+  echo "  --work-dir    path to working directory"
+  echo "  --out-dir     path to output directory"
+  echo "  --jobs        number of jobs (default=1)"
+}
+
+while getopts h-: opt; do
+  if [[ $opt = "-" ]]; then
+    opt=$(echo "${OPTARG}" | awk -F "=" '{print $1}')
+    OPTARG=$(echo "${OPTARG}" | awk -F "=" '{print $2}')
+  fi
+
+  case "$opt" in
+  work-dir)
+    WORK_DIR=$OPTARG
+    ;;
+  out-dir)
+    OUT_DIR=$OPTARG
+    ;;
+  jobs)
+    JOBS=$OPTARG
+    ;;
+  h | help)
+    usage
+    exit 0
+    ;;
+  *)
+    echo "invalid option -- $opt"
+    usage
+    exit 1
+    ;;
   esac
 done
+
+if [[ -z "$WORK_DIR" ]] || [[ -z "$OUT_DIR" ]]; then
+  echo "missing required arguments"
+  usage
+  exit 1
+fi
 
 mkdir -p "$WORK_DIR" "$OUT_DIR"/{kwdlc,fuman}
 git clone git@github.com:ku-nlp/KWDLC.git "$WORK_DIR"/KWDLC

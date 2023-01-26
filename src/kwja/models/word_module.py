@@ -41,7 +41,6 @@ class WordTask(Enum):
 class WordModule(pl.LightningModule):
     def __init__(self, hparams: DictConfig) -> None:
         super().__init__()
-        OmegaConf.resolve(hparams)
         self.save_hyperparameters(hparams)
         self.training_tasks = list(map(WordTask, self.hparams.training_tasks))
 
@@ -453,7 +452,6 @@ class WordModule(pl.LightningModule):
         outputs: Dict[str, Dict[str, torch.Tensor]] = self(**batch)
         return {
             "example_ids": batch["example_ids"],
-            "dataloader_idx": dataloader_idx or 0,
             "reading_subword_map": batch["reading_subword_map"],
             "reading_prediction_logits": outputs["reading_predictor_outputs"]["logits"],
             "word_analysis_pos_logits": outputs["word_analyzer_outputs"]["pos_logits"],

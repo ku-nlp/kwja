@@ -1,4 +1,5 @@
 import argparse
+import copy
 import io
 import logging
 import sys
@@ -16,7 +17,6 @@ from rhoknp.cohesion import Argument, ArgumentType, EndophoraArgument, ExophoraA
 from kwja.datamodule.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
 
 
 class Scorer:
@@ -26,25 +26,25 @@ class Scorer:
     :class:`rhoknp.Document`
 
     Args:
-        documents_pred (list[Document]): システム予測文書集合
-        documents_gold (list[Document]): 正解文書集合
-        target_cases (list[str]): 評価の対象とする格 (rhoknp.cohesion.rel.CASE_TYPES を参照)
-        exophora_referents (list[ExophoraReferent]): 評価の対象とする外界照応の照応先 (rhoknp.cohesion.ExophoraReferentType を参照)
+        documents_pred (List[Document]): システム予測文書集合
+        documents_gold (List[Document]): 正解文書集合
+        target_cases (List[str]): 評価の対象とする格 (rhoknp.cohesion.rel.CASE_TYPES を参照)
+        exophora_referents (List[ExophoraReferent]): 評価の対象とする外界照応の照応先 (rhoknp.cohesion.ExophoraReferentType を参照)
         bridging (bool): 橋渡し照応の評価を行うかどうか (default: False)
         coreference (bool): 共参照の評価を行うかどうか (default: False)
         pas_target (str): 述語項構造解析において述語として扱う対象 ('pred': 用言, 'noun': 体言, 'all': 両方, '': 述語なし (default: pred))
 
     Attributes:
-        cases (list[str]): 評価の対象となる格
-        doc_ids: (list[str]): 評価の対象となる文書の文書ID集合
-        did2document_pred (dict[str, Document]): 文書IDからシステム予測文書を引くための辞書
-        did2document_gold (dict[str, Document]): 文書IDから正解文書を引くための辞書
+        cases (List[str]): 評価の対象となる格
+        doc_ids: (List[str]): 評価の対象となる文書の文書ID集合
+        did2document_pred (Dict[str, Document]): 文書IDからシステム予測文書を引くための辞書
+        did2document_gold (Dict[str, Document]): 文書IDから正解文書を引くための辞書
         bridging (bool): 橋渡し照応の評価を行うかどうか
         coreference (bool): 共参照の評価を行うかどうか
         pas_target (str): 述語項構造解析において述語として扱う対象
-        comp_result (dict[tuple, str]): 正解と予測を比較した結果を格納するための辞書
-        sub_scorers (list[SubScorer]): 文書ごとの評価を行うオブジェクトのリスト
-        exophora_referents (list[ExophoraReferent]): 「不特定:人１」などを「不特定:人」として評価するためのマップ
+        comp_result (Dict[tuple, str]): 正解と予測を比較した結果を格納するための辞書
+        sub_scorers (List[SubScorer]): 文書ごとの評価を行うオブジェクトのリスト
+        exophora_referents (List[ExophoraReferent]): 評価の対象とする外界照応の照応先
     """
 
     DEPTYPE2ANALYSIS = OrderedDict(
@@ -111,28 +111,28 @@ class SubScorer:
     Args:
         document_pred (Document): システム予測文書
         document_gold (Document): 正解文書
-        cases (list[str]): 評価の対象とする格
+        cases (List[str]): 評価の対象とする格
         bridging (bool): 橋渡し照応の評価を行うかどうか (default: False)
         coreference (bool): 共参照の評価を行うかどうか (default: False)
-        exophora_referents (list[ExophoraReferent]): 「不特定:人１」などを「不特定:人」として評価するためのマップ
+        exophora_referents (List[ExophoraReferent]): 評価の対象とする外界照応の照応先
         pas_target (str): 述語項構造解析において述語として扱う対象
 
     Attributes:
         doc_id (str): 対象の文書ID
         document_pred (Document): システム予測文書
         document_gold (Document): 正解文書
-        cases (list[str]): 評価の対象となる格
+        cases (List[str]): 評価の対象となる格
         pas (bool): 述語項構造の評価を行うかどうか
         bridging (bool): 橋渡し照応の評価を行うかどうか
         coreference (bool): 共参照の評価を行うかどうか
-        comp_result (dict[tuple, str]): 正解と予測を比較した結果を格納するための辞書
-        exophora_referents (list[ExophoraReferent]): 「不特定:人１」などを「不特定:人」として評価するためのマップ
-        predicates_pred: (list[Predicate]): システム予測文書に含まれる述語
-        bridgings_pred: (list[Predicate]): システム予測文書に含まれる橋渡し照応詞
-        mentions_pred: (list[BasePhrase]): システム予測文書に含まれるメンション
-        predicates_gold: (list[Predicate]): 正解文書に含まれる述語
-        bridgings_gold: (list[Predicate]): 正解文書に含まれる橋渡し照応詞
-        mentions_gold: (list[BasePhrase]): 正解文書に含まれるメンション
+        comp_result (Dict[tuple, str]): 正解と予測を比較した結果を格納するための辞書
+        exophora_referents (List[ExophoraReferent]): 評価の対象とする外界照応の照応先
+        predicates_pred: (List[Predicate]): システム予測文書に含まれる述語
+        bridgings_pred: (List[Predicate]): システム予測文書に含まれる橋渡し照応詞
+        mentions_pred: (List[BasePhrase]): システム予測文書に含まれるメンション
+        predicates_gold: (List[Predicate]): 正解文書に含まれる述語
+        bridgings_gold: (List[Predicate]): 正解文書に含まれる橋渡し照応詞
+        mentions_gold: (List[BasePhrase]): 正解文書に含まれるメンション
     """
 
     def __init__(
@@ -218,6 +218,7 @@ class SubScorer:
                 if global_index in global_index2predicate_pred:
                     predicate_pred = global_index2predicate_pred[global_index]
                     args_pred = predicate_pred.pas.get_arguments(case, relax=False)
+                    args_pred = self._filter_args(args_pred, predicate_pred)
                 else:
                     args_pred = []
                 # this project predicts one argument for one predicate
@@ -227,9 +228,12 @@ class SubScorer:
                     predicate_gold = global_index2predicate_gold[global_index]
                     args_gold = predicate_gold.pas.get_arguments(case, relax=False)
                     args_gold = self._filter_args(args_gold, predicate_gold)
-                    args_gold_relaxed = predicate_gold.pas.get_arguments(case, relax=True)
+                    args_gold_relaxed = predicate_gold.pas.get_arguments(case, relax=True, include_nonidentical=True)
                     if case == "ガ":
-                        args_gold_relaxed += predicate_gold.pas.get_arguments("判ガ", relax=True)
+                        args_gold_relaxed += predicate_gold.pas.get_arguments(
+                            "判ガ", relax=True, include_nonidentical=True
+                        )
+                    args_gold_relaxed = self._filter_args(args_gold_relaxed, predicate_gold)
                 else:
                     args_gold = args_gold_relaxed = []
 
@@ -274,10 +278,17 @@ class SubScorer:
     def _filter_args(self, args: List[Argument], predicate: Predicate) -> List[Argument]:
         filtered_args = []
         for arg in args:
+            arg = copy.copy(arg)
+            if arg.case.endswith("≒"):
+                arg.case = arg.case[:-1]
+            if arg.case == "判ガ":
+                arg.case = "ガ"
+            if arg.case == "ノ？":
+                arg.case = "ノ"
             if isinstance(arg, ExophoraArgument):
-                if arg.exophora_referent not in self.exophora_referents:  # filter out non-target exophors
-                    continue
                 arg.exophora_referent.index = None  # 「不特定:人１」なども「不特定:人」として扱う
+                if arg.exophora_referent not in self.exophora_referents:
+                    continue
             else:
                 assert isinstance(arg, EndophoraArgument)
                 # filter out self-anaphora and cataphora
@@ -295,10 +306,10 @@ class SubScorer:
         """calculate bridging anaphora resolution scores"""
         measures: Dict[str, Measure] = OrderedDict((anal, Measure()) for anal in Scorer.DEPTYPE2ANALYSIS.values())
         global_index2anaphor_pred: Dict[int, Predicate] = {
-            pred.base_phrase.global_index: pred for pred in self.bridgings_pred
+            anaphor.base_phrase.global_index: anaphor for anaphor in self.bridgings_pred
         }
         global_index2anaphor_gold: Dict[int, Predicate] = {
-            pred.base_phrase.global_index: pred for pred in self.bridgings_gold
+            anaphor.base_phrase.global_index: anaphor for anaphor in self.bridgings_gold
         }
 
         for global_index in range(len(self.document_pred.base_phrases)):
@@ -317,8 +328,10 @@ class SubScorer:
                 antecedents_gold: List[Argument] = self._filter_args(
                     anaphor_gold.pas.get_arguments("ノ", relax=False), anaphor_gold
                 )
-                antecedents_gold_relaxed: List[Argument] = anaphor_gold.pas.get_arguments("ノ", relax=True)
-                antecedents_gold_relaxed += anaphor_gold.pas.get_arguments("ノ？", relax=True)
+                antecedents_gold_relaxed: List[Argument] = anaphor_gold.pas.get_arguments(
+                    "ノ", relax=True, include_nonidentical=True
+                )
+                antecedents_gold_relaxed += anaphor_gold.pas.get_arguments("ノ？", relax=True, include_nonidentical=True)
                 antecedents_gold_relaxed = self._filter_args(antecedents_gold_relaxed, anaphor_gold)
             else:
                 antecedents_gold = antecedents_gold_relaxed = []
@@ -369,28 +382,40 @@ class SubScorer:
     def _evaluate_coref(self) -> pd.Series:
         """calculate coreference resolution scores"""
         measure = Measure()
+        global_index_to_mention_pred: Dict[int, BasePhrase] = {
+            mention.global_index: mention for mention in self.mentions_pred
+        }
+        global_index_to_mention_gold: Dict[int, BasePhrase] = {
+            mention.global_index: mention for mention in self.mentions_gold
+        }
         for global_index in range(len(self.document_pred.base_phrases)):
-            src_mention_pred = self.document_pred.base_phrases[global_index]
-            tgt_mentions_pred = self.filter_mentions(src_mention_pred.get_coreferents(), src_mention_pred)
-            exophors_pred = {
-                e.exophora_referent.text for e in src_mention_pred.entities if e.exophora_referent is not None
-            }
+            if src_mention_pred := global_index_to_mention_pred.get(global_index):
+                tgt_mentions_pred = self._filter_mentions(src_mention_pred.get_coreferents(), src_mention_pred)
+                exophors_pred = self._filter_exophora_referents(
+                    [e.exophora_referent for e in src_mention_pred.entities if e.exophora_referent is not None]
+                )
+            else:
+                tgt_mentions_pred = set()
+                exophors_pred = set()
 
-            src_mention_gold = self.document_gold.base_phrases[global_index]
-            tgt_mentions_gold = self.filter_mentions(
-                src_mention_gold.get_coreferents(include_nonidentical=False),
-                src_mention_gold,
-            )
-            tgt_mentions_gold_relaxed = self.filter_mentions(
-                src_mention_gold.get_coreferents(include_nonidentical=True),
-                src_mention_gold,
-            )
-            exophors_gold = {
-                e.exophora_referent.text for e in src_mention_gold.entities if e.exophora_referent is not None
-            }
-            exophors_gold_relaxed = {
-                e.exophora_referent.text for e in src_mention_gold.entities_all if e.exophora_referent is not None
-            }
+            if src_mentions_gold := global_index_to_mention_gold.get(global_index):
+                tgt_mentions_gold = self._filter_mentions(
+                    src_mentions_gold.get_coreferents(include_nonidentical=False),
+                    src_mentions_gold,
+                )
+                tgt_mentions_gold_relaxed = self._filter_mentions(
+                    src_mentions_gold.get_coreferents(include_nonidentical=True),
+                    src_mentions_gold,
+                )
+                exophors_gold = self._filter_exophora_referents(
+                    [e.exophora_referent for e in src_mentions_gold.entities if e.exophora_referent is not None]
+                )
+                exophors_gold_relaxed = self._filter_exophora_referents(
+                    [e.exophora_referent for e in src_mentions_gold.entities_all if e.exophora_referent is not None]
+                )
+            else:
+                tgt_mentions_gold = tgt_mentions_gold_relaxed = set()
+                exophors_gold = exophors_gold_relaxed = set()
 
             key = (global_index, "=")
 
@@ -413,9 +438,18 @@ class SubScorer:
         return pd.Series([measure], index=["all"])
 
     @staticmethod
-    def filter_mentions(tgt_mentions: Set[BasePhrase], src_mention: BasePhrase) -> Set[BasePhrase]:
-        """filter out cataphors"""
+    def _filter_mentions(tgt_mentions: Set[BasePhrase], src_mention: BasePhrase) -> Set[BasePhrase]:
+        """filter out cataphora mentions"""
         return {tgt_mention for tgt_mention in tgt_mentions if tgt_mention.global_index < src_mention.global_index}
+
+    def _filter_exophora_referents(self, exophora_referents: List[ExophoraReferent]) -> Set[str]:
+        filtered = set()
+        for referent in exophora_referents:
+            referent = copy.copy(referent)
+            referent.index = None
+            if referent in self.exophora_referents:
+                filtered.add(referent.text)
+        return filtered
 
 
 @dataclass(frozen=True)
@@ -541,13 +575,11 @@ class Measure:
 
     def __add__(self, other: "Measure"):
         return Measure(
-            self.denom_pred + other.denom_pred,
-            self.denom_gold + other.denom_gold,
-            self.correct + other.correct,
+            self.denom_pred + other.denom_pred, self.denom_gold + other.denom_gold, self.correct + other.correct
         )
 
     def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, Measure):
+        if not isinstance(other, type(self)):
             return False
         return (
             self.denom_pred == other.denom_pred
@@ -583,45 +615,17 @@ def main():
         help="path to directory where system output KWDLC files exist (default: None)",
     )
     parser.add_argument(
-        "--gold-dir",
-        default=None,
-        type=str,
-        help="path to directory where gold KWDLC files exist (default: None)",
+        "--gold-dir", default=None, type=str, help="path to directory where gold KWDLC files exist (default: None)"
     )
     parser.add_argument(
-        "--coreference",
-        "--coref",
-        "--cr",
-        action="store_true",
-        default=False,
-        help="perform coreference resolution",
+        "--coreference", "--coref", "--cr", action="store_true", default=False, help="perform coreference resolution"
     )
     parser.add_argument(
-        "--bridging",
-        "--brg",
-        "--bar",
-        action="store_true",
-        default=False,
-        help="perform bridging anaphora resolution",
+        "--bridging", "--brg", "--bar", action="store_true", default=False, help="perform bridging anaphora resolution"
     )
+    parser.add_argument("--case-string", type=str, default="ガ,ヲ,ニ,ガ２", help='case strings separated by ","')
     parser.add_argument(
-        "--case-string",
-        type=str,
-        default="ガ,ヲ,ニ,ガ２",
-        help='case strings separated by ","',
-    )
-    parser.add_argument(
-        "--exophors",
-        "--exo",
-        type=str,
-        default="著者,読者,不特定:人,不特定:物",
-        help='exophor strings separated by ","',
-    )
-    parser.add_argument(
-        "--read-prediction-from-pas-tag",
-        action="store_true",
-        default=False,
-        help="use <述語項構造:> tag instead of <rel > tag in prediction files",
+        "--exophors", "--exo", type=str, default="著者,読者,不特定:人,不特定:物", help='exophor strings separated by ","'
     )
     parser.add_argument(
         "--pas-target",

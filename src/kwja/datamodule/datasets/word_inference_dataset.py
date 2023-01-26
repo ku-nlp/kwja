@@ -3,13 +3,12 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Literal, Optional, Union
 
 import torch
 from omegaconf import ListConfig
 from rhoknp import Document, Morpheme, Sentence
 from rhoknp.cohesion import ExophoraReferent
-from rhoknp.units.morpheme import MorphemeAttributes
 from rhoknp.utils.reader import chunk_by_document
 from tokenizers import Encoding
 from transformers.utils import PaddingStrategy
@@ -18,6 +17,7 @@ import kwja
 from kwja.datamodule.datasets.base_dataset import BaseDataset
 from kwja.datamodule.examples import CohesionTask
 from kwja.datamodule.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
+from kwja.utils.progress_bar import track
 from kwja.utils.sub_document import extract_target_sentences
 
 logger = logging.getLogger(__name__)
@@ -51,12 +51,22 @@ class WordInferenceDataset(BaseDataset):
     ) -> None:
         if knp_file is not None:
             with open(knp_file) as f:
-                documents = [Document.from_knp(c) for c in chunk_by_document(f)]
+                documents = [Document.from_knp(c) for c in track(chunk_by_document(f), description="Loading documents")]
         elif juman_file is not None:
             with open(juman_file) as f:
-                documents = [Document.from_jumanpp(c) for c in chunk_by_document(f)]
+                documents = [
+                    Document.from_jumanpp(c) for c in track(chunk_by_document(f), description="Loading documents")
+                ]
         else:
             documents = self._create_documents_from_texts(list(texts), doc_id_prefix)
+        if model_name_or_path in [
+            "nlp-waseda/roberta-base-japanese",
+            "nlp-waseda/roberta-large-japanese",
+            "nlp-waseda/roberta-large-japanese-seq512",
+        ]:
+            self.tokenizer_input_format: Literal["words", "text"] = "words"
+        else:
+            self.tokenizer_input_format = "text"
         super().__init__(documents, document_split_stride, model_name_or_path, max_seq_length, tokenizer_kwargs or {})
 
         self.exophora_referents = [ExophoraReferent(s) for s in exophora_referents]
@@ -109,7 +119,7 @@ class WordInferenceDataset(BaseDataset):
         if doc_id_prefix is None:
             doc_id_prefix = datetime.now().strftime("%Y%m%d%H%M")
         doc_id, sid = f"{doc_id_prefix}-0", f"{doc_id_prefix}-0-0"
-        for text in texts:
+        for text in track(texts, description="Loading documents"):
             if text.startswith("#"):
                 sentence = Sentence.from_raw_text(text)
                 doc_id, sid = sentence.doc_id, sentence.sid
@@ -117,9 +127,9 @@ class WordInferenceDataset(BaseDataset):
                 sentence = Sentence()
                 sentence.doc_id, sentence.sid = doc_id, sid
                 sentence.misc_comment = f"kwja:{kwja.__version__}"
-                morphemes = []
-                for word in text.split(" "):
-                    attributes = MorphemeAttributes(
+                sentence.morphemes = [
+                    Morpheme(
+                        word,
                         reading="null",
                         lemma="null",
                         pos="null",
@@ -131,8 +141,8 @@ class WordInferenceDataset(BaseDataset):
                         conjform="null",
                         conjform_id=0,
                     )
-                    morphemes.append(Morpheme(word, attributes))
-                sentence.morphemes = morphemes
+                    for word in text.split(" ")
+                ]
                 did2sentences[doc_id].append(sentence)
         return [Document.from_sentences(sentences) for sentences in did2sentences.values()]
 
@@ -145,12 +155,16 @@ class WordInferenceDataset(BaseDataset):
     def _load_examples(self, documents: List[Document]) -> List[WordInferenceExample]:
         examples = []
         idx = 0
-        for document in documents:
+        for document in track(documents, description="Loading examples"):
+            tokenizer_input: Union[List[str], str] = [m.text for m in document.morphemes]
+            if self.tokenizer_input_format == "text":
+                tokenizer_input = " ".join(tokenizer_input)
             encoding: Encoding = self.tokenizer(
-                " ".join(m.text for m in document.morphemes),
+                tokenizer_input,
                 padding=PaddingStrategy.MAX_LENGTH,
                 truncation=False,
                 max_length=self.max_seq_length - self.num_special_tokens,
+                is_split_into_words=self.tokenizer_input_format == "words",
             ).encodings[0]
             if len(encoding.ids) > self.max_seq_length - self.num_special_tokens:
                 continue
@@ -190,14 +204,29 @@ class WordInferenceDataset(BaseDataset):
                         dependency_mask[i][j] = True
                 dependency_mask[i][self.special_to_index["[ROOT]"]] = True
 
-        cohesion_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
-        num_morphemes = len(document.morphemes)
-        for i in range(num_morphemes):
-            for j in range(num_morphemes):
-                if i != j:
-                    cohesion_mask[i][j] = True
-            for special_index in self.cohesion_special_indices:
-                cohesion_mask[i][special_index] = True
+        candidates_list: List[List[List[int]]] = []  # (task, src, tgt)
+        morphemes = document.morphemes
+        if CohesionTask.PAS_ANALYSIS in self.cohesion_tasks:
+            candidates: List[List[int]] = [[] for _ in range(self.max_seq_length)]
+            for i, src_morpheme in enumerate(morphemes):
+                candidates[i] = self._get_candidate_morpheme_indices(morphemes, src_morpheme)
+                candidates[i] += self.cohesion_special_indices
+            candidates_list.extend([candidates] * len(self.pas_cases))
+        if CohesionTask.BRIDGING in self.cohesion_tasks:
+            candidates = [[] for _ in range(self.max_seq_length)]
+            for i, src_morpheme in enumerate(morphemes):
+                candidates[i] = self._get_candidate_morpheme_indices(morphemes, src_morpheme)
+                candidates[i] += self.cohesion_special_indices
+            candidates_list.append(candidates)
+        if CohesionTask.COREFERENCE in self.cohesion_tasks:
+            candidates = [[] for _ in range(self.max_seq_length)]
+            for i, src_morpheme in enumerate(morphemes):
+                candidates[i] = self._get_candidate_morpheme_indices(morphemes, src_morpheme, coreference=True)
+                candidates[i] += self.cohesion_special_indices
+            candidates_list.append(candidates)
+        cohesion_mask = [
+            [[(x in cs) for x in range(self.max_seq_length)] for cs in candidates] for candidates in candidates_list
+        ]  # False -> mask, True -> keep
 
         merged_encoding: Encoding = Encoding.merge([example.encoding, self.special_encoding])
 
@@ -211,9 +240,7 @@ class WordInferenceDataset(BaseDataset):
                 self._gen_subword_map(merged_encoding, include_additional_words=False), dtype=torch.bool
             ),
             "intra_mask": torch.tensor(dependency_mask, dtype=torch.bool),
-            "cohesion_mask": torch.tensor(cohesion_mask, dtype=torch.bool)
-            .unsqueeze(0)
-            .expand(len(self.cohesion_rel_types), self.max_seq_length, self.max_seq_length),
+            "cohesion_mask": torch.tensor(cohesion_mask, dtype=torch.bool),
         }
 
     def _gen_subword_map(self, encoding: Encoding, include_additional_words: bool = True) -> List[List[bool]]:
@@ -228,4 +255,28 @@ class WordInferenceDataset(BaseDataset):
         return subword_map
 
     def _get_tokenized_len(self, source: Union[Document, Sentence]) -> int:
-        return len(self.tokenizer.tokenize(" ".join(m.text for m in source.morphemes)))
+        tokenizer_input: Union[List[str], str] = [m.text for m in source.morphemes]
+        if self.tokenizer_input_format == "text":
+            tokenizer_input = " ".join(tokenizer_input)
+        encoding = self.tokenizer(
+            tokenizer_input, add_special_tokens=False, is_split_into_words=self.tokenizer_input_format == "words"
+        ).encodings[0]
+        return len(encoding.ids)
+
+    @staticmethod
+    def _get_candidate_morpheme_indices(
+        morphemes: List[Morpheme],
+        source_morpheme: Morpheme,
+        coreference: bool = False,
+    ) -> List[int]:
+        candidates: List[int] = []
+        for target_morpheme in morphemes:
+            if target_morpheme.global_index < source_morpheme.global_index:
+                candidates.append(target_morpheme.global_index)
+            elif coreference is False:
+                if (
+                    target_morpheme.global_index > source_morpheme.global_index
+                    and target_morpheme.sentence.sid == source_morpheme.sentence.sid
+                ):
+                    candidates.append(target_morpheme.global_index)
+        return candidates

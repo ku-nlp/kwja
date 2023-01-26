@@ -4,7 +4,8 @@ from pathlib import Path
 from typing import Dict, List
 
 import cdblib
-from tqdm import tqdm
+
+from kwja.utils.progress_bar import track
 
 
 class JumanDic:
@@ -70,7 +71,7 @@ class JumanDic:
                 rv[v] = k
             return rv
 
-        for entry in tqdm(entries):
+        for entry in track(entries):
             surf, reading, lemma, pos, subpos, conjtype, conjform, semantics = entry
             reading_id = _get_counter(reading2id, reading)
             lemma_id = _get_counter(lemma2id, lemma)

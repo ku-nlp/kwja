@@ -11,9 +11,9 @@ from typing import Any, Dict, List, Optional, Tuple
 from rhoknp import KNP, Document, Jumanpp, Morpheme, Sentence
 from rhoknp.props import FeatureDict, NamedEntity, NamedEntityCategory
 from rhoknp.utils.reader import chunk_by_document, chunk_by_sentence
-from tqdm import tqdm
 
 from kwja.utils.constants import BASE_PHRASE_FEATURES, IGNORE_VALUE_FEATURE_PAT, SUB_WORD_FEATURES
+from kwja.utils.progress_bar import track
 
 NE_OPTIONAL_PAT = re.compile(r"(?P<optional><NE:OPTIONAL:[^>]+>)")
 
@@ -69,8 +69,7 @@ class JumanppAugmenter:
     ) -> None:
         for original_morpheme, augmented_morpheme in zip(original_sentence.morphemes, augmented_sentence.morphemes):
             # Jumanpp may override reading
-            assert augmented_morpheme.attributes is not None
-            augmented_morpheme.attributes.reading = original_morpheme.reading
+            augmented_morpheme.reading = original_morpheme.reading
             if update_original and not original_sentence.need_knp:
                 # add Semantics
                 for k, v in augmented_morpheme.semantics.items():
@@ -208,7 +207,7 @@ def assign_features_and_save(
 ) -> None:
     jumanpp_augmenter = JumanppAugmenter()
     knp = KNP(options=["-tab", "-dpnd-fast", "-read-feature"])
-    for knp_text in tqdm(knp_texts):
+    for knp_text in track(knp_texts):
         document = Document.from_knp(knp_text)
         if document.doc_id not in doc_id2split:
             continue

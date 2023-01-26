@@ -33,7 +33,7 @@ def main(eval_cfg: DictConfig):
 
     callbacks: List[Callback] = []
     for k, v in cfg.get("callbacks", {}).items():
-        if k == "prediction_writer":
+        if k in {"prediction_writer", "progress_bar"}:
             callbacks.append(hydra.utils.instantiate(v))
 
     num_devices: int = len(cfg.devices) if isinstance(cfg.devices, (list, ListConfig)) else cfg.devices

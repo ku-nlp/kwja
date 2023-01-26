@@ -7,7 +7,8 @@ from rhoknp import Document, Sentence
 from torch.utils.data import Dataset
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from kwja.utils.sub_document import to_sub_doc_id
+from kwja.utils.progress_bar import track
+from kwja.utils.sub_document import SequenceSplitter, SpanCandidate, to_sub_doc_id
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,8 @@ class BaseDataset(Dataset):
         else:
             self.orig_documents = source
         self.doc_id2document: Dict[str, Document] = {}
-        for orig_document in self.orig_documents:
+        for orig_document in track(self.orig_documents, description="Splitting documents"):
+            orig_document = self._normalize(orig_document)
             self.doc_id2document.update(
                 {
                     document.doc_id: document
@@ -54,7 +56,7 @@ class BaseDataset(Dataset):
     @staticmethod
     def _load_documents(document_dir: Path, ext: str = "knp") -> List[Document]:
         documents = []
-        for path in sorted(document_dir.glob(f"*.{ext}")):
+        for path in track(sorted(document_dir.glob(f"*.{ext}")), description="Loading documents"):
             # TODO: fix document files that raise exception
             try:
                 documents.append(Document.from_knp(path.read_text()))
@@ -62,37 +64,29 @@ class BaseDataset(Dataset):
                 logger.warning(f"{path} is not a valid knp file.")
         return documents
 
+    def _normalize(self, document: Document) -> Document:
+        return document
+
     def _split_document(self, document: Document, max_token_length: int, stride: int) -> List[Document]:
-        cum_lens = [0]
-        for sentence in document.sentences:
-            num_tokens = self._get_tokenized_len(sentence)
-            cum_lens.append(cum_lens[-1] + num_tokens)
-        if cum_lens[-1] <= max_token_length:
+        sentence_tokens = [self._get_tokenized_len(sentence) for sentence in document.sentences]
+        if sum(sentence_tokens) <= max_token_length:
             return [document]
 
-        end = 1
-        # end を探索
-        while end < len(document.sentences) and cum_lens[end + 1] - cum_lens[0] <= max_token_length:
-            end += 1
-
+        splitter = SequenceSplitter(sentence_tokens, max_token_length, stride)
         sub_documents: List[Document] = []
         sub_idx = 0
-        while end <= len(document.sentences):
-            start = 0
-            # start を探索
-            while cum_lens[end] - cum_lens[start] > max_token_length:
-                if start == end - 1:
-                    break
-                start += 1
-
-            sub_document = Document.from_sentences(document.sentences[start:end])
-            sub_doc_id = to_sub_doc_id(document.doc_id, sub_idx, stride=stride)
-            for sentence in sub_document.sentences:
-                sentence.doc_id = sub_doc_id
+        for span in splitter.split_into_spans():
+            assert isinstance(span, SpanCandidate)
+            sentences = document.sentences[span.start : span.end]
+            sub_document = Document.from_sentences(sentences)
+            sub_doc_id = to_sub_doc_id(document.doc_id, sub_idx, stride=span.stride)
+            for sentence, sub_sentence in zip(sentences, sub_document.sentences):
+                sub_sentence.doc_id = sub_doc_id
+                sub_sentence.sid = sentence.sid
+                sub_sentence.misc_comment = sentence.misc_comment
             sub_document.doc_id = sub_doc_id
             sub_documents.append(sub_document)
             sub_idx += 1
-            end += stride
         return sub_documents
 
     def _get_tokenized_len(self, source: Union[Document, Sentence]) -> int:

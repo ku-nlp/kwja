@@ -2,16 +2,17 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Union
+from unicodedata import normalize
 
 import torch
 from rhoknp import Document, Sentence
-from tqdm import tqdm
 from transformers import BatchEncoding
 from transformers.utils import PaddingStrategy
 
 from kwja.datamodule.datasets.base_dataset import BaseDataset
 from kwja.datamodule.examples.char_feature import CharFeatureExample
-from kwja.utils.constants import IGNORE_INDEX
+from kwja.utils.constants import IGNORE_INDEX, TRANSLATION_TABLE
+from kwja.utils.progress_bar import track
 from kwja.utils.word_normalize import SentenceDenormalizer
 
 logger = logging.getLogger(__name__)
@@ -57,7 +58,7 @@ class CharDataset(BaseDataset):
     def _load_examples(self, documents: List[Document]) -> List[CharExampleSet]:
         examples = []
         idx = 0
-        for document in tqdm(documents, dynamic_ncols=True):
+        for document in track(documents, description="Loading examples"):
             for sentence in document.sentences:
                 self.denormalizer.denormalize(sentence, self.denormalize_prob)
             encoding: BatchEncoding = self.tokenizer(
@@ -67,6 +68,7 @@ class CharDataset(BaseDataset):
                 max_length=self.max_seq_length,
             )
             if len(encoding.input_ids) > self.max_seq_length:
+                logger.warning(f"Length of sub document is too long: {document.text}")
                 continue
 
             char_feature_example = CharFeatureExample()
@@ -108,6 +110,15 @@ class CharDataset(BaseDataset):
             "seg_types": torch.tensor(seg_types, dtype=torch.long),
             "norm_types": torch.tensor(norm_types, dtype=torch.long),
         }
+
+    def _normalize(self, document):
+        for morpheme in document.morphemes:
+            normalized = normalize("NFKC", morpheme.text).translate(TRANSLATION_TABLE)
+            if normalized != morpheme.text:
+                logger.warning(f"apply normalization ({morpheme.text} -> {normalized})")
+                morpheme.text = normalized
+                morpheme.lemma = normalize("NFKC", morpheme.lemma).translate(TRANSLATION_TABLE)
+        return document
 
     def _get_tokenized_len(self, source: Union[Document, Sentence]) -> int:
         return len(self.tokenizer.tokenize(source.text))

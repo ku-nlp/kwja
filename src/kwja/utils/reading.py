@@ -2,8 +2,9 @@ import copy
 import logging
 import re
 import unicodedata
+from collections import defaultdict
 from dataclasses import dataclass
-from typing import Dict, Final, List, Optional, Tuple, Union
+from typing import Dict, Final, List, Literal, Optional, Tuple, Union
 
 import jaconv
 import numpy as np
@@ -11,6 +12,8 @@ from rhoknp import Document, Morpheme, Sentence
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from kwja.utils.kanjidic import KanjiDic
+
+logger = logging.getLogger(__name__)
 
 # KATAKANA-HIRAGANA PROLONGED SOUND MARK (0x30fc)
 # "〜"(0x301C)  "⁓" (U+2053)、Full-width tilde:
@@ -168,28 +171,33 @@ def get_reading2id(path: str) -> Dict[str, int]:
 
 
 class ReadingAligner:
-    DELIMITER = "▁"
     kana_re = re.compile("^[\u3041-\u30FF]+$")
 
-    def __init__(self, tokenizer: PreTrainedTokenizerBase, kanji_dic: KanjiDic) -> None:
+    def __init__(
+        self, tokenizer: PreTrainedTokenizerBase, tokenizer_input_format: Literal["words", "text"], kanji_dic: KanjiDic
+    ) -> None:
         self.tokenizer = tokenizer
+        self.tokenizer_input_format = tokenizer_input_format
         self.kanji_dic = kanji_dic
 
     def align(self, sequence: Union[Sentence, Document]) -> List[Tuple[str, str]]:
         reading_list: List[str] = []
 
         # assumption: morphemes are never combined
-        subword_list: List[str] = self.tokenizer.tokenize(" ".join(m.text for m in sequence.morphemes))
-        subwords_per_morpheme = []
-        for subword in subword_list:
-            if subword[0] == self.DELIMITER:
-                subwords_per_morpheme.append([subword[1:]])
-            else:
-                assert len(subwords_per_morpheme) > 0
-                subwords_per_morpheme[-1].append(subword)
+        tokenizer_input: Union[List[str], str] = [m.text for m in sequence.morphemes]
+        if self.tokenizer_input_format == "text":
+            tokenizer_input = " ".join(tokenizer_input)
+        encoding = self.tokenizer(
+            tokenizer_input, add_special_tokens=False, is_split_into_words=self.tokenizer_input_format == "words"
+        ).encodings[0]
+        subword_list = self.tokenizer.convert_ids_to_tokens(encoding.ids)
+        word_id2subwords = defaultdict(list)
+        for token_id, word_id in enumerate(encoding.word_ids):
+            word_id2subwords[word_id].append(self.tokenizer.decode(encoding.ids[token_id]))
+        subwords_per_morpheme = [value for value in word_id2subwords.values()]
         # assert(len(subwords_per_morpheme) == len(sequence.morphemes))
         if len(subwords_per_morpheme) != len(sequence.morphemes):
-            logging.warning(f"something wrong with subword segmentation: {subword_list}")
+            logger.warning(f"something wrong with subword segmentation: {subword_list}")
             raise ValueError
         for morpheme, subwords in zip(sequence.morphemes, subwords_per_morpheme):
             reading_list.extend(self._align_morpheme(morpheme, subwords))
@@ -217,7 +225,7 @@ class ReadingAligner:
             boundaries.append(pos)
         surf = "".join(subwords)
         if surf != morpheme.surf:
-            logging.warning(f"non-identical surf forms: {morpheme.surf}\t{surf}")
+            logger.warning(f"non-identical surf forms: {morpheme.surf}\t{surf}")
 
         @dataclass
         class Node:
@@ -358,7 +366,7 @@ class ReadingAligner:
             node, node_prev, _ = td_holder[node.i][node.j]
         seg.reverse()
         if td_holder[-1][-1][2] >= 1000:
-            logging.warning("{}\t{}\t{}".format(seg, reading, subwords))
+            logger.warning("{}\t{}\t{}".format(seg, reading, subwords))
 
         # dummy
         posI, posJ = 0, 0
@@ -419,7 +427,7 @@ def get_word_level_readings(readings: List[str], tokens: List[str], subword_map:
         if item:
             ret.append(item)
         elif any(flags):
-            ret.append("\u00A0")
+            ret.append("␣")
     return ret
 
 
@@ -434,7 +442,15 @@ if __name__ == "__main__":
 
     tokenizer = AutoTokenizer.from_pretrained(args.model)
     kanjidic = KanjiDic(args.kanjidic)
-    aligner = ReadingAligner(tokenizer, kanjidic)
+    if args.model in [
+        "nlp-waseda/roberta-base-japanese",
+        "nlp-waseda/roberta-large-japanese",
+        "nlp-waseda/roberta-large-japanese-seq512",
+    ]:
+        tokenizer_input_format: Literal["words", "text"] = "words"
+    else:
+        tokenizer_input_format = "text"
+    aligner = ReadingAligner(tokenizer, tokenizer_input_format, kanjidic)
 
     import glob
     from collections import Counter
@@ -442,14 +458,14 @@ if __name__ == "__main__":
     subreading_counter: Dict[str, int] = Counter()
     for pathglob in args.input:
         for fpath in glob.glob(pathglob):
-            logging.info(f"processing {fpath}")
+            logger.info(f"processing {fpath}")
             document = Document.from_knp(open(fpath).read())
             try:
                 for subword, subreading in aligner.align(document):
                     # print(aligner.align(document))
                     subreading_counter[subreading] += 1
             except ValueError:
-                logging.warning(f"skip {document.doc_id} for an error")
+                logger.warning(f"skip {document.doc_id} for an error")
     for subreading, count in sorted(
         sorted(subreading_counter.items(), key=lambda pair: pair[0]), key=lambda pair: pair[1], reverse=True
     ):
