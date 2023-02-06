@@ -15,7 +15,7 @@ from rhoknp import Document
 from rhoknp.utils.reader import chunk_by_document
 
 import kwja
-from kwja.callbacks.word_module_discourse_writer import WordModuleDiscourseWriter
+from kwja.callbacks.word_discourse_module_writer import WordDiscourseModuleWriter
 from kwja.cli.utils import download_checkpoint, prepare_device, suppress_debug_info
 from kwja.datamodule.datamodule import DataModule
 from kwja.models.char_module import CharModule
@@ -42,7 +42,7 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 OmegaConf.register_new_resolver("concat", lambda x, y: x + y)
 
 app = typer.Typer(pretty_exceptions_show_locals=False)
-resource_path = importlib_resources.files(kwja) / "resource"
+RESOURCE_PATH = importlib_resources.files(kwja) / "resource"
 
 
 class CLIProcessor:
@@ -100,35 +100,33 @@ class CLIProcessor:
         typer.echo("Loading typo model", err=True)
         typo_checkpoint_path: Path = download_checkpoint(task="typo", model_size=self.model_size)
         self.typo_model = TypoModule.load_from_checkpoint(str(typo_checkpoint_path), map_location=self.device)
-        extended_vocab_path = resource_path / "typo_correction/multi_char_vocab.txt"
-        if self.typo_model is None:
-            raise ValueError("typo model does not exist")
+        assert self.typo_model is not None, "typo model does not exist"
+        extended_vocab_path = RESOURCE_PATH / "typo_correction/multi_char_vocab.txt"
+        self.typo_model.hparams.callbacks.prediction_writer.extended_vocab_path = str(extended_vocab_path)
         self.typo_model.hparams.datamodule.predict.extended_vocab_path = str(extended_vocab_path)
         self.typo_model.hparams.datamodule.batch_size = self.typo_batch_size
         self.typo_model.hparams.dataset.extended_vocab_path = str(extended_vocab_path)
-        self.typo_model.hparams.callbacks.prediction_writer.extended_vocab_path = str(extended_vocab_path)
         self.typo_trainer = pl.Trainer(
             logger=False,
             callbacks=[
                 hydra.utils.instantiate(
                     self.typo_model.hparams.callbacks.prediction_writer,
                     output_dir=str(self.tmp_dir.name),
-                    pred_filename=self.typo_path.stem,
+                    output_filename=self.typo_path.stem,
                 ),
                 hydra.utils.instantiate(self.typo_model.hparams.callbacks.progress_bar),
             ],
             accelerator=self.device_name,
             devices=1,
         )
+        assert self.typo_trainer is not None, "typo trainer does not exist"
 
     def apply_typo(self, input_texts: List[str]) -> None:
-        if self.typo_model is None:
-            raise ValueError("typo model does not exist")
+        assert self.typo_model is not None, "typo model does not exist"
         self.typo_model.hparams.datamodule.predict.texts = self._split_input_texts(input_texts)
         typo_datamodule = DataModule(cfg=self.typo_model.hparams.datamodule)
         typo_datamodule.setup(stage=TrainerFn.PREDICTING)
-        if self.typo_trainer is None:
-            raise ValueError("typo trainer does not exist")
+        assert self.typo_trainer is not None, "typo trainer does not exist"
         self.typo_trainer.predict(
             model=self.typo_model, dataloaders=typo_datamodule.predict_dataloader(), return_predictions=False
         )
@@ -140,8 +138,7 @@ class CLIProcessor:
         typer.echo("Loading char model", err=True)
         char_checkpoint_path: Path = download_checkpoint(task="char", model_size=self.model_size)
         self.char_model = CharModule.load_from_checkpoint(str(char_checkpoint_path), map_location=self.device)
-        if self.char_model is None:
-            raise ValueError("char model does not exist")
+        assert self.char_model is not None, "char model does not exist"
         self.char_model.hparams.datamodule.batch_size = self.char_batch_size
         self.char_trainer = pl.Trainer(
             logger=False,
@@ -149,25 +146,24 @@ class CLIProcessor:
                 hydra.utils.instantiate(
                     self.char_model.hparams.callbacks.prediction_writer,
                     output_dir=str(self.tmp_dir.name),
-                    pred_filename=self.char_path.stem,
+                    output_filename=self.char_path.stem,
                 ),
                 hydra.utils.instantiate(self.char_model.hparams.callbacks.progress_bar),
             ],
             accelerator=self.device_name,
             devices=1,
         )
+        assert self.char_trainer is not None, "char trainer does not exist"
 
     def apply_char(self, input_texts: List[str] = None) -> None:
-        if self.char_model is None:
-            raise ValueError("char model does not exist")
+        assert self.char_model is not None, "char model does not exist"
         if input_texts is None:
             self.char_model.hparams.datamodule.predict.texts = self._split_input_texts([self.typo_path.read_text()])
         else:
             self.char_model.hparams.datamodule.predict.texts = self._split_input_texts(input_texts)
         char_datamodule = DataModule(cfg=self.char_model.hparams.datamodule)
         char_datamodule.setup(stage=TrainerFn.PREDICTING)
-        if self.char_trainer is None:
-            raise ValueError("char trainer does not exist")
+        assert self.char_trainer is not None, "char trainer does not exist"
         self.char_trainer.predict(
             model=self.char_model, dataloaders=char_datamodule.predict_dataloader(), return_predictions=False
         )
@@ -180,47 +176,44 @@ class CLIProcessor:
         word_checkpoint_path: Path = download_checkpoint(task="word", model_size=self.model_size)
         word_checkpoint = torch.load(str(word_checkpoint_path), map_location=lambda storage, loc: storage)
         hparams = word_checkpoint["hyper_parameters"]
-        reading_resource_path = resource_path / "reading_prediction"
-        jumandic_path = resource_path / "jumandic"
-        hparams.datamodule.predict.reading_resource_path = reading_resource_path
-        hparams.dataset.reading_resource_path = reading_resource_path
+        reading_resource_path = RESOURCE_PATH / "reading_prediction"
+        jumandic_path = RESOURCE_PATH / "jumandic"
         hparams.callbacks.prediction_writer.reading_resource_path = reading_resource_path
         hparams.callbacks.prediction_writer.jumandic_path = jumandic_path
-        hparams.dependency_topk = 4  # TODO: remove after published model is updated
+        hparams.datamodule.predict.reading_resource_path = reading_resource_path
+        hparams.dataset.reading_resource_path = reading_resource_path
         self.word_model = WordModule.load_from_checkpoint(
             str(word_checkpoint_path),
             hparams=hparams,
             map_location=self.device,
         )
-        if self.word_model is None:
-            raise ValueError("word model does not exist")
+        assert self.word_model is not None, "word model does not exist"
+        self.word_model.hparams.callbacks.prediction_writer.reading_resource_path = reading_resource_path
+        self.word_model.hparams.callbacks.prediction_writer.jumandic_path = jumandic_path
         self.word_model.hparams.datamodule.batch_size = self.word_batch_size
         self.word_model.hparams.datamodule.predict.reading_resource_path = reading_resource_path
         self.word_model.hparams.dataset.reading_resource_path = reading_resource_path
-        self.word_model.hparams.callbacks.prediction_writer.reading_resource_path = reading_resource_path
-        self.word_model.hparams.callbacks.prediction_writer.jumandic_path = jumandic_path
         self.word_trainer = pl.Trainer(
             logger=False,
             callbacks=[
                 hydra.utils.instantiate(
                     self.word_model.hparams.callbacks.prediction_writer,
                     output_dir=str(self.tmp_dir.name),
-                    pred_filename=self.word_path.stem,
+                    output_filename=self.word_path.stem,
                 ),
                 hydra.utils.instantiate(self.word_model.hparams.callbacks.progress_bar),
             ],
             accelerator=self.device_name,
             devices=1,
         )
+        assert self.word_trainer is not None, "word trainer does not exist"
 
     def apply_word(self) -> None:
-        if self.word_model is None:
-            raise ValueError("word model does not exist")
+        assert self.word_model is not None, "word model does not exist"
         self.word_model.hparams.datamodule.predict.juman_file = self.char_path
         word_datamodule = DataModule(cfg=self.word_model.hparams.datamodule)
         word_datamodule.setup(stage=TrainerFn.PREDICTING)
-        if self.word_trainer is None:
-            raise ValueError("word trainer does not exist")
+        assert self.word_trainer is not None, "word trainer does not exist"
         self.word_trainer.predict(
             model=self.word_model, dataloaders=word_datamodule.predict_dataloader(), return_predictions=False
         )
@@ -235,43 +228,41 @@ class CLIProcessor:
             str(word_discourse_checkpoint_path), map_location=lambda storage, loc: storage
         )
         hparams = word_discourse_checkpoint["hyper_parameters"]
-        reading_resource_path = resource_path / "reading_prediction"
-        jumandic_path = resource_path / "jumandic"
-        hparams.datamodule.predict.reading_resource_path = reading_resource_path
-        hparams.dataset.reading_resource_path = reading_resource_path
+        reading_resource_path = RESOURCE_PATH / "reading_prediction"
+        jumandic_path = RESOURCE_PATH / "jumandic"
         hparams.callbacks.prediction_writer.reading_resource_path = reading_resource_path
         hparams.callbacks.prediction_writer.jumandic_path = jumandic_path
+        hparams.datamodule.predict.reading_resource_path = reading_resource_path
+        hparams.dataset.reading_resource_path = reading_resource_path
         self.word_discourse_model = WordModule.load_from_checkpoint(
             str(word_discourse_checkpoint_path),
             hparams=hparams,
             map_location=self.device,
         )
-        if self.word_discourse_model is None:
-            raise ValueError("word discourse model does not exist")
+        assert self.word_discourse_model is not None, "word discourse model does not exist"
         self.word_discourse_model.hparams.datamodule.batch_size = self.word_batch_size
         self.word_discourse_model.hparams.datamodule.predict.reading_resource_path = reading_resource_path
         self.word_discourse_model.hparams.dataset.reading_resource_path = reading_resource_path
         self.word_discourse_trainer = pl.Trainer(
             logger=False,
             callbacks=[
-                WordModuleDiscourseWriter(
+                WordDiscourseModuleWriter(
                     output_dir=str(self.tmp_dir.name),
-                    pred_filename=self.word_discourse_path.stem,
+                    output_filename=self.word_discourse_path.stem,
                 ),
                 hydra.utils.instantiate(self.word_discourse_model.hparams.callbacks.progress_bar),
             ],
             accelerator=self.device_name,
             devices=1,
         )
+        assert self.word_discourse_trainer is not None, "word discourse trainer does not exist"
 
     def apply_word_discourse(self) -> None:
-        if self.word_discourse_model is None:
-            raise ValueError("word discourse model does not exist")
+        assert self.word_discourse_model is not None, "word discourse model does not exist"
         self.word_discourse_model.hparams.datamodule.predict.knp_file = self.word_path
         word_discourse_datamodule = DataModule(cfg=self.word_discourse_model.hparams.datamodule)
         word_discourse_datamodule.setup(stage=TrainerFn.PREDICTING)
-        if self.word_discourse_trainer is None:
-            raise ValueError("word discourse trainer does not exist")
+        assert self.word_discourse_trainer is not None, "word discourse trainer does not exist"
         self.word_discourse_trainer.predict(
             model=self.word_discourse_model,
             dataloaders=word_discourse_datamodule.predict_dataloader(),
@@ -287,27 +278,15 @@ class CLIProcessor:
         print("\n".join(typo_texts))
 
     def output_char_result(self) -> None:
-        char_texts: List[str] = []
+        word_segmented_texts: List[str] = []
         with self.char_path.open(mode="r") as f:
             for juman_text in chunk_by_document(f):
-                char_text: List[str] = []
                 document = Document.from_jumanpp(juman_text)
-                for morpheme in document.morphemes:
-                    char_text.append(morpheme.text)
-                char_texts.append(" ".join(char_text))
-        print("\n".join(char_texts))
+                word_segmented_texts.append(" ".join(m.text for m in document.morphemes))
+        print("\n".join(word_segmented_texts))
 
     def output_word_result(self) -> None:
-        knp_texts = []
-        with self.word_path.open(mode="r") as f:
-            for knp_text in chunk_by_document(f):
-                document = Document.from_knp(knp_text)
-                # Remove the result of discourse relation analysis by the jointly learned model.
-                for base_phrase in document.base_phrases:
-                    if "談話関係" in base_phrase.features:
-                        del base_phrase.features["談話関係"]
-                knp_texts.append(document.to_knp())
-        print("\n".join(knp_texts), end="")
+        print(self.word_path.read_text(), end="")
 
     def output_word_discourse_result(self) -> None:
         print(self.word_discourse_path.read_text(), end="")
