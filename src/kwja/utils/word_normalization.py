@@ -5,166 +5,37 @@ import numpy as np
 from jinf import Jinf
 from rhoknp import Morpheme, Sentence
 
-from kwja.utils.constants import IGNORE_WORD_NORM_TYPE
+from kwja.utils.constants import (
+    CHOON_SET,
+    HATSUON_SET,
+    IGNORE_WORD_NORM_OP_TAG,
+    LOWER2UPPER,
+    PROLONGED_MAP,
+    PROLONGED_MAP_FOR_EROW,
+    UPPER2LOWER,
+    VOICED2VOICELESS,
+)
 
 logger = logging.getLogger(__name__)
-
-# full-width tilde: "～" (U+FF5E), "〜"(0x301C)
-# tilde operator: "∼" (U+223C), "⁓" (U+2053), "~" (U+007E)
-# KATAKANA-HIRAGANA PROLONGED SOUND MARK: "ー" (0x30FC)
-# half-widths HIRAGANA-KATAKANA PROLONGED SOUND MARK: "ｰ" (U+FF70), "-" (U+002D)
-CHOON_SET = {"～", "〜", "∼", "⁓", "~", "ー", "ｰ", "-"}
-
-HATSUON_SET = {"っ", "ッ"}
-
-LOWER2UPPER = {
-    "ぁ": "あ",
-    "ぃ": "い",
-    "ぅ": "う",
-    "ぇ": "え",
-    "ぉ": "お",
-    "ゎ": "わ",
-    "ヶ": "ケ",
-    "ケ": "ヶ",
-}
-
-VOICED2VOICELESS = {
-    "が": "か",
-    "ぎ": "き",
-    "ぐ": "く",
-    "げ": "け",
-    "ご": "こ",
-    "ガ": "カ",
-    "ギ": "キ",
-    "グ": "ク",
-    "ゲ": "ケ",
-    "ゴ": "コ",
-    "ざ": "さ",
-    "じ": "し",
-    "ず": "す",
-    "ぜ": "せ",
-    "ぞ": "そ",
-    "ザ": "サ",
-    "ジ": "シ",
-    "ズ": "ス",
-    "ゼ": "セ",
-    "ゾ": "ソ",
-    "だ": "た",
-    "ぢ": "ち",
-    "づ": "つ",
-    "で": "て",
-    "ど": "と",
-    "ダ": "タ",
-    "ヂ": "チ",
-    "ヅ": "ツ",
-    "デ": "テ",
-    "ド": "ト",
-    "ば": "は",
-    "び": "ひ",
-    "ぶ": "ふ",
-    "べ": "へ",
-    "ぼ": "ほ",
-    "バ": "ハ",
-    "ビ": "ヒ",
-    "ブ": "フ",
-    "ベ": "ヘ",
-    "ボ": "ホ",
-    "ぱ": "は",
-    "ぴ": "ひ",
-    "ぷ": "ふ",
-    "ぺ": "へ",
-    "ぽ": "ほ",
-    "パ": "ハ",
-    "ピ": "ヒ",
-    "プ": "フ",
-    "ペ": "ヘ",
-    "ポ": "ホ",
-}
-
-PROLONGED_MAP = {
-    "か": "あ",
-    "が": "あ",
-    "ば": "あ",
-    "ま": "あ",
-    "ゃ": "あ",
-    "い": "い",
-    "き": "い",
-    "し": "い",
-    "ち": "い",
-    "に": "い",
-    "ひ": "い",
-    "じ": "い",
-    "け": "い",
-    "せ": "い",
-    "へ": "い",
-    "め": "い",
-    "れ": "い",
-    "げ": "い",
-    "ぜ": "い",
-    "で": "い",
-    "べ": "い",
-    "ぺ": "い",
-    "く": "う",
-    "す": "う",
-    "つ": "う",
-    "ふ": "う",
-    "ゆ": "う",
-    "ぐ": "う",
-    "ず": "う",
-    "ぷ": "う",
-    "ゅ": "う",
-    "お": "う",
-    "こ": "う",
-    "そ": "う",
-    "と": "う",
-    "の": "う",
-    "ほ": "う",
-    "も": "う",
-    "よ": "う",
-    "ろ": "う",
-    "ご": "う",
-    "ぞ": "う",
-    "ど": "う",
-    "ぼ": "う",
-    "ぽ": "う",
-    "ょ": "う",
-    "え": "い",
-    "ね": "い",
-}
-
-PROLONGED_MAP_FOR_EROW = {
-    "え": "え",
-    "け": "え",
-    "げ": "え",
-    "せ": "え",
-    "ぜ": "え",
-    "て": "え",
-    "で": "え",
-    "ね": "え",
-    "へ": "え",
-    "べ": "え",
-    "め": "え",
-    "れ": "え",
-}
 
 
 class MorphemeNormalizer:
     def __init__(self) -> None:
         self.jinf = Jinf()
 
-    def get_normalization_opns(self, morpheme: Morpheme) -> List[str]:
+    def get_word_norm_op_tags(self, morpheme: Morpheme) -> List[str]:
         try:
             if morpheme.conjtype == "*":
                 normalized = morpheme.surf
             else:
                 normalized = self.jinf(morpheme.lemma, morpheme.conjtype, "基本形", morpheme.conjform)
-            return get_normalization_opns(morpheme.surf, normalized)
+            return get_word_norm_op_tags(morpheme.surf, normalized)
         except ValueError as e:
             logger.info(f"failed to get normalized form of {morpheme.surf}: {e}")
-            return [IGNORE_WORD_NORM_TYPE] * len(morpheme.surf)
+            return [IGNORE_WORD_NORM_OP_TAG] * len(morpheme.surf)
 
 
-def get_normalization_opns(surf: str, normalized: str) -> List[str]:
+def get_word_norm_op_tags(surf: str, normalized: str) -> List[str]:
     surf_len = len(surf) + 1
     normalized_len = len(normalized) + 1
     if surf_len < normalized_len:
@@ -298,16 +169,6 @@ def get_normalized(surf: str, ops: List[str], strict: bool = True) -> str:
     return normalized
 
 
-UPPER2LOWER = {
-    "あ": "ぁ",
-    "い": "ぃ",
-    "う": "ぅ",
-    "え": "ぇ",
-    "お": "ぉ",
-    "わ": "ゎ",
-}
-
-
 class SentenceDenormalizer:
     def __init__(self):
         self.mn = MorphemeNormalizer()
@@ -327,8 +188,8 @@ class SentenceDenormalizer:
                 prob = min(prob * 1.5, p)
 
     def _is_normal_morpheme(self, morpheme):
-        opn = self.mn.get_normalization_opns(morpheme)
-        if opn[0] == IGNORE_WORD_NORM_TYPE:
+        opn = self.mn.get_word_norm_op_tags(morpheme)
+        if opn[0] == IGNORE_WORD_NORM_OP_TAG:
             return False
         return all(map(lambda x: x in ("K",), opn))
 
@@ -555,10 +416,3 @@ def is_chinese_char(char: str) -> bool:
     if char >= "\u4E00" and char <= "\u9FFF":
         return True
     return False
-
-
-if __name__ == "__main__":
-    # print(get_normalized("がえるー", ["V", "K", "K", "D"], strict=True) == "かえる")
-    # print(get_normalization_opns("あーーーー", "あー"))
-    # print(get_normalization_opns("ね〜", "ねえ"))
-    print(MorphemeDenormalizer()._denormalize_deterministic("なあ"))

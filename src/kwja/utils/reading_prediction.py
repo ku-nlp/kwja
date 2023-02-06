@@ -4,170 +4,38 @@ import re
 import unicodedata
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Dict, Final, List, Literal, Optional, Tuple, Union
+from typing import Dict, List, Literal, Optional, Tuple, Union
 
 import jaconv
 import numpy as np
 from rhoknp import Document, Morpheme, Sentence
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
+from kwja.utils.constants import (
+    CHOON_SET,
+    HATSUON_SET,
+    ID,
+    ID_ID,
+    LOWER2UPPER,
+    PROLONGED_MAP,
+    PROLONGED_MAP_FOR_EROW,
+    UNK,
+    UNK_ID,
+    VOICED2VOICELESS,
+)
 from kwja.utils.kanjidic import KanjiDic
 
 logger = logging.getLogger(__name__)
 
-# KATAKANA-HIRAGANA PROLONGED SOUND MARK (0x30fc)
-# "〜"(0x301C)  "⁓" (U+2053)、Full-width tilde:
-# "～" (U+FF5E)、tilde operator: "∼" (U+223C)
-# Half-widths HIRAGANA-KATAKANA PROLONGED SOUND MARK (U+FF70
-CHOON_SET: Final = {"～", "〜", "∼", "⁓", "~", "ー", "ｰ", "-"}
 
-HATSUON_SET: Final = {"っ", "ッ"}
-
-LOWER2UPPER: Final = {
-    "ぁ": "あ",
-    "ぃ": "い",
-    "ぅ": "う",
-    "ぇ": "え",
-    "ぉ": "お",
-    "ゎ": "わ",
-    "ヶ": "ケ",
-    "ケ": "ヶ",
-}
-
-VOICED2VOICELESS: Final = {
-    "が": "か",
-    "ぎ": "き",
-    "ぐ": "く",
-    "げ": "け",
-    "ご": "こ",
-    "ガ": "カ",
-    "ギ": "キ",
-    "グ": "ク",
-    "ゲ": "ケ",
-    "ゴ": "コ",
-    "ざ": "さ",
-    "じ": "し",
-    "ず": "す",
-    "ぜ": "せ",
-    "ぞ": "そ",
-    "ザ": "サ",
-    "ジ": "シ",
-    "ズ": "ス",
-    "ゼ": "セ",
-    "ゾ": "ソ",
-    "だ": "た",
-    "ぢ": "ち",
-    "づ": "つ",
-    "で": "て",
-    "ど": "と",
-    "ダ": "タ",
-    "ヂ": "チ",
-    "ヅ": "ツ",
-    "デ": "テ",
-    "ド": "ト",
-    "ば": "は",
-    "び": "ひ",
-    "ぶ": "ふ",
-    "べ": "へ",
-    "ぼ": "ほ",
-    "バ": "ハ",
-    "ビ": "ヒ",
-    "ブ": "フ",
-    "ベ": "ヘ",
-    "ボ": "ホ",
-    "ぱ": "は",
-    "ぴ": "ひ",
-    "ぷ": "ふ",
-    "ぺ": "へ",
-    "ぽ": "ほ",
-    "パ": "ハ",
-    "ピ": "ヒ",
-    "プ": "フ",
-    "ペ": "ヘ",
-    "ポ": "ホ",
-}
-
-PROLONGED_MAP: Final = {
-    "か": "あ",
-    "が": "あ",
-    "ば": "あ",
-    "ま": "あ",
-    "ゃ": "あ",
-    "い": "い",
-    "き": "い",
-    "し": "い",
-    "ち": "い",
-    "に": "い",
-    "ひ": "い",
-    "じ": "い",
-    "け": "い",
-    "せ": "い",
-    "へ": "い",
-    "め": "い",
-    "れ": "い",
-    "げ": "い",
-    "ぜ": "い",
-    "で": "い",
-    "べ": "い",
-    "ぺ": "い",
-    "く": "う",
-    "す": "う",
-    "つ": "う",
-    "ふ": "う",
-    "ゆ": "う",
-    "ぐ": "う",
-    "ず": "う",
-    "ぷ": "う",
-    "ゅ": "う",
-    "お": "う",
-    "こ": "う",
-    "そ": "う",
-    "と": "う",
-    "の": "う",
-    "ほ": "う",
-    "も": "う",
-    "よ": "う",
-    "ろ": "う",
-    "ご": "う",
-    "ぞ": "う",
-    "ど": "う",
-    "ぼ": "う",
-    "ぽ": "う",
-    "ょ": "う",
-    "え": "い",
-    "ね": "い",
-}
-
-PROLONGED_MAP_FOR_EROW: Final = {
-    "え": "え",
-    "け": "え",
-    "げ": "え",
-    "せ": "え",
-    "ぜ": "え",
-    "て": "え",
-    "で": "え",
-    "ね": "え",
-    "へ": "え",
-    "べ": "え",
-    "め": "え",
-    "れ": "え",
-}
-
-IGNORE_READING = "IGNORED"
-UNK = "[UNK]"
-ID = "[ID]"
-UNK_ID: Final = 0
-ID_ID: Final = 1
-
-
-def get_reading2id(path: str) -> Dict[str, int]:
-    reading2id = {UNK: UNK_ID, ID: ID_ID}
-    with open(path, "r") as f:
+def get_reading2reading_id(path: str) -> Dict[str, int]:
+    reading2reading_id = {UNK: UNK_ID, ID: ID_ID}
+    with open(path, mode="r") as f:
         for line in f:
             if line := line.strip():
-                if line not in reading2id:
-                    reading2id[line] = len(reading2id)
-    return reading2id
+                if line not in reading2reading_id:
+                    reading2reading_id[line] = len(reading2reading_id)
+    return reading2reading_id
 
 
 class ReadingAligner:
@@ -431,42 +299,43 @@ def get_word_level_readings(readings: List[str], tokens: List[str], subword_map:
     return ret
 
 
-if __name__ == "__main__":
-    import argparse
+def main():
+    from argparse import ArgumentParser
+    from collections import Counter
+    from pathlib import Path
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-m", "--model", type=str, help="model name or path to file")
+    from kwja.utils.constants import SPLIT_INTO_WORDS_MODEL_NAMES
+
+    parser = ArgumentParser()
+    parser.add_argument("-m", "--model-name-or-path", type=str, help="model_name_or_path")
     parser.add_argument("-k", "--kanjidic", type=str, help="path to file")
-    parser.add_argument("-i", "--input", type=str, nargs="+", help="path glob (*.knp)")
+    parser.add_argument("-i", "--input", type=str, help="path to input dir")
     args = parser.parse_args()
 
-    tokenizer = AutoTokenizer.from_pretrained(args.model)
-    kanjidic = KanjiDic(args.kanjidic)
-    if args.model in [
-        "nlp-waseda/roberta-base-japanese",
-        "nlp-waseda/roberta-large-japanese",
-        "nlp-waseda/roberta-large-japanese-seq512",
-    ]:
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
+    if args.model_name_or_path in SPLIT_INTO_WORDS_MODEL_NAMES:
         tokenizer_input_format: Literal["words", "text"] = "words"
     else:
         tokenizer_input_format = "text"
+    kanjidic = KanjiDic(args.kanjidic)
     aligner = ReadingAligner(tokenizer, tokenizer_input_format, kanjidic)
 
-    import glob
-    from collections import Counter
-
     subreading_counter: Dict[str, int] = Counter()
-    for pathglob in args.input:
-        for fpath in glob.glob(pathglob):
-            logger.info(f"processing {fpath}")
-            document = Document.from_knp(open(fpath).read())
-            try:
-                for subword, subreading in aligner.align(document):
-                    # print(aligner.align(document))
-                    subreading_counter[subreading] += 1
-            except ValueError:
-                logger.warning(f"skip {document.doc_id} for an error")
+    for path in Path(args.input).glob("**/*.knp"):
+        logger.info(f"processing {path}")
+        with path.open(mode="r") as f:
+            document = Document.from_knp(f.read())
+        try:
+            for subword, subreading in aligner.align(document):
+                # print(aligner.align(document))
+                subreading_counter[subreading] += 1
+        except ValueError:
+            logger.warning(f"skip {document.doc_id} for an error")
     for subreading, count in sorted(
         sorted(subreading_counter.items(), key=lambda pair: pair[0]), key=lambda pair: pair[1], reverse=True
     ):
         print(f"{subreading}\t{count}")
+
+
+if __name__ == "__main__":
+    main()

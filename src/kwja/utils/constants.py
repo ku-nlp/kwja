@@ -1,33 +1,214 @@
-import itertools
 import re
-from typing import Dict, Tuple
+from enum import Enum
+from typing import Dict, Optional, Tuple
 
 from rhoknp.props import DepType, NamedEntityCategory
 
+# ---------- common ----------
 IGNORE_INDEX = -100
+MASKED = -1024.0
 
-TYPO_OPN2TOKEN = {
+# ---------- word (inference) dataset ----------
+SPLIT_INTO_WORDS_MODEL_NAMES = [
+    "nlp-waseda/roberta-base-japanese",
+    "nlp-waseda/roberta-large-japanese",
+    "nlp-waseda/roberta-large-japanese-seq512",
+]
+
+# ---------- typo module ----------
+TYPO_CORR_OP_TAG2TOKEN = {
     "K": "<k>",
     "D": "<d>",
     "_": "<_>",
 }
-TOKEN2TYPO_OPN: Dict[str, str] = {v: k for k, v in TYPO_OPN2TOKEN.items()}
-TYPO_DUMMY_TOKEN = "<dummy>"
+TOKEN2TYPO_CORR_OP_TAG: Dict[str, str] = {v: k for k, v in TYPO_CORR_OP_TAG2TOKEN.items()}
+DUMMY_TOKEN = "<dummy>"
 
-SEG_TYPES = (
-    "B",
-    "I",
+# ---------- char module|word segmentation ----------
+WORD_SEGMENTATION_TAGS = ("B", "I")
+
+# ---------- char module|word normalization ----------
+WORD_NORM_OP_TAGS = ("K", "D", "V", "S", "P", "E")
+IGNORE_WORD_NORM_OP_TAG = "_"
+
+# ---------- char module|word normalization & word module|reading prediction ----------
+# "ー" (U+30FC): Katakana-Hiragana Prolonged Sound Mark (全角長音)
+# "ｰ" (U+FF70): Halfwidth Katakana-Hiragana Prolonged Sound Mark (半角長音)
+# "-" (U+002D): Hyphen-Minus
+# "〜" (U+301C): Wave Dash
+# "⁓" (U+2053): Swung Dash
+# "～" (U+FF5E): Fullwidth Tilde
+# "~" (U+007E): Tilde
+# "∼" (U+223C): Tilde Operator
+CHOON_SET = {"ー", "ｰ", "-", "〜", "⁓", "～", "~", "∼"}
+
+HATSUON_SET = {"っ", "ッ"}
+
+LOWER2UPPER = {
+    "ぁ": "あ",
+    "ぃ": "い",
+    "ぅ": "う",
+    "ぇ": "え",
+    "ぉ": "お",
+    "ゎ": "わ",
+    "ヶ": "ケ",
+    "ケ": "ヶ",
+}
+UPPER2LOWER = {
+    "あ": "ぁ",
+    "い": "ぃ",
+    "う": "ぅ",
+    "え": "ぇ",
+    "お": "ぉ",
+    "わ": "ゎ",
+}
+
+VOICED2VOICELESS = {
+    "が": "か",
+    "ぎ": "き",
+    "ぐ": "く",
+    "げ": "け",
+    "ご": "こ",
+    "ガ": "カ",
+    "ギ": "キ",
+    "グ": "ク",
+    "ゲ": "ケ",
+    "ゴ": "コ",
+    "ざ": "さ",
+    "じ": "し",
+    "ず": "す",
+    "ぜ": "せ",
+    "ぞ": "そ",
+    "ザ": "サ",
+    "ジ": "シ",
+    "ズ": "ス",
+    "ゼ": "セ",
+    "ゾ": "ソ",
+    "だ": "た",
+    "ぢ": "ち",
+    "づ": "つ",
+    "で": "て",
+    "ど": "と",
+    "ダ": "タ",
+    "ヂ": "チ",
+    "ヅ": "ツ",
+    "デ": "テ",
+    "ド": "ト",
+    "ば": "は",
+    "び": "ひ",
+    "ぶ": "ふ",
+    "べ": "へ",
+    "ぼ": "ほ",
+    "バ": "ハ",
+    "ビ": "ヒ",
+    "ブ": "フ",
+    "ベ": "ヘ",
+    "ボ": "ホ",
+    "ぱ": "は",
+    "ぴ": "ひ",
+    "ぷ": "ふ",
+    "ぺ": "へ",
+    "ぽ": "ほ",
+    "パ": "ハ",
+    "ピ": "ヒ",
+    "プ": "フ",
+    "ペ": "ヘ",
+    "ポ": "ホ",
+}
+
+PROLONGED_MAP = {
+    "か": "あ",
+    "が": "あ",
+    "ば": "あ",
+    "ま": "あ",
+    "ゃ": "あ",
+    "い": "い",
+    "き": "い",
+    "し": "い",
+    "ち": "い",
+    "に": "い",
+    "ひ": "い",
+    "じ": "い",
+    "け": "い",
+    "せ": "い",
+    "へ": "い",
+    "め": "い",
+    "れ": "い",
+    "げ": "い",
+    "ぜ": "い",
+    "で": "い",
+    "べ": "い",
+    "ぺ": "い",
+    "く": "う",
+    "す": "う",
+    "つ": "う",
+    "ふ": "う",
+    "ゆ": "う",
+    "ぐ": "う",
+    "ず": "う",
+    "ぷ": "う",
+    "ゅ": "う",
+    "お": "う",
+    "こ": "う",
+    "そ": "う",
+    "と": "う",
+    "の": "う",
+    "ほ": "う",
+    "も": "う",
+    "よ": "う",
+    "ろ": "う",
+    "ご": "う",
+    "ぞ": "う",
+    "ど": "う",
+    "ぼ": "う",
+    "ぽ": "う",
+    "ょ": "う",
+    "え": "い",
+    "ね": "い",
+}
+PROLONGED_MAP_FOR_EROW = {
+    "え": "え",
+    "け": "え",
+    "げ": "え",
+    "せ": "え",
+    "ぜ": "え",
+    "て": "え",
+    "で": "え",
+    "ね": "え",
+    "へ": "え",
+    "べ": "え",
+    "め": "え",
+    "れ": "え",
+}
+
+# ---------- char module|text normalization ----------
+# 制御文字(\t,\nを含む)は削除
+TRANSLATION_TABLE: Dict[int, Optional[int]] = str.maketrans(
+    ' "▁', "␣”▂", "".join(chr(i) for i in [*range(32), *range(127, 160)])
 )
-INDEX2SEG_TYPE: Dict[int, str] = {index: seg_type for index, seg_type in enumerate(SEG_TYPES)}
 
-WORD_NORM_TYPES = ("K", "D", "V", "S", "P", "E")
-INDEX2WORD_NORM_TYPE = {index: word_norm_type for index, word_norm_type in enumerate(WORD_NORM_TYPES)}
-IGNORE_WORD_NORM_TYPE = "_"
 
-TRANSLATION_TABLE = str.maketrans(' "▁', "␣”▂", "".join(chr(i) for i in [*range(32), *range(127, 160)]))  # 制御文字は削除
+# ---------- word module ----------
+class WordTask(Enum):
+    READING_PREDICTION = "reading_prediction"
+    MORPHOLOGICAL_ANALYSIS = "morphological_analysis"
+    WORD_FEATURE_TAGGING = "word_feature_tagging"
+    NER = "ner"
+    BASE_PHRASE_FEATURE_TAGGING = "base_phrase_feature_tagging"
+    DEPENDENCY_PARSING = "dependency_parsing"
+    COHESION_ANALYSIS = "cohesion_analysis"
+    DISCOURSE_PARSING = "discourse_parsing"
 
+
+# ---------- word module|reading prediction ----------
+UNK = "[UNK]"
+ID = "[ID]"
+UNK_ID = 0
+ID_ID = 1
+
+# ---------- word module|morphological analysis ----------
 # 品詞
-POS_TYPE2ID = {
+POS_TAG2POS_ID = {
     "特殊": 1,
     "動詞": 2,
     "形容詞": 3,
@@ -43,11 +224,10 @@ POS_TYPE2ID = {
     "接頭辞": 13,
     "接尾辞": 14,
 }
-POS_TYPES = tuple(POS_TYPE2ID.keys())
+POS_TAGS = tuple(POS_TAG2POS_ID.keys())
 
-INDEX2POS_TYPE: Dict[int, str] = {index: pos_type for index, pos_type in enumerate(POS_TYPES)}
 # 品詞細分類
-POS_SUBPOS_TYPE2ID: Dict[str, Dict[str, int]] = {
+POS_TAG_SUBPOS_TAG2SUBPOS_ID: Dict[str, Dict[str, int]] = {
     "特殊": {
         "句点": 1,
         "読点": 2,
@@ -103,15 +283,15 @@ POS_SUBPOS_TYPE2ID: Dict[str, Dict[str, int]] = {
         "動詞性接尾辞": 7,
     },
 }
-SUBPOS_TYPES = ("*",) + tuple(
-    subpos_type
-    for subpos_type2ids in POS_SUBPOS_TYPE2ID.values()
-    for subpos_type in subpos_type2ids.keys()
-    if subpos_type != "*"
+SUBPOS_TAGS = ("*",) + tuple(
+    subpos_tag
+    for subpos_tag2subpos_ids in POS_TAG_SUBPOS_TAG2SUBPOS_ID.values()
+    for subpos_tag in subpos_tag2subpos_ids
+    if subpos_tag != "*"
 )
-INDEX2SUBPOS_TYPE: Dict[int, str] = {index: subpos_type for index, subpos_type in enumerate(SUBPOS_TYPES)}
+
 # 活用型
-CONJTYPE_TYPES = (
+CONJTYPE_TAGS = (
     "*",
     "母音動詞",
     "子音動詞カ行",
@@ -146,9 +326,9 @@ CONJTYPE_TYPES = (
     "動詞性接尾辞ます型",
     "動詞性接尾辞うる型",
 )
-INDEX2CONJTYPE_TYPE: Dict[int, str] = {index: conjtype_type for index, conjtype_type in enumerate(CONJTYPE_TYPES)}
+
 # 活用形
-CONJTYPE_CONJFORM_TYPE2ID: Dict[str, Dict[str, int]] = {
+CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID: Dict[str, Dict[str, int]] = {
     "*": {"*": 0},
     "母音動詞": {
         "*": 0,
@@ -824,27 +1004,32 @@ CONJTYPE_CONJFORM_TYPE2ID: Dict[str, Dict[str, int]] = {
     },
     "動詞性接尾辞うる型": {"*": 0, "語幹": 1, "基本形": 2, "基本条件形": 3},
 }
-CONJFORM_TYPES_WITH_OVERLAP = tuple(
-    itertools.chain.from_iterable(
-        list(conjform2ids.keys()) for conjtype, conjform2ids in CONJTYPE_CONJFORM_TYPE2ID.items()
-    )
+OVERLAPPING_CONJFORM_TAGS = tuple(
+    conjform_tag
+    for conjform_tag2conjform_id in CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID.values()
+    for conjform_tag in conjform_tag2conjform_id
 )
-CONJFORM_TYPES = tuple(sorted(set(CONJFORM_TYPES_WITH_OVERLAP), key=CONJFORM_TYPES_WITH_OVERLAP.index))
-INDEX2CONJFORM_TYPE: Dict[int, str] = {index: conjform_type for index, conjform_type in enumerate(CONJFORM_TYPES)}
-INFLECTABLE = {(pos, subpos) for pos in ["動詞", "形容詞", "判定詞", "助動詞"] for subpos in POS_SUBPOS_TYPE2ID[pos].keys()}
-INFLECTABLE |= {("接尾辞", subpos) for subpos in ["形容詞性述語接尾辞", "形容詞性名詞接尾辞", "動詞性接尾辞"]}
+CONJFORM_TAGS = tuple(sorted(set(OVERLAPPING_CONJFORM_TAGS), key=OVERLAPPING_CONJFORM_TAGS.index))
 
+# 活用可能な品詞と品詞細分類の組み合わせ
+INFLECTABLE = {
+    (pos_tag, subpos_tag)
+    for pos_tag in ["動詞", "形容詞", "判定詞", "助動詞"]
+    for subpos_tag in POS_TAG_SUBPOS_TAG2SUBPOS_ID[pos_tag]
+}
+INFLECTABLE |= {("接尾辞", subpos_tag) for subpos_tag in ["形容詞性述語接尾辞", "形容詞性名詞接尾辞", "動詞性接尾辞"]}
+
+# ---------- word module|word feature tagging ----------
+SUB_WORD_FEATURES = ("用言表記先頭", "用言表記末尾")  # メンテナンスしない単語素性
+WORD_FEATURES: Tuple[str, ...] = ("基本句-主辞", "基本句-区切", "文節-区切", *SUB_WORD_FEATURES)
+
+# ---------- word module|ner ----------
 NE_TAGS: Tuple[str, ...] = sum(
     [(f"B-{cat.value}", f"I-{cat.value}") for cat in NamedEntityCategory if cat != NamedEntityCategory.OPTIONAL], ("O",)
 )
 
-SUB_WORD_FEATURES = (
-    "用言表記先頭",
-    "用言表記末尾",
-)
-WORD_FEATURES: Tuple[str, ...] = ("基本句-主辞", "基本句-区切", "文節-区切", *SUB_WORD_FEATURES)
-
-SUB_BASE_PHRASE_FEATURES = (
+# ---------- word module|base phrase feature tagging ----------
+SUB_BASE_PHRASE_FEATURES = (  # メンテナンスしない基本句素性
     # cf. https://github.com/ku-nlp/knp/blob/master/doc/knp_feature.pdf
     "SM-主体",
     "レベル:A",
@@ -922,17 +1107,15 @@ BASE_PHRASE_FEATURES = (
 )
 IGNORE_VALUE_FEATURE_PAT = re.compile(r"節-(前向き)?機能疑?")
 
-DEPENDENCY_TYPE2INDEX: Dict[DepType, int] = {
-    DepType.DEPENDENCY: 0,
-    DepType.PARALLEL: 1,
-    DepType.APPOSITION: 2,
-    DepType.IMPERFECT_PARALLEL: 3,
-}
-INDEX2DEPENDENCY_TYPE: Dict[int, DepType] = {
-    index: dependency_type for dependency_type, index in DEPENDENCY_TYPE2INDEX.items()
-}
+# ---------- word module|dependency parsing ----------
+DEPENDENCY_TYPES: Tuple[DepType, ...] = (
+    DepType.DEPENDENCY,
+    DepType.PARALLEL,
+    DepType.APPOSITION,
+    DepType.IMPERFECT_PARALLEL,
+)
 
-
+# ---------- word module|discourse parsing ----------
 DISCOURSE_RELATION_MAP = {
     # Labels annotated by experts.
     "その他根拠(逆方向)": "根拠",
@@ -957,8 +1140,6 @@ DISCOURSE_RELATION_MAP = {
     "目的": "目的",
     "逆接": "逆接",
 }
-
-
 DISCOURSE_RELATIONS = (
     "談話関係なし",
     "原因・理由",
@@ -968,6 +1149,3 @@ DISCOURSE_RELATIONS = (
     "対比",
     "逆接",
 )
-INDEX2DISCOURSE_RELATION: Dict[int, str] = {
-    index: discourse_relation for index, discourse_relation in enumerate(DISCOURSE_RELATIONS)
-}
