@@ -2,9 +2,8 @@ from typing import Dict
 
 from rhoknp import Document
 
-from kwja.utils.constants import IGNORE_INDEX, IGNORE_WORD_NORM_TYPE, SEG_TYPES, WORD_NORM_TYPES
 from kwja.utils.sub_document import is_target_sentence
-from kwja.utils.word_normalize import MorphemeNormalizer
+from kwja.utils.word_normalization import MorphemeNormalizer
 
 
 class CharFeatureExample:
@@ -12,8 +11,8 @@ class CharFeatureExample:
 
     def __init__(self) -> None:
         self.doc_id: str = ""
-        self.seg_types: Dict[int, int] = {}  # 文字 index -> 単語分割用のBIタグ
-        self.norm_types: Dict[int, int] = {}  # 文字 index -> 正規化タイプ
+        self.index2word_segmentation_tag: Dict[int, str] = {}  # 文字 index -> 単語分割タグ
+        self.index2word_norm_op_tag: Dict[int, str] = {}  # 文字 index -> 単語正規化操作タグ
 
         self.normalizer: MorphemeNormalizer = MorphemeNormalizer()
 
@@ -25,13 +24,12 @@ class CharFeatureExample:
                 offset += len(sentence.text)
                 continue
             for morpheme in sentence.morphemes:
-                for char_idx_in_morpheme in range(len(morpheme.text)):
-                    self.seg_types[offset + char_idx_in_morpheme] = (
-                        SEG_TYPES.index("B") if char_idx_in_morpheme == 0 else SEG_TYPES.index("I")
+                for char_index_in_morpheme in range(len(morpheme.text)):
+                    self.index2word_segmentation_tag[char_index_in_morpheme + offset] = (
+                        "B" if char_index_in_morpheme == 0 else "I"
                     )
-                for char_idx_in_morpheme, opn in enumerate(self.normalizer.get_normalization_opns(morpheme)):
-                    if opn == IGNORE_WORD_NORM_TYPE:
-                        self.norm_types[offset + char_idx_in_morpheme] = IGNORE_INDEX
-                    else:
-                        self.norm_types[offset + char_idx_in_morpheme] = WORD_NORM_TYPES.index(opn)
+                for char_index_in_morpheme, word_norm_op_tag in enumerate(
+                    self.normalizer.get_word_norm_op_tags(morpheme)
+                ):
+                    self.index2word_norm_op_tag[char_index_in_morpheme + offset] = word_norm_op_tag
                 offset += len(morpheme.text)

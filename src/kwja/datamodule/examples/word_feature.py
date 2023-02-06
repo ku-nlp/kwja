@@ -12,30 +12,31 @@ class WordFeatureExample:
 
     def __init__(self) -> None:
         self.doc_id: str = ""
-        self.types: Dict[int, Tuple[str, str, str, str]] = {}  # 形態素 index -> 形態素タイプ (品詞, 品詞細分類, 活用型, 活用形)
+        # 形態素 global index -> 形態素の属性 (品詞, 品詞細分類, 活用型, 活用形)
+        self.global_index2attributes: Dict[int, Tuple[str, str, str, str]] = {}
+        self.global_index2feature_set: Dict[int, Set[str]] = {}  # 形態素 global index -> 素性集合
         self.named_entities: List[NamedEntity] = []  # 固有表現
-        self.features: Dict[int, Set[str]] = {}  # 形態素 index -> 形態素素性集合
 
     def load(self, document: Document) -> None:
         self.doc_id = document.doc_id
         for sentence in extract_target_sentences(document):
             for morpheme in sentence.morphemes:
-                self.types[morpheme.global_index] = (
+                self.global_index2attributes[morpheme.global_index] = (
                     morpheme.pos,
                     morpheme.subpos,
                     morpheme.conjtype,
                     morpheme.conjform,
                 )
 
-            self.named_entities += sentence.named_entities
-
             for morpheme in sentence.morphemes:
-                self.features[morpheme.global_index] = set()
+                self.global_index2feature_set[morpheme.global_index] = set()
                 for sub_word_feature in SUB_WORD_FEATURES:
                     if sub_word_feature in morpheme.features:
-                        self.features[morpheme.global_index].add(sub_word_feature)
+                        self.global_index2feature_set[morpheme.global_index].add(sub_word_feature)
             for base_phrase in sentence.base_phrases:
-                self.features[base_phrase.head.global_index].add("基本句-主辞")
-                self.features[base_phrase.morphemes[-1].global_index].add("基本句-区切")
+                self.global_index2feature_set[base_phrase.head.global_index].add("基本句-主辞")
+                self.global_index2feature_set[base_phrase.morphemes[-1].global_index].add("基本句-区切")
             for phrase in sentence.phrases:
-                self.features[phrase.morphemes[-1].global_index].add("文節-区切")
+                self.global_index2feature_set[phrase.morphemes[-1].global_index].add("文節-区切")
+
+            self.named_entities += sentence.named_entities

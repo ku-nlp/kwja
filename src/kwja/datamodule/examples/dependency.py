@@ -11,9 +11,9 @@ class DependencyExample:
 
     def __init__(self) -> None:
         self.doc_id: str = ""
-        self.dependencies: Dict[int, int] = {}  # 形態素単位係り受け
-        self.candidates: Dict[int, List[int]] = {}  # 形態素単位係り先選択候補
-        self.dependency_types: Dict[int, DepType] = {}  # 形態素単位係り受けラベル
+        self.global_index2dependency: Dict[int, int] = {}  # 形態素 global index -> 形態素単位係り受け
+        self.global_index2candidates: Dict[int, List[int]] = {}  # 形態素 global index -> 形態素単位係り先候補
+        self.global_index2dependency_type: Dict[int, DepType] = {}  # 形態素 global index -> 形態素単位係り受けタイプ
 
     def load(self, document: Document) -> None:
         self.doc_id = document.doc_id
@@ -21,11 +21,13 @@ class DependencyExample:
             for morpheme in sentence.morphemes:
                 parent = morpheme.parent
                 # 係り先がなければ-1
-                self.dependencies[morpheme.global_index] = parent.global_index if parent is not None else -1
+                self.global_index2dependency[morpheme.global_index] = parent.global_index if parent is not None else -1
 
             intra_morphemes = sentence.morphemes
             for morpheme in intra_morphemes:
-                self.candidates[morpheme.global_index] = [m.global_index for m in intra_morphemes if m != morpheme]
+                self.global_index2candidates[morpheme.global_index] = [
+                    m.global_index for m in intra_morphemes if m != morpheme
+                ]
 
             for base_phrase in sentence.base_phrases:
                 for morpheme in base_phrase.morphemes:
@@ -34,4 +36,4 @@ class DependencyExample:
                         dependency_type = base_phrase.dep_type
                     else:
                         dependency_type = DepType.DEPENDENCY
-                    self.dependency_types[morpheme.global_index] = dependency_type
+                    self.global_index2dependency_type[morpheme.global_index] = dependency_type

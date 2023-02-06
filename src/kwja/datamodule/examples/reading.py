@@ -3,7 +3,7 @@ from typing import List, Union
 
 from rhoknp import Document
 
-from kwja.utils.reading import ReadingAligner
+from kwja.utils.reading_prediction import ReadingAligner
 
 logger = logging.getLogger(__name__)
 
