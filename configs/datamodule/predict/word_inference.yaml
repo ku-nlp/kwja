@@ -3,7 +3,5 @@ defaults:
   - _self_
 
 _target_: kwja.datamodule.datasets.word_inference_dataset.WordInferenceDataset
-texts: []
 juman_file: null
 knp_file: null
-doc_id_prefix: null

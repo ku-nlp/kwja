@@ -16,14 +16,14 @@ do_predict_after_train: true
 checkpoint_path: ""
 
 # set monitor and mode for early_stopping and model_checkpoint
-monitor: valid/loss
-mode: min
+monitor: valid/typo_correction_0.0_f1
+mode: max
 # option
 confidence_threshold: 0.9   # valid only for inference
 
 # hyper-parameters to be tuned
 warmup_steps: 100
-effective_batch_size: 16
+effective_batch_size: 64
 
 # environment dependent settings
 devices: ${oc.env:GPUS,0}

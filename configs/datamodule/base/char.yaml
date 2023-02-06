@@ -1,6 +1,6 @@
 _target_: kwja.datamodule.datasets.char_dataset.CharDataset
-model_name_or_path: ${encoder.pretrained_model_name_or_path}
-max_seq_length: ${max_seq_length}
-tokenizer_kwargs: ${dataset.tokenizer_kwargs}
 document_split_stride: ${document_split_stride}
-denormalize_prob: ${denormalize_prob}
+model_name_or_path: ${encoder.pretrained_model_name_or_path}
+tokenizer_kwargs: ${dataset.tokenizer_kwargs}
+max_seq_length: ${max_seq_length}
+denormalize_probability: ${denormalize_probability}
