@@ -1,12 +1,15 @@
 from collections import defaultdict
-from typing import Dict, Iterator, List, Union
+from typing import Dict, List
 
+import torch
 from rhoknp import Document, Sentence
 from seqeval.metrics import accuracy_score, f1_score
 from seqeval.scheme import IOB2
 from torchmetrics import Metric
 
 from kwja.datamodule.datasets import CharDataset
+from kwja.utils.char_module_writer import convert_predictions_into_tags, set_morphemes
+from kwja.utils.constants import IGNORE_INDEX, WORD_NORM_OP_TAGS
 from kwja.utils.sub_document import extract_target_sentences, to_orig_doc_id
 
 
@@ -15,69 +18,125 @@ class CharModuleMetric(Metric):
 
     def __init__(self) -> None:
         super().__init__()
-        self.add_state("predicted_texts", default=[], dist_reduce_fx="cat")
-        self.add_state("gold_texts", default=[], dist_reduce_fx="cat")
-        self.add_state("example_ids", default=[], dist_reduce_fx="cat")
+        self.add_state("word_norm_op_predictions", default=[], dist_reduce_fx="cat")
+        self.add_state("word_norm_op_labels", default=[], dist_reduce_fx="cat")
 
-    def update(self, predicted_texts: List[str], gold_texts: List[str], example_ids: List[int]) -> None:
-        """Update the internal state of the metric.
+        self.doc_id_sid2predicted_sentence: Dict[str, Dict[str, Sentence]] = defaultdict(dict)
+        self.doc_id_sid2gold_sentence: Dict[str, Dict[str, Sentence]] = defaultdict(dict)
 
-        Args:
-            predicted_texts (List[str]): A list of predicted texts in the KNP format.
-            gold_texts (List[str]): A list of gold texts in the KNP format.
-            example_ids (List[int]): A list of example IDs.
-        """
-        self.predicted_texts.append(predicted_texts)
-        self.gold_texts.append(gold_texts)
-        self.example_ids.append(example_ids)
+    def update(self, metric_args: Dict[str, torch.Tensor], dataset: CharDataset) -> None:
+        special_ids = set(dataset.tokenizer.all_special_ids) - {dataset.tokenizer.unk_token_id}
+        for (example_id, input_ids, word_segmentation_predictions, word_norm_op_predictions) in zip(
+            metric_args["example_ids"],
+            metric_args["input_ids"].tolist(),
+            metric_args["word_segmentation_predictions"].tolist(),
+            metric_args["word_norm_op_predictions"].tolist(),
+        ):
+            example = dataset.examples[example_id]
+            gold_document = dataset.doc_id2document[example.doc_id]
+            orig_doc_id = to_orig_doc_id(gold_document.doc_id)
+            predicted_document = Document.from_jumanpp(gold_document.to_jumanpp())
+            predicted_document.doc_id = gold_document.doc_id
 
-    def compute(self, dataset: CharDataset) -> Dict[str, Union[str, float]]:
-        eid_to_did: Dict[int, str] = {e.example_id: e.doc_id for e in dataset.examples}
-        doc_ids: List[str] = [eid_to_did[eid] for eid in self.example_ids]
-        _ = self._rebuild_split_documents(self.predicted_texts, doc_ids)
-        _ = self._rebuild_split_documents(self.gold_texts, doc_ids)
-        raise NotImplementedError
+            assert len(input_ids) == len(word_segmentation_predictions) == len(word_norm_op_predictions)
+            word_segmentation_tags, word_norm_op_tags = convert_predictions_into_tags(
+                word_segmentation_predictions, word_norm_op_predictions, input_ids, special_ids
+            )
+            set_morphemes(predicted_document, word_segmentation_tags, word_norm_op_tags)
 
-    def evaluate(self, predicted_text: str, gold_text: str) -> Dict[str, float]:
-        ret = {}
-        ret.update(self.evaluate_word_segmentation(predicted_text, gold_text))
-        return ret
+            for sentence in extract_target_sentences(predicted_document):
+                self.doc_id_sid2predicted_sentence[orig_doc_id][sentence.sid] = sentence
+            for sentence in extract_target_sentences(gold_document):
+                self.doc_id_sid2gold_sentence[orig_doc_id][sentence.sid] = sentence
+
+        ignored_indices = metric_args["word_norm_op_labels"].eq(IGNORE_INDEX)
+        self.word_norm_op_predictions.append(metric_args["word_norm_op_predictions"][~ignored_indices])
+        self.word_norm_op_labels.append(metric_args["word_norm_op_labels"][~ignored_indices])
+
+    def compute(self) -> Dict[str, float]:
+        predicted_documents = self._rebuild_documents(self.doc_id_sid2predicted_sentence)
+        gold_documents = self._rebuild_documents(self.doc_id_sid2gold_sentence)
+        return {
+            **self.compute_word_segmentation_metrics(predicted_documents, gold_documents),
+            **self.compute_word_normalization_metrics(self.word_norm_op_predictions, self.word_norm_op_labels),
+        }
+
+    def reset(self) -> None:
+        super().reset()
+        self.doc_id_sid2predicted_sentence.clear()
+        self.doc_id_sid2gold_sentence.clear()
 
     @staticmethod
-    def evaluate_word_segmentation(predicted_text: str, gold_text: str) -> Dict[str, float]:
-        def convert_sentence_to_labels(document: Document) -> List[str]:
-            labels = []
-            for morpheme in document.morphemes:
-                labels.extend(["B"] + ["I"] * (len(morpheme.text) - 1))
-            return labels
+    def _rebuild_documents(doc_id_sid2sentence: Dict[str, Dict[str, Sentence]]) -> List[Document]:
+        return [
+            Document.from_jumanpp("".join(s.to_jumanpp() for s in sid2sentence.values()))
+            for sid2sentence in doc_id_sid2sentence.values()
+        ]
 
-        pred = Document.from_jumanpp(predicted_text)
-        gold = Document.from_jumanpp(gold_text)
-        if pred.text != gold.text:
-            raise ValueError("The texts are different.")
-        pred_labels = convert_sentence_to_labels(pred)
-        gold_labels = convert_sentence_to_labels(gold)
-        assert len(pred_labels) == len(gold_labels)
+    def compute_word_segmentation_metrics(
+        self, predicted_documents: List[Document], gold_documents: List[Document]
+    ) -> Dict[str, float]:
+        labels = [self._convert_document_into_segmentation_tags(d) for d in gold_documents]
+        predictions = [self._convert_document_into_segmentation_tags(d) for d in predicted_documents]
         return {
-            "word_segmentation/acc": accuracy_score([gold_labels], [pred_labels]),
-            "word_segmentation/f1": f1_score(
-                [gold_labels],
-                [pred_labels],
+            "word_segmentation_accuracy": accuracy_score(y_true=labels, y_pred=predictions),
+            "word_segmentation_f1": f1_score(
+                y_true=labels,
+                y_pred=predictions,
                 mode="strict",
                 scheme=IOB2,
-                zero_division="warn",
             ),
         }
 
     @staticmethod
-    def _rebuild_split_documents(texts: List[str], doc_ids: List[str]) -> Iterator[Document]:
-        orig_did_to_sentences: Dict[str, List[Sentence]] = defaultdict(list)
-        for doc_id, text in zip(doc_ids, texts):
-            document = Document.from_jumanpp(text)
-            orig_doc_id = to_orig_doc_id(doc_id)
-            assert document.doc_id == orig_doc_id
-            document.doc_id = doc_id
-            orig_did_to_sentences[orig_doc_id] += extract_target_sentences(document)
+    def _convert_document_into_segmentation_tags(document: Document) -> List[str]:
+        segmentation_tags = []
+        for morpheme in document.morphemes:
+            segmentation_tags.extend(["B"] + ["I"] * (len(morpheme.text) - 1))
+        return segmentation_tags
 
-        for sentences in orig_did_to_sentences.values():
-            yield Document.from_sentences(sentences)
+    @staticmethod
+    def compute_word_normalization_metrics(predictions: torch.Tensor, labels: torch.Tensor) -> Dict[str, float]:
+        metrics: Dict[str, float] = dict()
+
+        metrics["word_normalization_accuracy"] = accuracy_score(y_true=labels, y_pred=predictions).item()
+
+        keep_indices = predictions.eq(WORD_NORM_OP_TAGS.index("K"))
+        if (~keep_indices).sum().item() == 0:
+            precision = 0.0
+        else:
+            precision = accuracy_score(y_true=labels[~keep_indices], y_pred=predictions[~keep_indices]).item()
+        metrics["word_normalization_precision"] = precision
+
+        keep_indices = labels.eq(WORD_NORM_OP_TAGS.index("K"))
+        if (~keep_indices).sum().item() == 0:
+            recall = 0.0
+        else:
+            recall = accuracy_score(y_true=labels[~keep_indices], y_pred=predictions[~keep_indices]).item()
+        metrics["word_normalization_recall"] = recall
+
+        if (precision + recall) == 0.0:
+            f1 = 0.0
+        else:
+            f1 = (2 * precision * recall) / (precision + recall)
+        metrics["word_normalization_f1"] = f1
+
+        for index, word_norm_op_tag in enumerate(WORD_NORM_OP_TAGS):
+            indices = predictions.eq(index)
+            if indices.sum().item() == 0:
+                precision = 0.0
+            else:
+                precision = accuracy_score(y_true=labels[indices], y_pred=predictions[indices]).item()
+
+            indices = labels.eq(index)
+            if indices.sum().item() == 0:
+                recall = 0.0
+            else:
+                recall = accuracy_score(y_true=labels[indices], y_pred=predictions[indices]).item()
+
+            if (precision + recall) == 0.0:
+                f1 = 0.0
+            else:
+                f1 = (2 * precision * recall) / (precision + recall)
+            metrics[f"word_normalization_f1:{word_norm_op_tag}"] = f1
+        return metrics
