@@ -273,7 +273,7 @@ class WordModule(pl.LightningModule):
                 mean(metrics_log[corpus][key] for corpus in self.test_corpora if key in metrics_log[corpus]),
             )
 
-    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Any:
+    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Dict[str, Any]:
         ret: Dict[str, torch.Tensor] = self(batch)
         ne_predictions = self.crf.viterbi_decode(ret["ne_logits"], batch["target_mask"])
         discourse_probabilities = ret["discourse_logits"].softmax(dim=-1)
