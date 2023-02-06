@@ -31,13 +31,19 @@ class CharInferenceDataset(BaseDataset):
         texts: ListConfig,
         document_split_stride: int,
         model_name_or_path: str = "ku-nlp/roberta-base-japanese-char-wwm",
+        tokenizer_kwargs: Optional[dict] = None,
         max_seq_length: int = 512,
-        tokenizer_kwargs: dict = None,
         doc_id_prefix: Optional[str] = None,
         **_,
     ) -> None:
-        documents = self._create_documents_from_texts(list(texts), doc_id_prefix)
-        super().__init__(documents, document_split_stride, model_name_or_path, max_seq_length, tokenizer_kwargs or {})
+        documents = self._build_documents_from_texts(list(texts), doc_id_prefix)
+        super().__init__(
+            documents,
+            model_name_or_path,
+            max_seq_length,
+            document_split_stride,
+            tokenizer_kwargs=tokenizer_kwargs,
+        )
         self.examples: List[CharInferenceExample] = self._load_examples(self.documents)
 
     def __len__(self) -> int:
@@ -48,7 +54,7 @@ class CharInferenceDataset(BaseDataset):
 
     def _load_examples(self, documents: List[Document]) -> List[CharInferenceExample]:
         examples = []
-        idx = 0
+        example_id = 0
         for document in track(documents, description="Loading examples"):
             encoding: BatchEncoding = self.tokenizer(
                 document.text,
@@ -56,34 +62,32 @@ class CharInferenceDataset(BaseDataset):
                 padding=PaddingStrategy.MAX_LENGTH,
                 max_length=self.max_seq_length,
             )
-            if len(encoding["input_ids"]) > self.max_seq_length:
+            if len(encoding.input_ids) > self.max_seq_length:
                 logger.warning(f"Length of sub document is too long: {document.text}")
                 continue
 
             examples.append(
                 CharInferenceExample(
-                    example_id=idx,
+                    example_id=example_id,
                     doc_id=document.doc_id,
                     encoding=encoding,
                 )
             )
-            idx += 1
+            example_id += 1
         if len(examples) == 0:
             logger.error("No examples to process. Make sure any texts are given and they are not too long.")
         return examples
 
     @staticmethod
     def encode(example: CharInferenceExample) -> Dict[str, torch.Tensor]:
-        input_ids = example.encoding["input_ids"]
-        attention_mask = example.encoding["attention_mask"]
         return {
             "example_ids": torch.tensor(example.example_id, dtype=torch.long),
-            "input_ids": torch.tensor(input_ids, dtype=torch.long),
-            "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
+            "input_ids": torch.tensor(example.encoding.input_ids, dtype=torch.long),
+            "attention_mask": torch.tensor(example.encoding.attention_mask, dtype=torch.long),
         }
 
     @staticmethod
-    def _create_documents_from_texts(texts: List[str], doc_id_prefix: Optional[str]) -> List[Document]:
+    def _build_documents_from_texts(texts: List[str], doc_id_prefix: Optional[str]) -> List[Document]:
         senter = RegexSenter()
         # split text into sentences
         documents: List[Document] = [
@@ -93,10 +97,10 @@ class CharInferenceDataset(BaseDataset):
             doc_id_prefix = datetime.now().strftime("%Y%m%d%H%M")
         doc_id_width = len(str(len(documents)))
         sent_id_width = max((len(str(len(doc.sentences))) for doc in documents), default=0)
-        for doc_idx, document in enumerate(documents):
-            document.doc_id = f"{doc_id_prefix}-{doc_idx:0{doc_id_width}}"
-            for sent_idx, sentence in enumerate(document.sentences):
-                sentence.sid = f"{document.doc_id}-{sent_idx:0{sent_id_width}}"
+        for document_index, document in enumerate(documents):
+            document.doc_id = f"{doc_id_prefix}-{document_index:0{doc_id_width}}"
+            for sentence_index, sentence in enumerate(document.sentences):
+                sentence.sid = f"{document.doc_id}-{sentence_index:0{sent_id_width}}"
                 sentence.misc_comment = f"kwja:{kwja.__version__}"
         return documents
 
@@ -109,5 +113,5 @@ class CharInferenceDataset(BaseDataset):
         document.text = "".join(sentence.text for sentence in document.sentences)
         return document
 
-    def _get_tokenized_len(self, source: Union[Document, Sentence]) -> int:
-        return len(self.tokenizer.tokenize(source.text))
+    def _get_tokenized_len(self, document_or_sentence: Union[Document, Sentence]) -> int:
+        return len(self.tokenizer.tokenize(document_or_sentence.text))

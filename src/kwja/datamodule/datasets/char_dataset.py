@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 from unicodedata import normalize
 
 import torch
@@ -11,9 +11,15 @@ from transformers.utils import PaddingStrategy
 
 from kwja.datamodule.datasets.base_dataset import BaseDataset
 from kwja.datamodule.examples.char_feature import CharFeatureExample
-from kwja.utils.constants import IGNORE_INDEX, TRANSLATION_TABLE
+from kwja.utils.constants import (
+    IGNORE_INDEX,
+    IGNORE_WORD_NORM_OP_TAG,
+    TRANSLATION_TABLE,
+    WORD_NORM_OP_TAGS,
+    WORD_SEGMENTATION_TAGS,
+)
 from kwja.utils.progress_bar import track
-from kwja.utils.word_normalize import SentenceDenormalizer
+from kwja.utils.word_normalization import SentenceDenormalizer
 
 logger = logging.getLogger(__name__)
 
@@ -33,20 +39,20 @@ class CharDataset(BaseDataset):
         path: str,
         document_split_stride: int,
         model_name_or_path: str = "ku-nlp/roberta-base-japanese-char-wwm",
+        tokenizer_kwargs: Optional[dict] = None,
         max_seq_length: int = 512,
-        tokenizer_kwargs: dict = None,
-        denormalize_prob: float = 0.0,
+        denormalize_probability: float = 0.0,
     ) -> None:
         self.path = Path(path)
         super().__init__(
             self.path,
-            document_split_stride,
             model_name_or_path,
             max_seq_length,
-            tokenizer_kwargs or {},
+            document_split_stride,
+            tokenizer_kwargs=tokenizer_kwargs,
         )
         self.denormalizer: SentenceDenormalizer = SentenceDenormalizer()
-        self.denormalize_prob: float = denormalize_prob
+        self.denormalize_probability: float = denormalize_probability
         self.examples: List[CharExampleSet] = self._load_examples(self.documents)
 
     def __len__(self) -> int:
@@ -57,10 +63,10 @@ class CharDataset(BaseDataset):
 
     def _load_examples(self, documents: List[Document]) -> List[CharExampleSet]:
         examples = []
-        idx = 0
+        example_id = 0
         for document in track(documents, description="Loading examples"):
             for sentence in document.sentences:
-                self.denormalizer.denormalize(sentence, self.denormalize_prob)
+                self.denormalizer.denormalize(sentence, self.denormalize_probability)
             encoding: BatchEncoding = self.tokenizer(
                 document.text,
                 padding=PaddingStrategy.MAX_LENGTH,
@@ -76,15 +82,14 @@ class CharDataset(BaseDataset):
 
             examples.append(
                 CharExampleSet(
-                    example_id=idx,
+                    example_id=example_id,
                     doc_id=document.doc_id,
                     text=document.text,
                     encoding=encoding,
                     char_feature_example=char_feature_example,
                 )
             )
-            idx += 1
-
+            example_id += 1
         if len(examples) == 0:
             logger.error(
                 "No examples to process. "
@@ -94,24 +99,29 @@ class CharDataset(BaseDataset):
 
     def encode(self, example: CharExampleSet) -> Dict[str, torch.Tensor]:
         char_feature_example = example.char_feature_example
-        seg_types: List[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
-        for i, seg_label in char_feature_example.seg_types.items():
-            # 先頭のCLSトークンをIGNORE_INDEXにするため+1
-            seg_types[i + 1] = seg_label
-        norm_types: List[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
-        for i, norm_label in char_feature_example.norm_types.items():
-            # 先頭のCLSトークンをIGNORE_INDEXにするため+1
-            norm_types[i + 1] = norm_label
+
+        word_segmentation_labels: List[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
+        for char_index, word_segmentation_tag in char_feature_example.index2word_segmentation_tag.items():
+            # 先頭の[CLS]をIGNORE_INDEXにするため+1
+            word_segmentation_labels[char_index + 1] = WORD_SEGMENTATION_TAGS.index(word_segmentation_tag)
+
+        word_norm_op_labels: List[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
+        for char_index, word_norm_op_tag in char_feature_example.index2word_norm_op_tag.items():
+            # 先頭の[CLS]をIGNORE_INDEXにするため+1
+            if word_norm_op_tag == IGNORE_WORD_NORM_OP_TAG:
+                word_norm_op_labels[char_index + 1] = IGNORE_INDEX
+            else:
+                word_norm_op_labels[char_index + 1] = WORD_NORM_OP_TAGS.index(word_norm_op_tag)
 
         return {
             "example_ids": torch.tensor(example.example_id, dtype=torch.long),
             "input_ids": torch.tensor(example.encoding.input_ids, dtype=torch.long),
             "attention_mask": torch.tensor(example.encoding.attention_mask, dtype=torch.long),
-            "seg_types": torch.tensor(seg_types, dtype=torch.long),
-            "norm_types": torch.tensor(norm_types, dtype=torch.long),
+            "word_segmentation_labels": torch.tensor(word_segmentation_labels, dtype=torch.long),
+            "word_norm_op_labels": torch.tensor(word_norm_op_labels, dtype=torch.long),
         }
 
-    def _normalize(self, document):
+    def _normalize_text(self, document: Document) -> Document:
         for morpheme in document.morphemes:
             normalized = normalize("NFKC", morpheme.text).translate(TRANSLATION_TABLE)
             if normalized != morpheme.text:
@@ -120,5 +130,5 @@ class CharDataset(BaseDataset):
                 morpheme.lemma = normalize("NFKC", morpheme.lemma).translate(TRANSLATION_TABLE)
         return document
 
-    def _get_tokenized_len(self, source: Union[Document, Sentence]) -> int:
-        return len(self.tokenizer.tokenize(source.text))
+    def _get_tokenized_len(self, document_or_sentence: Union[Document, Sentence]) -> int:
+        return len(self.tokenizer.tokenize(document_or_sentence.text))
