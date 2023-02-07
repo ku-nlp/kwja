@@ -103,13 +103,14 @@ class CRF(nn.Module):
 
         return torch.logsumexp(score, dim=1)  # (b, )
 
-    def viterbi_decode(self, emissions: torch.Tensor, mask: torch.Tensor) -> List[List[int]]:
+    def viterbi_decode(self, emissions: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         batch_size, seq_len = mask.shape
         indices = torch.arange(batch_size)
 
-        heads = torch.amin(torch.arange(seq_len, device=mask.device) * mask + seq_len * (1 - mask), dim=1)
+        arange = torch.arange(seq_len, device=mask.device)
+        heads = torch.amin(arange * mask + seq_len * (1 - mask), dim=1)
         min_head = int(heads.min())
-        tails = torch.amax(torch.arange(seq_len, device=mask.device) * mask, dim=1)
+        tails = torch.amax(arange * mask, dim=1)
         max_tail = int(tails.max())
 
         score = self.start_transitions + emissions[indices, heads]  # (b, num_tags)
@@ -134,6 +135,9 @@ class CRF(nn.Module):
                 best_tag = max_indices[i][best_tags[-1]]
                 best_tags.append(best_tag.item())
             best_tags += [NE_TAGS.index("O")] * head
-            batch_best_tags.append(best_tags[::-1])
+            best_tags = best_tags[::-1]
+            best_tags += [NE_TAGS.index("O")] * (seq_len - tail - 1)
+            assert len(best_tags) == seq_len
+            batch_best_tags.append(best_tags)
 
-        return batch_best_tags
+        return torch.tensor(batch_best_tags, device=emissions.device)
