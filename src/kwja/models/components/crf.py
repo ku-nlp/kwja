@@ -1,5 +1,5 @@
 from math import sqrt
-from typing import List, Literal, Optional, Tuple
+from typing import Literal, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -137,7 +137,7 @@ class CRF(nn.Module):
             best_tags += [NE_TAGS.index("O")] * head
             best_tags = best_tags[::-1]
             best_tags += [NE_TAGS.index("O")] * (seq_len - tail - 1)
-            assert len(best_tags) == seq_len
+            assert len(best_tags) == seq_len, "the length of decoded sequence is inconsistent with max seq length"
             batch_best_tags.append(best_tags)
 
         return torch.tensor(batch_best_tags, device=emissions.device)
