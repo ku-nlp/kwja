@@ -54,8 +54,9 @@ class TypoDataset(Dataset):
         return examples
 
     def encode(self, example_id: int) -> Dict[str, Union[torch.Tensor, str]]:
-        example = self.examples[example_id]
+        example: Dict[str, Union[str, List[str]]] = self.examples[example_id]
 
+        assert type(example["pre_text"]) == str, "type of pre_text is invalid"
         encoding: BatchEncoding = self.tokenizer(
             example["pre_text"] + DUMMY_TOKEN,
             truncation=True,

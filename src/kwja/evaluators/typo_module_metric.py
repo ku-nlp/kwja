@@ -1,87 +1,113 @@
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import torch
 from Levenshtein import opcodes
+from torchmetrics import Metric
 
 from kwja.datamodule.datasets.typo_dataset import TypoDataset
+from kwja.utils.metric import unique
 from kwja.utils.typo_module_writer import apply_edit_operations, convert_predictions_into_typo_corr_op_tags
 
 
-class TypoModuleMetric:
-    def __init__(self) -> None:
-        self.confidence_thresholds = [0.0, 0.8, 0.9]
-        self.example_id2texts: Dict[str, Tuple[str, List[str], str]] = {}
+class TypoModuleMetric(Metric):
+    full_state_update = False
 
-    def update(self, metric_args: Dict[str, torch.Tensor], dataset: TypoDataset) -> None:
-        for (example_id, kdr_predictions, kdr_probabilities, ins_predictions, ins_probabilities) in zip(
-            metric_args["example_ids"],
-            metric_args["kdr_predictions"].tolist(),
-            metric_args["kdr_probabilities"].tolist(),
-            metric_args["ins_predictions"].tolist(),
-            metric_args["ins_probabilities"].tolist(),
+    def __init__(self) -> None:
+        super().__init__()
+        self.attr_names = [
+            "example_ids",
+            "kdr_predictions",
+            "kdr_probabilities",
+            "ins_predictions",
+            "ins_probabilities",
+        ]
+        for attr_name in self.attr_names:
+            self.add_state(attr_name, default=[], dist_reduce_fx="cat")
+
+        self.dataset: Optional[TypoDataset] = None
+
+    def update(self, kwargs: Dict[str, torch.Tensor]) -> None:
+        for attr_name in self.attr_names:
+            attr = getattr(self, attr_name)
+            attr.append(kwargs[attr_name])
+
+    def set_properties(self, dataset: TypoDataset) -> None:
+        self.dataset = dataset
+
+    def compute(self) -> Dict[str, float]:
+        sorted_indices = unique(self.example_ids)
+        for attr_name in self.attr_names:
+            attr = getattr(self, attr_name)
+            setattr(self, attr_name, attr[sorted_indices])
+
+        metrics: Dict[str, float] = {}
+        for confidence_threshold in [0.0, 0.8, 0.9]:
+            texts = self._build_texts(confidence_threshold)
+            metrics.update(self.compute_typo_correction_metrics(texts, confidence_threshold))
+        return metrics
+
+    def _build_texts(self, confidence_threshold: float) -> List[Tuple[str, str, str]]:
+        example_id2texts = {}
+        for example_id, kdr_predictions, kdr_probabilities, ins_predictions, ins_probabilities in zip(
+            self.example_ids,
+            self.kdr_predictions.tolist(),
+            self.kdr_probabilities.tolist(),
+            self.ins_predictions.tolist(),
+            self.ins_probabilities.tolist(),
         ):
-            example = dataset.examples[example_id]
+            assert self.dataset is not None, "typo dataset isn't set"
+
+            example = self.dataset.examples[example_id]
             seq_len: int = len(example["pre_text"])
             if seq_len == 0:
                 continue
 
-            predicted_texts = []
-            for confidence_threshold in self.confidence_thresholds:
-                args = (confidence_threshold, dataset.token2token_id, dataset.token_id2token)
-                kdr_tags = convert_predictions_into_typo_corr_op_tags(kdr_predictions, kdr_probabilities, "R", *args)
-                ins_tags = convert_predictions_into_typo_corr_op_tags(ins_predictions, ins_probabilities, "I", *args)
+            args = (confidence_threshold, self.dataset.token2token_id, self.dataset.token_id2token)
+            kdr_tags = convert_predictions_into_typo_corr_op_tags(kdr_predictions, kdr_probabilities, "R", *args)
+            ins_tags = convert_predictions_into_typo_corr_op_tags(ins_predictions, ins_probabilities, "I", *args)
 
-                # the prediction of the first token (= [CLS]) is excluded.
-                # the prediction of the dummy token at the end is used for insertion only.
-                predicted_text = apply_edit_operations(
-                    example["pre_text"], kdr_tags[1 : seq_len + 1], ins_tags[1 : seq_len + 2]
-                )
-                predicted_texts.append(predicted_text)
-            self.example_id2texts[example_id] = (example["pre_text"], predicted_texts, example["post_text"])
-
-    def compute(self) -> Dict[str, float]:
-        tps = [0] * len(self.confidence_thresholds)
-        fps = [0] * len(self.confidence_thresholds)
-        fns = [0] * len(self.confidence_thresholds)
-        for pre_text, predicted_texts, gold_text in self.example_id2texts.values():
-            gold_diffs = self._get_diffs(pre_text, gold_text)
-            for i, predicted_text in enumerate(predicted_texts):
-                predicted_diffs = self._get_diffs(pre_text, predicted_text)
-                intersection = []
-                queue = [*gold_diffs]
-                for predicted_diff in predicted_diffs:
-                    if predicted_diff in queue:
-                        intersection.append(predicted_text)
-                        queue.remove(predicted_diff)
-                assert (
-                    len(predicted_diffs) - len(intersection) >= 0 and len(gold_diffs) - len(intersection) >= 0
-                ), "invalid tp"
-                tps[i] += len(intersection)
-                fps[i] += len(predicted_diffs) - len(intersection)
-                fns[i] += len(gold_diffs) - len(intersection)
-
-        metrics: Dict[str, float] = {}
-        for tp, fp, fn, confidence_threshold in zip(tps, fps, fns, self.confidence_thresholds):
-            precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
-            recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-            if (precision + recall) == 0.0:
-                f1 = 0.0
-                f05 = 0.0
-            else:
-                f1 = (2 * precision * recall) / (precision + recall)
-                f05 = (1.25 * precision * recall) / (0.25 * precision + recall)
-            metrics.update(
-                {
-                    f"typo_correction_{confidence_threshold}_precision": precision,
-                    f"typo_correction_{confidence_threshold}_recall": recall,
-                    f"typo_correction_{confidence_threshold}_f1": f1,
-                    f"typo_correction_{confidence_threshold}_f0.5": f05,
-                }
+            # the prediction of the first token (= [CLS]) is excluded.
+            # the prediction of the dummy token at the end is used for insertion only.
+            predicted_text = apply_edit_operations(
+                example["pre_text"], kdr_tags[1 : seq_len + 1], ins_tags[1 : seq_len + 2]
             )
-        return metrics
+            example_id2texts[example_id] = (example["pre_text"], predicted_text, example["post_text"])
+        return list(example_id2texts.values())
 
-    def reset(self) -> None:
-        self.example_id2texts.clear()
+    def compute_typo_correction_metrics(
+        self, texts: List[Tuple[str, str, str]], confidence_threshold: float
+    ) -> Dict[str, float]:
+        tp, fp, fn = 0, 0, 0
+        for pre_text, predicted_text, gold_text in texts:
+            predicted_diffs = self._get_diffs(pre_text, predicted_text)
+            gold_diffs = self._get_diffs(pre_text, gold_text)
+            intersection = []
+            queue = [*gold_diffs]
+            for predicted_diff in predicted_diffs:
+                if predicted_diff in queue:
+                    intersection.append(predicted_text)
+                    queue.remove(predicted_diff)
+            assert (
+                len(predicted_diffs) - len(intersection) >= 0 and len(gold_diffs) - len(intersection) >= 0
+            ), "invalid tp"
+            tp += len(intersection)
+            fp += len(predicted_diffs) - len(intersection)
+            fn += len(gold_diffs) - len(intersection)
+
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+        recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+        if (precision + recall) == 0.0:
+            f1 = 0.0
+            f05 = 0.0
+        else:
+            f1 = (2 * precision * recall) / (precision + recall)
+            f05 = (1.25 * precision * recall) / (0.25 * precision + recall)
+        return {
+            f"typo_correction_{confidence_threshold}_precision": precision,
+            f"typo_correction_{confidence_threshold}_recall": recall,
+            f"typo_correction_{confidence_threshold}_f1": f1,
+            f"typo_correction_{confidence_threshold}_f0.5": f05,
+        }
 
     @staticmethod
     def _get_diffs(pre_text: str, post_text: str) -> List[Tuple[str, str]]:

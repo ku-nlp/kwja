@@ -309,6 +309,7 @@ class WordDataset(BaseDataset):
             annotation = cohesion_example.annotations[task]
             phrases = cohesion_example.phrases[task]
             for case in self.pas_cases:
+                assert type(annotation.arguments_set) == List[Dict[str, List[str]]]
                 arguments_set = [arguments[case] for arguments in annotation.arguments_set]
                 ret = self._convert_annotation_to_feature(arguments_set, phrases)
                 cohesion_target.append(ret[0])
@@ -316,9 +317,11 @@ class WordDataset(BaseDataset):
         for task in (CohesionTask.BRIDGING, CohesionTask.COREFERENCE):
             if task not in self.cohesion_tasks:
                 continue
-            annotation = cohesion_example.annotations[task].arguments_set
+            annotation = cohesion_example.annotations[task]
+            assert type(annotation.arguments_set) == List[List[str]]
+            arguments_set = annotation.arguments_set
             phrases = cohesion_example.phrases[task]
-            ret = self._convert_annotation_to_feature(annotation, phrases)
+            ret = self._convert_annotation_to_feature(arguments_set, phrases)
             cohesion_target.append(ret[0])
             candidates_list.append(ret[1])
         # True/False = keep/mask
@@ -389,13 +392,13 @@ class WordDataset(BaseDataset):
 
     def _convert_annotation_to_feature(
         self,
-        annotation: List[List[str]],  # phrase level
+        arguments_set: List[List[str]],  # phrase level
         phrases: List[Phrase],
     ) -> Tuple[List[List[int]], List[List[int]]]:
         scores_list: List[List[int]] = [[0] * self.max_seq_length for _ in range(self.max_seq_length)]
         candidates_list: List[List[int]] = [[] for _ in range(self.max_seq_length)]
         for phrase in phrases:
-            arguments: List[str] = annotation[phrase.dtid]
+            arguments: List[str] = arguments_set[phrase.dtid]
             candidates: List[int] = phrase.candidates  # phrase level
             for mrph in phrase.children:
                 scores: List[int] = [0] * self.max_seq_length

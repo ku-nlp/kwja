@@ -13,6 +13,7 @@ from torchmetrics import Metric
 
 from kwja.datamodule.datasets import WordDataset
 from kwja.datamodule.examples import CohesionTask
+from kwja.datamodule.extractors import PasExtractor
 from kwja.evaluators.cohesion_scorer import Scorer, ScoreResult
 from kwja.evaluators.conll18_ud_eval import main as conll18_ud_eval
 from kwja.utils.constants import (
@@ -26,6 +27,7 @@ from kwja.utils.constants import (
     WORD_FEATURES,
     WordTask,
 )
+from kwja.utils.metric import unique
 from kwja.utils.sub_document import extract_target_sentences, to_orig_doc_id
 from kwja.utils.word_module_writer import (  # add_discourse,
     add_base_phrase_features,
@@ -44,23 +46,81 @@ class WordModuleMetric(Metric):
 
     def __init__(self) -> None:
         super().__init__()
-        self.add_state("discourse_predictions", default=[], dist_reduce_fx="cat")
-        self.add_state("discourse_labels", default=[], dist_reduce_fx="cat")
+        self.attr_names = [
+            "example_ids",
+            "reading_predictions",
+            "reading_subword_map",
+            "pos_logits",
+            "subpos_logits",
+            "conjtype_logits",
+            "conjform_logits",
+            "word_feature_probabilities",
+            "ne_predictions",
+            "base_phrase_feature_probabilities",
+            "dependency_predictions",
+            "dependency_type_predictions",
+            "cohesion_logits",
+            "discourse_predictions",
+            "discourse_labels",
+        ]
+        for attr_name in self.attr_names:
+            self.add_state(attr_name, default=[], dist_reduce_fx="cat")
 
-        self.doc_id_sid2predicted_sentence: Dict[str, Dict[str, Sentence]] = defaultdict(dict)
-        self.doc_id_sid2partly_gold_sentence1: Dict[str, Dict[str, Sentence]] = defaultdict(dict)
-        self.doc_id_sid2partly_gold_sentence2: Dict[str, Dict[str, Sentence]] = defaultdict(dict)
-        self.doc_id_sid2gold_sentence: Dict[str, Dict[str, Sentence]] = defaultdict(dict)
+        self.dataset: Optional[WordDataset] = None
+        self.reading_id2reading: Optional[Dict[int, str]] = None
+        self.training_tasks: Optional[List[WordTask]] = None
 
-        self.dataset: WordDataset
-        self.training_tasks: List[WordTask]
+    def update(self, kwargs: Dict[str, torch.Tensor]) -> None:
+        for attr_name in self.attr_names:
+            attr = getattr(self, attr_name)
+            attr.append(kwargs[attr_name])
 
-    def update(
-        self,
-        metric_args: Dict[str, torch.Tensor],
-        dataset: WordDataset,
-        reading_id2reading: Dict[int, str],
+    def compute(self) -> Dict[str, float]:
+        assert self.training_tasks is not None, "training_tasks isn't set"
+
+        sorted_indices = unique(self.example_ids)
+        for attr_name in self.attr_names:
+            attr = getattr(self, attr_name)
+            setattr(self, attr_name, attr[sorted_indices])
+
+        predicted_documents, partly_gold_document1, partly_gold_document2, gold_documents = self._build_documents()
+
+        metrics: Dict[str, float] = {}
+        if WordTask.READING_PREDICTION in self.training_tasks:
+            metrics.update(self.compute_reading_prediction_metrics(predicted_documents, gold_documents))
+        if WordTask.MORPHOLOGICAL_ANALYSIS in self.training_tasks:
+            metrics.update(self.compute_morphological_analysis_metrics(predicted_documents, gold_documents))
+        if WordTask.WORD_FEATURE_TAGGING in self.training_tasks:
+            metrics.update(self.compute_word_feature_tagging_metrics(predicted_documents, gold_documents))
+        if WordTask.NER in self.training_tasks:
+            metrics.update(self.compute_ner_metrics(partly_gold_document1, gold_documents))
+        if WordTask.BASE_PHRASE_FEATURE_TAGGING in self.training_tasks:
+            metrics.update(self.compute_base_phrase_feature_tagging_metrics(partly_gold_document1, gold_documents))
+        if WordTask.DEPENDENCY_PARSING in self.training_tasks:
+            metrics.update(self.compute_dependency_parsing_metrics(partly_gold_document1, gold_documents))
+        if WordTask.COHESION_ANALYSIS in self.training_tasks:
+            metrics.update(self.compute_cohesion_analysis_metrics(partly_gold_document2, gold_documents))
+        if WordTask.DISCOURSE_PARSING in self.training_tasks:
+            predictions = self.discourse_predictions.view(-1)
+            labels = self.discourse_labels.view(-1)
+            metrics.update(self.compute_discourse_parsing_metrics(predictions, labels))
+        return metrics
+
+    def set_properties(
+        self, dataset: WordDataset, reading_id2reading: Dict[int, str], training_tasks: List[WordTask]
     ) -> None:
+        self.dataset = dataset
+        self.reading_id2reading = reading_id2reading
+        self.training_tasks = training_tasks
+
+    def _build_documents(self) -> Tuple[List[Document], ...]:
+        assert self.dataset is not None, "dataset isn't set"
+        assert self.reading_id2reading is not None, "reading_id2reading isn't set"
+
+        doc_id2predicted_sentences: Dict[str, List[Sentence]] = defaultdict(list)
+        doc_id2partly_gold_sentences1: Dict[str, List[Sentence]] = defaultdict(list)
+        doc_id2partly_gold_sentences2: Dict[str, List[Sentence]] = defaultdict(list)
+        doc_id2gold_sentences: Dict[str, List[Sentence]] = defaultdict(list)
         for (
             example_id,
             reading_predictions,
@@ -76,26 +136,30 @@ class WordModuleMetric(Metric):
             dependency_type_predictions,
             cohesion_logits,
         ) in zip(
-            metric_args["example_ids"],
-            metric_args["reading_predictions"].tolist(),
-            metric_args["reading_subword_map"].tolist(),
-            metric_args["pos_logits"],
-            metric_args["subpos_logits"],
-            metric_args["conjtype_logits"],
-            metric_args["conjform_logits"],
-            metric_args["ne_predictions"],
-            metric_args["word_feature_probabilities"].tolist(),
-            metric_args["base_phrase_feature_probabilities"].tolist(),
-            metric_args["dependency_predictions"].tolist(),
-            metric_args["dependency_type_predictions"].tolist(),
-            metric_args["cohesion_logits"].tolist(),
+            self.example_ids,
+            self.reading_predictions.tolist(),
+            self.reading_subword_map.tolist(),
+            self.pos_logits,
+            self.subpos_logits,
+            self.conjtype_logits,
+            self.conjform_logits,
+            self.ne_predictions,
+            self.word_feature_probabilities.tolist(),
+            self.base_phrase_feature_probabilities.tolist(),
+            self.dependency_predictions.tolist(),
+            self.dependency_type_predictions.tolist(),
+            self.cohesion_logits.tolist(),
         ):
-            example = dataset.examples[example_id]
-            gold_document = dataset.doc_id2document[example.doc_id]
+            example = self.dataset.examples[example_id]
+            gold_document = self.dataset.doc_id2document[example.doc_id]
             orig_doc_id = to_orig_doc_id(gold_document.doc_id)
 
             word_reading_predictions = get_word_reading_predictions(
-                example.encoding.ids, reading_predictions, reading_id2reading, dataset.tokenizer, reading_subword_map
+                example.encoding.ids,
+                reading_predictions,
+                self.reading_id2reading,
+                self.dataset.tokenizer,
+                reading_subword_map,
             )
             (
                 pos_predictions,
@@ -115,7 +179,7 @@ class WordModuleMetric(Metric):
             predicted_document = chunk_morphemes(gold_document, morphemes, word_feature_probabilities)
             predicted_document.doc_id = gold_document.doc_id
             for sentence in extract_target_sentences(predicted_document):
-                self.doc_id_sid2predicted_sentence[orig_doc_id][sentence.sid] = sentence
+                doc_id2predicted_sentences[orig_doc_id].append(sentence)
 
             # goldの基本句区切り・基本句主辞を使用
             partly_gold_document1 = Document.from_knp(gold_document.to_knp())
@@ -124,8 +188,10 @@ class WordModuleMetric(Metric):
             for sentence in extract_target_sentences(partly_gold_document1):
                 add_named_entities(sentence, ne_predictions)
                 add_base_phrase_features(sentence, base_phrase_feature_probabilities)
-                add_dependency(sentence, dependency_predictions, dependency_type_predictions, dataset.special_to_index)
-                self.doc_id_sid2partly_gold_sentence1[orig_doc_id][sentence.sid] = sentence
+                add_dependency(
+                    sentence, dependency_predictions, dependency_type_predictions, self.dataset.special_to_index
+                )
+                doc_id2partly_gold_sentences1[orig_doc_id].append(sentence)
 
             # goldの基本句区切り・基本句主辞・基本句素性を使用
             partly_gold_document2 = Document.from_knp(gold_document.to_knp())
@@ -134,59 +200,21 @@ class WordModuleMetric(Metric):
             add_cohesion(
                 partly_gold_document2,
                 cohesion_logits,
-                dataset.cohesion_task_to_rel_types,
-                dataset.exophora_referents,
-                dataset.index_to_special,
-                dataset.extractors,
+                self.dataset.cohesion_task_to_rel_types,
+                self.dataset.exophora_referents,
+                self.dataset.index_to_special,
+                self.dataset.extractors,
             )
             for sentence in extract_target_sentences(partly_gold_document2):
-                self.doc_id_sid2partly_gold_sentence2[orig_doc_id][sentence.sid] = sentence
+                doc_id2partly_gold_sentences2[orig_doc_id].append(sentence)
 
             for sentence in extract_target_sentences(gold_document):
-                self.doc_id_sid2gold_sentence[orig_doc_id][sentence.sid] = sentence
-
-        self.discourse_predictions.append(metric_args["discourse_predictions"])
-        self.discourse_labels.append(metric_args["discourse_labels"])
-
-    def compute(self) -> Dict[str, float]:
-        predicted_documents = self._rebuild_documents(self.doc_id_sid2predicted_sentence)
-        partly_gold_document1 = self._rebuild_documents(self.doc_id_sid2partly_gold_sentence1)
-        partly_gold_document2 = self._rebuild_documents(self.doc_id_sid2partly_gold_sentence2)
-        gold_documents = self._rebuild_documents(self.doc_id_sid2gold_sentence)
-
-        metrics: Dict[str, float] = {}
-        if WordTask.READING_PREDICTION in self.training_tasks:
-            metrics.update(self.compute_reading_prediction_metrics(predicted_documents, gold_documents))
-        if WordTask.MORPHOLOGICAL_ANALYSIS in self.training_tasks:
-            metrics.update(self.compute_morphological_analysis_metrics(predicted_documents, gold_documents))
-        if WordTask.WORD_FEATURE_TAGGING in self.training_tasks:
-            metrics.update(self.compute_word_feature_tagging_metrics(predicted_documents, gold_documents))
-        if WordTask.NER in self.training_tasks:
-            metrics.update(self.compute_ner_metrics(partly_gold_document1, gold_documents))
-        if WordTask.BASE_PHRASE_FEATURE_TAGGING in self.training_tasks:
-            metrics.update(self.compute_base_phrase_feature_tagging_metrics(partly_gold_document1, gold_documents))
-        if WordTask.DEPENDENCY_PARSING in self.training_tasks:
-            metrics.update(self.compute_dependency_parsing_metrics(partly_gold_document1, gold_documents))
-        if WordTask.COHESION_ANALYSIS in self.training_tasks:
-            metrics.update(self.compute_cohesion_analysis_metrics(partly_gold_document2, gold_documents))
-        if WordTask.DISCOURSE_PARSING in self.training_tasks:
-            metrics.update(
-                self.compute_discourse_parsing_metrics(
-                    self.discourse_predictions.view(-1), self.discourse_labels.view(-1)
-                )
-            )
-        return metrics
-
-    def reset(self) -> None:
-        super().reset()
-        self.doc_id_sid2predicted_sentence.clear()
-        self.doc_id_sid2partly_gold_sentence1.clear()
-        self.doc_id_sid2partly_gold_sentence2.clear()
-        self.doc_id_sid2gold_sentence.clear()
-
-    def set_properties(self, dataset: WordDataset, training_tasks: List[WordTask]) -> None:
-        self.dataset = dataset
-        self.training_tasks = training_tasks
+                doc_id2gold_sentences[orig_doc_id].append(sentence)
+        predicted_documents = self._convert_doc_id2sentences_into_documents(doc_id2predicted_sentences)
+        partly_gold_documents1 = self._convert_doc_id2sentences_into_documents(doc_id2partly_gold_sentences1)
+        partly_gold_documents2 = self._convert_doc_id2sentences_into_documents(doc_id2partly_gold_sentences2)
+        gold_documents = self._convert_doc_id2sentences_into_documents(doc_id2gold_sentences)
+        return predicted_documents, partly_gold_documents1, partly_gold_documents2, gold_documents
 
     @staticmethod
     def _refresh(document: Document, level: int = 1) -> None:
@@ -205,23 +233,18 @@ class WordModuleMetric(Metric):
                 base_phrase.dep_type = None
 
     @staticmethod
-    def _rebuild_documents(doc_id_sid2sentence: Dict[str, Dict[str, Sentence]]) -> List[Document]:
-        return [
-            Document.from_knp("".join(s.to_knp() for s in sid2sentence.values()))
-            for sid2sentence in doc_id_sid2sentence.values()
-        ]
+    def _convert_doc_id2sentences_into_documents(doc_id2sentences: Dict[str, List[Sentence]]) -> List[Document]:
+        return [Document.from_knp("".join(s.to_knp() for s in ss)) for ss in doc_id2sentences.values()]
 
     @staticmethod
     def compute_reading_prediction_metrics(
         predicted_documents: List[Document], gold_documents: List[Document]
     ) -> Dict[str, float]:
-        metrics: Dict[str, float] = {}
         reading_predictions = [m.reading for d in predicted_documents for m in d.morphemes]
         reading_labels = [m.reading for d in gold_documents for m in d.morphemes]
         num_correct = sum(p == l for p, l in zip(reading_predictions, reading_labels))
         # 単語単位の読みの正解率
-        metrics["reading_prediction_accuracy"] = num_correct / len(reading_labels)
-        return metrics
+        return {"reading_prediction_accuracy": num_correct / len(reading_labels)}
 
     @staticmethod
     def compute_morphological_analysis_metrics(
@@ -300,7 +323,6 @@ class WordModuleMetric(Metric):
 
     @staticmethod
     def compute_ner_metrics(predicted_documents: List[Document], gold_documents: List[Document]) -> Dict[str, float]:
-        metrics: Dict[str, float] = {}
         for document in predicted_documents + gold_documents:
             for named_entity in document.named_entities:
                 for i, morpheme in enumerate(named_entity.morphemes):
@@ -308,14 +330,15 @@ class WordModuleMetric(Metric):
                     morpheme.features["NE"] = f"{bi}-{named_entity.category.value}"
         labels = [[m.features.get("NE") or "O" for m in d.morphemes] for d in gold_documents]
         predictions = [[m.features.get("NE") or "O" for m in d.morphemes] for d in predicted_documents]
-        # default: micro平均
-        metrics["ner_f1"] = f1_score(
-            y_true=labels,
-            y_pred=predictions,
-            mode="strict",
-            scheme=IOB2,
-        )
-        return metrics
+        return {
+            # default: micro平均
+            "ner_f1": f1_score(
+                y_true=labels,
+                y_pred=predictions,
+                mode="strict",
+                scheme=IOB2,
+            )
+        }
 
     def compute_base_phrase_feature_tagging_metrics(
         self, partly_gold_documents1: List[Document], gold_documents: List[Document]
@@ -433,6 +456,10 @@ class WordModuleMetric(Metric):
     def compute_cohesion_analysis_metrics(
         self, partly_gold_documents2: List[Document], gold_documents: List[Document]
     ) -> Dict[str, float]:
+        assert self.dataset is not None, "dataset isn't set"
+        pas_extractor = self.dataset.extractors[CohesionTask.PAS_ANALYSIS]
+        assert type(pas_extractor) == PasExtractor, "extractors aren't set correctly"
+
         targets2label = {
             tuple(): "",
             ("pred",): "pred",
@@ -446,7 +473,7 @@ class WordModuleMetric(Metric):
             exophora_referents=self.dataset.exophora_referents,
             coreference=(CohesionTask.COREFERENCE in self.dataset.cohesion_tasks),
             bridging=(CohesionTask.BRIDGING in self.dataset.cohesion_tasks),
-            pas_target=targets2label[tuple(self.dataset.extractors[CohesionTask.PAS_ANALYSIS].pas_targets)],
+            pas_target=targets2label[tuple(pas_extractor.pas_targets)],
         )
         score_result: ScoreResult = scorer.run()
         metrics = {}

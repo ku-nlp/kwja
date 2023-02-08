@@ -49,19 +49,30 @@ class CharModule(pl.LightningModule):
         self.word_norm_op_tagger = SequenceLabelingHead(len(WORD_NORM_OP_TAGS), *head_args)
 
     def forward(self, batch: Any) -> Dict[str, torch.Tensor]:
-        self._truncate(batch)
+        truncation_length = self._truncate(batch)
         encoded = self.char_encoder(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"])
+        word_segmentation_logits = self.word_segmentation_tagger(encoded.last_hidden_state)
+        word_norm_op_logits = self.word_norm_op_tagger(encoded.last_hidden_state)
+        if truncation_length > 0:
+            word_segmentation_logits = self._pad(word_segmentation_logits, truncation_length)
+            word_norm_op_logits = self._pad(word_norm_op_logits, truncation_length)
         return {
-            "word_segmentation_logits": self.word_segmentation_tagger(encoded.last_hidden_state),
-            "word_norm_op_logits": self.word_norm_op_tagger(encoded.last_hidden_state),
+            "word_segmentation_logits": word_segmentation_logits,
+            "word_norm_op_logits": word_norm_op_logits,
         }
 
-    @staticmethod
-    def _truncate(batch: Any) -> None:
+    def _truncate(self, batch: Any) -> int:
         max_seq_length = batch["attention_mask"].sum(dim=1).max().item()
         for key, value in batch.items():
-            if key in {"input_ids", "attention_mask", "word_segmentation_labels", "word_norm_op_labels"}:
+            if key in {"input_ids", "attention_mask"}:
                 batch[key] = value[:, :max_seq_length].contiguous()
+        return self.hparams.max_seq_length - max_seq_length
+
+    @staticmethod
+    def _pad(tensor: torch.Tensor, padding_length: int) -> torch.Tensor:
+        batch_size, _, num_labels = tensor.shape
+        padding = torch.zeros((batch_size, padding_length, num_labels), dtype=tensor.dtype, device=tensor.device)
+        return torch.cat([tensor, padding], dim=1)
 
     def training_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
         ret: Dict[str, torch.Tensor] = self(batch)
@@ -74,15 +85,16 @@ class CharModule(pl.LightningModule):
         return word_segmentation_loss + word_normalization_loss
 
     def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> None:
-        metric_args = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
-        metric_args.update({"word_norm_op_labels": batch["word_norm_op_labels"]})
+        kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
+        kwargs.update({"word_norm_op_labels": batch["word_norm_op_labels"]})
         corpus = self.valid_corpora[dataloader_idx or 0]
-        dataset = self.trainer.val_dataloaders[dataloader_idx or 0].dataset
-        self.valid_corpus2char_module_metric[corpus].update(metric_args, dataset)
+        self.valid_corpus2char_module_metric[corpus].update(kwargs)
 
     def validation_epoch_end(self, validation_step_outputs) -> None:
         metrics_log: Dict[str, Dict[str, float]] = {corpus: {} for corpus in self.valid_corpora}
         for corpus, char_module_metric in self.valid_corpus2char_module_metric.items():
+            dataset = self.trainer.val_dataloaders[self.valid_corpora.index(corpus)].dataset
+            char_module_metric.set_properties(dataset)
             metrics = char_module_metric.compute()
             metrics["aggregated_char_metrics"] = mean(
                 metrics[key] for key in ["word_segmentation_f1", "word_normalization_f1"] if key in metrics
@@ -99,15 +111,16 @@ class CharModule(pl.LightningModule):
             )
 
     def test_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> None:
-        metric_args = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
-        metric_args.update({"word_norm_op_labels": batch["word_norm_op_labels"]})
+        kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
+        kwargs.update({"word_norm_op_labels": batch["word_norm_op_labels"]})
         corpus = self.test_corpora[dataloader_idx or 0]
-        dataset = self.trainer.test_dataloaders[dataloader_idx or 0].dataset
-        self.test_corpus2char_module_metric[corpus].update(metric_args, dataset)
+        self.test_corpus2char_module_metric[corpus].update(kwargs)
 
     def test_epoch_end(self, test_step_outputs) -> None:
         metrics_log: Dict[str, Dict[str, float]] = {corpus: {} for corpus in self.test_corpora}
         for corpus, char_module_metric in self.test_corpus2char_module_metric.items():
+            dataset = self.trainer.test_dataloaders[self.test_corpora.index(corpus)].dataset
+            char_module_metric.set_properties(dataset)
             metrics = char_module_metric.compute()
             metrics["aggregated_char_metrics"] = mean(
                 metrics[key] for key in ["word_segmentation_f1", "word_normalization_f1"] if key in metrics
@@ -127,7 +140,6 @@ class CharModule(pl.LightningModule):
         ret: Dict[str, torch.Tensor] = self(batch)
         return {
             "example_ids": batch["example_ids"],
-            "input_ids": batch["input_ids"],
             "word_segmentation_predictions": ret["word_segmentation_logits"].argmax(dim=2),
             "word_norm_op_predictions": ret["word_norm_op_logits"].argmax(dim=2),
         }
