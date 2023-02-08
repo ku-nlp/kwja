@@ -155,7 +155,7 @@ class CLIProcessor:
         )
         assert self.char_trainer is not None, "char trainer does not exist"
 
-    def apply_char(self, input_texts: List[str] = None) -> None:
+    def apply_char(self, input_texts: Optional[List[str]] = None) -> None:
         assert self.char_model is not None, "char model does not exist"
         if input_texts is None:
             self.char_model.hparams.datamodule.predict.texts = self._split_input_texts([self.typo_path.read_text()])

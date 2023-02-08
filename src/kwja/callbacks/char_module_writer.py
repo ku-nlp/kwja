@@ -45,7 +45,7 @@ class CharModuleWriter(BasePredictionWriter):
         dataset: Union[CharDataset, CharInferenceDataset] = dataloaders[dataloader_idx].dataset
 
         special_ids = set(dataset.tokenizer.all_special_ids) - {dataset.tokenizer.unk_token_id}
-        for (example_id, input_ids, word_segmentation_predictions, word_norm_op_predictions) in zip(
+        for example_id, input_ids, word_segmentation_predictions, word_norm_op_predictions in zip(
             prediction["example_ids"],
             prediction["input_ids"].tolist(),
             prediction["word_segmentation_predictions"].tolist(),

@@ -54,7 +54,7 @@ class TypoModuleWriter(BasePredictionWriter):
         dataset: Union[TypoDataset, TypoInferenceDataset] = dataloaders[dataloader_idx].dataset
 
         post_texts = []
-        for (example_id, kdr_predictions, kdr_probabilities, ins_predictions, ins_probabilities) in zip(
+        for example_id, kdr_predictions, kdr_probabilities, ins_predictions, ins_probabilities in zip(
             prediction["example_ids"],
             prediction["kdr_predictions"].tolist(),
             prediction["kdr_probabilities"].tolist(),

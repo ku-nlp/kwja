@@ -47,7 +47,7 @@ class WordDiscourseModuleWriter(BasePredictionWriter):
         dataloaders = trainer.predict_dataloaders
         dataset: Union[WordDataset, WordInferenceDataset] = dataloaders[dataloader_idx].dataset
 
-        for (example_id, discourse_predictions) in zip(
+        for example_id, discourse_predictions in zip(
             prediction["example_ids"], prediction["discourse_predictions"].tolist()
         ):
             example: Union[WordExampleSet, WordInferenceExample] = dataset.examples[example_id]
