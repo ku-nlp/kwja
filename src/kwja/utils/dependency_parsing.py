@@ -4,7 +4,7 @@ from typing import Dict, Set
 
 class DependencyManager:
     def __init__(self) -> None:
-        self.directed_graph: Dict[int, set] = defaultdict(set)
+        self.directed_graph: Dict[int, Set[int]] = defaultdict(set)
         self.root = False
 
     def add_edge(self, source: int, target: int) -> None:
@@ -34,7 +34,7 @@ class DependencyManager:
     def has_cycle(self) -> bool:
         visited: Set[int] = set()
         cache: Dict[int, bool] = {}
-        for source in list(self.directed_graph.keys()):
+        for source in self.directed_graph.keys():
             if self.is_cyclic(source, visited, cache):
                 return True
         return False

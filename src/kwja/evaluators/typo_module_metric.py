@@ -11,23 +11,23 @@ from kwja.utils.typo_module_writer import apply_edit_operations, convert_predict
 
 class TypoModuleMetric(Metric):
     full_state_update = False
+    ATTR_NAMES = (
+        "example_ids",
+        "kdr_predictions",
+        "kdr_probabilities",
+        "ins_predictions",
+        "ins_probabilities",
+    )
 
     def __init__(self) -> None:
         super().__init__()
-        self.attr_names = [
-            "example_ids",
-            "kdr_predictions",
-            "kdr_probabilities",
-            "ins_predictions",
-            "ins_probabilities",
-        ]
-        for attr_name in self.attr_names:
+        for attr_name in self.ATTR_NAMES:
             self.add_state(attr_name, default=[], dist_reduce_fx="cat")
 
         self.dataset: Optional[TypoDataset] = None
 
     def update(self, kwargs: Dict[str, torch.Tensor]) -> None:
-        for attr_name in self.attr_names:
+        for attr_name in self.ATTR_NAMES:
             attr = getattr(self, attr_name)
             attr.append(kwargs[attr_name])
 
@@ -36,7 +36,7 @@ class TypoModuleMetric(Metric):
 
     def compute(self) -> Dict[str, float]:
         sorted_indices = unique(self.example_ids)
-        for attr_name in self.attr_names:
+        for attr_name in self.ATTR_NAMES:
             attr = getattr(self, attr_name)
             setattr(self, attr_name, attr[sorted_indices])
 

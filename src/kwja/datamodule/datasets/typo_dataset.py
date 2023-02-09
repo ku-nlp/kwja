@@ -41,19 +41,18 @@ class TypoDataset(Dataset):
     def __len__(self) -> int:
         return len(self.examples)
 
-    def __getitem__(self, index: int) -> Dict[str, Union[torch.Tensor, str]]:
+    def __getitem__(self, index: int) -> Dict[str, torch.Tensor]:
         return self.encode(index)
 
     @staticmethod
     def load_examples(example_dir: Path) -> List[Dict[str, Union[str, List[str]]]]:
         examples: List[Dict[str, Union[str, List[str]]]] = []
         for path in track(sorted(example_dir.glob("**/*.jsonl")), description="Loading documents"):
-            with path.open(mode="r", encoding="utf-8") as f:
-                for line in f:
-                    examples.append(json.loads(line))
+            for line in path.read_text().splitlines():
+                examples.append(json.loads(line))
         return examples
 
-    def encode(self, example_id: int) -> Dict[str, Union[torch.Tensor, str]]:
+    def encode(self, example_id: int) -> Dict[str, torch.Tensor]:
         example: Dict[str, Union[str, List[str]]] = self.examples[example_id]
 
         assert type(example["pre_text"]) == str, "type of pre_text is invalid"

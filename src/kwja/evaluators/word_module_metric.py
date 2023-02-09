@@ -5,7 +5,6 @@ from typing import Dict, List, Literal, Optional, Tuple, Union
 
 import torch
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
-from rhoknp.cohesion.rel import RelTagList
 from rhoknp.props import DepType
 from seqeval.metrics import accuracy_score, f1_score
 from seqeval.scheme import IOB2
@@ -43,27 +42,27 @@ from kwja.utils.word_module_writer import (  # add_discourse,
 
 class WordModuleMetric(Metric):
     full_state_update = False
+    ATTR_NAMES = (
+        "example_ids",
+        "reading_predictions",
+        "reading_subword_map",
+        "pos_logits",
+        "subpos_logits",
+        "conjtype_logits",
+        "conjform_logits",
+        "word_feature_probabilities",
+        "ne_predictions",
+        "base_phrase_feature_probabilities",
+        "dependency_predictions",
+        "dependency_type_predictions",
+        "cohesion_logits",
+        "discourse_predictions",
+        "discourse_labels",
+    )
 
     def __init__(self) -> None:
         super().__init__()
-        self.attr_names = [
-            "example_ids",
-            "reading_predictions",
-            "reading_subword_map",
-            "pos_logits",
-            "subpos_logits",
-            "conjtype_logits",
-            "conjform_logits",
-            "word_feature_probabilities",
-            "ne_predictions",
-            "base_phrase_feature_probabilities",
-            "dependency_predictions",
-            "dependency_type_predictions",
-            "cohesion_logits",
-            "discourse_predictions",
-            "discourse_labels",
-        ]
-        for attr_name in self.attr_names:
+        for attr_name in self.ATTR_NAMES:
             self.add_state(attr_name, default=[], dist_reduce_fx="cat")
 
         self.dataset: Optional[WordDataset] = None
@@ -71,7 +70,7 @@ class WordModuleMetric(Metric):
         self.training_tasks: Optional[List[WordTask]] = None
 
     def update(self, kwargs: Dict[str, torch.Tensor]) -> None:
-        for attr_name in self.attr_names:
+        for attr_name in self.ATTR_NAMES:
             attr = getattr(self, attr_name)
             attr.append(kwargs[attr_name])
 
@@ -79,7 +78,7 @@ class WordModuleMetric(Metric):
         assert self.training_tasks is not None, "training_tasks isn't set"
 
         sorted_indices = unique(self.example_ids)
-        for attr_name in self.attr_names:
+        for attr_name in self.ATTR_NAMES:
             attr = getattr(self, attr_name)
             setattr(self, attr_name, attr[sorted_indices])
 
@@ -182,7 +181,7 @@ class WordModuleMetric(Metric):
                 doc_id2predicted_sentences[orig_doc_id].append(sentence)
 
             # goldの基本句区切り・基本句主辞を使用
-            partly_gold_document1 = Document.from_knp(gold_document.to_knp())
+            partly_gold_document1 = gold_document.reparse()
             partly_gold_document1.doc_id = gold_document.doc_id
             self._refresh(partly_gold_document1, level=1)
             for sentence in extract_target_sentences(partly_gold_document1):
@@ -194,7 +193,7 @@ class WordModuleMetric(Metric):
                 doc_id2partly_gold_sentences1[orig_doc_id].append(sentence)
 
             # goldの基本句区切り・基本句主辞・基本句素性を使用
-            partly_gold_document2 = Document.from_knp(gold_document.to_knp())
+            partly_gold_document2 = gold_document.reparse()
             partly_gold_document2.doc_id = gold_document.doc_id
             self._refresh(partly_gold_document2, level=2)
             add_cohesion(
@@ -218,15 +217,15 @@ class WordModuleMetric(Metric):
 
     @staticmethod
     def _refresh(document: Document, level: int = 1) -> None:
-        assert 1 <= level <= 2, "invalid level"
+        assert level in (1, 2), f"invalid level: {level}"
         try:
             for clause in document.clauses:
-                clause.discourse_relations = []
+                clause.discourse_relations.clear()
         except AttributeError:
             pass
 
         for base_phrase in document.base_phrases:
-            base_phrase.rel_tags = RelTagList()
+            base_phrase.rel_tags.clear()
             if level == 1:
                 base_phrase.features.clear()
                 base_phrase.parent_index = None
@@ -234,7 +233,7 @@ class WordModuleMetric(Metric):
 
     @staticmethod
     def _convert_doc_id2sentences_into_documents(doc_id2sentences: Dict[str, List[Sentence]]) -> List[Document]:
-        return [Document.from_knp("".join(s.to_knp() for s in ss)) for ss in doc_id2sentences.values()]
+        return [Document.from_sentences(ss) for ss in doc_id2sentences.values()]
 
     @staticmethod
     def compute_reading_prediction_metrics(
@@ -318,7 +317,7 @@ class WordModuleMetric(Metric):
         return metrics
 
     @staticmethod
-    def _convert_units_into_segmentation_tags(units: Union[List[Phrase], List[BasePhrase]]):
+    def _convert_units_into_segmentation_tags(units: Union[List[Phrase], List[BasePhrase]]) -> List[str]:
         return ["B" if m == u.morphemes[-1] else "I" for u in units for m in u.morphemes]
 
     @staticmethod
@@ -433,7 +432,8 @@ class WordModuleMetric(Metric):
             lemma = "".join(m.lemma for m in unit.morphemes)
             head = unit.parent_index + 1 if unit.parent_index is not None else 0
             deprel = unit.dep_type.value if unit.dep_type is not None else DepType.DEPENDENCY
-        else:  # Morpheme
+        else:
+            assert isinstance(unit, Morpheme)
             form = unit.surf
             lemma = unit.lemma
             head = unit.parent.index + 1 if unit.parent is not None else 0
@@ -441,17 +441,8 @@ class WordModuleMetric(Metric):
                 deprel = unit.base_phrase.dep_type.value
             else:
                 deprel = DepType.DEPENDENCY
-        upos = "_"
-        xpos = "_"
-        feats = "_"
-        deps = "_"
-        misc = "_"
-        return "\t".join(
-            map(
-                str,
-                [id_, form, lemma, upos, xpos, feats, head, deprel, deps, misc],
-            )
-        )
+        upos = xpos = feats = deps = misc = "_"
+        return "\t".join(map(str, (id_, form, lemma, upos, xpos, feats, head, deprel, deps, misc)))
 
     def compute_cohesion_analysis_metrics(
         self, partly_gold_documents2: List[Document], gold_documents: List[Document]

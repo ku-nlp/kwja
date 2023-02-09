@@ -140,4 +140,4 @@ class CRF(nn.Module):
             assert len(best_tags) == seq_len, "the length of decoded sequence is inconsistent with max seq length"
             batch_best_tags.append(best_tags)
 
-        return torch.tensor(batch_best_tags, device=emissions.device)
+        return torch.as_tensor(batch_best_tags, device=emissions.device)

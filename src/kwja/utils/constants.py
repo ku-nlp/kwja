@@ -1108,12 +1108,7 @@ BASE_PHRASE_FEATURES = (
 IGNORE_VALUE_FEATURE_PAT = re.compile(r"節-(前向き)?機能疑?")
 
 # ---------- word module|dependency parsing ----------
-DEPENDENCY_TYPES: Tuple[DepType, ...] = (
-    DepType.DEPENDENCY,
-    DepType.PARALLEL,
-    DepType.APPOSITION,
-    DepType.IMPERFECT_PARALLEL,
-)
+DEPENDENCY_TYPES: Tuple[DepType, ...] = tuple(DepType)
 
 # ---------- word module|discourse parsing ----------
 DISCOURSE_RELATION_MAP = {

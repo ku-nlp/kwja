@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
 import torch
 from omegaconf import ListConfig
@@ -41,10 +41,10 @@ class TypoInferenceDataset(Dataset):
     def __len__(self) -> int:
         return len(self.examples)
 
-    def __getitem__(self, index: int) -> Dict[str, Union[torch.Tensor, str]]:
+    def __getitem__(self, index: int) -> Dict[str, torch.Tensor]:
         return self.encode(index)
 
-    def encode(self, example_id: int) -> Dict[str, Union[torch.Tensor, str]]:
+    def encode(self, example_id: int) -> Dict[str, torch.Tensor]:
         example = self.examples[example_id]
         encoding: BatchEncoding = self.tokenizer(
             example["pre_text"] + DUMMY_TOKEN,

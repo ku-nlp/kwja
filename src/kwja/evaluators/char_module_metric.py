@@ -16,22 +16,22 @@ from kwja.utils.sub_document import extract_target_sentences, to_orig_doc_id
 
 class CharModuleMetric(Metric):
     full_state_update = False
+    ATTR_NAMES = [
+        "example_ids",
+        "word_segmentation_predictions",
+        "word_norm_op_predictions",
+        "word_norm_op_labels",
+    ]
 
     def __init__(self) -> None:
         super().__init__()
-        self.attr_names = [
-            "example_ids",
-            "word_segmentation_predictions",
-            "word_norm_op_predictions",
-            "word_norm_op_labels",
-        ]
-        for attr_name in self.attr_names:
+        for attr_name in self.ATTR_NAMES:
             self.add_state(attr_name, default=[], dist_reduce_fx="cat")
 
         self.dataset: Optional[CharDataset] = None
 
     def update(self, kwargs: Dict[str, torch.Tensor]) -> None:
-        for attr_name in self.attr_names:
+        for attr_name in self.ATTR_NAMES:
             attr = getattr(self, attr_name)
             attr.append(kwargs[attr_name])
 
@@ -40,7 +40,7 @@ class CharModuleMetric(Metric):
 
     def compute(self) -> Dict[str, float]:
         sorted_indices = unique(self.example_ids)
-        for attr_name in self.attr_names:
+        for attr_name in self.ATTR_NAMES:
             attr = getattr(self, attr_name)
             setattr(self, attr_name, attr[sorted_indices])
 
@@ -83,6 +83,7 @@ class CharModuleMetric(Metric):
 
     @staticmethod
     def _convert_doc_id2sentences_into_documents(doc_id2sentences: Dict[str, List[Sentence]]) -> List[Document]:
+        # Build documents that do not have clauses, phrases, or base phrases, but morphemes only
         return [Document.from_jumanpp("".join(s.to_jumanpp() for s in ss)) for ss in doc_id2sentences.values()]
 
     def compute_word_segmentation_metrics(

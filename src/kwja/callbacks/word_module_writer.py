@@ -150,7 +150,7 @@ class WordModuleWriter(BasePredictionWriter):
                 add_dependency(sentence, dependency_predictions, dependency_type_predictions, dataset.special_to_index)
             orig_doc_id = to_orig_doc_id(document.doc_id)
             # 解析済みの文とマージ
-            sentences = [
+            sentences: List[Sentence] = [
                 self.doc_id_sid2predicted_sentence[orig_doc_id].get(s.sid) or s for s in predicted_document.sentences
             ]
             predicted_document = Document.from_sentences(sentences)

@@ -119,20 +119,21 @@ def build_morphemes(
         conjtype_id = conjtype_index
         conjform = CONJFORM_TAGS[conjform_index]
         conjform_id = CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID[conjtype][conjform]
-        morpheme = Morpheme(
-            surf,
-            reading=reading,
-            lemma=lemma,
-            pos=pos,
-            pos_id=pos_id,
-            subpos=subpos,
-            subpos_id=subpos_id,
-            conjtype=conjtype,
-            conjtype_id=conjtype_id,
-            conjform=conjform,
-            conjform_id=conjform_id,
+        morphemes.append(
+            Morpheme(
+                surf,
+                reading=reading,
+                lemma=lemma,
+                pos=pos,
+                pos_id=pos_id,
+                subpos=subpos,
+                subpos_id=subpos_id,
+                conjtype=conjtype,
+                conjtype_id=conjtype_id,
+                conjform=conjform,
+                conjform_id=conjform_id,
+            )
         )
-        morphemes.append(morpheme)
     return morphemes
 
 
@@ -160,11 +161,13 @@ def chunk_morphemes(
 
             base_phrase_end_probability = word_feature_probabilities[i][WORD_FEATURES.index("基本句-区切")]
             phrase_end_probability = word_feature_probabilities[i][WORD_FEATURES.index("文節-区切")]
+            # even if base_phrase_end_prob is low, if phrase_end_prob is high enough, create chunk here
             if base_phrase_end_probability >= 0.5 or base_phrase_end_probability + phrase_end_probability >= 1.0:
                 base_phrase = BasePhrase(parent_index=None, dep_type=None)
                 base_phrase.morphemes = morpheme_buffer
                 morpheme_buffer = []
                 base_phrase_buffer.append(base_phrase)
+            # even if phrase_end_prob is high, if base_phrase_end_prob is not high enough, do not create chunk here
             if phrase_end_probability >= 0.5 and base_phrase_end_probability + phrase_end_probability >= 1.0:
                 phrase = Phrase(parent_index=None, dep_type=None)
                 phrase.base_phrases = base_phrase_buffer

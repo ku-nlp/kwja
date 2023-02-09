@@ -1,11 +1,10 @@
-from collections import OrderedDict
 from typing import Dict
 
 import torch
 import torch.nn as nn
 
 
-class SequenceLabelingHead(nn.Module):
+class SequenceLabelingHead(nn.ModuleList):
     def __init__(
         self,
         num_labels: int,
@@ -13,20 +12,16 @@ class SequenceLabelingHead(nn.Module):
         hidden_dropout_prob: float,
         multi_label: bool = False,
     ) -> None:
-        super().__init__()
-        modules = [
-            ("dense", nn.Linear(hidden_size, hidden_size)),
-            ("hidden_act", nn.GELU()),
-            ("dropout", nn.Dropout(hidden_dropout_prob)),
-            ("fc", nn.Linear(hidden_size, num_labels)),
-        ]
-        if multi_label:
-            modules.append(("act", nn.Sigmoid()))
-        self.output_layer = nn.Sequential(OrderedDict(modules))
-
-    def forward(self, pooled: torch.Tensor) -> Dict[str, torch.Tensor]:
-        logits = self.output_layer(pooled)
-        return logits
+        super().__init__(
+            (
+                nn.Linear(hidden_size, hidden_size),
+                nn.GELU(),
+                nn.Dropout(hidden_dropout_prob),
+                nn.Linear(hidden_size, num_labels),
+            )
+        )
+        if multi_label is True:
+            self.append(nn.Sigmoid())
 
 
 class WordSelectionHead(nn.Module):
