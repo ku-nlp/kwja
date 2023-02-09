@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 
 
-class SequenceLabelingHead(nn.ModuleList):
+class SequenceLabelingHead(nn.Sequential):
     def __init__(
         self,
         num_labels: int,
@@ -13,15 +13,13 @@ class SequenceLabelingHead(nn.ModuleList):
         multi_label: bool = False,
     ) -> None:
         super().__init__(
-            (
-                nn.Linear(hidden_size, hidden_size),
-                nn.GELU(),
-                nn.Dropout(hidden_dropout_prob),
-                nn.Linear(hidden_size, num_labels),
-            )
+            nn.Linear(hidden_size, hidden_size),
+            nn.GELU(),
+            nn.Dropout(hidden_dropout_prob),
+            nn.Linear(hidden_size, num_labels),
         )
         if multi_label is True:
-            self.append(nn.Sigmoid())
+            self.add_module("sigmoid", nn.Sigmoid())
 
 
 class WordSelectionHead(nn.Module):
