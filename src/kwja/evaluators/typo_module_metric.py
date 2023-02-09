@@ -11,7 +11,7 @@ from kwja.utils.typo_module_writer import apply_edit_operations, convert_predict
 
 class TypoModuleMetric(Metric):
     full_state_update = False
-    ATTR_NAMES = (
+    STATE_NAMES = (
         "example_ids",
         "kdr_predictions",
         "kdr_probabilities",
@@ -21,24 +21,24 @@ class TypoModuleMetric(Metric):
 
     def __init__(self) -> None:
         super().__init__()
-        for attr_name in self.ATTR_NAMES:
-            self.add_state(attr_name, default=[], dist_reduce_fx="cat")
+        for state_name in self.STATE_NAMES:
+            self.add_state(state_name, default=[], dist_reduce_fx="cat")
 
         self.dataset: Optional[TypoDataset] = None
 
     def update(self, kwargs: Dict[str, torch.Tensor]) -> None:
-        for attr_name in self.ATTR_NAMES:
-            attr = getattr(self, attr_name)
-            attr.append(kwargs[attr_name])
+        for state_name in self.STATE_NAMES:
+            state = getattr(self, state_name)
+            state.append(kwargs[state_name])
 
     def set_properties(self, dataset: TypoDataset) -> None:
         self.dataset = dataset
 
     def compute(self) -> Dict[str, float]:
         sorted_indices = unique(self.example_ids)
-        for attr_name in self.ATTR_NAMES:
-            attr = getattr(self, attr_name)
-            setattr(self, attr_name, attr[sorted_indices])
+        for state_name in self.STATE_NAMES:
+            state = getattr(self, state_name)
+            setattr(self, state_name, state[sorted_indices])
 
         metrics: Dict[str, float] = {}
         for confidence_threshold in [0.0, 0.8, 0.9]:

@@ -16,7 +16,7 @@ from kwja.utils.sub_document import extract_target_sentences, to_orig_doc_id
 
 class CharModuleMetric(Metric):
     full_state_update = False
-    ATTR_NAMES = [
+    STATE_NAMES = [
         "example_ids",
         "word_segmentation_predictions",
         "word_norm_op_predictions",
@@ -25,24 +25,24 @@ class CharModuleMetric(Metric):
 
     def __init__(self) -> None:
         super().__init__()
-        for attr_name in self.ATTR_NAMES:
-            self.add_state(attr_name, default=[], dist_reduce_fx="cat")
+        for state_name in self.STATE_NAMES:
+            self.add_state(state_name, default=[], dist_reduce_fx="cat")
 
         self.dataset: Optional[CharDataset] = None
 
     def update(self, kwargs: Dict[str, torch.Tensor]) -> None:
-        for attr_name in self.ATTR_NAMES:
-            attr = getattr(self, attr_name)
-            attr.append(kwargs[attr_name])
+        for state_name in self.STATE_NAMES:
+            state = getattr(self, state_name)
+            state.append(kwargs[state_name])
 
     def set_properties(self, dataset: CharDataset) -> None:
         self.dataset = dataset
 
     def compute(self) -> Dict[str, float]:
         sorted_indices = unique(self.example_ids)
-        for attr_name in self.ATTR_NAMES:
-            attr = getattr(self, attr_name)
-            setattr(self, attr_name, attr[sorted_indices])
+        for state_name in self.STATE_NAMES:
+            state = getattr(self, state_name)
+            setattr(self, state_name, state[sorted_indices])
 
         predicted_documents, gold_documents = self._build_documents()
 

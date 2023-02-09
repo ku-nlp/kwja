@@ -42,7 +42,7 @@ from kwja.utils.word_module_writer import (  # add_discourse,
 
 class WordModuleMetric(Metric):
     full_state_update = False
-    ATTR_NAMES = (
+    STATE_NAMES = (
         "example_ids",
         "reading_predictions",
         "reading_subword_map",
@@ -62,25 +62,25 @@ class WordModuleMetric(Metric):
 
     def __init__(self) -> None:
         super().__init__()
-        for attr_name in self.ATTR_NAMES:
-            self.add_state(attr_name, default=[], dist_reduce_fx="cat")
+        for state_name in self.STATE_NAMES:
+            self.add_state(state_name, default=[], dist_reduce_fx="cat")
 
         self.dataset: Optional[WordDataset] = None
         self.reading_id2reading: Optional[Dict[int, str]] = None
         self.training_tasks: Optional[List[WordTask]] = None
 
     def update(self, kwargs: Dict[str, torch.Tensor]) -> None:
-        for attr_name in self.ATTR_NAMES:
-            attr = getattr(self, attr_name)
-            attr.append(kwargs[attr_name])
+        for state_name in self.STATE_NAMES:
+            state = getattr(self, state_name)
+            state.append(kwargs[state_name])
 
     def compute(self) -> Dict[str, float]:
         assert self.training_tasks is not None, "training_tasks isn't set"
 
         sorted_indices = unique(self.example_ids)
-        for attr_name in self.ATTR_NAMES:
-            attr = getattr(self, attr_name)
-            setattr(self, attr_name, attr[sorted_indices])
+        for state_name in self.STATE_NAMES:
+            state = getattr(self, state_name)
+            setattr(self, state_name, state[sorted_indices])
 
         predicted_documents, partly_gold_document1, partly_gold_document2, gold_documents = self._build_documents()
 
