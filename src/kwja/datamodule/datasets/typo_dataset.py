@@ -48,7 +48,7 @@ class TypoDataset(Dataset):
     def load_examples(example_dir: Path) -> List[Dict[str, Union[str, List[str]]]]:
         examples: List[Dict[str, Union[str, List[str]]]] = []
         for path in track(sorted(example_dir.glob("**/*.jsonl")), description="Loading documents"):
-            for line in path.read_text().splitlines():
+            for line in path.read_text().strip().split("\n"):
                 examples.append(json.loads(line))
         return examples
 
