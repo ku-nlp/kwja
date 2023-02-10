@@ -23,6 +23,7 @@ from kwja.utils.constants import (
     POS_TAG2POS_ID,
     POS_TAG_SUBPOS_TAG2SUBPOS_ID,
     POS_TAGS,
+    RESOURCE_PATH,
     SUBPOS_TAGS,
     WordTask,
 )
@@ -47,7 +48,6 @@ class WordModuleWriter(BasePredictionWriter):
     def __init__(
         self,
         output_dir: str,
-        reading_resource_path: str,
         ambig_surf_specs: List[Dict[str, str]],
         jumandic_path: str,
         use_stdout: bool = False,
@@ -62,8 +62,7 @@ class WordModuleWriter(BasePredictionWriter):
             if self.destination.exists():
                 os.remove(str(self.destination))
 
-        self.reading_resource_path = Path(reading_resource_path)
-        reading2reading_id = get_reading2reading_id(str(self.reading_resource_path.joinpath("vocab.txt")))
+        reading2reading_id = get_reading2reading_id(RESOURCE_PATH / "reading_prediction" / "vocab.txt")
         self.reading_id2reading = {v: k for k, v in reading2reading_id.items()}
 
         self.ambig_surf_specs = ambig_surf_specs

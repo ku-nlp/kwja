@@ -1,5 +1,4 @@
 import copy
-from pathlib import Path
 from statistics import mean
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -22,6 +21,7 @@ from kwja.utils.constants import (
     IGNORE_INDEX,
     NE_TAGS,
     POS_TAGS,
+    RESOURCE_PATH,
     SUBPOS_TAGS,
     WORD_FEATURES,
     WordTask,
@@ -60,8 +60,7 @@ class WordModule(pl.LightningModule):
         )
 
         # ---------- reading prediction ----------
-        reading_resource_path: Path = Path(hparams.dataset.reading_resource_path)
-        reading2reading_id: Dict[str, int] = get_reading2reading_id(str(reading_resource_path.joinpath("vocab.txt")))
+        reading2reading_id: Dict[str, int] = get_reading2reading_id(RESOURCE_PATH / "reading_prediction" / "vocab.txt")
         self.reading_id2reading: Dict[int, str] = {v: k for k, v in reading2reading_id.items()}
         self.reading_tagger: SequenceLabelingHead = SequenceLabelingHead(len(reading2reading_id), *head_args)
 

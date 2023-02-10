@@ -1,7 +1,6 @@
 prediction_writer:
   _target_: kwja.callbacks.word_module_writer.WordModuleWriter
   output_dir: ${run_dir}
-  reading_resource_path: ${dataset.reading_resource_path}
   ambig_surf_specs:
     - conjtype: "イ形容詞アウオ段"
       conjform: "エ基本形"

@@ -2,11 +2,16 @@ import re
 from enum import Enum
 from typing import Dict, Optional, Tuple
 
+import importlib_resources
 from rhoknp.props import DepType, NamedEntityCategory
+
+import kwja
 
 # ---------- common ----------
 IGNORE_INDEX = -100
 MASKED = -1024.0
+RESOURCE_PATH = importlib_resources.files(kwja) / "resource"
+
 
 # ---------- word (inference) dataset ----------
 SPLIT_INTO_WORDS_MODEL_NAMES = [

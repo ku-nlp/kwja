@@ -1,2 +1,1 @@
-reading_resource_path: kwja/resource/reading_prediction
 special_tokens: ${concat:${exophora_referents},["[NULL]", "[NA]", "[ROOT]"]}

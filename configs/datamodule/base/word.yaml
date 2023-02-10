@@ -1,7 +1,6 @@
 _target_: kwja.datamodule.datasets.word_dataset.WordDataset
 document_split_stride: ${document_split_stride}
 max_seq_length: ${max_seq_length}
-reading_resource_path: ${dataset.reading_resource_path}
 pas_cases: ${pas_cases}
 bar_rels: ${bar_rels}
 exophora_referents: ${exophora_referents}

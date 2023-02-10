@@ -4,6 +4,7 @@ import re
 import unicodedata
 from collections import defaultdict
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Dict, List, Literal, Optional, Tuple, Union
 
 import jaconv
@@ -28,9 +29,9 @@ from kwja.utils.kanjidic import KanjiDic
 logger = logging.getLogger(__name__)
 
 
-def get_reading2reading_id(path: str) -> Dict[str, int]:
+def get_reading2reading_id(path: Path) -> Dict[str, int]:
     reading2reading_id = {UNK: UNK_ID, ID: ID_ID}
-    with open(path, mode="r") as f:
+    with path.open() as f:
         for line in f:
             if line := line.strip():
                 if line not in reading2reading_id:

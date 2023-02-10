@@ -32,6 +32,7 @@ from kwja.utils.constants import (
     IGNORE_INDEX,
     NE_TAGS,
     POS_TAGS,
+    RESOURCE_PATH,
     SPLIT_INTO_WORDS_MODEL_NAMES,
     SUBPOS_TAGS,
     WORD_FEATURES,
@@ -62,7 +63,6 @@ class WordDataset(BaseDataset):
         self,
         path: str,
         document_split_stride: int,
-        reading_resource_path: str,
         pas_cases: ListConfig,
         bar_rels: ListConfig,
         exophora_referents: ListConfig,
@@ -81,10 +81,10 @@ class WordDataset(BaseDataset):
         super().__init__(self.path, tokenizer, max_seq_length, document_split_stride)
 
         # ---------- reading prediction ----------
-        self.reading_resource_path = Path(reading_resource_path)
-        self.reading2reading_id = get_reading2reading_id(str(self.reading_resource_path / "vocab.txt"))
+        reading_resource_path = RESOURCE_PATH / "reading_prediction"
+        self.reading2reading_id = get_reading2reading_id(reading_resource_path / "vocab.txt")
         self.reading_aligner = ReadingAligner(
-            self.tokenizer, self.tokenizer_input_format, KanjiDic(str(self.reading_resource_path / "kanjidic"))
+            self.tokenizer, self.tokenizer_input_format, KanjiDic(str(reading_resource_path / "kanjidic"))
         )
 
         # ---------- cohesion analysis ----------

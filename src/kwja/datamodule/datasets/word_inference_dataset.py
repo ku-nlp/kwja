@@ -43,7 +43,6 @@ class WordInferenceDataset(BaseDataset):
         juman_file: Optional[Path] = None,
         knp_file: Optional[Path] = None,
         max_seq_length: int = 512,
-        **_,  # accept reading_resource_path
     ) -> None:
         if juman_file is not None:
             with juman_file.open(mode="r") as f:

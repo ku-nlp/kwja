@@ -5,7 +5,6 @@ from tempfile import TemporaryDirectory
 from typing import List, Optional
 
 import hydra
-import importlib_resources
 import pytorch_lightning as pl
 import torch
 import typer
@@ -21,6 +20,7 @@ from kwja.datamodule.datamodule import DataModule
 from kwja.models.char_module import CharModule
 from kwja.models.typo_module import TypoModule
 from kwja.models.word_module import WordModule
+from kwja.utils.constants import RESOURCE_PATH
 
 
 class Device(str, Enum):
@@ -42,7 +42,6 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 OmegaConf.register_new_resolver("concat", lambda x, y: x + y)
 
 app = typer.Typer(pretty_exceptions_show_locals=False)
-RESOURCE_PATH = importlib_resources.files(kwja) / "resource"
 
 
 class CLIProcessor:
@@ -176,23 +175,16 @@ class CLIProcessor:
         word_checkpoint_path: Path = download_checkpoint(task="word", model_size=self.model_size)
         word_checkpoint = torch.load(str(word_checkpoint_path), map_location=lambda storage, loc: storage)
         hparams = word_checkpoint["hyper_parameters"]
-        reading_resource_path = RESOURCE_PATH / "reading_prediction"
         jumandic_path = RESOURCE_PATH / "jumandic"
-        hparams.callbacks.prediction_writer.reading_resource_path = reading_resource_path
         hparams.callbacks.prediction_writer.jumandic_path = jumandic_path
-        hparams.datamodule.predict.reading_resource_path = reading_resource_path
-        hparams.dataset.reading_resource_path = reading_resource_path
         self.word_model = WordModule.load_from_checkpoint(
             str(word_checkpoint_path),
             hparams=hparams,
             map_location=self.device,
         )
         assert self.word_model is not None, "word model does not exist"
-        self.word_model.hparams.callbacks.prediction_writer.reading_resource_path = reading_resource_path
         self.word_model.hparams.callbacks.prediction_writer.jumandic_path = jumandic_path
         self.word_model.hparams.datamodule.batch_size = self.word_batch_size
-        self.word_model.hparams.datamodule.predict.reading_resource_path = reading_resource_path
-        self.word_model.hparams.dataset.reading_resource_path = reading_resource_path
         self.word_trainer = pl.Trainer(
             logger=False,
             callbacks=[
@@ -228,12 +220,8 @@ class CLIProcessor:
             str(word_discourse_checkpoint_path), map_location=lambda storage, loc: storage
         )
         hparams = word_discourse_checkpoint["hyper_parameters"]
-        reading_resource_path = RESOURCE_PATH / "reading_prediction"
         jumandic_path = RESOURCE_PATH / "jumandic"
-        hparams.callbacks.prediction_writer.reading_resource_path = reading_resource_path
         hparams.callbacks.prediction_writer.jumandic_path = jumandic_path
-        hparams.datamodule.predict.reading_resource_path = reading_resource_path
-        hparams.dataset.reading_resource_path = reading_resource_path
         self.word_discourse_model = WordModule.load_from_checkpoint(
             str(word_discourse_checkpoint_path),
             hparams=hparams,
@@ -241,8 +229,6 @@ class CLIProcessor:
         )
         assert self.word_discourse_model is not None, "word discourse model does not exist"
         self.word_discourse_model.hparams.datamodule.batch_size = self.word_batch_size
-        self.word_discourse_model.hparams.datamodule.predict.reading_resource_path = reading_resource_path
-        self.word_discourse_model.hparams.dataset.reading_resource_path = reading_resource_path
         self.word_discourse_trainer = pl.Trainer(
             logger=False,
             callbacks=[
