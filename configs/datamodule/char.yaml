@@ -3,17 +3,17 @@ defaults:
     - char_kyoto.yaml
     - char_kwdlc.yaml
     - char_fuman.yaml
-    - char_wac.yaml
+#    - char_wac.yaml
   - valid:
     - char_kyoto.yaml
     - char_kwdlc.yaml
     - char_fuman.yaml
-    - char_wac.yaml
+#    - char_wac.yaml
   - test:
     - char_kyoto.yaml
     - char_kwdlc.yaml
     - char_fuman.yaml
-    - char_wac.yaml
+#    - char_wac.yaml
   - predict:
     - char_inference.yaml
 
