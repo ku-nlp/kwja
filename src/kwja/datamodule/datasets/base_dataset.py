@@ -1,11 +1,11 @@
 import logging
 from functools import cached_property
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Union
 
 from rhoknp import Document, Sentence
 from torch.utils.data import Dataset
-from transformers import AutoTokenizer, PreTrainedTokenizerBase
+from transformers import PreTrainedTokenizerBase
 
 from kwja.utils.progress_bar import track
 from kwja.utils.sub_document import SequenceSplitter, SpanCandidate, to_sub_doc_id
@@ -17,16 +17,12 @@ class BaseDataset(Dataset):
     def __init__(
         self,
         source: Union[Path, List[Document]],
-        model_name_or_path: str,
+        tokenizer: PreTrainedTokenizerBase,
         max_seq_length: int,
         document_split_stride: int,
-        tokenizer_kwargs: Optional[dict] = None,
         ext: str = "knp",
     ) -> None:
-        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-            model_name_or_path,
-            **(tokenizer_kwargs or {}),
-        )
+        self.tokenizer: PreTrainedTokenizerBase = tokenizer
         self.max_seq_length = max_seq_length
 
         self.orig_documents: List[Document]

@@ -9,6 +9,7 @@ from rhoknp import Document, Morpheme, Sentence
 from rhoknp.cohesion import ExophoraReferent
 from rhoknp.utils.reader import chunk_by_document
 from tokenizers import Encoding
+from transformers import PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
 from kwja.datamodule.datasets.base_dataset import BaseDataset
@@ -38,10 +39,9 @@ class WordInferenceDataset(BaseDataset):
         cohesion_tasks: ListConfig,
         restrict_cohesion_target: bool,
         special_tokens: ListConfig,
+        tokenizer: PreTrainedTokenizerBase,
         juman_file: Optional[Path] = None,
         knp_file: Optional[Path] = None,
-        model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
-        tokenizer_kwargs: Optional[dict] = None,
         max_seq_length: int = 512,
         **_,  # accept reading_resource_path
     ) -> None:
@@ -57,18 +57,12 @@ class WordInferenceDataset(BaseDataset):
             # do_predict_after_train
             documents = []
 
-        if model_name_or_path in SPLIT_INTO_WORDS_MODEL_NAMES:
+        if tokenizer.name_or_path in SPLIT_INTO_WORDS_MODEL_NAMES:
             self.tokenizer_input_format: Literal["words", "text"] = "words"
         else:
             self.tokenizer_input_format = "text"
 
-        super().__init__(
-            documents,
-            model_name_or_path,
-            max_seq_length,
-            document_split_stride,
-            tokenizer_kwargs=tokenizer_kwargs,
-        )
+        super().__init__(documents, tokenizer, max_seq_length, document_split_stride)
 
         # ---------- cohesion analysis ----------
         self.pas_cases: List[str] = list(pas_cases)

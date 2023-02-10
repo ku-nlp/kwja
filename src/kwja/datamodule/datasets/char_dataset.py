@@ -1,12 +1,12 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Union
 from unicodedata import normalize
 
 import torch
 from rhoknp import Document, Sentence
-from transformers import BatchEncoding
+from transformers import BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
 from kwja.datamodule.datasets.base_dataset import BaseDataset
@@ -38,19 +38,12 @@ class CharDataset(BaseDataset):
         self,
         path: str,
         document_split_stride: int,
-        model_name_or_path: str = "ku-nlp/roberta-base-japanese-char-wwm",
-        tokenizer_kwargs: Optional[dict] = None,
+        tokenizer: PreTrainedTokenizerBase,
         max_seq_length: int = 512,
         denormalize_probability: float = 0.0,
     ) -> None:
         self.path = Path(path)
-        super().__init__(
-            self.path,
-            model_name_or_path,
-            max_seq_length,
-            document_split_stride,
-            tokenizer_kwargs=tokenizer_kwargs,
-        )
+        super().__init__(self.path, tokenizer, max_seq_length, document_split_stride)
         self.denormalizer: SentenceDenormalizer = SentenceDenormalizer()
         self.denormalize_probability: float = denormalize_probability
         self.examples: List[CharExampleSet] = self._load_examples(self.documents)

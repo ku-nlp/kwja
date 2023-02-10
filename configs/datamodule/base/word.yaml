@@ -1,7 +1,5 @@
 _target_: kwja.datamodule.datasets.word_dataset.WordDataset
 document_split_stride: ${document_split_stride}
-model_name_or_path: ${encoder.pretrained_model_name_or_path}
-tokenizer_kwargs: ${dataset.tokenizer_kwargs}
 max_seq_length: ${max_seq_length}
 reading_resource_path: ${dataset.reading_resource_path}
 pas_cases: ${pas_cases}
@@ -10,3 +8,8 @@ exophora_referents: ${exophora_referents}
 cohesion_tasks: ${cohesion_tasks}
 restrict_cohesion_target: ${restrict_cohesion_target}
 special_tokens: ${dataset.special_tokens}
+tokenizer:
+  _target_: transformers.AutoTokenizer.from_pretrained
+  pretrained_model_name_or_path: ${encoder.pretrained_model_name_or_path}
+  additional_special_tokens: ${dataset.special_tokens}
+  _convert_: all

@@ -1,13 +1,14 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Literal, Optional, Tuple, Union
+from typing import Dict, List, Literal, Tuple, Union
 
 import torch
 from omegaconf import ListConfig
 from rhoknp import Document, Sentence
 from rhoknp.cohesion import ExophoraReferent
 from tokenizers import Encoding
+from transformers import PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
 from kwja.datamodule.datasets.base_dataset import BaseDataset
@@ -68,23 +69,16 @@ class WordDataset(BaseDataset):
         cohesion_tasks: ListConfig,
         restrict_cohesion_target: bool,
         special_tokens: ListConfig,
-        model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
-        tokenizer_kwargs: Optional[dict] = None,
+        tokenizer: PreTrainedTokenizerBase,
         max_seq_length: int = 512,
     ) -> None:
         self.path = Path(path)
-        if model_name_or_path in SPLIT_INTO_WORDS_MODEL_NAMES:
+        if tokenizer.name_or_path in SPLIT_INTO_WORDS_MODEL_NAMES:
             self.tokenizer_input_format: Literal["words", "text"] = "words"
         else:
             self.tokenizer_input_format = "text"
 
-        super().__init__(
-            self.path,
-            model_name_or_path,
-            max_seq_length,
-            document_split_stride,
-            tokenizer_kwargs=tokenizer_kwargs,
-        )
+        super().__init__(self.path, tokenizer, max_seq_length, document_split_stride)
 
         # ---------- reading prediction ----------
         self.reading_resource_path = Path(reading_resource_path)

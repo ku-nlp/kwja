@@ -7,7 +7,7 @@ from unicodedata import normalize
 import torch
 from omegaconf import ListConfig
 from rhoknp import Document, RegexSenter, Sentence
-from transformers import BatchEncoding
+from transformers import BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
 import kwja
@@ -30,20 +30,13 @@ class CharInferenceDataset(BaseDataset):
         self,
         texts: ListConfig,
         document_split_stride: int,
-        model_name_or_path: str = "ku-nlp/roberta-base-japanese-char-wwm",
-        tokenizer_kwargs: Optional[dict] = None,
+        tokenizer: PreTrainedTokenizerBase,
         max_seq_length: int = 512,
         doc_id_prefix: Optional[str] = None,
         **_,
     ) -> None:
         documents = self._build_documents_from_texts(list(texts), doc_id_prefix)
-        super().__init__(
-            documents,
-            model_name_or_path,
-            max_seq_length,
-            document_split_stride,
-            tokenizer_kwargs=tokenizer_kwargs,
-        )
+        super().__init__(documents, tokenizer, max_seq_length, document_split_stride)
         self.examples: List[CharInferenceExample] = self._load_examples(self.documents)
 
     def __len__(self) -> int:

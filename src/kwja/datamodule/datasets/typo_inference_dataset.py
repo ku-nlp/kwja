@@ -1,10 +1,10 @@
 from collections import defaultdict
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import torch
 from omegaconf import ListConfig
 from torch.utils.data import Dataset
-from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizerBase
+from transformers import BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
 from kwja.utils.constants import DUMMY_TOKEN
@@ -15,15 +15,11 @@ class TypoInferenceDataset(Dataset):
     def __init__(
         self,
         texts: ListConfig,
-        model_name_or_path: str = "ku-nlp/roberta-base-japanese-char-wwm",
-        tokenizer_kwargs: Optional[dict] = None,
+        tokenizer: PreTrainedTokenizerBase,
         max_seq_length: int = 512,
         **_,  # accept `extended_vocab_path` as a keyword argument
     ) -> None:
-        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-            model_name_or_path,
-            **(tokenizer_kwargs or {}),
-        )
+        self.tokenizer: PreTrainedTokenizerBase = tokenizer
         self.max_seq_length = max_seq_length
 
         self.examples: List[Dict[str, str]] = []

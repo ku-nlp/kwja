@@ -1,11 +1,11 @@
 import json
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import torch
 from torch.utils.data import Dataset
-from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizerBase
+from transformers import BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
 from kwja.datamodule.examples import TypoExample
@@ -19,17 +19,13 @@ class TypoDataset(Dataset):
         self,
         path: str,
         extended_vocab_path: str,
-        model_name_or_path: str = "ku-nlp/roberta-base-japanese-char-wwm",
-        tokenizer_kwargs: Optional[dict] = None,
+        tokenizer: PreTrainedTokenizerBase,
         max_seq_length: int = 512,
     ) -> None:
         self.path = Path(path)
         assert self.path.is_dir()
 
-        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-            model_name_or_path,
-            **(tokenizer_kwargs or {}),
-        )
+        self.tokenizer: PreTrainedTokenizerBase = tokenizer
         assert self.tokenizer.unk_token_id is not None
         self.max_seq_length: int = max_seq_length
 
