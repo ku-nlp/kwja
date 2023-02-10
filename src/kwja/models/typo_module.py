@@ -6,7 +6,7 @@ import hydra
 import pytorch_lightning as pl
 import torch
 from omegaconf import DictConfig, OmegaConf
-from transformers import AutoTokenizer, PretrainedConfig, PreTrainedModel, PreTrainedTokenizerBase
+from transformers import PretrainedConfig, PreTrainedModel, PreTrainedTokenizerBase
 
 from kwja.evaluators.typo_module_metric import TypoModuleMetric
 from kwja.models.components.head import SequenceLabelingHead
@@ -41,10 +41,7 @@ class TypoModule(pl.LightningModule):
             pretrained_model_config.hidden_dropout_prob,
         )
 
-        tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-            hparams.encoder.pretrained_model_name_or_path,
-            **hydra.utils.instantiate(hparams.dataset.tokenizer_kwargs, _convert_="partial"),
-        )
+        tokenizer: PreTrainedTokenizerBase = hydra.utils.call(hparams.datamodule.predict.tokenizer)
         self.kdr_tagger: SequenceLabelingHead = SequenceLabelingHead(len(tokenizer), *head_args)
         self.ins_tagger: SequenceLabelingHead = SequenceLabelingHead(
             len(tokenizer) + hparams.dataset.extended_vocab_size, *head_args

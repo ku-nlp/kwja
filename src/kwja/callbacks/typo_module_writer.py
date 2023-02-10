@@ -6,7 +6,7 @@ from typing import Any, Optional, Sequence, TextIO, Union
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import BasePredictionWriter
-from transformers import AutoTokenizer, PreTrainedTokenizerBase
+from transformers import PreTrainedTokenizerBase
 
 from kwja.datamodule.datasets import TypoDataset, TypoInferenceDataset
 from kwja.utils.typo_module_writer import apply_edit_operations, convert_predictions_into_typo_corr_op_tags, get_maps
@@ -18,10 +18,9 @@ class TypoModuleWriter(BasePredictionWriter):
         output_dir: str,
         confidence_threshold: float,
         extended_vocab_path: str,
+        tokenizer: PreTrainedTokenizerBase,
         use_stdout: bool = False,
         output_filename: str = "predict",
-        model_name_or_path: str = "ku-nlp/roberta-base-japanese-char-wwm",
-        tokenizer_kwargs: Optional[dict] = None,
     ) -> None:
         super().__init__(write_interval="batch")
         if use_stdout:
@@ -34,10 +33,6 @@ class TypoModuleWriter(BasePredictionWriter):
 
         self.confidence_threshold = confidence_threshold
 
-        tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-            model_name_or_path,
-            **(tokenizer_kwargs or {}),
-        )
         self.token2token_id, self.token_id2token = get_maps(tokenizer, extended_vocab_path)
 
     def write_on_batch_end(
