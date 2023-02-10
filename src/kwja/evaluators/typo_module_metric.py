@@ -58,7 +58,7 @@ class TypoModuleMetric(Metric):
             assert self.dataset is not None, "typo dataset isn't set"
 
             example = self.dataset.examples[example_id]
-            seq_len: int = len(example["pre_text"])
+            seq_len: int = len(example.pre_text)
             if seq_len == 0:
                 continue
 
@@ -69,9 +69,9 @@ class TypoModuleMetric(Metric):
             # the prediction of the first token (= [CLS]) is excluded.
             # the prediction of the dummy token at the end is used for insertion only.
             predicted_text = apply_edit_operations(
-                example["pre_text"], kdr_tags[1 : seq_len + 1], ins_tags[1 : seq_len + 2]
+                example.pre_text, kdr_tags[1 : seq_len + 1], ins_tags[1 : seq_len + 2]
             )
-            example_id2texts[example_id] = (example["pre_text"], predicted_text, example["post_text"])
+            example_id2texts[example_id] = (example.pre_text, predicted_text, example.post_text)
         return list(example_id2texts.values())
 
     def compute_typo_correction_metrics(

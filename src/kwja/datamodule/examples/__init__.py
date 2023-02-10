@@ -3,6 +3,7 @@ from .cohesion import CohesionExample, CohesionTask
 from .dependency import DependencyExample
 from .discourse import DiscourseExample
 from .reading import ReadingExample
+from .typo import TypoExample
 from .word_feature import WordFeatureExample
 
 __all__ = [
@@ -12,5 +13,6 @@ __all__ = [
     "CohesionExample",
     "DiscourseExample",
     "ReadingExample",
+    "TypoExample",
     "CohesionTask",
 ]

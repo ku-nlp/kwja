@@ -66,7 +66,7 @@ class TypoModuleWriter(BasePredictionWriter):
                 post_texts.extend(texts)
 
             example = dataset.examples[example_id]
-            seq_len: int = len(example["pre_text"])
+            seq_len: int = len(example.pre_text)
             if seq_len == 0:
                 continue
 
@@ -76,7 +76,7 @@ class TypoModuleWriter(BasePredictionWriter):
 
             # the prediction of the first token (= [CLS]) is excluded.
             # the prediction of the dummy token at the end is used for insertion only.
-            post_text = apply_edit_operations(example["pre_text"], kdr_tags[1 : seq_len + 1], ins_tags[1 : seq_len + 2])
+            post_text = apply_edit_operations(example.pre_text, kdr_tags[1 : seq_len + 1], ins_tags[1 : seq_len + 2])
             post_texts.append(post_text)
 
         if batch_idx == len(dataloaders[dataloader_idx]) - 1:

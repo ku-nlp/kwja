@@ -1,13 +1,14 @@
 import json
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
 import torch
 from torch.utils.data import Dataset
 from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
+from kwja.datamodule.examples import TypoExample
 from kwja.utils.constants import DUMMY_TOKEN, IGNORE_INDEX, TYPO_CORR_OP_TAG2TOKEN
 from kwja.utils.progress_bar import track
 from kwja.utils.typo_module_writer import get_maps
@@ -34,7 +35,7 @@ class TypoDataset(Dataset):
 
         self.token2token_id, self.token_id2token = get_maps(self.tokenizer, extended_vocab_path)
 
-        self.examples = self.load_examples(self.path)
+        self.examples: List[TypoExample] = self._load_examples(self.path)
         self.stash: Dict[int, List[str]] = defaultdict(list)
         assert len(self) > 0
 
@@ -42,29 +43,28 @@ class TypoDataset(Dataset):
         return len(self.examples)
 
     def __getitem__(self, index: int) -> Dict[str, torch.Tensor]:
-        return self.encode(index)
+        return self.encode(self.examples[index])
 
     @staticmethod
-    def load_examples(example_dir: Path) -> List[Dict[str, Union[str, List[str]]]]:
-        examples: List[Dict[str, Union[str, List[str]]]] = []
+    def _load_examples(example_dir: Path) -> List[TypoExample]:
+        examples: List[TypoExample] = []
+        example_id = 0
         for path in track(sorted(example_dir.glob("**/*.jsonl")), description="Loading documents"):
             for line in path.read_text().strip().split("\n"):
-                examples.append(json.loads(line))
+                examples.append(TypoExample(**json.loads(line), example_id=example_id))
+                example_id += 1
         return examples
 
-    def encode(self, example_id: int) -> Dict[str, torch.Tensor]:
-        example: Dict[str, Union[str, List[str]]] = self.examples[example_id]
-
-        assert type(example["pre_text"]) == str, "type of pre_text is invalid"
+    def encode(self, example: TypoExample) -> Dict[str, torch.Tensor]:
         encoding: BatchEncoding = self.tokenizer(
-            example["pre_text"] + DUMMY_TOKEN,
+            example.pre_text + DUMMY_TOKEN,
             truncation=True,
             padding=PaddingStrategy.MAX_LENGTH,
             max_length=self.max_seq_length,
         )
 
         kdr_labels: List[int] = []
-        for kdr_tag in example["kdrs"][:-1]:
+        for kdr_tag in example.kdrs[:-1]:
             if kdr_tag in TYPO_CORR_OP_TAG2TOKEN:
                 kdr_label = self.token2token_id[TYPO_CORR_OP_TAG2TOKEN[kdr_tag]]
             else:
@@ -77,7 +77,7 @@ class TypoDataset(Dataset):
         kdr_labels += [IGNORE_INDEX] * (self.max_seq_length - len(kdr_labels))
 
         ins_labels: List[int] = []
-        for ins_tag in example["inss"]:
+        for ins_tag in example.inss:
             if ins_tag in TYPO_CORR_OP_TAG2TOKEN:
                 ins_label = self.token2token_id[TYPO_CORR_OP_TAG2TOKEN[ins_tag]]
             else:
@@ -89,7 +89,7 @@ class TypoDataset(Dataset):
         ins_labels += [IGNORE_INDEX] * (self.max_seq_length - len(ins_labels))
 
         return {
-            "example_ids": torch.tensor(example_id, dtype=torch.long),
+            "example_ids": torch.tensor(example.example_id, dtype=torch.long),
             "input_ids": torch.tensor(encoding.input_ids, dtype=torch.long),
             "attention_mask": torch.tensor(encoding.attention_mask, dtype=torch.long),
             "kdr_labels": torch.tensor(kdr_labels, dtype=torch.long),
