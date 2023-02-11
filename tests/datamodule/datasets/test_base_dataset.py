@@ -1,29 +1,25 @@
 from pathlib import Path
 
 import pytest
+from transformers import AutoTokenizer
 
 from kwja.datamodule.datasets.base_dataset import BaseDataset
 
 here = Path(__file__).absolute().parent
 path = here.joinpath("knp_files")
 
-base_dataset_kwargs = dict(
-    document_split_stride=1,
-    model_name_or_path="nlp-waseda/roberta-base-japanese",
-    max_seq_length=128,
-    tokenizer_kwargs={},
-)
+tokenizer = AutoTokenizer.from_pretrained("nlp-waseda/roberta-base-japanese")
 
 
 def test_init():
-    _ = BaseDataset(path, **base_dataset_kwargs)
+    _ = BaseDataset(path, tokenizer, 256, 1)
 
 
 def test_init_error():
     with pytest.raises(AssertionError):
-        _ = BaseDataset(path / "xxx", **base_dataset_kwargs)  # no such file or directory
+        _ = BaseDataset(path / "xxx", tokenizer, 256, 1)  # no such file or directory
     with pytest.raises(AssertionError):
-        _ = BaseDataset(path / "000.knp", **base_dataset_kwargs)  # not a directory
+        _ = BaseDataset(path / "000.knp", tokenizer, 256, 1)  # not a directory
 
 
 def test_load_documents():
@@ -31,16 +27,16 @@ def test_load_documents():
 
 
 def test_split_document():
-    dataset = BaseDataset(path, **{**base_dataset_kwargs, "max_seq_length": 13})
+    dataset = BaseDataset(path, tokenizer, 15, 1)
     assert len(dataset.orig_documents) == 2
-    assert [doc.doc_id for doc in dataset.orig_documents] == ["000", "1"]
+    assert [d.doc_id for d in dataset.orig_documents] == ["000", "1"]
     assert len(dataset.documents) == 3
-    assert [doc.doc_id for doc in dataset.documents] == ["000-s1i0", "000-s1i1", "1"]
+    assert [d.doc_id for d in dataset.documents] == ["000-s1i0", "000-s1i1", "1"]
 
 
 def test_split_document_overflow():
-    dataset = BaseDataset(path, **{**base_dataset_kwargs, "max_seq_length": 3})
+    dataset = BaseDataset(path, tokenizer, 3, 1)  # max_seq_length=3
     assert len(dataset.orig_documents) == 2
-    assert [doc.doc_id for doc in dataset.orig_documents] == ["000", "1"]
+    assert [d.doc_id for d in dataset.orig_documents] == ["000", "1"]
     assert len(dataset.documents) == 3
-    assert [doc.doc_id for doc in dataset.documents] == ["000-s1i0", "000-s1i1", "1-s1i0"]
+    assert [d.doc_id for d in dataset.documents] == ["000-s1i0", "000-s1i1", "1-s1i0"]

@@ -1,7 +1,12 @@
 import pytest
 from rhoknp import Morpheme
 
-from kwja.utils.word_normalize import MorphemeDenormalizer, MorphemeNormalizer, get_normalization_opns, get_normalized
+from kwja.utils.word_normalization import (
+    MorphemeDenormalizer,
+    MorphemeNormalizer,
+    get_normalized,
+    get_word_norm_op_tags,
+)
 
 wellformed_list = [
     ("なぁ", ["K", "S"], "なあ"),
@@ -67,15 +72,15 @@ wellformed_list = [
 
 
 @pytest.mark.parametrize("surf,ops,expected", wellformed_list)
-def test_gen_ormalized_surf(surf, ops, expected):
+def test_gen_normalized_surf(surf, ops, expected):
     assert get_normalized(surf, ops, strict=True) == expected
 
 
 @pytest.mark.parametrize("surf,expected,normalized", wellformed_list)
 def test_get_normalization_opns(surf, expected, normalized):
-    opns = get_normalization_opns(surf, normalized)
-    assert len(opns) == len(expected)
-    assert all([a == b for a, b in zip(opns, expected)])
+    word_norm_op_tags = get_word_norm_op_tags(surf, normalized)
+    assert len(word_norm_op_tags) == len(expected)
+    assert all([a == b for a, b in zip(word_norm_op_tags, expected)])
 
 
 malformed_list = [
@@ -86,13 +91,13 @@ malformed_list = [
 
 
 @pytest.mark.parametrize("surf,ops,expected", malformed_list)
-def test_gen_ormalized_surf_malformed(surf, ops, expected):
+def test_gen_normalized_surf_malformed(surf, ops, expected):
     with pytest.raises(ValueError):
         get_normalized(surf, ops, strict=True)
 
 
 @pytest.mark.parametrize("surf,ops,expected", malformed_list)
-def test_gen_ormalized_surf_malformed_loose(surf, ops, expected):
+def test_gen_normalized_surf_malformed_loose(surf, ops, expected):
     assert get_normalized(surf, ops, strict=False) == expected
 
 
@@ -101,9 +106,9 @@ def test_morpheme_normalizer():
     expected = ["K", "K", "D"]
     morpheme = Morpheme.from_jumanpp(jumanpp_text)
     normalizer = MorphemeNormalizer()
-    opns = normalizer.get_normalization_opns(morpheme)
-    assert len(opns) == len(expected)
-    assert all([a == b for a, b in zip(opns, expected)])
+    word_norm_op_tags = normalizer.get_word_norm_op_tags(morpheme)
+    assert len(word_norm_op_tags) == len(expected)
+    assert all([a == b for a, b in zip(word_norm_op_tags, expected)])
 
 
 denormalize_list = [
@@ -116,6 +121,6 @@ denormalize_list = [
 
 
 @pytest.mark.parametrize("surf,expected", denormalize_list)
-def test_denofrmalize_deterministic(surf, expected):
+def test_denormalize_deterministic(surf, expected):
     md = MorphemeDenormalizer()
     assert md._denormalize_deterministic(surf) == expected
