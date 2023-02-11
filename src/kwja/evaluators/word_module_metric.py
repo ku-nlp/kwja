@@ -11,10 +11,9 @@ from seqeval.scheme import IOB2
 from torchmetrics import Metric
 
 from kwja.datamodule.datasets import WordDataset
-from kwja.datamodule.examples import CohesionTask
-from kwja.datamodule.extractors import PasExtractor
 from kwja.evaluators.cohesion_scorer import Scorer, ScoreResult
 from kwja.evaluators.conll18_ud_eval import main as conll18_ud_eval
+from kwja.utils.cohesion_analysis import PasUtils
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TAGS,
@@ -24,6 +23,7 @@ from kwja.utils.constants import (
     POS_TAGS,
     SUBPOS_TAGS,
     WORD_FEATURES,
+    CohesionTask,
     WordTask,
 )
 from kwja.utils.metric import unique
@@ -188,7 +188,7 @@ class WordModuleMetric(Metric):
                 add_named_entities(sentence, ne_predictions)
                 add_base_phrase_features(sentence, base_phrase_feature_probabilities)
                 add_dependency(
-                    sentence, dependency_predictions, dependency_type_predictions, self.dataset.special_to_index
+                    sentence, dependency_predictions, dependency_type_predictions, self.dataset.special_token2index
                 )
                 doc_id2partly_gold_sentences1[orig_doc_id].append(sentence)
 
@@ -199,10 +199,8 @@ class WordModuleMetric(Metric):
             add_cohesion(
                 partly_gold_document2,
                 cohesion_logits,
-                self.dataset.cohesion_task_to_rel_types,
-                self.dataset.exophora_referents,
-                self.dataset.index_to_special,
-                self.dataset.extractors,
+                self.dataset.cohesion_task2utils,
+                self.dataset.index2special_token,
             )
             for sentence in extract_target_sentences(partly_gold_document2):
                 doc_id2partly_gold_sentences2[orig_doc_id].append(sentence)
@@ -217,6 +215,12 @@ class WordModuleMetric(Metric):
 
     @staticmethod
     def _refresh(document: Document, level: int = 1) -> None:
+        """Refresh document
+
+        NOTE:
+            level1: clear discourse relations, rel tags, dependencies, and base phrase features.
+            level2: clear discourse relations and rel tags.
+        """
         assert level in (1, 2), f"invalid level: {level}"
         try:
             for clause in document.clauses:
@@ -251,27 +255,27 @@ class WordModuleMetric(Metric):
     ) -> Dict[str, float]:
         metrics: Dict[str, float] = {}
 
-        pos_predictions = [[f"B-{m.pos}" for m in d.morphemes] for d in predicted_documents]
-        # m.pos not in POS_LIST = 未定義語、その他
+        # m.pos not in POS_TAGS ... 未定義語、その他など
         pos_labels = [[f"B-{m.pos}" if m.pos in POS_TAGS else "B-" for m in d.morphemes] for d in gold_documents]
+        pos_predictions = [[f"B-{m.pos}" for m in d.morphemes] for d in predicted_documents]
         metrics["pos_f1"] = f1_score(y_true=pos_labels, y_pred=pos_predictions)
 
-        subpos_predictions = [[f"B-{m.subpos}" for m in d.morphemes] for d in predicted_documents]
         subpos_labels = [
             [f"B-{m.subpos}" if m.subpos in SUBPOS_TAGS else "B-" for m in d.morphemes] for d in gold_documents
         ]
+        subpos_predictions = [[f"B-{m.subpos}" for m in d.morphemes] for d in predicted_documents]
         metrics["subpos_f1"] = f1_score(y_true=subpos_labels, y_pred=subpos_predictions)
 
-        conjtype_predictions = [[f"B-{m.conjtype}" for m in d.morphemes] for d in predicted_documents]
         conjtype_labels = [
             [f"B-{m.conjtype}" if m.conjtype in CONJTYPE_TAGS else "B-" for m in d.morphemes] for d in gold_documents
         ]
+        conjtype_predictions = [[f"B-{m.conjtype}" for m in d.morphemes] for d in predicted_documents]
         metrics["conjtype_f1"] = f1_score(y_true=conjtype_labels, y_pred=conjtype_predictions)
 
-        conjform_predictions = [[f"B-{m.conjform}" for m in d.morphemes] for d in predicted_documents]
         conjform_labels = [
             [f"B-{m.conjform}" if m.conjform in CONJFORM_TAGS else "B-" for m in d.morphemes] for d in gold_documents
         ]
+        conjform_predictions = [[f"B-{m.conjform}" for m in d.morphemes] for d in predicted_documents]
         metrics["conjform_f1"] = f1_score(y_true=conjform_labels, y_pred=conjform_predictions)
 
         metrics["morphological_analysis_f1"] = mean(metrics.values())
@@ -414,7 +418,8 @@ class WordModuleMetric(Metric):
         gold_documents: List[Document],
         unit: Literal["base_phrase", "morpheme"],
     ) -> Tuple[List[str], List[str]]:
-        gold_lines, system_lines = [], []
+        gold_lines = []
+        system_lines = []
         for gold_document, partly_gold_document1 in zip(gold_documents, partly_gold_documents1):
             for sentence in gold_document.sentences:
                 gold_lines += [self._to_conll_line(u) for u in getattr(sentence, f"{unit}s")]
@@ -448,35 +453,35 @@ class WordModuleMetric(Metric):
         self, partly_gold_documents2: List[Document], gold_documents: List[Document]
     ) -> Dict[str, float]:
         assert self.dataset is not None, "dataset isn't set"
-        pas_extractor = self.dataset.extractors[CohesionTask.PAS_ANALYSIS]
-        assert type(pas_extractor) == PasExtractor, "extractors aren't set correctly"
+        if pas_utils := self.dataset.cohesion_task2utils.get(CohesionTask.PAS_ANALYSIS):
+            assert isinstance(pas_utils, PasUtils), "pas utils isn't set correctly"
+            pas_cases = pas_utils.cases
+            pas_target = pas_utils.target
+        else:
+            pas_cases = []
+            pas_target = ""
 
-        targets2label = {
-            tuple(): "",
-            ("pred",): "pred",
-            ("noun",): "noun",
-            ("pred", "noun"): "all",
-        }
         scorer = Scorer(
             partly_gold_documents2,
             gold_documents,
-            target_cases=self.dataset.pas_cases,
             exophora_referents=self.dataset.exophora_referents,
-            coreference=(CohesionTask.COREFERENCE in self.dataset.cohesion_tasks),
-            bridging=(CohesionTask.BRIDGING in self.dataset.cohesion_tasks),
-            pas_target=targets2label[tuple(pas_extractor.pas_targets)],
+            pas_cases=pas_cases,
+            pas_target=pas_target,
+            bridging=(CohesionTask.BRIDGING_REFERENCE_RESOLUTION in self.dataset.cohesion_tasks),
+            coreference=(CohesionTask.COREFERENCE_RESOLUTION in self.dataset.cohesion_tasks),
         )
         score_result: ScoreResult = scorer.run()
-        metrics = {}
-        for rel, val in score_result.to_dict().items():
-            for met, sub_val in val.items():
-                metrics[f"{met}_{rel}"] = sub_val.f1
+
+        metrics: Dict[str, float] = {}
+        for rel, analysis2measure in score_result.to_dict().items():
+            for analysis, measure in analysis2measure.items():
+                metrics[f"{analysis}_{rel}"] = measure.f1
         f1s = []
         if CohesionTask.PAS_ANALYSIS in self.dataset.cohesion_tasks:
             f1s.append(metrics["pas_all_case"])
-        if CohesionTask.BRIDGING in self.dataset.cohesion_tasks:
+        if CohesionTask.BRIDGING_REFERENCE_RESOLUTION in self.dataset.cohesion_tasks:
             f1s.append(metrics["bridging_all_case"])
-        if CohesionTask.COREFERENCE in self.dataset.cohesion_tasks:
+        if CohesionTask.COREFERENCE_RESOLUTION in self.dataset.cohesion_tasks:
             f1s.append(metrics["coreference_all_case"])
         metrics["cohesion_analysis_f1"] = mean(f1s)
         return metrics
@@ -486,6 +491,7 @@ class WordModuleMetric(Metric):
         ignored_indices = labels.eq(IGNORE_INDEX)
         predictions = predictions[~ignored_indices]
         labels = labels[~ignored_indices]
+
         if (~ignored_indices).sum().item() == 0:
             accuracy = 0.0
         else:
