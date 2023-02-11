@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Literal, Tuple, Union
+from typing import Dict, List, Literal, Union
 
 import torch
 from omegaconf import ListConfig
@@ -15,14 +15,12 @@ from kwja.datamodule.datasets.base_dataset import BaseDataset
 from kwja.datamodule.examples import (
     BasePhraseFeatureExample,
     CohesionExample,
-    CohesionTask,
     DependencyExample,
     DiscourseExample,
     ReadingExample,
     WordFeatureExample,
 )
-from kwja.datamodule.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
-from kwja.datamodule.extractors.base import Phrase
+from kwja.utils.cohesion_analysis import BridgingUtils, CohesionBasePhrase, CohesionUtils, CoreferenceUtils, PasUtils
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TAGS,
@@ -36,6 +34,7 @@ from kwja.utils.constants import (
     SPLIT_INTO_WORDS_MODEL_NAMES,
     SUBPOS_TAGS,
     WORD_FEATURES,
+    CohesionTask,
 )
 from kwja.utils.kanjidic import KanjiDic
 from kwja.utils.progress_bar import track
@@ -62,15 +61,15 @@ class WordDataset(BaseDataset):
     def __init__(
         self,
         path: str,
-        document_split_stride: int,
-        pas_cases: ListConfig,
-        bar_rels: ListConfig,
-        exophora_referents: ListConfig,
-        cohesion_tasks: ListConfig,
-        restrict_cohesion_target: bool,
-        special_tokens: ListConfig,
         tokenizer: PreTrainedTokenizerBase,
-        max_seq_length: int = 512,
+        document_split_stride: int,
+        cohesion_tasks: ListConfig,
+        exophora_referents: ListConfig,
+        restrict_cohesion_target: bool,
+        pas_cases: ListConfig,
+        br_cases: ListConfig,
+        special_tokens: ListConfig,
+        max_seq_length: int = 256,
     ) -> None:
         self.path = Path(path)
         if tokenizer.name_or_path in SPLIT_INTO_WORDS_MODEL_NAMES:
@@ -88,28 +87,32 @@ class WordDataset(BaseDataset):
         )
 
         # ---------- cohesion analysis ----------
-        self.pas_cases: List[str] = list(pas_cases)
-        self.bar_rels: List[str] = list(bar_rels)
-        self.exophora_referents = [ExophoraReferent(s) for s in exophora_referents]
         self.cohesion_tasks: List[CohesionTask] = [CohesionTask(t) for t in cohesion_tasks]
-        self.cohesion_task_to_rel_types = {
-            CohesionTask.PAS_ANALYSIS: self.pas_cases,
-            CohesionTask.BRIDGING: self.bar_rels,
-            CohesionTask.COREFERENCE: ["="],
-        }
+        self.exophora_referents = [ExophoraReferent(s) for s in exophora_referents]
         self.restrict_cohesion_target = restrict_cohesion_target
-        self.extractors = {
-            CohesionTask.PAS_ANALYSIS: PasExtractor(self.pas_cases, self.exophora_referents, restrict_cohesion_target),
-            CohesionTask.COREFERENCE: CoreferenceExtractor(self.exophora_referents, restrict_cohesion_target),
-            CohesionTask.BRIDGING: BridgingExtractor(self.bar_rels, self.exophora_referents, restrict_cohesion_target),
-        }
+        self.pas_cases: List[str] = list(pas_cases)
+        self.br_cases: List[str] = list(br_cases)
+        self.cohesion_task2utils: Dict[CohesionTask, CohesionUtils] = {}
+        for cohesion_task in self.cohesion_tasks:
+            if cohesion_task == CohesionTask.PAS_ANALYSIS:
+                self.cohesion_task2utils[cohesion_task] = PasUtils(
+                    self.pas_cases, "all", self.exophora_referents, restrict_target=restrict_cohesion_target
+                )
+            elif cohesion_task == CohesionTask.BRIDGING_REFERENCE_RESOLUTION:
+                self.cohesion_task2utils[cohesion_task] = BridgingUtils(
+                    self.br_cases, self.exophora_referents, restrict_target=restrict_cohesion_target
+                )
+            elif cohesion_task == CohesionTask.COREFERENCE_RESOLUTION:
+                self.cohesion_task2utils[cohesion_task] = CoreferenceUtils(
+                    self.exophora_referents, restrict_target=restrict_cohesion_target
+                )
 
         # ---------- dependency parsing & cohesion analysis ----------
         self.special_tokens: List[str] = list(special_tokens)
-        self.special_to_index: Dict[str, int] = {
-            token: self.max_seq_length - len(self.special_tokens) + i for i, token in enumerate(self.special_tokens)
+        self.special_token2index: Dict[str, int] = {
+            st: self.max_seq_length - len(self.special_tokens) + i for i, st in enumerate(self.special_tokens)
         }
-        self.index_to_special: Dict[int, str] = {v: k for k, v in self.special_to_index.items()}
+        self.index2special_token: Dict[int, str] = {v: k for k, v in self.special_token2index.items()}
         self.special_encoding: Encoding = self.tokenizer(
             self.special_tokens,
             is_split_into_words=True,
@@ -165,7 +168,7 @@ class WordDataset(BaseDataset):
             dependency_example.load(document)
 
             cohesion_example = CohesionExample()
-            cohesion_example.load(document, tasks=self.cohesion_tasks, extractors=self.extractors)
+            cohesion_example.load(document, self.cohesion_task2utils)
 
             discourse_example = DiscourseExample()
             discourse_example.load(document, has_annotation=False)
@@ -217,7 +220,7 @@ class WordDataset(BaseDataset):
             non_special_token_indices = [
                 token_index
                 for token_index, word_id in enumerate(merged_encoding.word_ids)
-                if word_id is not None and token_index not in self.index_to_special
+                if word_id is not None and token_index not in self.index2special_token
             ]
             for token_index, non_special_token_index in enumerate(non_special_token_indices):
                 reading = reading_example.readings[token_index]
@@ -280,11 +283,10 @@ class WordDataset(BaseDataset):
 
         # ---------- dependency parsing ----------
         dependency_example = example.dependency_example
-        root_index = self.special_to_index["[ROOT]"]
+        root_index = self.special_token2index["[ROOT]"]
         dependency_labels: List[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
         for morpheme_global_index, dependency in dependency_example.global_index2dependency.items():
             dependency_labels[morpheme_global_index] = dependency if dependency >= 0 else root_index
-        # True/False = keep/mask
         dependency_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
         for morpheme_global_index, candidates in dependency_example.global_index2candidates.items():
             for candidate_index in candidates + [root_index]:
@@ -296,32 +298,15 @@ class WordDataset(BaseDataset):
 
         # ---------- cohesion analysis ----------
         cohesion_example = example.cohesion_example
-        cohesion_target: List[List[List[int]]] = []  # (task, src, tgt)
-        candidates_list: List[List[List[int]]] = []  # (task, src, tgt)
-        if CohesionTask.PAS_ANALYSIS in self.cohesion_tasks:
-            task = CohesionTask.PAS_ANALYSIS
-            annotation = cohesion_example.annotations[task]
-            phrases = cohesion_example.phrases[task]
-            for case in self.pas_cases:
-                assert type(annotation.arguments_set) == List[Dict[str, List[str]]]
-                arguments_set = [arguments[case] for arguments in annotation.arguments_set]
-                ret = self._convert_annotation_to_feature(arguments_set, phrases)
-                cohesion_target.append(ret[0])
-                candidates_list.append(ret[1])
-        for task in (CohesionTask.BRIDGING, CohesionTask.COREFERENCE):
-            if task not in self.cohesion_tasks:
-                continue
-            annotation = cohesion_example.annotations[task]
-            assert type(annotation.arguments_set) == List[List[str]]
-            arguments_set = annotation.arguments_set
-            phrases = cohesion_example.phrases[task]
-            ret = self._convert_annotation_to_feature(arguments_set, phrases)
-            cohesion_target.append(ret[0])
-            candidates_list.append(ret[1])
-        # True/False = keep/mask
-        cohesion_mask = [
-            [[(x in cs) for x in range(self.max_seq_length)] for cs in candidates] for candidates in candidates_list
-        ]
+        cohesion_labels: List[List[List[int]]] = []  # (rel, src, tgt)
+        cohesion_mask: List[List[List[bool]]] = []  # (rel, src, tgt)
+        for cohesion_task, cohesion_utils in self.cohesion_task2utils.items():
+            cohesion_base_phrases = cohesion_example.task2base_phrases[cohesion_task]
+            rel_mask = self._convert_cohesion_base_phrases_into_rel_mask(cohesion_base_phrases)
+            for rel in cohesion_utils.rels:
+                rel_labels = self._convert_cohesion_base_phrases_into_rel_labels(cohesion_base_phrases, rel)
+                cohesion_labels.append(rel_labels)
+                cohesion_mask.append(rel_mask)
 
         # ---------- discourse parsing ----------
         discourse_example = example.discourse_example
@@ -350,10 +335,10 @@ class WordDataset(BaseDataset):
             "ne_labels": torch.tensor(ne_labels, dtype=torch.long),
             "base_phrase_feature_labels": torch.tensor(base_phrase_feature_labels, dtype=torch.long),
             "dependency_labels": torch.tensor(dependency_labels, dtype=torch.long),
-            "dependency_mask": torch.tensor(dependency_mask, dtype=torch.bool),
+            "dependency_mask": torch.tensor(dependency_mask, dtype=torch.bool),  # True/False = keep/mask
             "dependency_type_labels": torch.tensor(dependency_type_labels, dtype=torch.long),
-            "cohesion_target": torch.tensor(cohesion_target, dtype=torch.int),
-            "cohesion_mask": torch.tensor(cohesion_mask, dtype=torch.bool),
+            "cohesion_labels": torch.tensor(cohesion_labels, dtype=torch.long),
+            "cohesion_mask": torch.tensor(cohesion_mask, dtype=torch.bool),  # True/False = keep/mask
             "discourse_labels": torch.tensor(discourse_labels, dtype=torch.long),
         }
 
@@ -370,11 +355,7 @@ class WordDataset(BaseDataset):
 
     @property
     def cohesion_special_indices(self) -> List[int]:
-        return [index for special, index in self.special_to_index.items() if special != "[ROOT]"]
-
-    @property
-    def cohesion_rel_types(self) -> List[str]:
-        return [t for task in self.cohesion_tasks for t in self.cohesion_task_to_rel_types[task]]
+        return [i for st, i in self.special_token2index.items() if st != "[ROOT]"]
 
     @property
     def num_special_tokens(self) -> int:
@@ -382,40 +363,46 @@ class WordDataset(BaseDataset):
 
     @property
     def special_indices(self) -> List[int]:
-        return list(self.special_to_index.values())
+        return list(self.special_token2index.values())
 
-    def _convert_annotation_to_feature(
+    def _convert_cohesion_base_phrases_into_rel_mask(
         self,
-        arguments_set: List[List[str]],  # phrase level
-        phrases: List[Phrase],
-    ) -> Tuple[List[List[int]], List[List[int]]]:
-        scores_list: List[List[int]] = [[0] * self.max_seq_length for _ in range(self.max_seq_length)]
-        candidates_list: List[List[int]] = [[] for _ in range(self.max_seq_length)]
-        for phrase in phrases:
-            arguments: List[str] = arguments_set[phrase.dtid]
-            candidates: List[int] = phrase.candidates  # phrase level
-            for mrph in phrase.children:
-                scores: List[int] = [0] * self.max_seq_length
-                if mrph.is_target:
-                    for arg_string in arguments:
-                        # arg_string: 著者, 8%C, 15%O, 2, [NULL], ...
-                        if arg_string[-2:] in ("%C", "%N", "%O"):
-                            # PAS only
-                            # flag = arg_string[-1]
-                            arg_string = arg_string[:-2]
-                        if arg_string in self.special_to_index:
-                            word_index = self.special_to_index[arg_string]
-                        else:
-                            word_index = phrases[int(arg_string)].dmid
-                        scores[word_index] = 1
+        cohesion_base_phrases: List[CohesionBasePhrase],
+    ) -> List[List[bool]]:
+        rel_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
+        for cohesion_base_phrase in cohesion_base_phrases:
+            if cohesion_base_phrase.is_target is False:
+                continue
+            assert cohesion_base_phrase.antecedent_candidates is not None, "antecedent_candidates isn't set"
 
-                word_level_candidates: List[int] = []
-                for candidate in candidates:
-                    word_level_candidates.append(phrases[candidate].dmid)
-                word_level_candidates += self.cohesion_special_indices
+            for morpheme in cohesion_base_phrase.morphemes:
+                for antecedent_candidate in cohesion_base_phrase.antecedent_candidates:
+                    rel_mask[morpheme.global_index][antecedent_candidate.head.global_index] = True
+                for cohesion_special_index in self.cohesion_special_indices:
+                    rel_mask[morpheme.global_index][cohesion_special_index] = True
+        return rel_mask
 
-                # use the head subword as the representative of the source word
-                scores_list[mrph.dmid] = scores
-                candidates_list[mrph.dmid] = word_level_candidates
+    def _convert_cohesion_base_phrases_into_rel_labels(
+        self,
+        cohesion_base_phrases: List[CohesionBasePhrase],
+        rel: str,
+    ) -> List[List[int]]:
+        rel_labels: List[List[int]] = [[0] * self.max_seq_length for _ in range(self.max_seq_length)]
+        for cohesion_base_phrase in cohesion_base_phrases:
+            if cohesion_base_phrase.is_target is False:
+                continue
+            assert cohesion_base_phrase.rel2tags is not None, "rel2tags isn't set"
 
-        return scores_list, candidates_list  # word level
+            head_morpheme = cohesion_base_phrase.head
+            for tag in cohesion_base_phrase.rel2tags[rel]:
+                # tag: 著者, 8%C, 15%O, 2, [NULL], ...
+                if tag[-2:] in ("%C", "%N", "%O"):
+                    # PAS only
+                    tag = tag[:-2]
+                if tag in self.special_token2index:
+                    target_morpheme_global_index = self.special_token2index[tag]
+                else:
+                    # int(tag) = base phrase global index
+                    target_morpheme_global_index = cohesion_base_phrases[int(tag)].head.global_index
+                rel_labels[head_morpheme.global_index][target_morpheme_global_index] = 1
+        return rel_labels
