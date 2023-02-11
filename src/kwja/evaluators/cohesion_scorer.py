@@ -499,7 +499,8 @@ class ScoreResult:
             df_all.at["all_case", "coreference"] = self.measure_coreference["all"]
 
         return {
-            k1: {k2: v2 for k2, v2 in v1.items() if pd.notnull(v2)} for k1, v1 in df_all.to_dict(orient="index").items()
+            rel: {analysis: measure for analysis, measure in analysis2measure.items() if pd.notnull(measure)}
+            for rel, analysis2measure in df_all.to_dict(orient="index").items()
         }
 
     def export_txt(self, destination: Union[str, Path, TextIO]) -> None:
@@ -509,9 +510,9 @@ class ScoreResult:
             destination (Union[str, Path, TextIO]): 書き出す先
         """
         lines = []
-        for key, ms in self.to_dict().items():
-            lines.append(f"{key}格" if (self.measures_pas is not None) and (key in self.measures_pas.index) else key)
-            for analysis, measure in ms.items():
+        for rel, analysis2measure in self.to_dict().items():
+            lines.append(f"{rel}格" if (self.measures_pas is not None) and (rel in self.measures_pas.index) else rel)
+            for analysis, measure in analysis2measure.items():
                 lines.append(f"  {analysis}")
                 lines.append(f"    precision: {measure.precision:.4f} ({measure.correct}/{measure.denom_pred})")
                 lines.append(f"    recall   : {measure.recall:.4f} ({measure.correct}/{measure.denom_gold})")
@@ -531,12 +532,12 @@ class ScoreResult:
             sep (str): 区切り文字 (default: ',')
         """
         text = ""
-        result_dict = self.to_dict()
+        score_result_dict = self.to_dict()
         text += "case" + sep
-        text += sep.join(result_dict["all_case"].keys()) + "\n"
-        for case, measures in result_dict.items():
-            text += case + sep
-            text += sep.join(f"{measure.f1:.6}" for measure in measures.values())
+        text += sep.join(score_result_dict["all_case"].keys()) + "\n"
+        for rel, analysis2measure in score_result_dict.items():
+            text += rel + sep
+            text += sep.join(f"{measure.f1:.6}" for measure in analysis2measure.values())
             text += "\n"
 
         if isinstance(destination, str) or isinstance(destination, Path):
@@ -572,10 +573,10 @@ class ScoreResult:
             measures_bridging = None
         if self.coreference is True:
             assert (self.measure_coreference is not None) and (other.measure_coreference is not None)
-            measure_coref = self.measure_coreference + other.measure_coreference
+            measure_coreference = self.measure_coreference + other.measure_coreference
         else:
-            measure_coref = None
-        return ScoreResult(measures_pas, measures_bridging, measure_coref)
+            measure_coreference = None
+        return ScoreResult(measures_pas, measures_bridging, measure_coreference)
 
 
 @dataclass
@@ -614,9 +615,9 @@ class Measure:
 
     @property
     def f1(self) -> float:
-        if self.denom_pred + self.denom_gold == 0:
+        if (self.denom_pred + self.denom_gold) == 0:
             return 0.0
-        return 2 * self.correct / (self.denom_pred + self.denom_gold)
+        return (2 * self.correct) / (self.denom_pred + self.denom_gold)
 
 
 def main():
@@ -674,10 +675,10 @@ def main():
         bridging=args.bridging,
         coreference=args.coreference,
     )
-    result = scorer.run()
+    score_result = scorer.run()
     if args.result_csv:
-        result.export_csv(args.result_csv)
-    result.export_txt(sys.stdout)
+        score_result.export_csv(args.result_csv)
+    score_result.export_txt(sys.stdout)
 
 
 if __name__ == "__main__":
