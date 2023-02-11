@@ -96,9 +96,12 @@ class TypoModule(pl.LightningModule):
             typo_module_metric.reset()
 
         for corpus, metrics in metrics_log.items():
-            self.log_dict({f"valid_{corpus}/{name}": value for name, value in metrics.items()})
-        for name in list(metrics_log.values())[0].keys():
-            self.log(f"valid/{name}", mean(metrics_log[corpus].get(name, 0) for corpus in self.valid_corpora))
+            self.log_dict({f"valid_{corpus}/{key}": value for key, value in metrics.items()})
+        for key in list(metrics_log.values())[0].keys():
+            self.log(
+                f"valid/{key}",
+                mean(metrics_log[corpus][key] for corpus in self.valid_corpora if key in metrics_log[corpus]),
+            )
 
     def test_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> None:
         kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
@@ -116,9 +119,12 @@ class TypoModule(pl.LightningModule):
             typo_module_metric.reset()
 
         for corpus, metrics in metrics_log.items():
-            self.log_dict({f"test_{corpus}/{name}": value for name, value in metrics.items()})
-        for name in list(metrics_log.values())[0].keys():
-            self.log(f"test/{name}", mean(metrics_log[corpus].get(name, 0) for corpus in self.test_corpora))
+            self.log_dict({f"test_{corpus}/{key}": value for key, value in metrics.items()})
+        for key in list(metrics_log.values())[0].keys():
+            self.log(
+                f"test/{key}",
+                mean(metrics_log[corpus][key] for corpus in self.test_corpora if key in metrics_log[corpus]),
+            )
 
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Dict[str, torch.Tensor]:
         ret: Dict[str, torch.Tensor] = self(batch)
