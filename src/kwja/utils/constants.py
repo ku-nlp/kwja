@@ -205,6 +205,12 @@ class WordTask(Enum):
     DISCOURSE_PARSING = "discourse_parsing"
 
 
+class CohesionTask(Enum):
+    PAS_ANALYSIS = "pas_analysis"
+    BRIDGING_REFERENCE_RESOLUTION = "bridging_reference_resolution"
+    COREFERENCE_RESOLUTION = "coreference_resolution"
+
+
 # ---------- word module|reading prediction ----------
 UNK = "[UNK]"
 ID = "[ID]"

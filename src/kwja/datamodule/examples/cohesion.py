@@ -1,26 +1,12 @@
 import logging
-from enum import Enum
 from typing import Dict, List
 
 from rhoknp import Document
 
-from kwja.datamodule.extractors import Annotation, BridgingExtractor, CoreferenceExtractor, PasExtractor
-from kwja.datamodule.extractors.base import Extractor, Mrph, Phrase
+from kwja.utils.cohesion_analysis import CohesionBasePhrase, CohesionUtils
+from kwja.utils.constants import CohesionTask
 
 logger = logging.getLogger(__name__)
-
-
-class CohesionTask(Enum):
-    PAS_ANALYSIS = "pas_analysis"
-    BRIDGING = "bridging"
-    COREFERENCE = "coreference"
-
-
-TASK2EXTRACTOR = {
-    CohesionTask.PAS_ANALYSIS: PasExtractor,
-    CohesionTask.BRIDGING: BridgingExtractor,
-    CohesionTask.COREFERENCE: CoreferenceExtractor,
-}
 
 
 class CohesionExample:
@@ -28,68 +14,32 @@ class CohesionExample:
 
     def __init__(self) -> None:
         self.doc_id: str = ""
-        self.annotations: Dict[CohesionTask, Annotation] = {}
-        self.phrases: Dict[CohesionTask, List[Phrase]] = {}
-
-    @property
-    def mrphs(self) -> Dict[CohesionTask, List[Mrph]]:
-        return {task: sum((p.children for p in phrases), []) for task, phrases in self.phrases.items()}
+        self.task2base_phrases: Dict[CohesionTask, List[CohesionBasePhrase]] = {}
 
     def load(
         self,
         document: Document,
-        tasks: List[CohesionTask],
-        extractors: Dict[CohesionTask, Extractor],
+        cohesion_task2utils: Dict[CohesionTask, CohesionUtils],
     ):
         self.doc_id = document.doc_id
-        for task in tasks:
-            phrases = self._construct_phrases(document)
-            extractor: Extractor = extractors[task]
-            self.phrases[task] = phrases
-            self.annotations[task] = extractor.extract(document, phrases)  # extract gold
-
-    @staticmethod
-    def _construct_phrases(document: Document) -> List[Phrase]:
-        # construct phrases and mrphs
-        phrases = []
-        for sentence in document.sentences:
-            for anaphor in sentence.base_phrases:
-                phrase = Phrase(
-                    dtid=anaphor.global_index,
-                    surf=anaphor.text,
-                    dmids=[m.global_index for m in anaphor.morphemes],
-                    dmid=anaphor.head.global_index,
-                    children=[],
-                    is_target=False,
-                    candidates=[],
-                )
-                for morpheme in anaphor.morphemes:
-                    mrph = Mrph(
-                        dmid=morpheme.global_index,
-                        surf=morpheme.text,
-                        parent=phrase,
-                    )
-                    phrase.children.append(mrph)
-                phrases.append(phrase)
-        return phrases
+        base_phrases = document.base_phrases
+        for cohesion_task, cohesion_utils in cohesion_task2utils.items():
+            self.task2base_phrases[cohesion_task] = cohesion_utils.wrap(base_phrases)
 
     def __str__(self):
         return self.__repr__()
 
     def __repr__(self):
         string = ""
-        for i, phrase in enumerate(next(iter(self.phrases.values()))):
-            string += f"{i:02} {phrase.surf}"
-            string += " " * (6 - len(phrase.surf)) * 2
-            if ann := self.annotations.get(CohesionTask.PAS_ANALYSIS):
-                for case, args in ann.arguments_set[i].items():
-                    args_str = ",".join(str(arg) for arg in args)
-                    string += f"{case}:{args_str:6}  "
-            if ann := self.annotations.get(CohesionTask.BRIDGING):
-                args_str = ",".join(str(arg) for arg in ann.arguments_set[i])
-                string += f"ノ:{args_str:6}  "
-            if ann := self.annotations.get(CohesionTask.COREFERENCE):
-                args_str = ",".join(str(arg) for arg in ann.arguments_set[i])
-                string += f"＝:{args_str:6}"
+        for i, cohesion_base_phrase in enumerate(list(self.task2base_phrases.values())[0]):
+            string += f"{i:02} {cohesion_base_phrase.text}"
+            string += " " * (6 - len(cohesion_base_phrase.text)) * 2
+            if cohesion_base_phrases := self.task2base_phrases.get(CohesionTask.PAS_ANALYSIS):
+                for case, argument_tags in cohesion_base_phrases[i].relation2tags.items():
+                    string += f"{case}:{','.join(argument_tags):6}  "
+            if cohesion_base_phrases := self.task2base_phrases.get(CohesionTask.BRIDGING_REFERENCE_RESOLUTION):
+                string += f"ノ:{','.join(cohesion_base_phrases[i].relation2tags['ノ']):6}  "
+            if cohesion_base_phrases := self.task2base_phrases.get(CohesionTask.COREFERENCE_RESOLUTION):
+                string += f"=:{','.join(cohesion_base_phrases[i].relation2tags['=']):6}"
             string += "\n"
         return string
