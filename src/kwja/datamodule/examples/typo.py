@@ -9,3 +9,9 @@ class TypoExample:
     post_text: str
     kdrs: List[str]
     inss: List[str]
+
+
+@dataclass(frozen=True)
+class TypoInferenceExample:
+    example_id: int
+    pre_text: str

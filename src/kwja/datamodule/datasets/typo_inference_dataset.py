@@ -7,6 +7,7 @@ from torch.utils.data import Dataset
 from transformers import BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
+from kwja.datamodule.examples.typo import TypoInferenceExample
 from kwja.utils.constants import DUMMY_TOKEN
 from kwja.utils.progress_bar import track
 
@@ -22,17 +23,19 @@ class TypoInferenceDataset(Dataset):
         self.tokenizer: PreTrainedTokenizerBase = tokenizer
         self.max_seq_length = max_seq_length
 
-        self.examples: List[Dict[str, str]] = []
+        self.examples: List[TypoInferenceExample] = []
         self.stash: Dict[int, List[str]] = defaultdict(list)
+        example_id = 0
         for text in track(texts, description="Loading documents"):
             text = text.strip()
             if len(self.tokenizer.tokenize(text)) == len(text) <= max_seq_length - 3:
-                self.examples.append({"pre_text": text})
+                self.examples.append(TypoInferenceExample(example_id=example_id, pre_text=text))
+                example_id += 1
             else:
-                self.stash[len(self.examples)].append(text)
+                self.stash[example_id].append(text)
         if len(self.examples) == 0:
-            # len(self.examples) == 0だとwriterが呼ばれないのでダミーテキストを追加
-            self.examples = [{"pre_text": ""}]
+            # len(self.examples) == 0だとwriterが呼ばれないのでダミーを追加
+            self.examples.append(TypoInferenceExample(example_id=example_id, pre_text=""))
 
     def __len__(self) -> int:
         return len(self.examples)
@@ -43,7 +46,7 @@ class TypoInferenceDataset(Dataset):
     def encode(self, example_id: int) -> Dict[str, torch.Tensor]:
         example = self.examples[example_id]
         encoding: BatchEncoding = self.tokenizer(
-            example["pre_text"] + DUMMY_TOKEN,
+            example.pre_text + DUMMY_TOKEN,
             truncation=True,
             padding=PaddingStrategy.MAX_LENGTH,
             max_length=self.max_seq_length,
