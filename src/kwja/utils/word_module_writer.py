@@ -1,5 +1,5 @@
 from logging import getLogger
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 import numpy as np
 import torch
@@ -8,8 +8,7 @@ from rhoknp.cohesion import ExophoraReferent, RelTag, RelTagList
 from rhoknp.props import DepType, NamedEntity, NamedEntityCategory
 from transformers import PreTrainedTokenizerBase
 
-from kwja.datamodule.examples import CohesionTask
-from kwja.datamodule.extractors.base import Extractor
+from kwja.utils.cohesion_analysis import CohesionUtils
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TAGS,
@@ -25,6 +24,7 @@ from kwja.utils.constants import (
     POS_TAGS,
     SUBPOS_TAGS,
     WORD_FEATURES,
+    CohesionTask,
 )
 from kwja.utils.dependency_parsing import DependencyManager
 from kwja.utils.reading_prediction import get_word_level_readings
@@ -250,11 +250,11 @@ def add_dependency(
     sentence: Sentence,
     dependency_predictions: List[List[int]],
     dependency_type_predictions: List[List[int]],
-    special_to_index: Dict[str, int],
+    special_token2index: Dict[str, int],
 ) -> None:
     base_phrases = sentence.base_phrases
     morpheme_global_index2base_phrase_index = {m.global_index: bp.index for bp in base_phrases for m in bp.morphemes}
-    morpheme_global_index2base_phrase_index[special_to_index["[ROOT]"]] = -1
+    morpheme_global_index2base_phrase_index[special_token2index["[ROOT]"]] = -1
     dependency_manager = DependencyManager()
     for base_phrase in base_phrases:
         for parent_morpheme_global_index, dependency_type_index in zip(
@@ -311,72 +311,63 @@ def _resolve_dependency(base_phrase: BasePhrase, dependency_manager: DependencyM
     raise RuntimeError("couldn't resolve dependency")
 
 
-# TODO
 def add_cohesion(
     document: Document,
-    cohesion_logits: List[List[List[int]]],  # (rel, src, dst)
-    task_to_rel_types: Dict[CohesionTask, List[str]],
-    exophora_referents: List[ExophoraReferent],
-    index_to_special: Dict[int, str],
-    task_to_extractors: Dict[CohesionTask, Extractor],
+    cohesion_logits: List[List[List[float]]],  # (rel, src, tgt)
+    cohesion_task2utils: Dict[CohesionTask, CohesionUtils],
+    index2special_token: Dict[int, str],
 ) -> None:
-    all_rel_types = [t for ts in task_to_rel_types.values() for t in ts]
-    for base_phrase in document.base_phrases:
-        base_phrase.rel_tags.clear()
-        rel_tags = _to_rels(
-            [logits[base_phrase.head.global_index] for logits in cohesion_logits],
-            document.base_phrases,
-            all_rel_types,
-            exophora_referents,
-            index_to_special,
-        )
-        for task, rel_types in task_to_rel_types.items():
-            extractor = task_to_extractors[task]
-            if extractor.is_target(base_phrase):
-                base_phrase.rel_tags += [rel for rel in rel_tags if rel.type in rel_types]
+    flatten_rels = [r for cohesion_utils in cohesion_task2utils.values() for r in cohesion_utils.rels]
+    base_phrases = document.base_phrases
+    for base_phrase in base_phrases:
+        rel_tags = RelTagList()
+        for cohesion_utils in cohesion_task2utils.values():
+            if cohesion_utils.is_target(base_phrase):
+                for rel in cohesion_utils.rels:
+                    rel_tag = _to_rel_tag(
+                        rel,
+                        cohesion_logits[flatten_rels.index(rel)][base_phrase.head.global_index],  # (tgt, )
+                        base_phrases,
+                        index2special_token,
+                        cohesion_utils.exophora_referents,
+                    )
+                    if rel_tag is not None:
+                        rel_tags.append(rel_tag)
+        base_phrase.rel_tags = rel_tags
 
 
-# TODO
-def _to_rels(
-    rel_logits: List[List[int]],  # (rel, tgt)
+def _to_rel_tag(
+    rel: str,
+    rel_logits: List[float],  # (tgt, )
     base_phrases: List[BasePhrase],
-    rel_types: List[str],
+    index2special_token: Dict[int, str],
     exophora_referents: List[ExophoraReferent],
-    index_to_special: Dict[int, str],
-) -> RelTagList:
-    rel_tags = RelTagList()
-    assert len(rel_types) == len(rel_logits)
-    for relation, logits in zip(rel_types, rel_logits):
-        head_logits = [logits[base_phrase.head.global_index] for base_phrase in base_phrases] + [
-            logits[index] for index in index_to_special.keys()
-        ]
-        base_phrase_index: int = np.argmax(head_logits).item()
-        if 0 <= base_phrase_index < len(base_phrases):
-            # endophora
-            prediction = base_phrases[base_phrase_index]
-            rel_tags.append(
-                RelTag(
-                    type=relation,
-                    target=prediction.head.text,
-                    sid=prediction.sentence.sid,
-                    base_phrase_index=prediction.index,
-                    mode=None,
-                )
+) -> Optional[RelTag]:
+    logits = [rel_logits[bp.head.global_index] for bp in base_phrases] + [rel_logits[i] for i in index2special_token]
+    predicted_antecedent_index: int = np.argmax(logits).item()
+    if 0 <= predicted_antecedent_index < len(base_phrases):
+        # endophora
+        predicted_antecedent = base_phrases[predicted_antecedent_index]
+        return RelTag(
+            type=rel,
+            target=predicted_antecedent.head.text,
+            sid=predicted_antecedent.sentence.sid,
+            base_phrase_index=predicted_antecedent.index,
+            mode=None,
+        )
+    else:
+        # exophora
+        special_token = list(index2special_token.values())[predicted_antecedent_index - len(base_phrases)]
+        if special_token in [str(e) for e in exophora_referents]:  # exclude [NULL], [NA], and [ROOT]
+            return RelTag(
+                type=rel,
+                target=special_token,
+                sid=None,
+                base_phrase_index=None,
+                mode=None,
             )
         else:
-            # exophora
-            special_token = list(index_to_special.values())[base_phrase_index - len(base_phrases)]
-            if special_token in [str(e) for e in exophora_referents]:  # exclude [NULL], [NA], and [ROOT]
-                rel_tags.append(
-                    RelTag(
-                        type=relation,
-                        target=special_token,
-                        sid=None,
-                        base_phrase_index=None,
-                        mode=None,
-                    )
-                )
-    return rel_tags
+            return None
 
 
 def add_discourse(document: Document, discourse_predictions: List[List[int]]) -> None:

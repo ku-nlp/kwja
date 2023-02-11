@@ -146,7 +146,9 @@ class WordModuleWriter(BasePredictionWriter):
             for sentence in extract_target_sentences(predicted_document):
                 add_named_entities(sentence, ne_predictions)
                 add_base_phrase_features(sentence, base_phrase_feature_probabilities)
-                add_dependency(sentence, dependency_predictions, dependency_type_predictions, dataset.special_to_index)
+                add_dependency(
+                    sentence, dependency_predictions, dependency_type_predictions, dataset.special_token2index
+                )
             orig_doc_id = to_orig_doc_id(document.doc_id)
             # 解析済みの文とマージ
             sentences: List[Sentence] = [
@@ -157,10 +159,8 @@ class WordModuleWriter(BasePredictionWriter):
             add_cohesion(
                 predicted_document,
                 cohesion_logits,
-                dataset.cohesion_task_to_rel_types,
-                dataset.exophora_referents,
-                dataset.index_to_special,
-                dataset.extractors,
+                dataset.cohesion_task2utils,
+                dataset.index2special_token,
             )
             if WordTask.DISCOURSE_PARSING in pl_module.training_tasks:
                 add_discourse(predicted_document, discourse_predictions)
