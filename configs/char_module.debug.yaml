@@ -11,7 +11,7 @@ defaults:
   - trainer: debug
   - _self_
 
-max_seq_length: 128
+max_seq_length: 256
 do_predict_after_train: true
 checkpoint_path: ""
 document_split_stride: -1
