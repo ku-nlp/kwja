@@ -4,12 +4,13 @@ from typing import Literal, Optional, Tuple
 import torch
 import torch.nn as nn
 
-from kwja.utils.constants import MASKED, NE_TAGS
+from kwja.utils.constants import MASKED
 
 
 class CRF(nn.Module):
     def __init__(self, tags: Tuple[str, ...]) -> None:
         super().__init__()
+        self.tags = tags
         self.num_tags = len(tags)
 
         self.start_transitions = nn.Parameter(torch.empty(self.num_tags))
@@ -65,10 +66,11 @@ class CRF(nn.Module):
         batch_size, seq_len = tags.shape
         indices = torch.arange(batch_size)
 
-        heads = torch.amin(torch.arange(seq_len, device=mask.device) * mask + seq_len * (1 - mask), dim=1)
+        arange = torch.arange(seq_len, device=mask.device)
+        heads = torch.amin(arange * mask + seq_len * (1 - mask), dim=1)
         head_tags = tags[indices, heads]
         min_head = int(heads.min())
-        tails = torch.amax(torch.arange(seq_len, device=mask.device) * mask, dim=1)
+        tails = torch.amax(arange * mask, dim=1)
         tail_tags = tags[indices, tails]
         max_tail = int(tails.max())
 
@@ -86,9 +88,10 @@ class CRF(nn.Module):
         batch_size, seq_len, *_ = emissions.shape
         indices = torch.arange(batch_size)
 
-        heads = torch.amin(torch.arange(seq_len, device=mask.device) * mask + seq_len * (1 - mask), dim=1)
+        arange = torch.arange(seq_len, device=mask.device)
+        heads = torch.amin(arange * mask + seq_len * (1 - mask), dim=1)
         min_head = int(heads.min())
-        tails = torch.amax(torch.arange(seq_len, device=mask.device) * mask, dim=1)
+        tails = torch.amax(arange * mask, dim=1)
         max_tail = int(tails.max())
 
         score = self.start_transitions + emissions[indices, heads]  # (b, num_tags)
@@ -121,7 +124,7 @@ class CRF(nn.Module):
             broadcast_emissions = emissions[:, j].unsqueeze(1)  # (b, 1, num_tags)
             next_score = broadcast_score + self.transitions + broadcast_emissions  # (b, num_tags, num_tags)
             next_score, max_indices = next_score.max(dim=1)  # (b, num_tags)
-            score = torch.where(condition.unsqueeze(1), next_score, score)  # (batch_size, num_tags)
+            score = torch.where(condition.unsqueeze(1), next_score, score)  # (b, num_tags)
             history.append(max_indices)
         score += self.end_transitions  # (b, num_tags)
 
@@ -134,9 +137,9 @@ class CRF(nn.Module):
             for max_indices in history[span][::-1]:
                 best_tag = max_indices[i][best_tags[-1]]
                 best_tags.append(best_tag.item())
-            best_tags += [NE_TAGS.index("O")] * head
+            best_tags += [self.tags.index("O")] * head
             best_tags = best_tags[::-1]
-            best_tags += [NE_TAGS.index("O")] * (seq_len - tail - 1)
+            best_tags += [self.tags.index("O")] * (seq_len - tail - 1)
             assert len(best_tags) == seq_len, "the length of decoded sequence is inconsistent with max seq length"
             batch_best_tags.append(best_tags)
 
