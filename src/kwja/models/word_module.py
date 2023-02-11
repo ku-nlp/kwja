@@ -12,6 +12,7 @@ from kwja.evaluators.word_module_metric import WordModuleMetric
 from kwja.models.components.crf import CRF
 from kwja.models.components.head import SequenceLabelingHead, WordSelectionHead
 from kwja.models.components.pooling import PoolingStrategy, pool_subwords
+from kwja.utils.cohesion_analysis import BridgingUtils, CoreferenceUtils, PasUtils
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TAGS,
@@ -24,6 +25,7 @@ from kwja.utils.constants import (
     RESOURCE_PATH,
     SUBPOS_TAGS,
     WORD_FEATURES,
+    CohesionTask,
     WordTask,
 )
 from kwja.utils.loss import compute_multi_label_sequence_mean_loss, compute_sequence_mean_loss, mask_logits
@@ -62,48 +64,58 @@ class WordModule(pl.LightningModule):
         # ---------- reading prediction ----------
         reading2reading_id: Dict[str, int] = get_reading2reading_id(RESOURCE_PATH / "reading_prediction" / "vocab.txt")
         self.reading_id2reading: Dict[int, str] = {v: k for k, v in reading2reading_id.items()}
-        self.reading_tagger: SequenceLabelingHead = SequenceLabelingHead(len(reading2reading_id), *head_args)
+        self.reading_tagger = SequenceLabelingHead(len(reading2reading_id), *head_args)
 
-        # ---------- word analysis ----------
-        self.pos_tagger: SequenceLabelingHead = SequenceLabelingHead(len(POS_TAGS), *head_args)
-        self.subpos_tagger: SequenceLabelingHead = SequenceLabelingHead(len(SUBPOS_TAGS), *head_args)
-        self.conjtype_tagger: SequenceLabelingHead = SequenceLabelingHead(len(CONJTYPE_TAGS), *head_args)
-        self.conjform_tagger: SequenceLabelingHead = SequenceLabelingHead(len(CONJFORM_TAGS), *head_args)
+        # ---------- morphological analysis ----------
+        self.pos_tagger = SequenceLabelingHead(len(POS_TAGS), *head_args)
+        self.subpos_tagger = SequenceLabelingHead(len(SUBPOS_TAGS), *head_args)
+        self.conjtype_tagger = SequenceLabelingHead(len(CONJTYPE_TAGS), *head_args)
+        self.conjform_tagger = SequenceLabelingHead(len(CONJFORM_TAGS), *head_args)
 
         # ---------- word feature tagging ----------
-        self.word_feature_tagger: SequenceLabelingHead = SequenceLabelingHead(
-            len(WORD_FEATURES), *head_args, multi_label=True
-        )
+        self.word_feature_tagger = SequenceLabelingHead(len(WORD_FEATURES), *head_args, multi_label=True)
 
         # ---------- named entity recognition ----------
-        self.ne_tagger: SequenceLabelingHead = SequenceLabelingHead(len(NE_TAGS), *head_args)
-        self.crf: CRF = CRF(NE_TAGS)
+        self.ne_tagger = SequenceLabelingHead(len(NE_TAGS), *head_args)
+        self.crf = CRF(NE_TAGS)
 
         # ---------- base phrase feature tagging ----------
-        self.base_phrase_feature_tagger: SequenceLabelingHead = SequenceLabelingHead(
-            len(BASE_PHRASE_FEATURES), *head_args, multi_label=True
-        )
+        self.base_phrase_feature_tagger = SequenceLabelingHead(len(BASE_PHRASE_FEATURES), *head_args, multi_label=True)
 
         # ---------- dependency parsing ----------
         self.topk: int = hparams.dependency_topk
-        self.dependency_parser: WordSelectionHead = WordSelectionHead(1, *head_args)
-        self.dependency_type_parser: SequenceLabelingHead = SequenceLabelingHead(
+        self.dependency_parser = WordSelectionHead(1, *head_args)
+        self.dependency_type_parser = SequenceLabelingHead(
             len(DEPENDENCY_TYPES),
             pretrained_model_config.hidden_size * 2,
             pretrained_model_config.hidden_dropout_prob,
         )
 
         # ---------- cohesion analysis ----------
-        num_relations: int = (
-            int("pas_analysis" in hparams.cohesion_tasks) * len(hparams.pas_cases)
-            + int("coreference" in hparams.cohesion_tasks)
-            + int("bridging" in hparams.cohesion_tasks)
-        )
-        self.cohesion_analyzer: WordSelectionHead = WordSelectionHead(num_relations, *head_args)
+        self.cohesion_analyzer = WordSelectionHead(self._get_num_cohesion_rels(hparams), *head_args)
 
         # ---------- discourse parsing ----------
         self.discourse_parsing_threshold: float = hparams.discourse_parsing_threshold
-        self.discourse_parser: WordSelectionHead = WordSelectionHead(len(DISCOURSE_RELATIONS), *head_args)
+        self.discourse_parser = WordSelectionHead(len(DISCOURSE_RELATIONS), *head_args)
+
+    @staticmethod
+    def _get_num_cohesion_rels(hparams: DictConfig) -> int:
+        num_cohesion_rels = 0
+        kwargs = {
+            "exophora_referents": hparams.exophora_referents,
+            "restrict_target": hparams.restrict_cohesion_target,
+        }
+        for cohesion_task in [CohesionTask(t) for t in hparams.cohesion_tasks]:
+            if cohesion_task == CohesionTask.PAS_ANALYSIS:
+                pas_utils = PasUtils(hparams.pas_cases, "all", **kwargs)
+                num_cohesion_rels += len(pas_utils.rels)
+            elif cohesion_task == CohesionTask.BRIDGING_REFERENCE_RESOLUTION:
+                bridging_utils = BridgingUtils(hparams.br_cases, **kwargs)
+                num_cohesion_rels += len(bridging_utils.rels)
+            elif cohesion_task == CohesionTask.COREFERENCE_RESOLUTION:
+                coreference_utils = CoreferenceUtils(**kwargs)
+                num_cohesion_rels += len(coreference_utils.rels)
+        return num_cohesion_rels
 
     def forward(self, batch: Any) -> Dict[str, torch.Tensor]:
         # (b, seq_len, hidden_size)
@@ -202,8 +214,8 @@ class WordModule(pl.LightningModule):
 
         if WordTask.COHESION_ANALYSIS in self.training_tasks:
             log_softmax = torch.log_softmax(ret["cohesion_logits"], dim=3)  # (b, rel, seq, seq)
-            denominator = batch["cohesion_target"].sum() + 1e-6
-            cohesion_analysis_loss = (-log_softmax * batch["cohesion_target"]).sum().div(denominator)
+            denominator = batch["cohesion_labels"].sum() + 1e-6
+            cohesion_analysis_loss = (-log_softmax * batch["cohesion_labels"]).sum().div(denominator)
             loss += cohesion_analysis_loss
             self.log("train/cohesion_analysis_loss", cohesion_analysis_loss)
 
@@ -273,8 +285,8 @@ class WordModule(pl.LightningModule):
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Dict[str, torch.Tensor]:
         ret: Dict[str, torch.Tensor] = self(batch)
         ne_predictions = self.crf.viterbi_decode(ret["ne_logits"], batch["target_mask"])
-        discourse_probabilities = ret["discourse_logits"].softmax(dim=-1)
-        discourse_max_probabilities, discourse_predictions = discourse_probabilities.max(dim=-1)
+        discourse_probabilities = ret["discourse_logits"].softmax(dim=3)
+        discourse_max_probabilities, discourse_predictions = discourse_probabilities.max(dim=3)
         discourse_unconfident_indices = discourse_max_probabilities < self.discourse_parsing_threshold
         discourse_predictions[discourse_unconfident_indices] = DISCOURSE_RELATIONS.index("談話関係なし")
         return {
