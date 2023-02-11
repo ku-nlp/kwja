@@ -34,7 +34,8 @@ class DependencyManager:
     def has_cycle(self) -> bool:
         visited: Set[int] = set()
         cache: Dict[int, bool] = {}
-        for source in self.directed_graph.keys():
+        # cast keys to list to avoid RuntimeError: dictionary changed size during iteration
+        for source in list(self.directed_graph.keys()):
             if self.is_cyclic(source, visited, cache):
                 return True
         return False
