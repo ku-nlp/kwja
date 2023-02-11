@@ -18,8 +18,8 @@ class TypoDataset(Dataset):
     def __init__(
         self,
         path: str,
-        extended_vocab_path: str,
         tokenizer: PreTrainedTokenizerBase,
+        extended_vocab_path: str,
         max_seq_length: int = 512,
     ) -> None:
         self.path = Path(path)

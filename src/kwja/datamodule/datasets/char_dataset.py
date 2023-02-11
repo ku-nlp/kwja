@@ -37,8 +37,8 @@ class CharDataset(BaseDataset):
     def __init__(
         self,
         path: str,
-        document_split_stride: int,
         tokenizer: PreTrainedTokenizerBase,
+        document_split_stride: int,
         max_seq_length: int = 512,
         denormalize_probability: float = 0.0,
     ) -> None:

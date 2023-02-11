@@ -29,8 +29,8 @@ class CharInferenceDataset(BaseDataset):
     def __init__(
         self,
         texts: ListConfig,
-        document_split_stride: int,
         tokenizer: PreTrainedTokenizerBase,
+        document_split_stride: int,
         max_seq_length: int = 512,
         doc_id_prefix: Optional[str] = None,
         **_,

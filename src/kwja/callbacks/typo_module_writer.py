@@ -17,8 +17,8 @@ class TypoModuleWriter(BasePredictionWriter):
         self,
         output_dir: str,
         confidence_threshold: float,
-        extended_vocab_path: str,
         tokenizer: PreTrainedTokenizerBase,
+        extended_vocab_path: str,
         use_stdout: bool = False,
         output_filename: str = "predict",
     ) -> None:
