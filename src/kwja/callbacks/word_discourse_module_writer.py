@@ -7,7 +7,6 @@ from typing import Any, Optional, Sequence, TextIO, Union
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import BasePredictionWriter
-from rhoknp import Document
 
 from kwja.datamodule.datasets import WordDataset, WordInferenceDataset
 from kwja.datamodule.datasets.word_dataset import WordExampleSet
@@ -53,7 +52,7 @@ class WordDiscourseModuleWriter(BasePredictionWriter):
             example: Union[WordExampleSet, WordInferenceExample] = dataset.examples[example_id]
             document = dataset.doc_id2document[example.doc_id]
             # メモリリーク対策
-            predicted_document = Document.from_sentences(document.sentences)
+            predicted_document = document.reparse()
             predicted_document.doc_id = document.doc_id
             for predicted_sentence, sentence in zip(predicted_document.sentences, document.sentences):
                 predicted_sentence.comment = sentence.comment
