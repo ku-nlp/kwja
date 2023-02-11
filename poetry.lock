@@ -819,7 +819,7 @@ files = [
 name = "levenshtein"
 version = "0.20.9"
 description = "Python extension for computing string edit distances and similarities."
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.6"
 files = [
@@ -1598,7 +1598,7 @@ files = [
 name = "rapidfuzz"
 version = "2.13.7"
 description = "rapid fuzzy string matching"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.7"
 files = [
@@ -2628,4 +2628,4 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.11"
-content-hash = "56c75d5fd9ef6ef19c682d729dac987fd70574381f2492754229851f6cdde19e"
+content-hash = "1a0b624f06850039be4a4d028b895cf83d7f13d4b10fba0783de61e72b8fa608"
