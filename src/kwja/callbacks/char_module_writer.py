@@ -6,7 +6,6 @@ from typing import Any, Optional, Sequence, TextIO, Union
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import BasePredictionWriter
-from rhoknp import Document
 
 from kwja.datamodule.datasets import CharDataset, CharInferenceDataset
 from kwja.datamodule.datasets.char_dataset import CharExampleSet
@@ -45,23 +44,24 @@ class CharModuleWriter(BasePredictionWriter):
         dataset: Union[CharDataset, CharInferenceDataset] = dataloaders[dataloader_idx].dataset
 
         special_ids = set(dataset.tokenizer.all_special_ids) - {dataset.tokenizer.unk_token_id}
-        for example_id, input_ids, word_segmentation_predictions, word_norm_op_predictions in zip(
+        for example_id, word_segmentation_predictions, word_norm_op_predictions in zip(
             prediction["example_ids"],
-            prediction["input_ids"].tolist(),
             prediction["word_segmentation_predictions"].tolist(),
             prediction["word_norm_op_predictions"].tolist(),
         ):
             example: Union[CharExampleSet, CharInferenceExample] = dataset.examples[example_id]
             document = dataset.doc_id2document[example.doc_id]
             # メモリリーク対策
-            predicted_document = Document.from_sentences(document.sentences)
+            predicted_document = document.reparse()
             predicted_document.doc_id = document.doc_id
             for predicted_sentence, sentence in zip(predicted_document.sentences, document.sentences):
                 predicted_sentence.comment = sentence.comment
 
-            assert len(input_ids) == len(word_segmentation_predictions) == len(word_norm_op_predictions)
+            assert (
+                len(example.encoding.input_ids) == len(word_segmentation_predictions) == len(word_norm_op_predictions)
+            )
             word_segmentation_tags, word_norm_op_tags = convert_predictions_into_tags(
-                word_segmentation_predictions, word_norm_op_predictions, input_ids, special_ids
+                word_segmentation_predictions, word_norm_op_predictions, example.encoding.input_ids, special_ids
             )
             set_morphemes(predicted_document, word_segmentation_tags, word_norm_op_tags)
 
