@@ -168,20 +168,20 @@ class WordDataset(BaseDataset):
         # ---------- reading prediction ----------
         reading_labels = [IGNORE_INDEX] * self.max_seq_length
         if example.readings is not None:
-            non_special_token_indices = [
-                token_index
+            token_indices = [
+                (token_index, word_id)
                 for token_index, word_id in enumerate(merged_encoding.word_ids)
                 if token_index not in self.index2special_token and word_id is not None
             ]
-            for i, non_special_token_index in enumerate(non_special_token_indices):
-                reading = example.readings[i]
-                decoded_token = self.tokenizer.decode(merged_encoding.ids[non_special_token_index])
-                if reading == decoded_token:
-                    reading_labels[non_special_token_index] = self.reading2reading_id["[ID]"]
-                else:
-                    reading_labels[non_special_token_index] = self.reading2reading_id.get(
-                        reading, self.reading2reading_id["[UNK]"]
-                    )
+            for (token_index, word_id), reading in zip(token_indices, example.readings):
+                if target_mask[word_id] == 1:
+                    decoded_token = self.tokenizer.decode(merged_encoding.ids[token_index])
+                    if decoded_token == reading:
+                        reading_labels[token_index] = self.reading2reading_id["[ID]"]
+                    else:
+                        reading_labels[token_index] = self.reading2reading_id.get(
+                            reading, self.reading2reading_id["[UNK]"]
+                        )
 
         # NOTE: hereafter, indices are given at the word level
 
