@@ -302,11 +302,11 @@ class WordDataset(BaseDataset):
         cohesion_mask: List[List[List[bool]]] = []  # (rel, src, tgt)
         for cohesion_task, cohesion_utils in self.cohesion_task2utils.items():
             cohesion_base_phrases = cohesion_example.task2base_phrases[cohesion_task]
-            rel_mask = self._convert_cohesion_base_phrases_into_rel_mask(cohesion_base_phrases)
             for rel in cohesion_utils.rels:
                 rel_labels = self._convert_cohesion_base_phrases_into_rel_labels(cohesion_base_phrases, rel)
                 cohesion_labels.append(rel_labels)
-                cohesion_mask.append(rel_mask)
+            rel_mask = self._convert_cohesion_base_phrases_into_rel_mask(cohesion_base_phrases)
+            cohesion_mask.extend([rel_mask] * len(cohesion_utils.rels))
 
         # ---------- discourse parsing ----------
         discourse_example = example.discourse_example
@@ -365,23 +365,6 @@ class WordDataset(BaseDataset):
     def special_indices(self) -> List[int]:
         return list(self.special_token2index.values())
 
-    def _convert_cohesion_base_phrases_into_rel_mask(
-        self,
-        cohesion_base_phrases: List[CohesionBasePhrase],
-    ) -> List[List[bool]]:
-        rel_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
-        for cohesion_base_phrase in cohesion_base_phrases:
-            if cohesion_base_phrase.is_target is False:
-                continue
-            assert cohesion_base_phrase.antecedent_candidates is not None, "antecedent_candidates isn't set"
-
-            for morpheme in cohesion_base_phrase.morphemes:
-                for antecedent_candidate in cohesion_base_phrase.antecedent_candidates:
-                    rel_mask[morpheme.global_index][antecedent_candidate.head.global_index] = True
-                for cohesion_special_index in self.cohesion_special_indices:
-                    rel_mask[morpheme.global_index][cohesion_special_index] = True
-        return rel_mask
-
     def _convert_cohesion_base_phrases_into_rel_labels(
         self,
         cohesion_base_phrases: List[CohesionBasePhrase],
@@ -392,8 +375,6 @@ class WordDataset(BaseDataset):
             if cohesion_base_phrase.is_target is False:
                 continue
             assert cohesion_base_phrase.rel2tags is not None, "rel2tags isn't set"
-
-            head_morpheme = cohesion_base_phrase.head
             for tag in cohesion_base_phrase.rel2tags[rel]:
                 # tag: 著者, 8%C, 15%O, 2, [NULL], ...
                 if tag[-2:] in ("%C", "%N", "%O"):
@@ -404,5 +385,21 @@ class WordDataset(BaseDataset):
                 else:
                     # int(tag) = base phrase global index
                     target_morpheme_global_index = cohesion_base_phrases[int(tag)].head.global_index
-                rel_labels[head_morpheme.global_index][target_morpheme_global_index] = 1
+                rel_labels[cohesion_base_phrase.head.global_index][target_morpheme_global_index] = 1
         return rel_labels
+
+    def _convert_cohesion_base_phrases_into_rel_mask(
+        self,
+        cohesion_base_phrases: List[CohesionBasePhrase],
+    ) -> List[List[bool]]:
+        rel_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
+        for cohesion_base_phrase in cohesion_base_phrases:
+            if cohesion_base_phrase.is_target is False:
+                continue
+            assert cohesion_base_phrase.antecedent_candidates is not None, "antecedent_candidates isn't set"
+            for morpheme in cohesion_base_phrase.morphemes:
+                for antecedent_candidate in cohesion_base_phrase.antecedent_candidates:
+                    rel_mask[morpheme.global_index][antecedent_candidate.head.global_index] = True
+                for cohesion_special_index in self.cohesion_special_indices:
+                    rel_mask[morpheme.global_index][cohesion_special_index] = True
+        return rel_mask

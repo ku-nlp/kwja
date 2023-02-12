@@ -172,12 +172,13 @@ class WordInferenceDataset(BaseDataset):
         for cohesion_task, cohesion_utils in self.cohesion_task2utils.items():
             rel_mask: List[List[bool]] = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
             for morpheme in morphemes:
-                for antecedent_candidate in cohesion_utils.get_antecedent_candidates(morpheme, morphemes):
-                    rel_mask[morpheme.global_index][antecedent_candidate.global_index] = True
+                for antecedent_candidate_morpheme in cohesion_utils.get_antecedent_candidate_morphemes(
+                    morpheme, morphemes
+                ):
+                    rel_mask[morpheme.global_index][antecedent_candidate_morpheme.global_index] = True
                 for cohesion_special_index in self.cohesion_special_indices:
                     rel_mask[morpheme.global_index][cohesion_special_index] = True
-            for _ in cohesion_utils.rels:
-                cohesion_mask.append(rel_mask)
+            cohesion_mask.extend([rel_mask] * len(cohesion_utils.rels))
 
         merged_encoding: Encoding = Encoding.merge([example.encoding, self.special_encoding])
 
