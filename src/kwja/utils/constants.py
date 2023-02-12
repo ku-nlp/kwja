@@ -20,6 +20,7 @@ SPLIT_INTO_WORDS_MODEL_NAMES = [
     "nlp-waseda/roberta-large-japanese-seq512",
 ]
 
+
 # ---------- typo module ----------
 TYPO_CORR_OP_TAG2TOKEN = {
     "K": "<k>",
@@ -29,12 +30,15 @@ TYPO_CORR_OP_TAG2TOKEN = {
 TOKEN2TYPO_CORR_OP_TAG: Dict[str, str] = {v: k for k, v in TYPO_CORR_OP_TAG2TOKEN.items()}
 DUMMY_TOKEN = "<dummy>"
 
+
 # ---------- char module|word segmentation ----------
 WORD_SEGMENTATION_TAGS = ("B", "I")
+
 
 # ---------- char module|word normalization ----------
 WORD_NORM_OP_TAGS = ("K", "D", "V", "S", "P", "E")
 IGNORE_WORD_NORM_OP_TAG = "_"
+
 
 # ---------- char module|word normalization & word module|reading prediction ----------
 # "ー" (U+30FC): Katakana-Hiragana Prolonged Sound Mark (全角長音)
@@ -186,6 +190,7 @@ PROLONGED_MAP_FOR_EROW = {
     "れ": "え",
 }
 
+
 # ---------- char module|text normalization ----------
 # 制御文字(\t,\nを含む)は削除
 TRANSLATION_TABLE: Dict[int, Optional[int]] = str.maketrans(
@@ -216,6 +221,7 @@ UNK = "[UNK]"
 ID = "[ID]"
 UNK_ID = 0
 ID_ID = 1
+
 
 # ---------- word module|morphological analysis ----------
 # 品詞
@@ -1030,14 +1036,17 @@ INFLECTABLE = {
 }
 INFLECTABLE |= {("接尾辞", subpos_tag) for subpos_tag in ["形容詞性述語接尾辞", "形容詞性名詞接尾辞", "動詞性接尾辞"]}
 
+
 # ---------- word module|word feature tagging ----------
 SUB_WORD_FEATURES = ("用言表記先頭", "用言表記末尾")  # メンテナンスしない単語素性
 WORD_FEATURES: Tuple[str, ...] = ("基本句-主辞", "基本句-区切", "文節-区切", *SUB_WORD_FEATURES)
+
 
 # ---------- word module|ner ----------
 NE_TAGS: Tuple[str, ...] = sum(
     [(f"B-{cat.value}", f"I-{cat.value}") for cat in NamedEntityCategory if cat != NamedEntityCategory.OPTIONAL], ("O",)
 )
+
 
 # ---------- word module|base phrase feature tagging ----------
 SUB_BASE_PHRASE_FEATURES = (  # メンテナンスしない基本句素性
@@ -1118,8 +1127,10 @@ BASE_PHRASE_FEATURES = (
 )
 IGNORE_VALUE_FEATURE_PAT = re.compile(r"節-(前向き)?機能疑?")
 
+
 # ---------- word module|dependency parsing ----------
 DEPENDENCY_TYPES: Tuple[DepType, ...] = tuple(DepType)
+
 
 # ---------- word module|discourse parsing ----------
 DISCOURSE_RELATION_MAP = {
