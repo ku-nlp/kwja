@@ -7,7 +7,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from Levenshtein import opcodes
 
@@ -211,7 +211,7 @@ def main():
 
     preprocessor: TypoPreprocessor = TypoPreprocessor()
     for filename in ["test", "train"]:
-        category2obj = defaultdict(List[str])
+        category2obj: Dict[str, List[str]] = defaultdict(list)
         other_objs: List[str] = []
         with Path(f"{args.input_dir}/{filename}.jsonl").open("r") as f:
             for line in f:
