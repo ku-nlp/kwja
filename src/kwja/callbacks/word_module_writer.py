@@ -14,8 +14,7 @@ from rhoknp import Document, Morpheme, Sentence
 from rhoknp.props import SemanticsDict
 
 from kwja.datamodule.datasets import WordDataset, WordInferenceDataset
-from kwja.datamodule.datasets.word_dataset import WordExampleSet
-from kwja.datamodule.datasets.word_inference_dataset import WordInferenceExample
+from kwja.datamodule.examples import WordExample, WordInferenceExample
 from kwja.utils.constants import (
     CONJFORM_TAGS,
     CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID,
@@ -116,7 +115,8 @@ class WordModuleWriter(BasePredictionWriter):
             prediction["cohesion_logits"].tolist(),  # (b, rel, seq, seq)
             prediction["discourse_predictions"].tolist(),
         ):
-            example: Union[WordExampleSet, WordInferenceExample] = dataset.examples[example_id]
+            example: Union[WordExample, WordInferenceExample] = dataset.examples[example_id]
+            assert example.doc_id is not None, "doc_id isn't set"
             document = dataset.doc_id2document[example.doc_id]
 
             word_reading_predictions = get_word_reading_predictions(

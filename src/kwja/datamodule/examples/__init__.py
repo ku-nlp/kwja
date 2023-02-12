@@ -1,18 +1,9 @@
-from .base_phrase_feature import BasePhraseFeatureExample
-from .cohesion import CohesionExample, CohesionTask
-from .dependency import DependencyExample
-from .discourse import DiscourseExample
-from .reading import ReadingExample
-from .typo import TypoExample
-from .word_feature import WordFeatureExample
+from .typo import TypoExample, TypoInferenceExample
+from .word import WordExample, WordInferenceExample
 
 __all__ = [
-    "WordFeatureExample",
-    "BasePhraseFeatureExample",
-    "DependencyExample",
-    "CohesionExample",
-    "DiscourseExample",
-    "ReadingExample",
     "TypoExample",
-    "CohesionTask",
+    "TypoInferenceExample",
+    "WordExample",
+    "WordInferenceExample",
 ]

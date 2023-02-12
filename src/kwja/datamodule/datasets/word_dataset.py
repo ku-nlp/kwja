@@ -1,5 +1,4 @@
 import logging
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Literal, Union
 
@@ -12,14 +11,7 @@ from transformers import PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
 from kwja.datamodule.datasets.base_dataset import BaseDataset
-from kwja.datamodule.examples import (
-    BasePhraseFeatureExample,
-    CohesionExample,
-    DependencyExample,
-    DiscourseExample,
-    ReadingExample,
-    WordFeatureExample,
-)
+from kwja.datamodule.examples import WordExample
 from kwja.utils.cohesion_analysis import BridgingUtils, CohesionBasePhrase, CohesionUtils, CoreferenceUtils, PasUtils
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
@@ -44,19 +36,6 @@ from kwja.utils.sub_document import extract_target_sentences
 logger = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True)
-class WordExampleSet:
-    example_id: int
-    doc_id: str
-    encoding: Encoding
-    reading_example: ReadingExample
-    word_feature_example: WordFeatureExample
-    base_phrase_feature_example: BasePhraseFeatureExample
-    dependency_example: DependencyExample
-    cohesion_example: CohesionExample
-    discourse_example: DiscourseExample
-
-
 class WordDataset(BaseDataset):
     def __init__(
         self,
@@ -76,7 +55,6 @@ class WordDataset(BaseDataset):
             self.tokenizer_input_format: Literal["words", "text"] = "words"
         else:
             self.tokenizer_input_format = "text"
-
         super().__init__(self.path, tokenizer, max_seq_length, document_split_stride)
 
         # ---------- reading prediction ----------
@@ -121,7 +99,7 @@ class WordDataset(BaseDataset):
             add_special_tokens=False,
         ).encodings[0]
 
-        self.examples: List[WordExampleSet] = self._load_examples(self.documents)
+        self.examples: List[WordExample] = self._load_examples(self.documents)
 
     def __len__(self) -> int:
         return len(self.examples)
@@ -138,7 +116,7 @@ class WordDataset(BaseDataset):
         ).encodings[0]
         return len(encoding.ids)
 
-    def _load_examples(self, documents: List[Document]) -> List[WordExampleSet]:
+    def _load_examples(self, documents: List[Document]) -> List[WordExample]:
         examples = []
         example_id = 0
         for document in track(documents, description="Loading examples"):
@@ -155,47 +133,20 @@ class WordDataset(BaseDataset):
             if len(encoding.ids) > self.max_seq_length - self.num_special_tokens:
                 continue
 
-            reading_example = ReadingExample()
-            reading_example.load(document, aligner=self.reading_aligner)
-
-            word_feature_example = WordFeatureExample()
-            word_feature_example.load(document)
-
-            base_phrase_feature_example = BasePhraseFeatureExample()
-            base_phrase_feature_example.load(document)
-
-            dependency_example = DependencyExample()
-            dependency_example.load(document)
-
-            cohesion_example = CohesionExample()
-            cohesion_example.load(document, self.cohesion_task2utils)
-
-            discourse_example = DiscourseExample()
-            discourse_example.load(document, has_annotation=False)
-            path = self.path / "disc_expert" / f"{document.doc_id}.knp"
-            if not path.exists() and self.path.name == "train":
-                path = self.path / "disc_crowd" / f"{document.doc_id}.knp"
-            if path.exists():
+            word_example = WordExample(example_id, encoding)
+            word_example.load_document(document, self.reading_aligner, self.cohesion_task2utils)
+            discourse_path = self.path / "disc_expert" / f"{document.doc_id}.knp"
+            if not discourse_path.exists() and self.path.name == "train":
+                discourse_path = self.path / "disc_crowd" / f"{document.doc_id}.knp"
+            if discourse_path.exists():
                 try:
-                    discourse_document = Document.from_knp(path.read_text())
+                    discourse_document = Document.from_knp(discourse_path.read_text())
                     if document == discourse_document:
-                        discourse_example.load(discourse_document)
+                        word_example.load_discourse_document(discourse_document)
                 except AssertionError:
-                    logger.warning(f"{path} is not a valid KNP file")
+                    logger.warning(f"{discourse_path} is not a valid KNP file")
 
-            examples.append(
-                WordExampleSet(
-                    example_id=example_id,
-                    doc_id=document.doc_id,
-                    encoding=encoding,
-                    reading_example=reading_example,
-                    word_feature_example=word_feature_example,
-                    base_phrase_feature_example=base_phrase_feature_example,
-                    dependency_example=dependency_example,
-                    cohesion_example=cohesion_example,
-                    discourse_example=discourse_example,
-                )
-            )
+            examples.append(word_example)
             example_id += 1
         if len(examples) == 0:
             logger.error(
@@ -204,8 +155,9 @@ class WordDataset(BaseDataset):
             )
         return examples
 
-    def encode(self, example: WordExampleSet) -> Dict[str, torch.Tensor]:
+    def encode(self, example: WordExample) -> Dict[str, torch.Tensor]:
         merged_encoding: Encoding = Encoding.merge([example.encoding, self.special_encoding])
+        assert example.doc_id is not None, "doc_id isn't set"
         document = self.doc_id2document[example.doc_id]
 
         target_mask = [0 for _ in range(self.max_seq_length)]
@@ -214,16 +166,15 @@ class WordDataset(BaseDataset):
                 target_mask[morpheme.global_index] = 1
 
         # ---------- reading prediction ----------
-        reading_example = example.reading_example
         reading_labels = [IGNORE_INDEX] * self.max_seq_length
-        if reading_example.readings:
+        if example.readings is not None:
             non_special_token_indices = [
                 token_index
                 for token_index, word_id in enumerate(merged_encoding.word_ids)
-                if word_id is not None and token_index not in self.index2special_token
+                if token_index not in self.index2special_token and word_id is not None
             ]
-            for token_index, non_special_token_index in enumerate(non_special_token_indices):
-                reading = reading_example.readings[token_index]
+            for i, non_special_token_index in enumerate(non_special_token_indices):
+                reading = example.readings[i]
                 decoded_token = self.tokenizer.decode(merged_encoding.ids[non_special_token_index])
                 if reading == decoded_token:
                     reading_labels[non_special_token_index] = self.reading2reading_id["[ID]"]
@@ -235,12 +186,11 @@ class WordDataset(BaseDataset):
         # NOTE: hereafter, indices are given at the word level
 
         # ---------- morphological analysis ----------
-        word_feature_example = example.word_feature_example
         morpheme_attribute_tags_list = (POS_TAGS, SUBPOS_TAGS, CONJTYPE_TAGS, CONJFORM_TAGS)
         morpheme_attribute_labels = torch.tensor(
             [[IGNORE_INDEX] * len(morpheme_attribute_tags_list) for _ in range(self.max_seq_length)], dtype=torch.long
         )
-        for morpheme_global_index, morpheme_attributes in word_feature_example.global_index2attributes.items():
+        for morpheme_global_index, morpheme_attributes in example.morpheme_global_index2morpheme_attributes.items():
             for i, (morpheme_attribute, morpheme_attribute_tags) in enumerate(
                 zip(morpheme_attributes, morpheme_attribute_tags_list)
             ):
@@ -250,20 +200,16 @@ class WordDataset(BaseDataset):
 
         # ---------- word feature tagging ----------
         word_feature_labels = [[IGNORE_INDEX] * len(WORD_FEATURES) for _ in range(self.max_seq_length)]
-        for morpheme_global_index, word_feature_set in word_feature_example.global_index2feature_set.items():
+        for morpheme_global_index, word_feature_set in example.morpheme_global_index2word_feature_set.items():
             for i, word_feature in enumerate(WORD_FEATURES):
                 word_feature_labels[morpheme_global_index][i] = int(word_feature in word_feature_set)
 
         # ---------- ner ----------
         ne_labels: List[int] = [
-            (
-                NE_TAGS.index("O")
-                if morpheme_global_index in word_feature_example.global_index2feature_set.keys()
-                else IGNORE_INDEX
-            )
+            NE_TAGS.index("O") if target_mask[morpheme_global_index] == 1 else IGNORE_INDEX
             for morpheme_global_index in range(self.max_seq_length)
         ]
-        for named_entity in word_feature_example.named_entities:
+        for named_entity in example.named_entities:
             category = named_entity.category.value
             for i, morpheme in enumerate(named_entity.morphemes):
                 bi = "B" if i == 0 else "I"
@@ -272,36 +218,30 @@ class WordDataset(BaseDataset):
                 ne_labels[morpheme.global_index] = ne_index
 
         # ---------- base phrase feature tagging ----------
-        base_phrase_feature_example = example.base_phrase_feature_example
         base_phrase_feature_labels = [[IGNORE_INDEX] * len(BASE_PHRASE_FEATURES) for _ in range(self.max_seq_length)]
-        for (
-            head_morpheme_global_index,
-            feature_set,
-        ) in base_phrase_feature_example.head_morpheme_global_index2feature_set.items():
+        for morpheme_global_index, feature_set in example.morpheme_global_index2base_phrase_feature_set.items():
             for i, base_phrase_feature in enumerate(BASE_PHRASE_FEATURES):
-                base_phrase_feature_labels[head_morpheme_global_index][i] = int(base_phrase_feature in feature_set)
+                base_phrase_feature_labels[morpheme_global_index][i] = int(base_phrase_feature in feature_set)
 
         # ---------- dependency parsing ----------
-        dependency_example = example.dependency_example
         root_index = self.special_token2index["[ROOT]"]
         dependency_labels: List[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
-        for morpheme_global_index, dependency in dependency_example.global_index2dependency.items():
+        for morpheme_global_index, dependency in example.morpheme_global_index2dependency.items():
             dependency_labels[morpheme_global_index] = dependency if dependency >= 0 else root_index
         dependency_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
-        for morpheme_global_index, candidates in dependency_example.global_index2candidates.items():
-            for candidate_index in candidates + [root_index]:
-                dependency_mask[morpheme_global_index][candidate_index] = True
+        for morpheme_global_index, dependent_candidates in example.morpheme_global_index2dependent_candidates.items():
+            for dependent_candidate_index in dependent_candidates + [root_index]:
+                dependency_mask[morpheme_global_index][dependent_candidate_index] = True
         dependency_type_labels: List[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
-        for morpheme_global_index, dependency_type in dependency_example.global_index2dependency_type.items():
+        for morpheme_global_index, dependency_type in example.morpheme_global_index2dependency_type.items():
             dependency_type_index = DEPENDENCY_TYPES.index(dependency_type)
             dependency_type_labels[morpheme_global_index] = dependency_type_index
 
         # ---------- cohesion analysis ----------
-        cohesion_example = example.cohesion_example
         cohesion_labels: List[List[List[int]]] = []  # (rel, src, tgt)
         cohesion_mask: List[List[List[bool]]] = []  # (rel, src, tgt)
         for cohesion_task, cohesion_utils in self.cohesion_task2utils.items():
-            cohesion_base_phrases = cohesion_example.task2base_phrases[cohesion_task]
+            cohesion_base_phrases = example.cohesion_task2base_phrases[cohesion_task]
             for rel in cohesion_utils.rels:
                 rel_labels = self._convert_cohesion_base_phrases_into_rel_labels(cohesion_base_phrases, rel)
                 cohesion_labels.append(rel_labels)
@@ -309,13 +249,14 @@ class WordDataset(BaseDataset):
             cohesion_mask.extend([rel_mask] * len(cohesion_utils.rels))
 
         # ---------- discourse parsing ----------
-        discourse_example = example.discourse_example
         discourse_labels = [[IGNORE_INDEX for _ in range(self.max_seq_length)] for _ in range(self.max_seq_length)]
-        for modifier_morpheme_global_index, relations in enumerate(discourse_example.discourse_relations):
-            for head_morpheme_global_index, relation in enumerate(relations):
-                if relation in DISCOURSE_RELATIONS:
-                    discourse_index = DISCOURSE_RELATIONS.index(relation)
-                    discourse_labels[modifier_morpheme_global_index][head_morpheme_global_index] = discourse_index
+        for (
+            modifier_morpheme_global_index,
+            head_morpheme_global_index,
+        ), relation in example.morpheme_global_indices2discourse_relation.items():
+            if relation in DISCOURSE_RELATIONS:
+                discourse_index = DISCOURSE_RELATIONS.index(relation)
+                discourse_labels[modifier_morpheme_global_index][head_morpheme_global_index] = discourse_index
 
         return {
             "example_ids": torch.tensor(example.example_id, dtype=torch.long),

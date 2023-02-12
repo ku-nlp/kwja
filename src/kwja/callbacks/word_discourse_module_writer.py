@@ -9,8 +9,7 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import BasePredictionWriter
 
 from kwja.datamodule.datasets import WordDataset, WordInferenceDataset
-from kwja.datamodule.datasets.word_dataset import WordExampleSet
-from kwja.datamodule.datasets.word_inference_dataset import WordInferenceExample
+from kwja.datamodule.examples import WordExample, WordInferenceExample
 from kwja.utils.sub_document import extract_target_sentences
 from kwja.utils.word_module_writer import add_discourse
 
@@ -49,7 +48,8 @@ class WordDiscourseModuleWriter(BasePredictionWriter):
         for example_id, discourse_predictions in zip(
             prediction["example_ids"], prediction["discourse_predictions"].tolist()
         ):
-            example: Union[WordExampleSet, WordInferenceExample] = dataset.examples[example_id]
+            example: Union[WordExample, WordInferenceExample] = dataset.examples[example_id]
+            assert example.doc_id is not None, "doc_id isn't set"
             document = dataset.doc_id2document[example.doc_id]
             # メモリリーク対策
             predicted_document = document.reparse()

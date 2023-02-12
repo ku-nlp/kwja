@@ -1,5 +1,4 @@
 import logging
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Literal, Optional, Union
 
@@ -13,19 +12,13 @@ from transformers import PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
 from kwja.datamodule.datasets.base_dataset import BaseDataset
+from kwja.datamodule.examples import WordInferenceExample
 from kwja.utils.cohesion_analysis import BridgingUtils, CohesionUtils, CoreferenceUtils, PasUtils
 from kwja.utils.constants import SPLIT_INTO_WORDS_MODEL_NAMES, CohesionTask
 from kwja.utils.progress_bar import track
 from kwja.utils.sub_document import extract_target_sentences
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass(frozen=True)
-class WordInferenceExample:
-    example_id: int
-    doc_id: str
-    encoding: Encoding
 
 
 class WordInferenceDataset(BaseDataset):
@@ -137,8 +130,8 @@ class WordInferenceDataset(BaseDataset):
             examples.append(
                 WordInferenceExample(
                     example_id=example_id,
-                    doc_id=document.doc_id,
                     encoding=encoding,
+                    doc_id=document.doc_id,
                 )
             )
             example_id += 1
