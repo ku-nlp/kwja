@@ -9,7 +9,7 @@ from typing import Dict, List, Literal, Optional, Tuple, Union
 
 import jaconv
 import numpy as np
-from rhoknp import Document, Morpheme, Sentence
+from rhoknp import Document, Morpheme
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from kwja.utils.constants import (
@@ -49,29 +49,26 @@ class ReadingAligner:
         self.tokenizer_input_format = tokenizer_input_format
         self.kanji_dic = kanji_dic
 
-    def align(self, sequence: Union[Sentence, Document]) -> List[Tuple[str, str]]:
-        reading_list: List[str] = []
-
+    def align(self, morphemes: List[Morpheme]) -> List[str]:
         # assumption: morphemes are never combined
-        tokenizer_input: Union[List[str], str] = [m.text for m in sequence.morphemes]
+        tokenizer_input: Union[List[str], str] = [m.text for m in morphemes]
         if self.tokenizer_input_format == "text":
             tokenizer_input = " ".join(tokenizer_input)
         encoding = self.tokenizer(
             tokenizer_input, add_special_tokens=False, is_split_into_words=self.tokenizer_input_format == "words"
         ).encodings[0]
-        subword_list = self.tokenizer.convert_ids_to_tokens(encoding.ids)
         word_id2subwords = defaultdict(list)
         for token_id, word_id in enumerate(encoding.word_ids):
             word_id2subwords[word_id].append(self.tokenizer.decode(encoding.ids[token_id]))
-        subwords_per_morpheme = [value for value in word_id2subwords.values()]
-        # assert(len(subwords_per_morpheme) == len(sequence.morphemes))
-        if len(subwords_per_morpheme) != len(sequence.morphemes):
-            logger.warning(f"something wrong with subword segmentation: {subword_list}")
-            raise ValueError
-        for morpheme, subwords in zip(sequence.morphemes, subwords_per_morpheme):
-            reading_list.extend(self._align_morpheme(morpheme, subwords))
-        assert len(subword_list) == len(reading_list)
-        return list(zip(subword_list, reading_list))
+        subwords_per_morpheme = [subwords for subwords in word_id2subwords.values()]
+        assert len(subwords_per_morpheme) == len(
+            morphemes
+        ), f"inconsistent segmentation: {subwords_per_morpheme} / {morphemes}"
+
+        readings: List[str] = []
+        for morpheme, subwords in zip(morphemes, subwords_per_morpheme):
+            readings.extend(self._align_morpheme(morpheme, subwords))
+        return readings
 
     def _align_morpheme(self, morpheme: Morpheme, subwords: List[str]) -> List[str]:
         # trivial
@@ -239,9 +236,9 @@ class ReadingAligner:
 
         # dummy
         posI, posJ = 0, 0
-        subreading_list = []
+        subreadings = []
         if empty_initial:
-            subreading_list.append("")
+            subreadings.append("")
         subreading = ""
         boundaries.pop(0)
         while True:
@@ -250,13 +247,13 @@ class ReadingAligner:
             posI += wI
             posJ += wJ
             if posI == boundaries[0]:
-                subreading_list.append(subreading)
+                subreadings.append(subreading)
                 if len(boundaries) > 1:
                     subreading = ""
                     boundaries.pop(0)
                 else:
                     break
-        return subreading_list
+        return subreadings
 
     @staticmethod
     def _extend_kanji_reading_list(kanji_reading_list_orig: List[str]) -> List[str]:
@@ -319,21 +316,20 @@ def main():
     else:
         tokenizer_input_format = "text"
     kanjidic = KanjiDic(args.kanjidic)
-    aligner = ReadingAligner(tokenizer, tokenizer_input_format, kanjidic)
+    reading_aligner = ReadingAligner(tokenizer, tokenizer_input_format, kanjidic)
 
-    subreading_counter: Dict[str, int] = Counter()
+    reading_counter: Dict[str, int] = Counter()
     for path in Path(args.input).glob("**/*.knp"):
         logger.info(f"processing {path}")
         with path.open(mode="r") as f:
             document = Document.from_knp(f.read())
         try:
-            for subword, subreading in aligner.align(document):
-                # print(aligner.align(document))
-                subreading_counter[subreading] += 1
+            for reading in reading_aligner.align(document.morphemes):
+                reading_counter[reading] += 1
         except ValueError:
             logger.warning(f"skip {document.doc_id} for an error")
     for subreading, count in sorted(
-        sorted(subreading_counter.items(), key=lambda pair: pair[0]), key=lambda pair: pair[1], reverse=True
+        sorted(reading_counter.items(), key=lambda pair: pair[0]), key=lambda pair: pair[1], reverse=True
     ):
         print(f"{subreading}\t{count}")
 
