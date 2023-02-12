@@ -31,31 +31,29 @@ class WordExample:
         self.readings: Optional[List[str]] = None
 
         # ---------- morphological analysis ----------
-        # 形態素 global index -> 形態素の属性 (品詞, 品詞細分類, 活用型, 活用形)
         self.morpheme_global_index2morpheme_attributes: Dict[int, Tuple[str, str, str, str]] = {}
 
         # ---------- word feature tagging ----------
-        # 形態素 global index -> 単語素性集合
         self.morpheme_global_index2word_feature_set: Dict[int, Set[str]] = defaultdict(set)
 
         # ---------- ner ----------
         self.named_entities: List[NamedEntity] = []
 
         # ---------- base phrase feature tagging ----------
-        # 形態素 global index -> 基本句素性集合
         self.morpheme_global_index2base_phrase_feature_set: Dict[int, Set[str]] = defaultdict(set)
 
         # ---------- dependency parsing ----------
         self.morpheme_global_index2dependency: Dict[int, int] = {}
-        # 形態素 global index -> 形態素単位係り先候補
+        # 形態素単位係り先候補
         self.morpheme_global_index2dependent_candidates: Dict[int, List[int]] = {}
         self.morpheme_global_index2dependency_type: Dict[int, DepType] = {}
 
         # ---------- cohesion analysis ----------
-        # CohesionTask -> wrapされた基本句のリスト
+        # wrapされた基本句のリスト
         self.cohesion_task2base_phrases: Dict[CohesionTask, List[CohesionBasePhrase]] = {}
 
         # ---------- discourse parsing ----------
+        # (modifier morpheme global index, head morpheme global index) -> 談話関係
         self.morpheme_global_indices2discourse_relation: Dict[Tuple[int, int], str] = {}
 
     def load_document(
