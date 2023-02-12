@@ -8,15 +8,8 @@ from rhoknp.props import DepType
 from transformers import AutoTokenizer
 from transformers.utils import PaddingStrategy
 
-from kwja.datamodule.datasets.word_dataset import WordDataset, WordExampleSet
-from kwja.datamodule.examples import (
-    BasePhraseFeatureExample,
-    CohesionExample,
-    DependencyExample,
-    DiscourseExample,
-    ReadingExample,
-    WordFeatureExample,
-)
+from kwja.datamodule.datasets.word_dataset import WordDataset
+from kwja.datamodule.examples import WordExample
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TAGS,
@@ -146,30 +139,10 @@ def test_encode():
         max_length=dataset.max_seq_length - dataset.num_special_tokens,
         is_split_into_words=dataset.tokenizer_input_format == "words",
     ).encodings[0]
-    reading_example = ReadingExample()
-    reading_example.load(document, dataset.reading_aligner)
-    word_feature_example = WordFeatureExample()
-    word_feature_example.load(document)
-    base_phrase_feature_example = BasePhraseFeatureExample()
-    base_phrase_feature_example.load(document)
-    cohesion_example = CohesionExample()
-    cohesion_example.load(document, dataset.cohesion_task2utils)
-    dependency_example = DependencyExample()
-    dependency_example.load(document)
-    discourse_example = DiscourseExample()
-    discourse_example.load(document)
-    example = WordExampleSet(
-        example_id=0,
-        doc_id="000",
-        encoding=encoding,
-        reading_example=reading_example,
-        word_feature_example=word_feature_example,
-        base_phrase_feature_example=base_phrase_feature_example,
-        dependency_example=dependency_example,
-        cohesion_example=cohesion_example,
-        discourse_example=discourse_example,
-    )
-    features = dataset.encode(example)
+    word_example = WordExample(0, encoding=encoding)
+    word_example.load_document(document, dataset.reading_aligner, dataset.cohesion_task2utils)
+    word_example.load_discourse_document(document)
+    features = dataset.encode(word_example)
 
     reading_labels = [IGNORE_INDEX for _ in range(max_seq_length)]
     # reading_labels[0]: CLS
