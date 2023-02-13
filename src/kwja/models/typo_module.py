@@ -10,7 +10,7 @@ from transformers import PretrainedConfig, PreTrainedModel
 
 from kwja.evaluators.typo_module_metric import TypoModuleMetric
 from kwja.models.components.head import SequenceLabelingHead
-from kwja.utils.loss import compute_sequence_mean_loss
+from kwja.utils.loss import compute_token_mean_loss
 from kwja.utils.omegaconf import filter_dict_items
 
 
@@ -74,9 +74,9 @@ class TypoModule(pl.LightningModule):
 
     def training_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
         ret: Dict[str, torch.Tensor] = self(batch)
-        kdr_loss = compute_sequence_mean_loss(ret["kdr_logits"], batch["kdr_labels"])
+        kdr_loss = compute_token_mean_loss(ret["kdr_logits"], batch["kdr_labels"])
         self.log("train/kdr_loss", kdr_loss)
-        ins_loss = compute_sequence_mean_loss(ret["ins_logits"], batch["ins_labels"])
+        ins_loss = compute_token_mean_loss(ret["ins_logits"], batch["ins_labels"])
         self.log("train/ins_loss", ins_loss)
         return kdr_loss + ins_loss
 

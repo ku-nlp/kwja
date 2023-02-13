@@ -313,7 +313,7 @@ def _resolve_dependency(base_phrase: BasePhrase, dependency_manager: DependencyM
 
 def add_cohesion(
     document: Document,
-    cohesion_logits: List[List[List[float]]],  # (rel, src, tgt)
+    cohesion_logits: List[List[List[float]]],  # (rel, seq, seq)
     cohesion_task2utils: Dict[CohesionTask, CohesionUtils],
     index2special_token: Dict[int, str],
 ) -> None:
@@ -326,7 +326,7 @@ def add_cohesion(
                 for rel in cohesion_utils.rels:
                     rel_tag = _to_rel_tag(
                         rel,
-                        cohesion_logits[flatten_rels.index(rel)][base_phrase.head.global_index],  # (tgt, )
+                        cohesion_logits[flatten_rels.index(rel)][base_phrase.head.global_index],  # (seq, )
                         base_phrases,
                         index2special_token,
                         cohesion_utils.exophora_referents,
@@ -338,7 +338,7 @@ def add_cohesion(
 
 def _to_rel_tag(
     rel: str,
-    rel_logits: List[float],  # (tgt, )
+    rel_logits: List[float],  # (seq, )
     base_phrases: List[BasePhrase],
     index2special_token: Dict[int, str],
     exophora_referents: List[ExophoraReferent],

@@ -28,7 +28,7 @@ from kwja.utils.constants import (
     CohesionTask,
     WordTask,
 )
-from kwja.utils.loss import compute_multi_label_sequence_mean_loss, compute_sequence_mean_loss, mask_logits
+from kwja.utils.loss import compute_multi_label_token_mean_loss, compute_token_mean_loss, mask_logits
 from kwja.utils.omegaconf import filter_dict_items
 from kwja.utils.reading_prediction import get_reading2reading_id
 
@@ -118,7 +118,7 @@ class WordModule(pl.LightningModule):
         return num_cohesion_rels
 
     def forward(self, batch: Any) -> Dict[str, torch.Tensor]:
-        # (b, seq_len, hidden_size)
+        # (b, seq, hid)
         encoded = self.word_encoder(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"])
         pooled = pool_subwords(encoded.last_hidden_state, batch["subword_map"], PoolingStrategy.FIRST)
 
@@ -164,22 +164,22 @@ class WordModule(pl.LightningModule):
         loss = torch.tensor(0.0, device=self.device)
 
         if WordTask.READING_PREDICTION in self.training_tasks:
-            reading_prediction_loss = compute_sequence_mean_loss(ret["reading_logits"], batch["reading_labels"])
+            reading_prediction_loss = compute_token_mean_loss(ret["reading_logits"], batch["reading_labels"])
             loss += reading_prediction_loss
             self.log("train/reading_prediction_loss", reading_prediction_loss)
 
         if WordTask.MORPHOLOGICAL_ANALYSIS in self.training_tasks:
-            pos_loss = compute_sequence_mean_loss(ret["pos_logits"], batch["pos_labels"])
-            subpos_loss = compute_sequence_mean_loss(ret["subpos_logits"], batch["subpos_labels"])
-            conjtype_loss = compute_sequence_mean_loss(ret["conjtype_logits"], batch["conjtype_labels"])
-            conjform_loss = compute_sequence_mean_loss(ret["conjform_logits"], batch["conjform_labels"])
+            pos_loss = compute_token_mean_loss(ret["pos_logits"], batch["pos_labels"])
+            subpos_loss = compute_token_mean_loss(ret["subpos_logits"], batch["subpos_labels"])
+            conjtype_loss = compute_token_mean_loss(ret["conjtype_logits"], batch["conjtype_labels"])
+            conjform_loss = compute_token_mean_loss(ret["conjform_logits"], batch["conjform_labels"])
             morphological_analysis_loss = (pos_loss + subpos_loss + conjtype_loss + conjform_loss) / 4
             loss += morphological_analysis_loss
             self.log("train/morphological_analysis_loss", morphological_analysis_loss)
 
         if WordTask.WORD_FEATURE_TAGGING in self.training_tasks:
             word_feature_mask = batch["word_feature_labels"].ne(IGNORE_INDEX)
-            word_feature_tagging_loss = compute_multi_label_sequence_mean_loss(
+            word_feature_tagging_loss = compute_multi_label_token_mean_loss(
                 ret["word_feature_probabilities"] * word_feature_mask,
                 batch["word_feature_labels"].float() * word_feature_mask,
                 word_feature_mask,
@@ -195,7 +195,7 @@ class WordModule(pl.LightningModule):
 
         if WordTask.BASE_PHRASE_FEATURE_TAGGING in self.training_tasks:
             base_phrase_feature_mask = batch["base_phrase_feature_labels"].ne(IGNORE_INDEX)
-            base_phrase_feature_tagging_loss = compute_multi_label_sequence_mean_loss(
+            base_phrase_feature_tagging_loss = compute_multi_label_token_mean_loss(
                 ret["base_phrase_feature_probabilities"] * base_phrase_feature_mask,
                 batch["base_phrase_feature_labels"].float() * base_phrase_feature_mask,
                 base_phrase_feature_mask,
@@ -204,9 +204,9 @@ class WordModule(pl.LightningModule):
             self.log("train/base_phrase_feature_tagging_loss", base_phrase_feature_tagging_loss)
 
         if WordTask.DEPENDENCY_PARSING in self.training_tasks:
-            dependency_parsing_loss = compute_sequence_mean_loss(ret["dependency_logits"], batch["dependency_labels"])
+            dependency_parsing_loss = compute_token_mean_loss(ret["dependency_logits"], batch["dependency_labels"])
             top1 = ret["dependency_type_logits"][:, :, 0, :]
-            dependency_type_parsing_loss = compute_sequence_mean_loss(top1, batch["dependency_type_labels"])
+            dependency_type_parsing_loss = compute_token_mean_loss(top1, batch["dependency_type_labels"])
             loss += dependency_parsing_loss
             loss += dependency_type_parsing_loss
             self.log("train/dependency_parsing_loss", dependency_parsing_loss)
@@ -224,7 +224,7 @@ class WordModule(pl.LightningModule):
             if (~ignored_indices).sum().item() == 0:
                 discourse_parsing_loss = torch.tensor(0.0, device=self.device)
             else:
-                discourse_parsing_loss = compute_sequence_mean_loss(ret["discourse_logits"], batch["discourse_labels"])
+                discourse_parsing_loss = compute_token_mean_loss(ret["discourse_logits"], batch["discourse_labels"])
             loss += discourse_parsing_loss
             self.log("train/discourse_parsing_loss", discourse_parsing_loss)
 
