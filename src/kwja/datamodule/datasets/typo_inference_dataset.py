@@ -17,8 +17,7 @@ class TypoInferenceDataset(Dataset):
         self,
         texts: ListConfig,
         tokenizer: PreTrainedTokenizerBase,
-        max_seq_length: int = 512,
-        **_,  # accept `extended_vocab_path` as a keyword argument
+        max_seq_length: int,
     ) -> None:
         self.tokenizer: PreTrainedTokenizerBase = tokenizer
         self.max_seq_length = max_seq_length
@@ -41,10 +40,9 @@ class TypoInferenceDataset(Dataset):
         return len(self.examples)
 
     def __getitem__(self, index: int) -> Dict[str, torch.Tensor]:
-        return self.encode(index)
+        return self.encode(self.examples[index])
 
-    def encode(self, example_id: int) -> Dict[str, torch.Tensor]:
-        example = self.examples[example_id]
+    def encode(self, example: TypoInferenceExample) -> Dict[str, torch.Tensor]:
         encoding: BatchEncoding = self.tokenizer(
             example.pre_text + DUMMY_TOKEN,
             truncation=True,
@@ -52,7 +50,7 @@ class TypoInferenceDataset(Dataset):
             max_length=self.max_seq_length,
         )
         return {
-            "example_ids": torch.tensor(example_id, dtype=torch.long),
+            "example_ids": torch.tensor(example.example_id, dtype=torch.long),
             "input_ids": torch.tensor(encoding.input_ids, dtype=torch.long),
             "attention_mask": torch.tensor(encoding.attention_mask, dtype=torch.long),
         }

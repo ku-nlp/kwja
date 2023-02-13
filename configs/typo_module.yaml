@@ -2,7 +2,6 @@ defaults:
   - base
   - callbacks: [early_stopping, model_checkpoint, model_summary, typo_module_writer, progress_bar, lr_monitor]
   - datamodule: typo
-  - dataset: typo
   - logger: wandb
   - encoder: char_roberta_large
   - module: typo
@@ -18,8 +17,10 @@ checkpoint_path: ""
 # set monitor and mode for early_stopping and model_checkpoint
 monitor: valid/typo_correction_0.0_f1
 mode: max
+
 # option
 confidence_threshold: 0.8   # valid only for inference
+
 
 # hyper-parameters to be tuned
 warmup_steps: 100
@@ -31,6 +32,9 @@ max_batches_per_device: 2
 num_workers: 0
 
 ignore_hparams_on_save: false
+
+# constants
+special_tokens: ["<k>", "<d>", "<_>", "<dummy>"]
 hparams_to_ignore_on_save:
   - project
   - work_dir

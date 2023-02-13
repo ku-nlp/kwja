@@ -2,7 +2,6 @@ defaults:
   - base
   - callbacks: [early_stopping, model_checkpoint, model_summary, typo_module_writer, progress_bar, lr_monitor]
   - datamodule: typo
-  - dataset: typo
   - logger: null
   - encoder: char_roberta_tiny
   - module: typo
@@ -31,4 +30,7 @@ max_batches_per_device: 2
 num_workers: 0
 
 ignore_hparams_on_save: false
+
+# constants
+special_tokens: ["<k>", "<d>", "<_>", "<dummy>"]
 hparams_to_ignore_on_save: []

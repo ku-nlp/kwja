@@ -48,7 +48,6 @@ class WordModuleWriter(BasePredictionWriter):
         self,
         output_dir: str,
         ambig_surf_specs: List[Dict[str, str]],
-        jumandic_path: str,
         use_stdout: bool = False,
         output_filename: str = "predict",
     ) -> None:
@@ -65,7 +64,7 @@ class WordModuleWriter(BasePredictionWriter):
         self.reading_id2reading = {v: k for k, v in reading2reading_id.items()}
 
         self.ambig_surf_specs = ambig_surf_specs
-        self.jumandic = JumanDic(Path(jumandic_path))
+        self.jumandic = JumanDic(RESOURCE_PATH / "jumandic")
         self.jinf = Jinf()
 
         self.prev_doc_id: Optional[str] = None

@@ -16,12 +16,12 @@ tokenizer = AutoTokenizer.from_pretrained(
 
 
 def test_init():
-    _ = TypoDataset(str(path), tokenizer, str(path / "extended_vocab.txt"), max_seq_length=256)
+    _ = TypoDataset(str(path), tokenizer, max_seq_length=256)
 
 
 def test_getitem():
     max_seq_length = 512
-    dataset = TypoDataset(str(path), tokenizer, str(path / "extended_vocab.txt"), max_seq_length=max_seq_length)
+    dataset = TypoDataset(str(path), tokenizer, max_seq_length)
     for i in range(len(dataset)):
         item = dataset[i]
         assert isinstance(item, dict)

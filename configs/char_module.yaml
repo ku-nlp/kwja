@@ -2,7 +2,6 @@ defaults:
   - base
   - callbacks: [early_stopping, model_checkpoint, model_summary, char_module_writer, progress_bar, lr_monitor]
   - datamodule: char
-  - dataset: char
   - logger: wandb
   - encoder: char_roberta_large
   - module: char
@@ -36,6 +35,8 @@ max_batches_per_device: 2
 num_workers: 0
 
 ignore_hparams_on_save: false
+
+# constants
 hparams_to_ignore_on_save:
   - project
   - work_dir

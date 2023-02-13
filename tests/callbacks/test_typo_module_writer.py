@@ -25,7 +25,6 @@ def test_init():
         )
         _ = TypoModuleWriter(
             tmp_dir,
-            extended_vocab_path="tests/datamodule/datasets/typo_files/extended_vocab.txt",
             confidence_threshold=0.9,
             tokenizer=tokenizer,
         )
@@ -40,7 +39,6 @@ def test_write_on_batch_end():
         )
         writer = TypoModuleWriter(
             tmp_dir,
-            extended_vocab_path="tests/datamodule/datasets/typo_files/extended_vocab.txt",
             confidence_threshold=0.9,
             tokenizer=tokenizer,
         )

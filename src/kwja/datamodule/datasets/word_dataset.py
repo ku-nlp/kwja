@@ -48,7 +48,7 @@ class WordDataset(BaseDataset):
         pas_cases: ListConfig,
         br_cases: ListConfig,
         special_tokens: ListConfig,
-        max_seq_length: int = 256,
+        max_seq_length: int,
     ) -> None:
         self.path = Path(path)
         if tokenizer.name_or_path in SPLIT_INTO_WORDS_MODEL_NAMES:

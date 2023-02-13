@@ -20,7 +20,6 @@ from kwja.datamodule.datamodule import DataModule
 from kwja.models.char_module import CharModule
 from kwja.models.typo_module import TypoModule
 from kwja.models.word_module import WordModule
-from kwja.utils.constants import RESOURCE_PATH
 
 
 class Device(str, Enum):
@@ -100,11 +99,7 @@ class CLIProcessor:
         typo_checkpoint_path: Path = download_checkpoint(task="typo", model_size=self.model_size)
         self.typo_model = TypoModule.load_from_checkpoint(str(typo_checkpoint_path), map_location=self.device)
         assert self.typo_model is not None, "typo model does not exist"
-        extended_vocab_path = RESOURCE_PATH / "typo_correction/multi_char_vocab.txt"
-        self.typo_model.hparams.callbacks.prediction_writer.extended_vocab_path = str(extended_vocab_path)
-        self.typo_model.hparams.datamodule.predict.extended_vocab_path = str(extended_vocab_path)
         self.typo_model.hparams.datamodule.batch_size = self.typo_batch_size
-        self.typo_model.hparams.dataset.extended_vocab_path = str(extended_vocab_path)
         self.typo_trainer = pl.Trainer(
             logger=False,
             callbacks=[
@@ -175,15 +170,12 @@ class CLIProcessor:
         word_checkpoint_path: Path = download_checkpoint(task="word", model_size=self.model_size)
         word_checkpoint = torch.load(str(word_checkpoint_path), map_location=lambda storage, loc: storage)
         hparams = word_checkpoint["hyper_parameters"]
-        jumandic_path = RESOURCE_PATH / "jumandic"
-        hparams.callbacks.prediction_writer.jumandic_path = jumandic_path
         self.word_model = WordModule.load_from_checkpoint(
             str(word_checkpoint_path),
             hparams=hparams,
             map_location=self.device,
         )
         assert self.word_model is not None, "word model does not exist"
-        self.word_model.hparams.callbacks.prediction_writer.jumandic_path = jumandic_path
         self.word_model.hparams.datamodule.batch_size = self.word_batch_size
         self.word_trainer = pl.Trainer(
             logger=False,
@@ -220,8 +212,6 @@ class CLIProcessor:
             str(word_discourse_checkpoint_path), map_location=lambda storage, loc: storage
         )
         hparams = word_discourse_checkpoint["hyper_parameters"]
-        jumandic_path = RESOURCE_PATH / "jumandic"
-        hparams.callbacks.prediction_writer.jumandic_path = jumandic_path
         self.word_discourse_model = WordModule.load_from_checkpoint(
             str(word_discourse_checkpoint_path),
             hparams=hparams,

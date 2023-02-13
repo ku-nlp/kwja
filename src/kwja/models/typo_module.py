@@ -10,6 +10,7 @@ from transformers import PretrainedConfig, PreTrainedModel
 
 from kwja.evaluators.typo_module_metric import TypoModuleMetric
 from kwja.models.components.head import SequenceLabelingHead
+from kwja.utils.constants import RESOURCE_PATH
 from kwja.utils.loss import compute_token_mean_loss
 from kwja.utils.omegaconf import filter_dict_items
 
@@ -32,19 +33,16 @@ class TypoModule(pl.LightningModule):
 
         self.char_encoder: PreTrainedModel = hydra.utils.call(hparams.encoder)
         pretrained_model_config: PretrainedConfig = self.char_encoder.config
-        if hasattr(hparams.dataset, "special_tokens"):
-            self.char_encoder.resize_token_embeddings(
-                pretrained_model_config.vocab_size + len(hparams.dataset.special_tokens)
-            )
+        if hasattr(hparams, "special_tokens"):
+            self.char_encoder.resize_token_embeddings(pretrained_model_config.vocab_size + len(hparams.special_tokens))
         head_args: Tuple[int, float] = (
             pretrained_model_config.hidden_size,
             pretrained_model_config.hidden_dropout_prob,
         )
 
         self.kdr_tagger = SequenceLabelingHead(pretrained_model_config.vocab_size, *head_args)
-        self.ins_tagger = SequenceLabelingHead(
-            pretrained_model_config.vocab_size + hparams.dataset.extended_vocab_size, *head_args
-        )
+        extended_vocab_size = sum(1 for _ in RESOURCE_PATH.joinpath("typo_correction", "multi_char_vocab.txt").open())
+        self.ins_tagger = SequenceLabelingHead(pretrained_model_config.vocab_size + extended_vocab_size, *head_args)
 
     def forward(self, batch: Any) -> Dict[str, torch.Tensor]:
         truncation_length = self._truncate(batch)
