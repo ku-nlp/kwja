@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from kwja.models.models.pooling import PoolingStrategy, pool_subwords
+from kwja.models.components.pooling import PoolingStrategy, pool_subwords
 
 # (b, word, seq) = (2, 3, 5)
 subword_map = torch.tensor(

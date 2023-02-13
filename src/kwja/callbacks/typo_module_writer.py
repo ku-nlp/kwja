@@ -2,106 +2,38 @@ import os
 import sys
 from io import TextIOBase
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, TextIO, Tuple, Union
+from typing import Any, Optional, Sequence, TextIO, Union
 
 import pytorch_lightning as pl
-import torch
-from omegaconf import DictConfig
 from pytorch_lightning.callbacks import BasePredictionWriter
-from transformers import AutoTokenizer, PreTrainedTokenizerBase
+from transformers import PreTrainedTokenizerBase
 
 from kwja.datamodule.datasets import TypoDataset, TypoInferenceDataset
-from kwja.utils.constants import TOKEN2TYPO_OPN
+from kwja.utils.typo_module_writer import apply_edit_operations, convert_predictions_into_typo_corr_op_tags, get_maps
 
 
 class TypoModuleWriter(BasePredictionWriter):
     def __init__(
         self,
         output_dir: str,
+        confidence_threshold: float,
+        tokenizer: PreTrainedTokenizerBase,
         extended_vocab_path: str,
-        confidence_threshold: float = 0.0,
-        pred_filename: str = "predict",
-        model_name_or_path: str = "ku-nlp/roberta-base-japanese-char-wwm",
-        tokenizer_kwargs: DictConfig = None,
         use_stdout: bool = False,
+        output_filename: str = "predict",
     ) -> None:
         super().__init__(write_interval="batch")
-
-        self.destination = Union[Path, TextIO]
-        if use_stdout is True:
-            self.destination = sys.stdout
+        if use_stdout:
+            self.destination: Union[Path, TextIO] = sys.stdout
         else:
-            self.destination = Path(f"{output_dir}/{pred_filename}.txt")
+            self.destination = Path(output_dir) / f"{output_filename}.txt"
             self.destination.parent.mkdir(exist_ok=True, parents=True)
             if self.destination.exists():
                 os.remove(str(self.destination))
 
         self.confidence_threshold = confidence_threshold
 
-        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-            model_name_or_path,
-            **(tokenizer_kwargs or {}),
-        )
-
-        self.opn2id, self.id2opn = self.get_opn_dict(path=Path(extended_vocab_path))
-
-    def get_opn_dict(self, path: Path) -> Tuple[Dict[str, int], Dict[int, str]]:
-        opn2id: Dict[str, int] = self.tokenizer.get_vocab()
-        id2opn: Dict[int, str] = {idx: opn for opn, idx in opn2id.items()}
-        with path.open(mode="r") as f:
-            for line in f:
-                opn = str(line.strip())
-                opn2id[opn] = len(opn2id)
-                id2opn[len(id2opn)] = opn
-        return opn2id, id2opn
-
-    def convert_id2opn(self, opn_ids_list: List[List[int]], opn_prefix: str) -> List[List[str]]:
-        opns_list: List[List[str]] = []
-        for opn_ids in opn_ids_list:
-            opns: List[str] = []
-            for opn_id in opn_ids:
-                opn: str = self.id2opn[opn_id]
-                opns.append(TOKEN2TYPO_OPN.get(opn, f"{opn_prefix}:{opn}"))
-            opns_list.append(opns)
-        return opns_list
-
-    @staticmethod
-    def apply_opn(pre_text: str, kdrs: List[str], inss: List[str]) -> str:
-        post_text = ""
-        assert len(pre_text) + 1 == len(kdrs) + 1 == len(inss)
-        for char_idx, char in enumerate(pre_text):
-            # insert
-            if inss[char_idx] != "_":
-                post_text += inss[char_idx][2:]  # remove prefix "I:"
-            # keep, delete, replace
-            if kdrs[char_idx] == "K":
-                post_text += char
-            elif kdrs[char_idx] == "D":
-                pass
-            elif kdrs[char_idx].startswith("R:"):
-                post_text += kdrs[char_idx][2:]  # remove prefix "R:"
-            else:
-                raise ValueError("unsupported operation!")
-        if inss[-1] != "_":
-            post_text += inss[-1][2:]  # remove prefix "I:"
-        return post_text
-
-    def get_opn_ids_list(
-        self, batch_values: torch.Tensor, batch_indices: torch.Tensor, opn_prefix: str
-    ) -> List[List[int]]:
-        # Do not edit if the operation probability (replace, delete, and insert) is less than "confidence_threshold"
-        opn_ids_list: List[List[int]] = []
-        for values, indices in zip(batch_values.tolist(), batch_indices.tolist()):
-            opn_ids: List[int] = []
-            for value, index in zip(values, indices):
-                if opn_prefix == "R" and value < self.confidence_threshold:
-                    opn_ids.append(self.opn2id["<k>"])
-                elif opn_prefix == "I" and value < self.confidence_threshold:
-                    opn_ids.append(self.opn2id["<_>"])
-                else:
-                    opn_ids.append(index)
-            opn_ids_list.append(opn_ids)
-        return opn_ids_list
+        self.token2token_id, self.token_id2token = get_maps(tokenizer, extended_vocab_path)
 
     def write_on_batch_end(
         self,
@@ -115,46 +47,41 @@ class TypoModuleWriter(BasePredictionWriter):
     ) -> None:
         dataloaders = trainer.predict_dataloaders
         dataset: Union[TypoDataset, TypoInferenceDataset] = dataloaders[dataloader_idx].dataset
-        kdr_preds: List[List[str]] = self.convert_id2opn(
-            opn_ids_list=self.get_opn_ids_list(
-                batch_values=prediction["kdr_values"],
-                batch_indices=prediction["kdr_indices"],
-                opn_prefix="R",
-            ),
-            opn_prefix="R",
-        )
-        ins_preds: List[List[str]] = self.convert_id2opn(
-            opn_ids_list=self.get_opn_ids_list(
-                batch_values=prediction["ins_values"],
-                batch_indices=prediction["ins_indices"],
-                opn_prefix="I",
-            ),
-            opn_prefix="I",
-        )
-        results = []
-        for idx, example_id in enumerate(prediction["example_ids"].tolist()):
+
+        post_texts = []
+        for example_id, kdr_predictions, kdr_probabilities, ins_predictions, ins_probabilities in zip(
+            prediction["example_ids"],
+            prediction["kdr_predictions"].tolist(),
+            prediction["kdr_probabilities"].tolist(),
+            prediction["ins_predictions"].tolist(),
+            prediction["ins_probabilities"].tolist(),
+        ):
             if example_id in dataset.stash:
                 texts = dataset.stash.pop(example_id)
-                results.extend(texts)
-            seq_len: int = len(prediction["texts"][idx])
+                post_texts.extend(texts)
+
+            example = dataset.examples[example_id]
+            seq_len: int = len(example.pre_text)
             if seq_len == 0:
                 continue
-            # the prediction of the dummy token (= "<dummy>") at the end of the input is used for insertion only.
-            results.append(
-                self.apply_opn(
-                    pre_text=prediction["texts"][idx],
-                    kdrs=kdr_preds[idx][:seq_len],
-                    inss=ins_preds[idx][: seq_len + 1],
-                )
-            )
+
+            args = (self.confidence_threshold, self.token2token_id, self.token_id2token)
+            kdr_tags = convert_predictions_into_typo_corr_op_tags(kdr_predictions, kdr_probabilities, "R", *args)
+            ins_tags = convert_predictions_into_typo_corr_op_tags(ins_predictions, ins_probabilities, "I", *args)
+
+            # the prediction of the first token (= [CLS]) is excluded.
+            # the prediction of the dummy token at the end is used for insertion only.
+            post_text = apply_edit_operations(example.pre_text, kdr_tags[1 : seq_len + 1], ins_tags[1 : seq_len + 2])
+            post_texts.append(post_text)
+
         if batch_idx == len(dataloaders[dataloader_idx]) - 1:
             for texts in dataset.stash.values():
-                results.extend(texts)
+                post_texts.extend(texts)
             dataset.stash.clear()
 
-        output_string = "".join(result + "\nEOD\n" for result in results)  # Append EOD to the end of each result
+        output_string = "".join(post_text + "\nEOD\n" for post_text in post_texts)
         if isinstance(self.destination, Path):
-            with self.destination.open("a") as f:
+            with self.destination.open(mode="a") as f:
                 f.write(output_string)
         elif isinstance(self.destination, TextIOBase):
             self.destination.write(output_string)

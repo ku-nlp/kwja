@@ -4,15 +4,12 @@ import textwrap
 import torch
 from omegaconf import ListConfig
 from torch.utils.data import DataLoader
+from transformers import AutoTokenizer
 
 import kwja
 from kwja.callbacks.char_module_writer import CharModuleWriter
 from kwja.datamodule.datasets.char_inference_dataset import CharInferenceDataset
-
-
-def test_init():
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        _ = CharModuleWriter(tmp_dir)
+from kwja.utils.constants import WORD_NORM_OP_TAGS, WORD_SEGMENTATION_TAGS
 
 
 class MockTrainer:
@@ -20,55 +17,63 @@ class MockTrainer:
         self.predict_dataloaders = predict_dataloaders
 
 
+def test_init():
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        _ = CharModuleWriter(tmp_dir)
+
+
 def test_write_on_batch_end():
     with tempfile.TemporaryDirectory() as tmp_dir:
         writer = CharModuleWriter(tmp_dir)
+        text = "今日は晴れだぁ"
+        tokenizer = AutoTokenizer.from_pretrained("ku-nlp/roberta-base-japanese-char-wwm")
         dataset = CharInferenceDataset(
-            texts=ListConfig(["今日は晴れだぁ"]),
+            texts=ListConfig([text]),
+            tokenizer=tokenizer,
+            max_seq_length=len(text) + 2,
             document_split_stride=1,
-            model_name_or_path="ku-nlp/roberta-base-japanese-char-wwm",
             doc_id_prefix="test",
         )
         trainer = MockTrainer([DataLoader(dataset)])
-        input_ids = dataset.tokenizer("今日は晴れだぁ", return_tensors="pt")["input_ids"]
-        word_segmenter_logits = torch.tensor(
+
+        word_segmentation_predictions = torch.tensor(
             [
                 [
-                    [0.0, 0.0],  # CLS
-                    [1.0, 0.0],  # 今
-                    [0.0, 1.0],  # 日
-                    [1.0, 0.0],  # は
-                    [1.0, 0.0],  # 晴
-                    [0.0, 1.0],  # れ
-                    [1.0, 0.0],  # だ
-                    [0.0, 1.0],  # ぁ
-                    [0.0, 0.0],  # SEP
+                    WORD_SEGMENTATION_TAGS.index("B"),  # [CLS]
+                    WORD_SEGMENTATION_TAGS.index("B"),  # 今
+                    WORD_SEGMENTATION_TAGS.index("I"),  # 日
+                    WORD_SEGMENTATION_TAGS.index("B"),  # は
+                    WORD_SEGMENTATION_TAGS.index("B"),  # 晴
+                    WORD_SEGMENTATION_TAGS.index("I"),  # れ
+                    WORD_SEGMENTATION_TAGS.index("B"),  # だ
+                    WORD_SEGMENTATION_TAGS.index("I"),  # ぁ
+                    WORD_SEGMENTATION_TAGS.index("B"),  # [SEP]
                 ]
             ],
-            dtype=torch.float,
+            dtype=torch.long,
         )
-        word_normalizer_logits = torch.tensor(
+        word_norm_op_predictions = torch.tensor(
             [
                 [
-                    [1.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # CLS
-                    [1.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # 今
-                    [1.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # 日
-                    [1.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # は
-                    [1.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # 晴
-                    [1.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # れ
-                    [1.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # だ
-                    [0.0, 1.0, 0.0, 0.0, 0.0, 0.0],  # ぁ
-                    [1.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # SEP
+                    WORD_NORM_OP_TAGS.index("K"),  # [CLS]
+                    WORD_NORM_OP_TAGS.index("K"),  # 今
+                    WORD_NORM_OP_TAGS.index("K"),  # 日
+                    WORD_NORM_OP_TAGS.index("K"),  # は
+                    WORD_NORM_OP_TAGS.index("K"),  # 晴
+                    WORD_NORM_OP_TAGS.index("K"),  # れ
+                    WORD_NORM_OP_TAGS.index("K"),  # だ
+                    WORD_NORM_OP_TAGS.index("D"),  # ぁ
+                    WORD_NORM_OP_TAGS.index("K"),  # [SEP]
                 ]
             ],
-            dtype=torch.float,
+            dtype=torch.long,
         )
         prediction = {
             "example_ids": [0],
-            "input_ids": input_ids,
-            "word_segmenter_logits": word_segmenter_logits,
-            "word_normalizer_logits": word_normalizer_logits,
+            "word_segmentation_predictions": word_segmentation_predictions,
+            "word_norm_op_predictions": word_norm_op_predictions,
         }
+
         writer.write_on_batch_end(trainer, ..., prediction, ..., ..., ..., 0)
         assert writer.destination.read_text() == textwrap.dedent(
             f"""\

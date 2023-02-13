@@ -1,470 +1,309 @@
 import copy
-from enum import Enum
-from pathlib import Path
 from statistics import mean
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import hydra
 import pytorch_lightning as pl
 import torch
 from omegaconf import DictConfig, OmegaConf
-from transformers import PretrainedConfig
+from transformers import PretrainedConfig, PreTrainedModel
 
-from kwja.evaluators.cohesion_analysis_metric import CohesionAnalysisMetric
-from kwja.evaluators.dependency_parsing_metric import DependencyParsingMetric
-from kwja.evaluators.discourse_parsing_metric import DiscourseParsingMetric
-from kwja.evaluators.ner_metric import NERMetric
-from kwja.evaluators.phrase_analysis_metric import PhraseAnalysisMetric
-from kwja.evaluators.reading_predictor_metric import ReadingPredictorMetric
-from kwja.evaluators.word_analysis_metric import WordAnalysisMetric
-from kwja.models.models.phrase_analyzer import PhraseAnalyzer
-from kwja.models.models.pooling import PoolingStrategy
-from kwja.models.models.reading_predictor import ReadingPredictor
-from kwja.models.models.relation_analyzer import RelationAnalyzer
-from kwja.models.models.word_analyzer import WordAnalyzer
-from kwja.models.models.word_encoder import WordEncoder
-from kwja.utils.constants import DISCOURSE_RELATIONS
-from kwja.utils.util import filter_dict_items
-
-
-class WordTask(Enum):
-    READING_PREDICTION = "reading_prediction"
-    WORD_ANALYSIS = "word_analysis"
-    NER = "ner"
-    WORD_FEATURE_TAGGING = "word_feature_tagging"
-    BASE_PHRASE_FEATURE_TAGGING = "base_phrase_feature_tagging"
-    DEPENDENCY_PARSING = "dependency_parsing"
-    COHESION_ANALYSIS = "cohesion_analysis"
-    DISCOURSE_PARSING = "discourse_parsing"
+from kwja.evaluators.word_module_metric import WordModuleMetric
+from kwja.models.components.crf import CRF
+from kwja.models.components.head import SequenceLabelingHead, WordSelectionHead
+from kwja.models.components.pooling import PoolingStrategy, pool_subwords
+from kwja.utils.cohesion_analysis import BridgingUtils, CoreferenceUtils, PasUtils
+from kwja.utils.constants import (
+    BASE_PHRASE_FEATURES,
+    CONJFORM_TAGS,
+    CONJTYPE_TAGS,
+    DEPENDENCY_TYPES,
+    DISCOURSE_RELATIONS,
+    IGNORE_INDEX,
+    NE_TAGS,
+    POS_TAGS,
+    RESOURCE_PATH,
+    SUBPOS_TAGS,
+    WORD_FEATURES,
+    CohesionTask,
+    WordTask,
+)
+from kwja.utils.loss import compute_multi_label_sequence_mean_loss, compute_sequence_mean_loss, mask_logits
+from kwja.utils.omegaconf import filter_dict_items
+from kwja.utils.reading_prediction import get_reading2reading_id
 
 
 class WordModule(pl.LightningModule):
     def __init__(self, hparams: DictConfig) -> None:
         super().__init__()
         self.save_hyperparameters(hparams)
-        self.training_tasks = list(map(WordTask, self.hparams.training_tasks))
+        self.training_tasks: List[WordTask] = list(map(WordTask, self.hparams.training_tasks))
 
-        self.valid_corpora = list(hparams.datamodule.valid.keys()) if "valid" in hparams.datamodule else []
-        self.test_corpora = list(hparams.datamodule.test.keys()) if "test" in hparams.datamodule else []
+        if valid_corpora := getattr(hparams.datamodule, "valid", None):
+            self.valid_corpora: List[str] = list(valid_corpora)
+            self.valid_corpus2word_module_metric: Dict[str, WordModuleMetric] = {
+                corpus: WordModuleMetric() for corpus in self.valid_corpora
+            }
+        if test_corpora := getattr(hparams.datamodule, "test", None):
+            self.test_corpora: List[str] = list(test_corpora)
+            self.test_corpus2word_module_metric: Dict[str, WordModuleMetric] = {
+                corpus: WordModuleMetric() for corpus in self.test_corpora
+            }
 
-        self.word_encoder: WordEncoder = WordEncoder(hparams)
-
-        pretrained_model_config: PretrainedConfig = self.word_encoder.pretrained_model.config
-
-        self.reading_predictor: ReadingPredictor = ReadingPredictor(
-            hparams.dataset.reading_resource_path, pretrained_model_config
+        self.word_encoder: PreTrainedModel = hydra.utils.call(hparams.encoder)
+        pretrained_model_config: PretrainedConfig = self.word_encoder.config
+        if hasattr(hparams.dataset, "special_tokens"):
+            self.word_encoder.resize_token_embeddings(
+                pretrained_model_config.vocab_size + len(hparams.dataset.special_tokens)
+            )
+        head_args: Tuple[int, float] = (
+            pretrained_model_config.hidden_size,
+            pretrained_model_config.hidden_dropout_prob,
         )
-        self.valid_reading_predictor_metrics: Dict[str, ReadingPredictorMetric] = {
-            corpus: ReadingPredictorMetric() for corpus in self.valid_corpora
-        }
-        self.test_reading_predictor_metrics: Dict[str, ReadingPredictorMetric] = {
-            corpus: ReadingPredictorMetric() for corpus in self.test_corpora
-        }
 
-        self.word_analyzer: WordAnalyzer = WordAnalyzer(pretrained_model_config)
-        self.valid_word_analysis_metrics: Dict[str, WordAnalysisMetric] = {
-            corpus: WordAnalysisMetric() for corpus in self.valid_corpora
-        }
-        self.test_word_analysis_metrics: Dict[str, WordAnalysisMetric] = {
-            corpus: WordAnalysisMetric() for corpus in self.test_corpora
-        }
-        self.valid_ner_metrics: Dict[str, NERMetric] = {corpus: NERMetric() for corpus in self.valid_corpora}
-        self.test_ner_metrics: Dict[str, NERMetric] = {corpus: NERMetric() for corpus in self.test_corpora}
+        # ---------- reading prediction ----------
+        reading2reading_id: Dict[str, int] = get_reading2reading_id(RESOURCE_PATH / "reading_prediction" / "vocab.txt")
+        self.reading_id2reading: Dict[int, str] = {v: k for k, v in reading2reading_id.items()}
+        self.reading_tagger = SequenceLabelingHead(len(reading2reading_id), *head_args)
 
-        self.phrase_analyzer: PhraseAnalyzer = PhraseAnalyzer(pretrained_model_config)
-        self.valid_phrase_analysis_metrics: Dict[str, PhraseAnalysisMetric] = {
-            corpus: PhraseAnalysisMetric() for corpus in self.valid_corpora
-        }
-        self.test_phrase_analysis_metrics: Dict[str, PhraseAnalysisMetric] = {
-            corpus: PhraseAnalysisMetric() for corpus in self.test_corpora
-        }
+        # ---------- morphological analysis ----------
+        self.pos_tagger = SequenceLabelingHead(len(POS_TAGS), *head_args)
+        self.subpos_tagger = SequenceLabelingHead(len(SUBPOS_TAGS), *head_args)
+        self.conjtype_tagger = SequenceLabelingHead(len(CONJTYPE_TAGS), *head_args)
+        self.conjform_tagger = SequenceLabelingHead(len(CONJFORM_TAGS), *head_args)
 
-        self.relation_analyzer: RelationAnalyzer = RelationAnalyzer(hparams, pretrained_model_config)
-        self.valid_dependency_parsing_metrics: Dict[str, DependencyParsingMetric] = {
-            corpus: DependencyParsingMetric() for corpus in self.valid_corpora
-        }
-        self.test_dependency_parsing_metrics: Dict[str, DependencyParsingMetric] = {
-            corpus: DependencyParsingMetric() for corpus in self.test_corpora
-        }
-        self.valid_cohesion_analysis_metrics: Dict[str, CohesionAnalysisMetric] = {
-            corpus: CohesionAnalysisMetric() for corpus in self.valid_corpora
-        }
-        self.test_cohesion_analysis_metrics: Dict[str, CohesionAnalysisMetric] = {
-            corpus: CohesionAnalysisMetric() for corpus in self.test_corpora
-        }
-        self.valid_discourse_parsing_metrics: Dict[str, DiscourseParsingMetric] = {
-            corpus: DiscourseParsingMetric() for corpus in self.valid_corpora
-        }
-        self.test_discourse_parsing_metrics: Dict[str, DiscourseParsingMetric] = {
-            corpus: DiscourseParsingMetric() for corpus in self.test_corpora
-        }
+        # ---------- word feature tagging ----------
+        self.word_feature_tagger = SequenceLabelingHead(len(WORD_FEATURES), *head_args, multi_label=True)
 
-        self.discourse_parsing_threshold: float = self.hparams.discourse_parsing_threshold
+        # ---------- named entity recognition ----------
+        self.ne_tagger = SequenceLabelingHead(len(NE_TAGS), *head_args)
+        self.crf = CRF(NE_TAGS)
 
-    def forward(self, **batch) -> Dict[str, Dict[str, torch.Tensor]]:
-        # (batch_size, seq_len, hidden_size)
-        hast_hidden_states, pooled_outputs = self.word_encoder(batch, PoolingStrategy.FIRST)
-        reading_predictor_outputs = self.reading_predictor(hast_hidden_states, batch)
-        word_analyzer_outputs = self.word_analyzer(pooled_outputs, batch)
-        phrase_analyzer_outputs = self.phrase_analyzer(pooled_outputs, batch)
-        relation_analyzer_output = self.relation_analyzer(pooled_outputs, batch)
+        # ---------- base phrase feature tagging ----------
+        self.base_phrase_feature_tagger = SequenceLabelingHead(len(BASE_PHRASE_FEATURES), *head_args, multi_label=True)
+
+        # ---------- dependency parsing ----------
+        self.topk: int = hparams.dependency_topk
+        self.dependency_parser = WordSelectionHead(1, *head_args)
+        self.dependency_type_parser = SequenceLabelingHead(
+            len(DEPENDENCY_TYPES),
+            pretrained_model_config.hidden_size * 2,
+            pretrained_model_config.hidden_dropout_prob,
+        )
+
+        # ---------- cohesion analysis ----------
+        self.cohesion_analyzer = WordSelectionHead(self._get_num_cohesion_rels(hparams), *head_args)
+
+        # ---------- discourse parsing ----------
+        self.discourse_parsing_threshold: float = hparams.discourse_parsing_threshold
+        self.discourse_parser = WordSelectionHead(len(DISCOURSE_RELATIONS), *head_args)
+
+    @staticmethod
+    def _get_num_cohesion_rels(hparams: DictConfig) -> int:
+        num_cohesion_rels = 0
+        kwargs = {
+            "exophora_referents": hparams.exophora_referents,
+            "restrict_target": hparams.restrict_cohesion_target,
+        }
+        for cohesion_task in [CohesionTask(t) for t in hparams.cohesion_tasks]:
+            if cohesion_task == CohesionTask.PAS_ANALYSIS:
+                pas_utils = PasUtils(hparams.pas_cases, "all", **kwargs)
+                num_cohesion_rels += len(pas_utils.rels)
+            elif cohesion_task == CohesionTask.BRIDGING_REFERENCE_RESOLUTION:
+                bridging_utils = BridgingUtils(hparams.br_cases, **kwargs)
+                num_cohesion_rels += len(bridging_utils.rels)
+            elif cohesion_task == CohesionTask.COREFERENCE_RESOLUTION:
+                coreference_utils = CoreferenceUtils(**kwargs)
+                num_cohesion_rels += len(coreference_utils.rels)
+        return num_cohesion_rels
+
+    def forward(self, batch: Any) -> Dict[str, torch.Tensor]:
+        # (b, seq_len, hidden_size)
+        encoded = self.word_encoder(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"])
+        pooled = pool_subwords(encoded.last_hidden_state, batch["subword_map"], PoolingStrategy.FIRST)
+
+        dependency_logits = self.dependency_parser(pooled)
+        masked_dependency_logits = mask_logits(dependency_logits.squeeze(3), batch["dependency_mask"])
+        if "dependency_labels" in batch:
+            dependency_labels = batch["dependency_labels"]
+            dependency_labels = (dependency_labels * dependency_labels.ne(IGNORE_INDEX)).unsqueeze(2).unsqueeze(3)
+            topk = 1
+        else:
+            dependency_labels = masked_dependency_logits.topk(self.topk, dim=2).indices.unsqueeze(3)
+            topk = self.topk
+        unsqueezed = pooled.unsqueeze(2)
+        batch_size, seq_len, hidden_size = pooled.shape
+        source_shape = (batch_size, seq_len, seq_len, hidden_size)
+        target_shape = (batch_size, seq_len, topk, hidden_size)
+        # gather は IGNORE_INDEX を渡せない
+        head_hidden_states = unsqueezed.expand(source_shape).gather(2, dependency_labels.expand(target_shape))
+
+        cohesion_logits = self.cohesion_analyzer(pooled)
+        cohesion_logits = cohesion_logits.permute(0, 3, 1, 2).contiguous()  # -> (b, rel, seq, seq)
+        masked_cohesion_logits = mask_logits(cohesion_logits, batch["cohesion_mask"])
+
         return {
-            "reading_predictor_outputs": reading_predictor_outputs,
-            "word_analyzer_outputs": word_analyzer_outputs,
-            "phrase_analyzer_outputs": phrase_analyzer_outputs,
-            "relation_analyzer_outputs": relation_analyzer_output,
+            "reading_logits": self.reading_tagger(encoded.last_hidden_state),
+            "pos_logits": self.pos_tagger(pooled),
+            "subpos_logits": self.subpos_tagger(pooled),
+            "conjtype_logits": self.conjtype_tagger(pooled),
+            "conjform_logits": self.conjform_tagger(pooled),
+            "word_feature_probabilities": self.word_feature_tagger(pooled),
+            "ne_logits": self.ne_tagger(pooled),
+            "base_phrase_feature_probabilities": self.base_phrase_feature_tagger(pooled),
+            "dependency_logits": masked_dependency_logits,
+            "dependency_type_logits": self.dependency_type_parser(
+                torch.cat([unsqueezed.expand(target_shape), head_hidden_states], dim=3)
+            ),
+            "cohesion_logits": masked_cohesion_logits,
+            "discourse_logits": self.discourse_parser(pooled),
         }
 
     def training_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
-        batch["training"] = True
-        outputs: Dict[str, Dict[str, torch.Tensor]] = self(**batch)
+        ret: Dict[str, torch.Tensor] = self(batch)
         loss = torch.tensor(0.0, device=self.device)
+
         if WordTask.READING_PREDICTION in self.training_tasks:
-            reading_predictor_loss = outputs["reading_predictor_outputs"]["loss"]
-            loss += reading_predictor_loss
-            self.log("train/reading_predictor_loss", reading_predictor_loss)
-        if WordTask.WORD_ANALYSIS in self.training_tasks:
-            word_analysis_loss = outputs["word_analyzer_outputs"]["loss"]
-            loss += word_analysis_loss
-            self.log("train/word_analysis_loss", word_analysis_loss)
+            reading_prediction_loss = compute_sequence_mean_loss(ret["reading_logits"], batch["reading_labels"])
+            loss += reading_prediction_loss
+            self.log("train/reading_prediction_loss", reading_prediction_loss)
+
+        if WordTask.MORPHOLOGICAL_ANALYSIS in self.training_tasks:
+            pos_loss = compute_sequence_mean_loss(ret["pos_logits"], batch["pos_labels"])
+            subpos_loss = compute_sequence_mean_loss(ret["subpos_logits"], batch["subpos_labels"])
+            conjtype_loss = compute_sequence_mean_loss(ret["conjtype_logits"], batch["conjtype_labels"])
+            conjform_loss = compute_sequence_mean_loss(ret["conjform_logits"], batch["conjform_labels"])
+            morphological_analysis_loss = (pos_loss + subpos_loss + conjtype_loss + conjform_loss) / 4
+            loss += morphological_analysis_loss
+            self.log("train/morphological_analysis_loss", morphological_analysis_loss)
+
+        if WordTask.WORD_FEATURE_TAGGING in self.training_tasks:
+            word_feature_mask = batch["word_feature_labels"].ne(IGNORE_INDEX)
+            word_feature_tagging_loss = compute_multi_label_sequence_mean_loss(
+                ret["word_feature_probabilities"] * word_feature_mask,
+                batch["word_feature_labels"].float() * word_feature_mask,
+                word_feature_mask,
+            )
+            loss += word_feature_tagging_loss
+            self.log("train/word_feature_tagging_loss", word_feature_tagging_loss)
+
         if WordTask.NER in self.training_tasks:
-            ner_loss = outputs["phrase_analyzer_outputs"]["ner_loss"]
+            ne_labels = torch.where(batch["target_mask"] == 1, batch["ne_labels"], NE_TAGS.index("O"))
+            ner_loss = self.crf(ret["ne_logits"], ne_labels, mask=batch["target_mask"])
             loss += ner_loss
             self.log("train/ner_loss", ner_loss)
-        if WordTask.WORD_FEATURE_TAGGING in self.training_tasks:
-            word_feature_loss = outputs["phrase_analyzer_outputs"]["word_feature_loss"]
-            loss += word_feature_loss
-            self.log("train/word_feature_loss", word_feature_loss)
+
         if WordTask.BASE_PHRASE_FEATURE_TAGGING in self.training_tasks:
-            base_phrase_feature_loss = outputs["phrase_analyzer_outputs"]["base_phrase_feature_loss"]
-            loss += base_phrase_feature_loss
-            self.log("train/base_phrase_feature_loss", base_phrase_feature_loss)
+            base_phrase_feature_mask = batch["base_phrase_feature_labels"].ne(IGNORE_INDEX)
+            base_phrase_feature_tagging_loss = compute_multi_label_sequence_mean_loss(
+                ret["base_phrase_feature_probabilities"] * base_phrase_feature_mask,
+                batch["base_phrase_feature_labels"].float() * base_phrase_feature_mask,
+                base_phrase_feature_mask,
+            )
+            loss += base_phrase_feature_tagging_loss
+            self.log("train/base_phrase_feature_tagging_loss", base_phrase_feature_tagging_loss)
+
         if WordTask.DEPENDENCY_PARSING in self.training_tasks:
-            dependency_loss = outputs["relation_analyzer_outputs"]["dependency_loss"]
-            loss += dependency_loss
-            self.log("train/dependency_loss", dependency_loss)
-            dependency_type_loss = outputs["relation_analyzer_outputs"]["dependency_type_loss"]
-            loss += dependency_type_loss
-            self.log("train/dependency_type_loss", dependency_type_loss)
+            dependency_parsing_loss = compute_sequence_mean_loss(ret["dependency_logits"], batch["dependency_labels"])
+            top1 = ret["dependency_type_logits"][:, :, 0, :]
+            dependency_type_parsing_loss = compute_sequence_mean_loss(top1, batch["dependency_type_labels"])
+            loss += dependency_parsing_loss
+            loss += dependency_type_parsing_loss
+            self.log("train/dependency_parsing_loss", dependency_parsing_loss)
+            self.log("train/dependency_type_parsing_loss", dependency_type_parsing_loss)
+
         if WordTask.COHESION_ANALYSIS in self.training_tasks:
-            cohesion_analysis_loss = outputs["relation_analyzer_outputs"]["cohesion_loss"]
+            log_softmax = torch.log_softmax(ret["cohesion_logits"], dim=3)  # (b, rel, seq, seq)
+            denominator = batch["cohesion_labels"].sum() + 1e-6
+            cohesion_analysis_loss = (-log_softmax * batch["cohesion_labels"]).sum().div(denominator)
             loss += cohesion_analysis_loss
             self.log("train/cohesion_analysis_loss", cohesion_analysis_loss)
+
         if WordTask.DISCOURSE_PARSING in self.training_tasks:
-            discourse_parsing_loss = outputs["relation_analyzer_outputs"]["discourse_parsing_loss"]
+            ignored_indices = batch["discourse_labels"].eq(IGNORE_INDEX)
+            if (~ignored_indices).sum().item() == 0:
+                discourse_parsing_loss = torch.tensor(0.0, device=self.device)
+            else:
+                discourse_parsing_loss = compute_sequence_mean_loss(ret["discourse_logits"], batch["discourse_labels"])
             loss += discourse_parsing_loss
             self.log("train/discourse_parsing_loss", discourse_parsing_loss)
+
         return loss
 
     def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> None:
-        batch["training"] = False
-        outputs: Dict[str, Dict[str, torch.Tensor]] = self(**batch)
+        kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
+        kwargs.update({"discourse_labels": batch["discourse_labels"]})
         corpus = self.valid_corpora[dataloader_idx or 0]
-
-        reading_predictor_metric_args = {
-            "predictions": torch.argmax(outputs["reading_predictor_outputs"]["logits"], dim=-1),
-            "labels": batch["reading_ids"],
-        }
-        self.valid_reading_predictor_metrics[corpus].update(**reading_predictor_metric_args)
-        self.log("valid/reading_predictor_loss", outputs["reading_predictor_outputs"]["loss"])
-
-        word_analysis_metric_args = {
-            "pos_preds": torch.argmax(outputs["word_analyzer_outputs"]["pos_logits"], dim=-1),
-            "pos_labels": batch["mrph_types"][:, :, 0],
-            "subpos_preds": torch.argmax(outputs["word_analyzer_outputs"]["subpos_logits"], dim=-1),
-            "subpos_labels": batch["mrph_types"][:, :, 1],
-            "conjtype_preds": torch.argmax(outputs["word_analyzer_outputs"]["conjtype_logits"], dim=-1),
-            "conjtype_labels": batch["mrph_types"][:, :, 2],
-            "conjform_preds": torch.argmax(outputs["word_analyzer_outputs"]["conjform_logits"], dim=-1),
-            "conjform_labels": batch["mrph_types"][:, :, 3],
-        }
-        self.valid_word_analysis_metrics[corpus].update(**word_analysis_metric_args)
-        self.log("valid/word_analysis_loss", outputs["word_analyzer_outputs"]["loss"])
-
-        ner_metric_args = {
-            "example_ids": batch["example_ids"],
-            "ne_tag_predictions": torch.argmax(outputs["phrase_analyzer_outputs"]["ne_logits"], dim=-1),
-            "ne_tags": batch["ne_tags"],
-        }
-        self.valid_ner_metrics[corpus].update(**ner_metric_args)
-        self.log("valid/ner_loss", outputs["phrase_analyzer_outputs"]["ner_loss"])
-
-        phrase_analysis_metric_args = {
-            "example_ids": batch["example_ids"],
-            "word_feature_predictions": outputs["phrase_analyzer_outputs"]["word_feature_logits"].ge(0.5).long(),
-            "word_features": batch["word_features"],
-            "base_phrase_feature_predictions": outputs["phrase_analyzer_outputs"]["base_phrase_feature_logits"]
-            .ge(0.5)
-            .long(),
-            "base_phrase_features": batch["base_phrase_features"],
-        }
-        self.valid_phrase_analysis_metrics[corpus].update(**phrase_analysis_metric_args)
-        self.log("valid/word_feature_loss", outputs["phrase_analyzer_outputs"]["word_feature_loss"])
-        self.log("valid/base_phrase_feature_loss", outputs["phrase_analyzer_outputs"]["base_phrase_feature_loss"])
-
-        dependency_parsing_metric_args = {
-            "example_ids": batch["example_ids"],
-            "dependency_predictions": torch.topk(
-                outputs["relation_analyzer_outputs"]["dependency_logits"],
-                self.hparams.dependency_topk,
-                dim=2,
-            ).indices,
-            "dependency_type_predictions": torch.argmax(
-                outputs["relation_analyzer_outputs"]["dependency_type_logits"],
-                dim=3,
-            ),
-        }
-        self.valid_dependency_parsing_metrics[corpus].update(**dependency_parsing_metric_args)
-        self.log("valid/dependency_loss", outputs["relation_analyzer_outputs"]["dependency_loss"])
-
-        cohesion_analysis_metric_args = {
-            "example_ids": batch["example_ids"],
-            "output": outputs["relation_analyzer_outputs"]["cohesion_logits"],
-            "dataset": self.trainer.val_dataloaders[dataloader_idx or 0].dataset,
-        }
-        self.valid_cohesion_analysis_metrics[corpus].update(**cohesion_analysis_metric_args)
-        self.log("valid/cohesion_loss", outputs["relation_analyzer_outputs"]["cohesion_loss"])
-
-        discourse_parsing_logits = outputs["relation_analyzer_outputs"]["discourse_parsing_logits"]
-        discourse_parsing_probs = torch.softmax(discourse_parsing_logits, dim=-1)
-        discourse_parsing_max_probs, discourse_parsing_predictions = torch.max(discourse_parsing_probs, dim=-1)
-        discourse_parsing_unconfident_indexes = discourse_parsing_max_probs < self.discourse_parsing_threshold
-        discourse_parsing_predictions[discourse_parsing_unconfident_indexes] = DISCOURSE_RELATIONS.index("談話関係なし")
-        discourse_parsing_metric_args = {
-            "discourse_parsing_predictions": discourse_parsing_predictions,
-            "discourse_parsing_labels": batch["discourse_relations"],
-        }
-        self.valid_discourse_parsing_metrics[corpus].update(**discourse_parsing_metric_args)
-        self.log("valid/discourse_parsing_loss", outputs["relation_analyzer_outputs"]["discourse_parsing_loss"])
+        self.valid_corpus2word_module_metric[corpus].update(kwargs)
 
     def validation_epoch_end(self, validation_step_outputs) -> None:
-        log_metrics: Dict[str, Dict[str, float]] = {corpus: {} for corpus in self.valid_corpora}
-
-        for corpus, metric in self.valid_reading_predictor_metrics.items():
-            if WordTask.READING_PREDICTION in self.training_tasks:
-                log_metrics[corpus].update(metric.compute())
-            metric.reset()
-
-        for corpus, metric in self.valid_word_analysis_metrics.items():
-            if WordTask.WORD_ANALYSIS in self.training_tasks:
-                log_metrics[corpus].update(metric.compute())
-            metric.reset()
-
-        for corpus, metric in self.valid_ner_metrics.items():
-            if WordTask.NER in self.training_tasks:
-                log_metrics[corpus].update(metric.compute())
-            metric.reset()
-
-        for corpus, metric in self.valid_phrase_analysis_metrics.items():
-            if (
-                WordTask.WORD_FEATURE_TAGGING in self.training_tasks
-                or WordTask.BASE_PHRASE_FEATURE_TAGGING in self.training_tasks
-            ):
-                log_metrics[corpus].update(metric.compute())
-            metric.reset()
-
-        for idx, corpus in enumerate(self.valid_corpora):
-            metric = self.valid_dependency_parsing_metrics[corpus]
-            if WordTask.DEPENDENCY_PARSING in self.training_tasks:
-                dataset = self.trainer.val_dataloaders[idx].dataset
-                documents = [dataset.doc_id2document[example.doc_id] for example in dataset.examples]
-                log_metrics[corpus].update(metric.compute(documents))
-            metric.reset()
-
-        for idx, corpus in enumerate(self.valid_corpora):
-            metric = self.valid_cohesion_analysis_metrics[corpus]
-            if WordTask.COHESION_ANALYSIS in self.training_tasks:
-                dataset = self.trainer.val_dataloaders[idx].dataset
-                _, metric_values = metric.compute(dataset)
-                log_metrics[corpus].update(metric_values)
-            metric.reset()
-
-        for idx, corpus in enumerate(self.valid_corpora):
-            metric = self.valid_discourse_parsing_metrics[corpus]
-            if WordTask.DISCOURSE_PARSING in self.training_tasks:
-                for name, value in metric.compute().items():
-                    log_metrics[corpus][name] = value
-            metric.reset()
-
-        for corpus, metrics in log_metrics.items():
+        metrics_log: Dict[str, Dict[str, float]] = {corpus: {} for corpus in self.valid_corpora}
+        for corpus, word_module_metric in self.valid_corpus2word_module_metric.items():
+            dataset = self.trainer.val_dataloaders[self.valid_corpora.index(corpus)].dataset
+            word_module_metric.set_properties(dataset, self.reading_id2reading, self.training_tasks)
+            metrics = word_module_metric.compute()
             metrics["aggregated_word_metrics"] = mean(
                 metrics[key] for key in self.hparams.aggregating_metrics if key in metrics
             )
+            metrics_log[corpus] = metrics
+            word_module_metric.reset()
 
-        for corpus, metrics in log_metrics.items():
-            self.log_dict({f"valid_{corpus}/{name}": value for name, value in metrics.items()})
-        for name in list(log_metrics.values())[0].keys():
-            self.log(f"valid/{name}", mean(log_metrics[corpus].get(name, 0) for corpus in self.valid_corpora))
-        self.log(
-            "valid/aggregated_word_metrics",
-            mean(metrics["aggregated_word_metrics"] for metrics in log_metrics.values()),
-        )
+        for corpus, metrics in metrics_log.items():
+            self.log_dict({f"valid_{corpus}/{key}": value for key, value in metrics.items()})
+        for key in list(metrics_log.values())[0].keys():
+            self.log(
+                f"valid/{key}",
+                mean(metrics_log[corpus][key] for corpus in self.valid_corpora if key in metrics_log[corpus]),
+            )
 
     def test_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> None:
-        batch["training"] = False
-        outputs: Dict[str, Dict[str, torch.Tensor]] = self(**batch)
+        kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
+        kwargs.update({"discourse_labels": batch["discourse_labels"]})
         corpus = self.test_corpora[dataloader_idx or 0]
-
-        reading_predictor_metric_args = {
-            "predictions": torch.argmax(outputs["reading_predictor_outputs"]["logits"], dim=-1),
-            "labels": batch["reading_ids"],
-        }
-        self.test_reading_predictor_metrics[corpus].update(**reading_predictor_metric_args)
-        self.log("test/reading_predictor_loss", outputs["reading_predictor_outputs"]["loss"])
-
-        word_analysis_metric_args = {
-            "pos_preds": torch.argmax(outputs["word_analyzer_outputs"]["pos_logits"], dim=-1),
-            "pos_labels": batch["mrph_types"][:, :, 0],
-            "subpos_preds": torch.argmax(outputs["word_analyzer_outputs"]["subpos_logits"], dim=-1),
-            "subpos_labels": batch["mrph_types"][:, :, 1],
-            "conjtype_preds": torch.argmax(outputs["word_analyzer_outputs"]["conjtype_logits"], dim=-1),
-            "conjtype_labels": batch["mrph_types"][:, :, 2],
-            "conjform_preds": torch.argmax(outputs["word_analyzer_outputs"]["conjform_logits"], dim=-1),
-            "conjform_labels": batch["mrph_types"][:, :, 3],
-        }
-        self.test_word_analysis_metrics[corpus].update(**word_analysis_metric_args)
-        self.log("test/word_analysis_loss", outputs["word_analyzer_outputs"]["loss"])
-
-        ner_metric_args = {
-            "example_ids": batch["example_ids"],
-            "ne_tag_predictions": torch.argmax(outputs["phrase_analyzer_outputs"]["ne_logits"], dim=-1),
-            "ne_tags": batch["ne_tags"],
-        }
-        self.test_ner_metrics[corpus].update(**ner_metric_args)
-        self.log("test/ner_loss", outputs["phrase_analyzer_outputs"]["ner_loss"])
-
-        phrase_analysis_metric_args = {
-            "example_ids": batch["example_ids"],
-            "word_feature_predictions": outputs["phrase_analyzer_outputs"]["word_feature_logits"].ge(0.5).long(),
-            "word_features": batch["word_features"],
-            "base_phrase_feature_predictions": outputs["phrase_analyzer_outputs"]["base_phrase_feature_logits"]
-            .ge(0.5)
-            .long(),
-            "base_phrase_features": batch["base_phrase_features"],
-        }
-        self.test_phrase_analysis_metrics[corpus].update(**phrase_analysis_metric_args)
-        self.log("test/word_feature_loss", outputs["phrase_analyzer_outputs"]["word_feature_loss"])
-        self.log("test/base_phrase_feature_loss", outputs["phrase_analyzer_outputs"]["base_phrase_feature_loss"])
-
-        dependency_parsing_metric_args = {
-            "example_ids": batch["example_ids"],
-            "dependency_predictions": torch.topk(
-                outputs["relation_analyzer_outputs"]["dependency_logits"],
-                self.hparams.dependency_topk,
-                dim=2,
-            ).indices,
-            "dependency_type_predictions": torch.argmax(
-                outputs["relation_analyzer_outputs"]["dependency_type_logits"],
-                dim=3,
-            ),
-        }
-        self.test_dependency_parsing_metrics[corpus].update(**dependency_parsing_metric_args)
-        self.log("test/dependency_loss", outputs["relation_analyzer_outputs"]["dependency_loss"])
-
-        cohesion_analysis_metric_args = {
-            "example_ids": batch["example_ids"],
-            "output": outputs["relation_analyzer_outputs"]["cohesion_logits"],
-            "dataset": self.trainer.test_dataloaders[dataloader_idx or 0].dataset,
-        }
-        self.test_cohesion_analysis_metrics[corpus].update(**cohesion_analysis_metric_args)
-        self.log("test/cohesion_loss", outputs["relation_analyzer_outputs"]["cohesion_loss"])
-
-        discourse_parsing_logits = outputs["relation_analyzer_outputs"]["discourse_parsing_logits"]
-        discourse_parsing_probs = torch.softmax(discourse_parsing_logits, dim=-1)
-        discourse_parsing_max_probs, discourse_parsing_predictions = torch.max(discourse_parsing_probs, dim=-1)
-        discourse_parsing_unconfident_indexes = discourse_parsing_max_probs < self.discourse_parsing_threshold
-        discourse_parsing_predictions[discourse_parsing_unconfident_indexes] = DISCOURSE_RELATIONS.index("談話関係なし")
-        discourse_parsing_metric_args = {
-            "discourse_parsing_predictions": discourse_parsing_predictions,
-            "discourse_parsing_labels": batch["discourse_relations"],
-        }
-        self.test_discourse_parsing_metrics[corpus].update(**discourse_parsing_metric_args)
-        self.log("test/discourse_parsing_loss", outputs["relation_analyzer_outputs"]["discourse_parsing_loss"])
+        self.test_corpus2word_module_metric[corpus].update(kwargs)
 
     def test_epoch_end(self, test_step_outputs) -> None:
-        log_metrics: Dict[str, Dict[str, float]] = {corpus: {} for corpus in self.test_corpora}
-
-        for corpus, metric in self.test_reading_predictor_metrics.items():
-            if WordTask.READING_PREDICTION in self.training_tasks:
-                log_metrics[corpus].update(metric.compute())
-            metric.reset()
-
-        for corpus, metric in self.test_word_analysis_metrics.items():
-            if WordTask.WORD_ANALYSIS in self.training_tasks:
-                log_metrics[corpus].update(metric.compute())
-            metric.reset()
-
-        for corpus, metric in self.test_ner_metrics.items():
-            if WordTask.NER in self.training_tasks:
-                log_metrics[corpus].update(metric.compute())
-            metric.reset()
-
-        for corpus, metric in self.test_phrase_analysis_metrics.items():
-            if (
-                WordTask.WORD_FEATURE_TAGGING in self.training_tasks
-                or WordTask.BASE_PHRASE_FEATURE_TAGGING in self.training_tasks
-            ):
-                log_metrics[corpus].update(metric.compute())
-            metric.reset()
-
-        for idx, corpus in enumerate(self.test_corpora):
-            metric = self.test_dependency_parsing_metrics[corpus]
-            if WordTask.DEPENDENCY_PARSING in self.training_tasks:
-                dataset = self.trainer.test_dataloaders[idx].dataset
-                documents = [dataset.doc_id2document[example.doc_id] for example in dataset.examples]
-                log_metrics[corpus].update(metric.compute(documents))
-            metric.reset()
-
-        for idx, corpus in enumerate(self.test_corpora):
-            metric = self.test_cohesion_analysis_metrics[corpus]
-            if WordTask.COHESION_ANALYSIS in self.training_tasks:
-                dataset = self.trainer.test_dataloaders[idx].dataset
-                score_result, metric_values = metric.compute(dataset)
-                log_metrics[corpus].update(metric_values)
-                Path(self.hparams.run_dir).mkdir(exist_ok=True)
-                score_result.export_csv(f"{self.hparams.run_dir}/cohesion_analysis_scores_{corpus}.csv")
-                score_result.export_txt(f"{self.hparams.run_dir}/cohesion_analysis_scores_{corpus}.txt")
-            metric.reset()
-
-        for idx, corpus in enumerate(self.test_corpora):
-            metric = self.test_discourse_parsing_metrics[corpus]
-            if WordTask.DISCOURSE_PARSING in self.training_tasks:
-                for name, value in metric.compute().items():
-                    log_metrics[corpus][name] = value
-            metric.reset()
-
-        for corpus, metrics in log_metrics.items():
+        metrics_log: Dict[str, Dict[str, float]] = {corpus: {} for corpus in self.test_corpora}
+        for corpus, word_module_metric in self.test_corpus2word_module_metric.items():
+            dataset = self.trainer.test_dataloaders[self.test_corpora.index(corpus)].dataset
+            word_module_metric.set_properties(dataset, self.reading_id2reading, self.training_tasks)
+            metrics = word_module_metric.compute()
             metrics["aggregated_word_metrics"] = mean(
                 metrics[key] for key in self.hparams.aggregating_metrics if key in metrics
             )
+            metrics_log[corpus] = metrics
+            word_module_metric.reset()
 
-        for corpus, metrics in log_metrics.items():
-            self.log_dict({f"test_{corpus}/{name}": value for name, value in metrics.items()})
-        for name in list(log_metrics.values())[0].keys():
-            self.log(f"test/{name}", mean(log_metrics[corpus].get(name, 0) for corpus in self.test_corpora))
-        self.log(
-            "test/aggregated_word_metrics",
-            mean(metrics["aggregated_word_metrics"] for metrics in log_metrics.values()),
-        )
+        for corpus, metrics in metrics_log.items():
+            self.log_dict({f"test_{corpus}/{key}": value for key, value in metrics.items()})
+        for key in list(metrics_log.values())[0].keys():
+            self.log(
+                f"test/{key}",
+                mean(metrics_log[corpus][key] for corpus in self.test_corpora if key in metrics_log[corpus]),
+            )
 
-    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Any:
-        batch["training"] = False
-        outputs: Dict[str, Dict[str, torch.Tensor]] = self(**batch)
+    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Dict[str, torch.Tensor]:
+        ret: Dict[str, torch.Tensor] = self(batch)
+        ne_predictions = self.crf.viterbi_decode(ret["ne_logits"], batch["target_mask"])
+        discourse_probabilities = ret["discourse_logits"].softmax(dim=3)
+        discourse_max_probabilities, discourse_predictions = discourse_probabilities.max(dim=3)
+        discourse_unconfident_indices = discourse_max_probabilities < self.discourse_parsing_threshold
+        discourse_predictions[discourse_unconfident_indices] = DISCOURSE_RELATIONS.index("談話関係なし")
         return {
             "example_ids": batch["example_ids"],
+            "reading_predictions": ret["reading_logits"].argmax(dim=2),
             "reading_subword_map": batch["reading_subword_map"],
-            "reading_prediction_logits": outputs["reading_predictor_outputs"]["logits"],
-            "word_analysis_pos_logits": outputs["word_analyzer_outputs"]["pos_logits"],
-            "word_analysis_subpos_logits": outputs["word_analyzer_outputs"]["subpos_logits"],
-            "word_analysis_conjtype_logits": outputs["word_analyzer_outputs"]["conjtype_logits"],
-            "word_analysis_conjform_logits": outputs["word_analyzer_outputs"]["conjform_logits"],
-            "ne_logits": outputs["phrase_analyzer_outputs"]["ne_logits"],
-            "word_feature_logits": outputs["phrase_analyzer_outputs"]["word_feature_logits"],
-            "base_phrase_feature_logits": outputs["phrase_analyzer_outputs"]["base_phrase_feature_logits"],
-            "dependency_logits": outputs["relation_analyzer_outputs"]["dependency_logits"],
-            "dependency_type_logits": outputs["relation_analyzer_outputs"]["dependency_type_logits"],
-            "cohesion_logits": outputs["relation_analyzer_outputs"]["cohesion_logits"],
-            "discourse_parsing_logits": outputs["relation_analyzer_outputs"]["discourse_parsing_logits"],
+            "pos_logits": ret["pos_logits"],
+            "subpos_logits": ret["subpos_logits"],
+            "conjtype_logits": ret["conjtype_logits"],
+            "conjform_logits": ret["conjform_logits"],
+            "word_feature_probabilities": ret["word_feature_probabilities"],
+            "ne_predictions": ne_predictions,
+            "base_phrase_feature_probabilities": ret["base_phrase_feature_probabilities"],
+            "dependency_predictions": ret["dependency_logits"].topk(k=self.topk, dim=2).indices,
+            "dependency_type_predictions": ret["dependency_type_logits"].argmax(dim=3),
+            "cohesion_logits": ret["cohesion_logits"],
+            "discourse_predictions": discourse_predictions,
         }
 
     def configure_optimizers(self):

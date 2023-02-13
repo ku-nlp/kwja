@@ -5,7 +5,7 @@ from typing import Dict, List, Union
 
 from rhoknp import Document, Sentence
 from torch.utils.data import Dataset
-from transformers import AutoTokenizer, PreTrainedTokenizerBase
+from transformers import PreTrainedTokenizerBase
 
 from kwja.utils.progress_bar import track
 from kwja.utils.sub_document import SequenceSplitter, SpanCandidate, to_sub_doc_id
@@ -16,28 +16,25 @@ logger = logging.getLogger(__name__)
 class BaseDataset(Dataset):
     def __init__(
         self,
-        source: Union[Path, str, List[Document]],
-        document_split_stride: int,
-        model_name_or_path: str,
+        source: Union[Path, List[Document]],
+        tokenizer: PreTrainedTokenizerBase,
         max_seq_length: int,
-        tokenizer_kwargs: dict,
+        document_split_stride: int,
         ext: str = "knp",
     ) -> None:
-        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-            model_name_or_path,
-            **tokenizer_kwargs,
-        )
+        self.tokenizer: PreTrainedTokenizerBase = tokenizer
         self.max_seq_length = max_seq_length
+
         self.orig_documents: List[Document]
-        if isinstance(source, (Path, str)):
-            source = Path(source)
+        if isinstance(source, Path):
             assert source.is_dir()
             self.orig_documents = self._load_documents(source, ext)
         else:
             self.orig_documents = source
+
         self.doc_id2document: Dict[str, Document] = {}
         for orig_document in track(self.orig_documents, description="Splitting documents"):
-            orig_document = self._normalize(orig_document)
+            orig_document = self._normalize_text(orig_document)
             self.doc_id2document.update(
                 {
                     document.doc_id: document
@@ -64,7 +61,7 @@ class BaseDataset(Dataset):
                 logger.warning(f"{path} is not a valid knp file.")
         return documents
 
-    def _normalize(self, document: Document) -> Document:
+    def _normalize_text(self, document: Document) -> Document:
         return document
 
     def _split_document(self, document: Document, max_token_length: int, stride: int) -> List[Document]:
@@ -80,14 +77,12 @@ class BaseDataset(Dataset):
             sentences = document.sentences[span.start : span.end]
             sub_document = Document.from_sentences(sentences)
             sub_doc_id = to_sub_doc_id(document.doc_id, sub_idx, stride=span.stride)
-            for sentence, sub_sentence in zip(sentences, sub_document.sentences):
-                sub_sentence.doc_id = sub_doc_id
-                sub_sentence.sid = sentence.sid
-                sub_sentence.misc_comment = sentence.misc_comment
             sub_document.doc_id = sub_doc_id
+            for sentence, sub_sentence in zip(sentences, sub_document.sentences):
+                sub_sentence.comment = sentence.comment
             sub_documents.append(sub_document)
             sub_idx += 1
         return sub_documents
 
-    def _get_tokenized_len(self, source: Union[Document, Sentence]) -> int:
-        return len(self.tokenizer.tokenize(" ".join(m.text for m in source.morphemes)))
+    def _get_tokenized_len(self, document_or_sentence: Union[Document, Sentence]) -> int:
+        return len(self.tokenizer.tokenize(document_or_sentence.text))

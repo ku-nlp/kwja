@@ -7,18 +7,8 @@ from rhoknp import Document, Sentence
 SUB_DOC_PAT: re.Pattern = re.compile(r"^(?P<did>[a-zA-Z\d\-_]+?)-s(?P<stride>\d+?)i(?P<idx>\d+?)$")
 
 
-def is_target_sentence(sentence: Sentence) -> bool:
-    if sentence.document.doc_id is None:
-        return True
-    match = SUB_DOC_PAT.match(sentence.document.doc_id)
-    if match is None:
-        return True
-    stride = int(match["stride"])
-    return sentence in sentence.document.sentences[-stride:]
-
-
-def extract_target_sentences(document: Document) -> List[Sentence]:
-    return [sentence for sentence in document.sentences if is_target_sentence(sentence)]
+def to_sub_doc_id(doc_id: str, idx: int, stride: int = 1) -> str:
+    return f"{doc_id}-s{stride}i{idx}"
 
 
 def to_orig_doc_id(doc_id: str) -> str:
@@ -29,8 +19,18 @@ def to_orig_doc_id(doc_id: str) -> str:
         return match["did"]
 
 
-def to_sub_doc_id(doc_id: str, idx: int, stride: int = 1) -> str:
-    return f"{doc_id}-s{stride}i{idx}"
+def extract_target_sentences(document: Document) -> List[Sentence]:
+    return [sentence for sentence in document.sentences if is_target_sentence(sentence)]
+
+
+def is_target_sentence(sentence: Sentence) -> bool:
+    if sentence.document.doc_id is None:
+        return True
+    match = SUB_DOC_PAT.match(sentence.document.doc_id)
+    if match is None:
+        return True
+    stride = int(match["stride"])
+    return sentence in sentence.document.sentences[-stride:]
 
 
 @dataclass(frozen=True)

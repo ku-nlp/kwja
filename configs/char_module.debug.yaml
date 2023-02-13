@@ -11,17 +11,20 @@ defaults:
   - trainer: debug
   - _self_
 
-max_seq_length: 128
+max_seq_length: 256
 do_predict_after_train: true
 checkpoint_path: ""
-document_split_stride: 1
+document_split_stride: -1
 
 # For word normalization
-denormalize_prob: 0.0
+denormalize_probability: 0.0
 
 # set monitor and mode for early_stopping and model_checkpoint
-monitor: valid/f1
+monitor: valid/aggregated_char_metrics
 mode: max
+aggregating_metrics:
+  - word_segmentation_f1
+#  - word_normalization_f1  # exclude because this metric is unstable
 
 # hyper-parameters to be tuned
 warmup_steps: 100

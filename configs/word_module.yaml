@@ -17,9 +17,9 @@ checkpoint_path: ""
 document_split_stride: 2
 training_tasks:
   - reading_prediction
-  - word_analysis
-  - ner
+  - morphological_analysis
   - word_feature_tagging
+  - ner
   - base_phrase_feature_tagging
   - dependency_parsing
   - cohesion_analysis
@@ -32,21 +32,22 @@ dependency_topk: 4
 discourse_parsing_threshold: 0.0
 
 # for cohesion analysis
-pas_cases: ["ガ", "ヲ", "ニ", "ガ２"]
-bar_rels: ["ノ"]
+# pas_analysis, bridging_reference_resolution, and/or coreference_resolution
+cohesion_tasks: [pas_analysis, bridging_reference_resolution, coreference_resolution]
 exophora_referents: ["著者", "読者", "不特定:人", "不特定:物"]
-cohesion_tasks: [pas_analysis, bridging, coreference]  # pas_analysis, bridging, and/or coreference
 restrict_cohesion_target: true
+pas_cases: ["ガ", "ヲ", "ニ", "ガ２"]
+br_cases: ["ノ"]
 
 # set monitor and mode for early_stopping and model_checkpoint
 monitor: valid/aggregated_word_metrics
 mode: max
 aggregating_metrics:
   - reading_prediction_accuracy
-  - word_analysis_f1
+  - morphological_analysis_f1
+  - macro_word_feature_tagging_f1
   - ner_f1
-  - macro_word_feature_f1
-  - macro_base_phrase_feature_f1
+  - macro_base_phrase_feature_tagging_f1
   - base_phrase_LAS_f1
   - cohesion_analysis_f1
   - discourse_parsing_f1
@@ -57,7 +58,7 @@ effective_batch_size: 16
 
 # environment dependent settings
 devices: ${oc.env:GPUS,0}
-max_batches_per_device: 1
+max_batches_per_device: 2
 num_workers: 0
 
 ignore_hparams_on_save: false

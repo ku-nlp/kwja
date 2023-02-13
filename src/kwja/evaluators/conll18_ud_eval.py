@@ -654,6 +654,7 @@ def main(gold_lines, system_lines, verbose=False, counts=False):
 # if __name__ == "__main__":
 #     main()
 
+
 # Tests, which can be executed with `python -m unittest conll18_ud_eval`.
 class TestAlignment(unittest.TestCase):
     @staticmethod

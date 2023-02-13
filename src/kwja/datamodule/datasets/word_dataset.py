@@ -1,119 +1,96 @@
 import logging
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Literal, Tuple, Union
+from typing import Dict, List, Literal, Union
 
 import torch
 from omegaconf import ListConfig
 from rhoknp import Document, Sentence
 from rhoknp.cohesion import ExophoraReferent
-from scipy.special import softmax
 from tokenizers import Encoding
+from transformers import PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
 from kwja.datamodule.datasets.base_dataset import BaseDataset
-from kwja.datamodule.examples import (
-    BasePhraseFeatureExample,
-    CohesionExample,
-    CohesionTask,
-    DependencyExample,
-    DiscourseExample,
-    ReadingExample,
-    WordFeatureExample,
-)
-from kwja.datamodule.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
-from kwja.datamodule.extractors.base import Phrase
+from kwja.datamodule.examples import WordExample
+from kwja.utils.cohesion_analysis import BridgingUtils, CohesionBasePhrase, CohesionUtils, CoreferenceUtils, PasUtils
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
-    CONJFORM_TYPES,
-    CONJTYPE_TYPES,
-    DEPENDENCY_TYPE2INDEX,
+    CONJFORM_TAGS,
+    CONJTYPE_TAGS,
+    DEPENDENCY_TYPES,
     DISCOURSE_RELATIONS,
     IGNORE_INDEX,
     NE_TAGS,
-    POS_TYPES,
-    SUBPOS_TYPES,
+    POS_TAGS,
+    RESOURCE_PATH,
+    SPLIT_INTO_WORDS_MODEL_NAMES,
+    SUBPOS_TAGS,
     WORD_FEATURES,
+    CohesionTask,
 )
 from kwja.utils.kanjidic import KanjiDic
 from kwja.utils.progress_bar import track
-from kwja.utils.reading import ReadingAligner, get_reading2id
+from kwja.utils.reading_prediction import ReadingAligner, get_reading2reading_id
 from kwja.utils.sub_document import extract_target_sentences
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass(frozen=True)
-class WordExampleSet:
-    example_id: int
-    doc_id: str
-    encoding: Encoding
-    reading_example: ReadingExample
-    word_feature_example: WordFeatureExample
-    base_phrase_feature_example: BasePhraseFeatureExample
-    dependency_example: DependencyExample
-    cohesion_example: CohesionExample
-    discourse_example: DiscourseExample
 
 
 class WordDataset(BaseDataset):
     def __init__(
         self,
         path: str,
-        pas_cases: ListConfig,
-        bar_rels: ListConfig,
-        exophora_referents: ListConfig,
-        cohesion_tasks: ListConfig,
-        special_tokens: ListConfig,
-        restrict_cohesion_target: bool,
-        reading_resource_path: str,
+        tokenizer: PreTrainedTokenizerBase,
         document_split_stride: int,
-        model_name_or_path: str = "nlp-waseda/roberta-base-japanese",
-        max_seq_length: int = 512,
-        tokenizer_kwargs: dict = None,
+        cohesion_tasks: ListConfig,
+        exophora_referents: ListConfig,
+        restrict_cohesion_target: bool,
+        pas_cases: ListConfig,
+        br_cases: ListConfig,
+        special_tokens: ListConfig,
+        max_seq_length: int = 256,
     ) -> None:
         self.path = Path(path)
-        if model_name_or_path in [
-            "nlp-waseda/roberta-base-japanese",
-            "nlp-waseda/roberta-large-japanese",
-            "nlp-waseda/roberta-large-japanese-seq512",
-        ]:
+        if tokenizer.name_or_path in SPLIT_INTO_WORDS_MODEL_NAMES:
             self.tokenizer_input_format: Literal["words", "text"] = "words"
         else:
             self.tokenizer_input_format = "text"
-        super().__init__(
-            self.path,
-            document_split_stride,
-            model_name_or_path,
-            max_seq_length,
-            tokenizer_kwargs or {},
-        )
-        self.special_tokens: List[str] = list(special_tokens)
-        self.exophora_referents = [ExophoraReferent(s) for s in exophora_referents]
-        self.cohesion_tasks: List[CohesionTask] = [CohesionTask(t) for t in cohesion_tasks]
-        self.pas_cases: List[str] = list(pas_cases)
-        self.bar_rels: List[str] = list(bar_rels)
-        self.cohesion_task_to_rel_types = {
-            CohesionTask.PAS_ANALYSIS: self.pas_cases,
-            CohesionTask.BRIDGING: self.bar_rels,
-            CohesionTask.COREFERENCE: ["="],
-        }
-        self.restrict_cohesion_target = restrict_cohesion_target
-        self.extractors = {
-            CohesionTask.PAS_ANALYSIS: PasExtractor(self.pas_cases, self.exophora_referents, restrict_cohesion_target),
-            CohesionTask.COREFERENCE: CoreferenceExtractor(self.exophora_referents, restrict_cohesion_target),
-            CohesionTask.BRIDGING: BridgingExtractor(self.bar_rels, self.exophora_referents, restrict_cohesion_target),
-        }
-        self.special_to_index: Dict[str, int] = {
-            token: self.max_seq_length - len(self.special_tokens) + i for i, token in enumerate(self.special_tokens)
-        }
-        self.index_to_special: Dict[int, str] = {v: k for k, v in self.special_to_index.items()}
-        self.reading_resource_path = Path(reading_resource_path)
-        self.reading2id = get_reading2id(str(self.reading_resource_path / "vocab.txt"))
+        super().__init__(self.path, tokenizer, max_seq_length, document_split_stride)
+
+        # ---------- reading prediction ----------
+        reading_resource_path = RESOURCE_PATH / "reading_prediction"
+        self.reading2reading_id = get_reading2reading_id(reading_resource_path / "vocab.txt")
         self.reading_aligner = ReadingAligner(
-            self.tokenizer, self.tokenizer_input_format, KanjiDic(str(self.reading_resource_path / "kanjidic"))
+            self.tokenizer, self.tokenizer_input_format, KanjiDic(str(reading_resource_path / "kanjidic"))
         )
-        self.examples: List[WordExampleSet] = self._load_examples(self.documents)
+
+        # ---------- cohesion analysis ----------
+        self.cohesion_tasks: List[CohesionTask] = [CohesionTask(t) for t in cohesion_tasks]
+        self.exophora_referents = [ExophoraReferent(s) for s in exophora_referents]
+        self.restrict_cohesion_target = restrict_cohesion_target
+        self.pas_cases: List[str] = list(pas_cases)
+        self.br_cases: List[str] = list(br_cases)
+        self.cohesion_task2utils: Dict[CohesionTask, CohesionUtils] = {}
+        for cohesion_task in self.cohesion_tasks:
+            if cohesion_task == CohesionTask.PAS_ANALYSIS:
+                self.cohesion_task2utils[cohesion_task] = PasUtils(
+                    self.pas_cases, "all", self.exophora_referents, restrict_target=restrict_cohesion_target
+                )
+            elif cohesion_task == CohesionTask.BRIDGING_REFERENCE_RESOLUTION:
+                self.cohesion_task2utils[cohesion_task] = BridgingUtils(
+                    self.br_cases, self.exophora_referents, restrict_target=restrict_cohesion_target
+                )
+            elif cohesion_task == CohesionTask.COREFERENCE_RESOLUTION:
+                self.cohesion_task2utils[cohesion_task] = CoreferenceUtils(
+                    self.exophora_referents, restrict_target=restrict_cohesion_target
+                )
+
+        # ---------- dependency parsing & cohesion analysis ----------
+        self.special_tokens: List[str] = list(special_tokens)
+        self.special_token2index: Dict[str, int] = {
+            st: self.max_seq_length - len(self.special_tokens) + i for i, st in enumerate(self.special_tokens)
+        }
+        self.index2special_token: Dict[int, str] = {v: k for k, v in self.special_token2index.items()}
         self.special_encoding: Encoding = self.tokenizer(
             self.special_tokens,
             is_split_into_words=True,
@@ -122,25 +99,26 @@ class WordDataset(BaseDataset):
             add_special_tokens=False,
         ).encodings[0]
 
-    @property
-    def special_indices(self) -> List[int]:
-        return list(self.special_to_index.values())
+        self.examples: List[WordExample] = self._load_examples(self.documents)
 
-    @property
-    def cohesion_special_indices(self) -> List[int]:
-        return [index for special, index in self.special_to_index.items() if special != "[ROOT]"]
+    def __len__(self) -> int:
+        return len(self.examples)
 
-    @property
-    def num_special_tokens(self) -> int:
-        return len(self.special_tokens)
+    def __getitem__(self, index: int) -> Dict[str, torch.Tensor]:
+        return self.encode(self.examples[index])
 
-    @property
-    def cohesion_rel_types(self) -> List[str]:
-        return [t for task in self.cohesion_tasks for t in self.cohesion_task_to_rel_types[task]]
+    def _get_tokenized_len(self, document_or_sentence: Union[Document, Sentence]) -> int:
+        tokenizer_input: Union[List[str], str] = [m.text for m in document_or_sentence.morphemes]
+        if self.tokenizer_input_format == "text":
+            tokenizer_input = " ".join(tokenizer_input)
+        encoding = self.tokenizer(
+            tokenizer_input, add_special_tokens=False, is_split_into_words=self.tokenizer_input_format == "words"
+        ).encodings[0]
+        return len(encoding.ids)
 
-    def _load_examples(self, documents: List[Document]) -> List[WordExampleSet]:
+    def _load_examples(self, documents: List[Document]) -> List[WordExample]:
         examples = []
-        idx = 0
+        example_id = 0
         for document in track(documents, description="Loading examples"):
             tokenizer_input: Union[List[str], str] = [m.text for m in document.morphemes]
             if self.tokenizer_input_format == "text":
@@ -155,49 +133,21 @@ class WordDataset(BaseDataset):
             if len(encoding.ids) > self.max_seq_length - self.num_special_tokens:
                 continue
 
-            reading_example = ReadingExample()
-            reading_example.load(document, aligner=self.reading_aligner)
-
-            word_feature_example = WordFeatureExample()
-            word_feature_example.load(document)
-
-            base_phrase_feature_example = BasePhraseFeatureExample()
-            base_phrase_feature_example.load(document)
-
-            dependency_example = DependencyExample()
-            dependency_example.load(document)
-
-            cohesion_example = CohesionExample()
-            cohesion_example.load(document, tasks=self.cohesion_tasks, extractors=self.extractors)
-
-            discourse_example = DiscourseExample()
-            discourse_example.load(document, has_annotation=False)
-            path = self.path / "disc_expert" / f"{document.doc_id}.knp"
-            if not path.exists() and self.path.name == "train":
-                path = self.path / "disc_crowd" / f"{document.doc_id}.knp"
-            if path.exists():
+            word_example = WordExample(example_id, encoding)
+            word_example.load_document(document, self.reading_aligner, self.cohesion_task2utils)
+            discourse_path = self.path / "disc_expert" / f"{document.doc_id}.knp"
+            if not discourse_path.exists() and self.path.name == "train":
+                discourse_path = self.path / "disc_crowd" / f"{document.doc_id}.knp"
+            if discourse_path.exists():
                 try:
-                    document_disc = Document.from_knp(path.read_text())
-                    if document == document_disc:
-                        discourse_example.load(document_disc)
+                    discourse_document = Document.from_knp(discourse_path.read_text())
+                    if document == discourse_document:
+                        word_example.load_discourse_document(discourse_document)
                 except AssertionError:
-                    logger.warning(f"{path} is not a valid KNP file")
+                    logger.warning(f"{discourse_path} is not a valid KNP file")
 
-            examples.append(
-                WordExampleSet(
-                    example_id=idx,
-                    doc_id=document.doc_id,
-                    encoding=encoding,
-                    reading_example=reading_example,
-                    word_feature_example=word_feature_example,
-                    base_phrase_feature_example=base_phrase_feature_example,
-                    dependency_example=dependency_example,
-                    cohesion_example=cohesion_example,
-                    discourse_example=discourse_example,
-                )
-            )
-            idx += 1
-
+            examples.append(word_example)
+            example_id += 1
         if len(examples) == 0:
             logger.error(
                 "No examples to process. "
@@ -205,240 +155,192 @@ class WordDataset(BaseDataset):
             )
         return examples
 
-    def __len__(self) -> int:
-        return len(self.examples)
-
-    def __getitem__(self, index: int) -> Dict[str, torch.Tensor]:
-        return self.encode(self.examples[index])
-
-    def encode(self, example: WordExampleSet) -> Dict[str, torch.Tensor]:
+    def encode(self, example: WordExample) -> Dict[str, torch.Tensor]:
         merged_encoding: Encoding = Encoding.merge([example.encoding, self.special_encoding])
-
+        assert example.doc_id is not None, "doc_id isn't set"
         document = self.doc_id2document[example.doc_id]
-        target_mask = [False for _ in range(self.max_seq_length)]
+
+        target_mask = [0 for _ in range(self.max_seq_length)]
         for sentence in extract_target_sentences(document):
             for morpheme in sentence.morphemes:
-                target_mask[morpheme.global_index] = True
+                target_mask[morpheme.global_index] = 1
 
-        # reading prediction
-        reading_example = example.reading_example
-        reading_ids = [IGNORE_INDEX] * self.max_seq_length
-        if reading_example.readings:
-            non_special_token_indexes = [
-                token_index
+        # ---------- reading prediction ----------
+        reading_labels = [IGNORE_INDEX] * self.max_seq_length
+        if example.readings is not None:
+            token_indices = [
+                (token_index, word_id)
                 for token_index, word_id in enumerate(merged_encoding.word_ids)
-                if word_id is not None and token_index not in self.index_to_special
+                if token_index not in self.index2special_token and word_id is not None
             ]
-            for index, non_special_token_index in enumerate(non_special_token_indexes):
-                reading = reading_example.readings[index]
-                decoded_token = self.tokenizer.decode(merged_encoding.ids[non_special_token_index])
-                if reading == decoded_token:
-                    reading_ids[non_special_token_index] = self.reading2id["[ID]"]
-                else:
-                    reading_ids[non_special_token_index] = self.reading2id.get(reading, self.reading2id["[UNK]"])
+            for (token_index, word_id), reading in zip(token_indices, example.readings):
+                if target_mask[word_id] == 1:
+                    decoded_token = self.tokenizer.decode(merged_encoding.ids[token_index])
+                    if decoded_token == reading:
+                        reading_labels[token_index] = self.reading2reading_id["[ID]"]
+                    else:
+                        reading_labels[token_index] = self.reading2reading_id.get(
+                            reading, self.reading2reading_id["[UNK]"]
+                        )
 
         # NOTE: hereafter, indices are given at the word level
 
-        # morpheme type tagging
-        word_feature_example = example.word_feature_example
-        morpheme_type_set = (POS_TYPES, SUBPOS_TYPES, CONJTYPE_TYPES, CONJFORM_TYPES)
-        morpheme_types = [[IGNORE_INDEX] * len(morpheme_type_set) for _ in range(self.max_seq_length)]
-        for morpheme_index, mrph_types in word_feature_example.types.items():
-            for i, (mrph_type, all_types) in enumerate(zip(mrph_types, morpheme_type_set)):
-                if mrph_type in all_types:
-                    morpheme_types[morpheme_index][i] = all_types.index(mrph_type)
+        # ---------- morphological analysis ----------
+        morpheme_attribute_tags_list = (POS_TAGS, SUBPOS_TAGS, CONJTYPE_TAGS, CONJFORM_TAGS)
+        morpheme_attribute_labels = torch.tensor(
+            [[IGNORE_INDEX] * len(morpheme_attribute_tags_list) for _ in range(self.max_seq_length)], dtype=torch.long
+        )
+        for morpheme_global_index, morpheme_attributes in example.morpheme_global_index2morpheme_attributes.items():
+            for i, (morpheme_attribute, morpheme_attribute_tags) in enumerate(
+                zip(morpheme_attributes, morpheme_attribute_tags_list)
+            ):
+                if morpheme_attribute in morpheme_attribute_tags:
+                    morpheme_attribute_index = morpheme_attribute_tags.index(morpheme_attribute)
+                    morpheme_attribute_labels[morpheme_global_index][i] = morpheme_attribute_index
 
-        ne_tags: List[int] = [
-            (NE_TAGS.index("O") if morpheme_index in word_feature_example.features.keys() else IGNORE_INDEX)
-            for morpheme_index in range(self.max_seq_length)
+        # ---------- word feature tagging ----------
+        word_feature_labels = [[IGNORE_INDEX] * len(WORD_FEATURES) for _ in range(self.max_seq_length)]
+        for morpheme_global_index, word_feature_set in example.morpheme_global_index2word_feature_set.items():
+            for i, word_feature in enumerate(WORD_FEATURES):
+                word_feature_labels[morpheme_global_index][i] = int(word_feature in word_feature_set)
+
+        # ---------- ner ----------
+        ne_labels: List[int] = [
+            NE_TAGS.index("O") if target_mask[morpheme_global_index] == 1 else IGNORE_INDEX
+            for morpheme_global_index in range(self.max_seq_length)
         ]
-        for named_entity in word_feature_example.named_entities:
+        for named_entity in example.named_entities:
             category = named_entity.category.value
             for i, morpheme in enumerate(named_entity.morphemes):
                 bi = "B" if i == 0 else "I"
-                assert ne_tags[morpheme.global_index] == NE_TAGS.index("O"), f"nested NE found in {example.doc_id}"
-                ne_tags[morpheme.global_index] = NE_TAGS.index(f"{bi}-{category}")
+                assert ne_labels[morpheme.global_index] == NE_TAGS.index("O"), f"nested NE found in {example.doc_id}"
+                ne_index = NE_TAGS.index(f"{bi}-{category}")
+                ne_labels[morpheme.global_index] = ne_index
 
-        # word feature tagging
-        word_features = [[IGNORE_INDEX] * len(WORD_FEATURES) for _ in range(self.max_seq_length)]
-        for morpheme_index, feature_set in word_feature_example.features.items():
-            for i, word_feature in enumerate(WORD_FEATURES):
-                word_features[morpheme_index][i] = int(word_feature in feature_set)
-
-        # base phrase feature tagging
-        base_phrase_feature_example = example.base_phrase_feature_example
-        base_phrase_features = [[IGNORE_INDEX] * len(BASE_PHRASE_FEATURES) for _ in range(self.max_seq_length)]
-        for head_index, feature_set in zip(base_phrase_feature_example.heads, base_phrase_feature_example.features):
+        # ---------- base phrase feature tagging ----------
+        base_phrase_feature_labels = [[IGNORE_INDEX] * len(BASE_PHRASE_FEATURES) for _ in range(self.max_seq_length)]
+        for morpheme_global_index, feature_set in example.morpheme_global_index2base_phrase_feature_set.items():
             for i, base_phrase_feature in enumerate(BASE_PHRASE_FEATURES):
-                base_phrase_features[head_index][i] = int(base_phrase_feature in feature_set)
+                base_phrase_feature_labels[morpheme_global_index][i] = int(base_phrase_feature in feature_set)
 
-        # dependency parsing
-        dependency_example = example.dependency_example
-        dependencies: List[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
-        for morpheme_index, dependency in dependency_example.dependencies.items():
-            dependencies[morpheme_index] = dependency if dependency != -1 else self.special_to_index["[ROOT]"]
-
-        # False -> mask, True -> keep
+        # ---------- dependency parsing ----------
+        root_index = self.special_token2index["[ROOT]"]
+        dependency_labels: List[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
+        for morpheme_global_index, dependency in example.morpheme_global_index2dependency.items():
+            dependency_labels[morpheme_global_index] = dependency if dependency >= 0 else root_index
         dependency_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
-        for morpheme_index, candidates in dependency_example.candidates.items():
-            for candidate_index in candidates + [self.special_to_index["[ROOT]"]]:
-                dependency_mask[morpheme_index][candidate_index] = True
-        dependency_types: List[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
-        for morpheme_index, dependency_type in dependency_example.dependency_types.items():
-            dependency_types[morpheme_index] = DEPENDENCY_TYPE2INDEX[dependency_type]
+        for morpheme_global_index, dependent_candidates in example.morpheme_global_index2dependent_candidates.items():
+            for dependent_candidate_index in dependent_candidates + [root_index]:
+                dependency_mask[morpheme_global_index][dependent_candidate_index] = True
+        dependency_type_labels: List[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
+        for morpheme_global_index, dependency_type in example.morpheme_global_index2dependency_type.items():
+            dependency_type_index = DEPENDENCY_TYPES.index(dependency_type)
+            dependency_type_labels[morpheme_global_index] = dependency_type_index
 
-        # PAS analysis & coreference resolution
-        cohesion_example = example.cohesion_example
-        cohesion_target: List[List[List[int]]] = []  # (task, src, tgt)
-        candidates_set: List[List[List[int]]] = []  # (task, src, tgt)
-        if CohesionTask.PAS_ANALYSIS in self.cohesion_tasks:
-            task = CohesionTask.PAS_ANALYSIS
-            annotation = cohesion_example.annotations[task]
-            phrases = cohesion_example.phrases[task]
-            for case in self.pas_cases:
-                arguments_set = [arguments[case] for arguments in annotation.arguments_set]
-                ret = self._convert_annotation_to_feature(arguments_set, phrases)
-                cohesion_target.append(ret[0])
-                candidates_set.append(ret[1])
-        for task in (CohesionTask.BRIDGING, CohesionTask.COREFERENCE):
-            if task not in self.cohesion_tasks:
-                continue
-            annotation = cohesion_example.annotations[task].arguments_set
-            phrases = cohesion_example.phrases[task]
-            ret = self._convert_annotation_to_feature(annotation, phrases)
-            cohesion_target.append(ret[0])
-            candidates_set.append(ret[1])
-        cohesion_mask = [
-            [[(x in cands) for x in range(self.max_seq_length)] for cands in candidates]
-            for candidates in candidates_set
-        ]  # False -> mask, True -> keep
+        # ---------- cohesion analysis ----------
+        cohesion_labels: List[List[List[int]]] = []  # (rel, src, tgt)
+        cohesion_mask: List[List[List[bool]]] = []  # (rel, src, tgt)
+        for cohesion_task, cohesion_utils in self.cohesion_task2utils.items():
+            cohesion_base_phrases = example.cohesion_task2base_phrases[cohesion_task]
+            for rel in cohesion_utils.rels:
+                rel_labels = self._convert_cohesion_base_phrases_into_rel_labels(cohesion_base_phrases, rel)
+                cohesion_labels.append(rel_labels)
+            rel_mask = self._convert_cohesion_base_phrases_into_rel_mask(cohesion_base_phrases)
+            cohesion_mask.extend([rel_mask] * len(cohesion_utils.rels))
 
-        discourse_example = example.discourse_example
-        discourse_relations = [[IGNORE_INDEX for _ in range(self.max_seq_length)] for _ in range(self.max_seq_length)]
-        for global_morpheme_index_i, relations in enumerate(discourse_example.discourse_relations):
-            for global_morpheme_index_j, relation in enumerate(relations):
-                if relation in DISCOURSE_RELATIONS:
-                    relation_index = DISCOURSE_RELATIONS.index(relation)
-                    discourse_relations[global_morpheme_index_i][global_morpheme_index_j] = relation_index
+        # ---------- discourse parsing ----------
+        discourse_labels = [[IGNORE_INDEX for _ in range(self.max_seq_length)] for _ in range(self.max_seq_length)]
+        for (
+            modifier_morpheme_global_index,
+            head_morpheme_global_index,
+        ), relation in example.morpheme_global_indices2discourse_relation.items():
+            if relation in DISCOURSE_RELATIONS:
+                discourse_index = DISCOURSE_RELATIONS.index(relation)
+                discourse_labels[modifier_morpheme_global_index][head_morpheme_global_index] = discourse_index
 
         return {
             "example_ids": torch.tensor(example.example_id, dtype=torch.long),
             "input_ids": torch.tensor(merged_encoding.ids, dtype=torch.long),
             "attention_mask": torch.tensor(merged_encoding.attention_mask, dtype=torch.long),
-            "target_mask": torch.tensor(target_mask, dtype=torch.bool),
-            "subword_map": torch.tensor(self._gen_subword_map(merged_encoding), dtype=torch.bool),
+            "target_mask": torch.tensor(target_mask, dtype=torch.long),
+            "subword_map": torch.tensor(self._get_subword_map(merged_encoding), dtype=torch.bool),
+            "reading_labels": torch.tensor(reading_labels, dtype=torch.long),
             "reading_subword_map": torch.tensor(
-                self._gen_subword_map(merged_encoding, include_additional_words=False), dtype=torch.bool
+                self._get_subword_map(merged_encoding, include_special_tokens=False), dtype=torch.bool
             ),
-            "mrph_types": torch.tensor(morpheme_types, dtype=torch.long),
-            "reading_ids": torch.tensor(reading_ids, dtype=torch.long),
-            "ne_tags": torch.tensor(ne_tags, dtype=torch.long),
-            "word_features": torch.tensor(word_features, dtype=torch.long),
-            "base_phrase_features": torch.tensor(base_phrase_features, dtype=torch.long),
-            "dependencies": torch.tensor(dependencies, dtype=torch.long),
-            "intra_mask": torch.tensor(dependency_mask, dtype=torch.bool),
-            "dependency_types": torch.tensor(dependency_types, dtype=torch.long),
-            "discourse_relations": torch.tensor(discourse_relations, dtype=torch.long),
-            "cohesion_target": torch.tensor(cohesion_target, dtype=torch.int),
-            "cohesion_mask": torch.tensor(cohesion_mask, dtype=torch.bool),
+            "pos_labels": morpheme_attribute_labels[:, 0],
+            "subpos_labels": morpheme_attribute_labels[:, 1],
+            "conjtype_labels": morpheme_attribute_labels[:, 2],
+            "conjform_labels": morpheme_attribute_labels[:, 3],
+            "word_feature_labels": torch.tensor(word_feature_labels, dtype=torch.long),
+            "ne_labels": torch.tensor(ne_labels, dtype=torch.long),
+            "base_phrase_feature_labels": torch.tensor(base_phrase_feature_labels, dtype=torch.long),
+            "dependency_labels": torch.tensor(dependency_labels, dtype=torch.long),
+            "dependency_mask": torch.tensor(dependency_mask, dtype=torch.bool),  # True/False = keep/mask
+            "dependency_type_labels": torch.tensor(dependency_type_labels, dtype=torch.long),
+            "cohesion_labels": torch.tensor(cohesion_labels, dtype=torch.long),
+            "cohesion_mask": torch.tensor(cohesion_mask, dtype=torch.bool),  # True/False = keep/mask
+            "discourse_labels": torch.tensor(discourse_labels, dtype=torch.long),
         }
 
-    def dump_prediction(
-        self,
-        result: List[List[List[float]]],  # word level
-        example: CohesionExample,
-    ) -> List[List[List[float]]]:  # (phrase, rel, 0 or phrase+special)
-        """1 example 中に存在する基本句それぞれに対してシステム予測のリストを返す．"""
-        ret: List[List[List[float]]] = [[] for _ in next(iter(example.phrases.values()))]
-        task_idx = 0
-        if CohesionTask.PAS_ANALYSIS in self.cohesion_tasks:
-            for _ in self.pas_cases:
-                for i, p in enumerate(
-                    self._word2bp_level(result[task_idx], example.phrases[CohesionTask.PAS_ANALYSIS])
-                ):
-                    ret[i].append(p)
-                task_idx += 1
-        if CohesionTask.BRIDGING in self.cohesion_tasks:
-            for i, p in enumerate(self._word2bp_level(result[task_idx], example.phrases[CohesionTask.BRIDGING])):
-                ret[i].append(p)
-            task_idx += 1
-        if CohesionTask.COREFERENCE in self.cohesion_tasks:
-            for i, p in enumerate(self._word2bp_level(result[task_idx], example.phrases[CohesionTask.COREFERENCE])):
-                ret[i].append(p)
-            task_idx += 1
-        return ret
-
-    def _word2bp_level(
-        self,
-        word_level_output: List[List[float]],
-        phrases: List[Phrase],
-    ) -> List[List[float]]:  # (bp, 0 or bp+special)
-        ret: List[List[float]] = [[] for _ in phrases]
-        for anaphor in filter(lambda p: p.is_target, phrases):
-            word_level_scores: List[float] = word_level_output[anaphor.dmid]
-            phrase_level_scores: List[float] = []
-            for tgt_bp in phrases:
-                if tgt_bp.dtid not in anaphor.candidates:
-                    phrase_level_scores.append(-1)  # pad -1 for non-candidate phrases
-                    continue
-                phrase_level_scores.append(word_level_scores[tgt_bp.dmid])
-            phrase_level_scores += [word_level_scores[idx] for idx in self.special_indices]
-            assert len(phrase_level_scores) == len(phrases) + len(self.special_to_index)
-            ret[anaphor.dtid] = softmax(phrase_level_scores).tolist()
-        return ret
-
-    def _gen_subword_map(self, encoding: Encoding, include_additional_words: bool = True) -> List[List[bool]]:
+    def _get_subword_map(self, encoding: Encoding, include_special_tokens: bool = True) -> List[List[bool]]:
         subword_map = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
         for token_id, word_id in enumerate(encoding.word_ids):
             if word_id is None or token_id in self.special_indices:
                 continue
             subword_map[word_id][token_id] = True
-        if include_additional_words:
+        if include_special_tokens:
             for special_index in self.special_indices:
                 subword_map[special_index][special_index] = True
         return subword_map
 
-    def _convert_annotation_to_feature(
+    @property
+    def cohesion_special_indices(self) -> List[int]:
+        return [i for st, i in self.special_token2index.items() if st != "[ROOT]"]
+
+    @property
+    def num_special_tokens(self) -> int:
+        return len(self.special_tokens)
+
+    @property
+    def special_indices(self) -> List[int]:
+        return list(self.special_token2index.values())
+
+    def _convert_cohesion_base_phrases_into_rel_labels(
         self,
-        annotation: List[List[str]],  # phrase level
-        phrases: List[Phrase],
-    ) -> Tuple[List[List[int]], List[List[int]]]:
-        scores_set: List[List[int]] = [[0] * self.max_seq_length for _ in range(self.max_seq_length)]
-        candidates_set: List[List[int]] = [[] for _ in range(self.max_seq_length)]
-        for phrase in phrases:
-            arguments: List[str] = annotation[phrase.dtid]
-            candidates: List[int] = phrase.candidates  # phrase level
-            for mrph in phrase.children:
-                scores: List[int] = [0] * self.max_seq_length
-                if mrph.is_target:
-                    for arg_string in arguments:
-                        # arg_string: 著者, 8%C, 15%O, 2, [NULL], ...
-                        if arg_string[-2:] in ("%C", "%N", "%O"):
-                            # PAS only
-                            # flag = arg_string[-1]
-                            arg_string = arg_string[:-2]
-                        if arg_string in self.special_to_index:
-                            word_index = self.special_to_index[arg_string]
-                        else:
-                            word_index = phrases[int(arg_string)].dmid
-                        scores[word_index] = 1
+        cohesion_base_phrases: List[CohesionBasePhrase],
+        rel: str,
+    ) -> List[List[int]]:
+        rel_labels: List[List[int]] = [[0] * self.max_seq_length for _ in range(self.max_seq_length)]
+        for cohesion_base_phrase in cohesion_base_phrases:
+            if cohesion_base_phrase.is_target is False:
+                continue
+            assert cohesion_base_phrase.rel2tags is not None, "rel2tags isn't set"
+            for tag in cohesion_base_phrase.rel2tags[rel]:
+                # tag: 著者, 8%C, 15%O, 2, [NULL], ...
+                if tag[-2:] in ("%C", "%N", "%O"):
+                    # PAS only
+                    tag = tag[:-2]
+                if tag in self.special_token2index:
+                    target_morpheme_global_index = self.special_token2index[tag]
+                else:
+                    # int(tag) = base phrase global index
+                    target_morpheme_global_index = cohesion_base_phrases[int(tag)].head.global_index
+                rel_labels[cohesion_base_phrase.head.global_index][target_morpheme_global_index] = 1
+        return rel_labels
 
-                word_level_candidates: List[int] = []
-                for candidate in candidates:
-                    word_level_candidates.append(phrases[candidate].dmid)
-                word_level_candidates += self.cohesion_special_indices
-
-                # use the head subword as the representative of the source word
-                scores_set[mrph.dmid] = scores
-                candidates_set[mrph.dmid] = word_level_candidates
-
-        return scores_set, candidates_set  # word level
-
-    def _get_tokenized_len(self, source: Union[Document, Sentence]) -> int:
-        tokenizer_input: Union[List[str], str] = [m.text for m in source.morphemes]
-        if self.tokenizer_input_format == "text":
-            tokenizer_input = " ".join(tokenizer_input)
-        encoding = self.tokenizer(
-            tokenizer_input, add_special_tokens=False, is_split_into_words=self.tokenizer_input_format == "words"
-        ).encodings[0]
-        return len(encoding.ids)
+    def _convert_cohesion_base_phrases_into_rel_mask(
+        self,
+        cohesion_base_phrases: List[CohesionBasePhrase],
+    ) -> List[List[bool]]:
+        rel_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
+        for cohesion_base_phrase in cohesion_base_phrases:
+            if cohesion_base_phrase.is_target is False:
+                continue
+            assert cohesion_base_phrase.antecedent_candidates is not None, "antecedent_candidates isn't set"
+            for morpheme in cohesion_base_phrase.morphemes:
+                for antecedent_candidate in cohesion_base_phrase.antecedent_candidates:
+                    rel_mask[morpheme.global_index][antecedent_candidate.head.global_index] = True
+                for cohesion_special_index in self.cohesion_special_indices:
+                    rel_mask[morpheme.global_index][cohesion_special_index] = True
+        return rel_mask

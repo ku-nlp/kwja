@@ -16,17 +16,17 @@ def fixture_data_dir():
 
 @pytest.fixture()
 def fixture_scorer(fixture_data_dir: Path):
-    documents_pred = [Document.from_knp(path.read_text()) for path in fixture_data_dir.glob("system/*.knp")]
-    documents_gold = [Document.from_knp(path.read_text()) for path in fixture_data_dir.glob("gold/*.knp")]
+    predicted_documents = [Document.from_knp(path.read_text()) for path in fixture_data_dir.glob("system/*.knp")]
+    gold_documents = [Document.from_knp(path.read_text()) for path in fixture_data_dir.glob("gold/*.knp")]
 
-    cases = ["ガ", "ヲ"]
+    pas_cases = ["ガ", "ヲ"]
     scorer = Scorer(
-        documents_pred,
-        documents_gold,
-        target_cases=cases,
+        predicted_documents,
+        gold_documents,
         exophora_referents=[ExophoraReferent(e) for e in ("著者", "読者", "不特定:人", "不特定:物")],
-        coreference=True,
-        bridging=True,
+        pas_cases=pas_cases,
         pas_target="all",
+        bridging=True,
+        coreference=True,
     )
     return scorer
