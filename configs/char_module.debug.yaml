@@ -1,6 +1,6 @@
 defaults:
   - base
-  - callbacks: [early_stopping, model_checkpoint, model_summary, char_module_writer, progress_bar]
+  - callbacks: [early_stopping, model_checkpoint, model_summary, char_module_writer, progress_bar, lr_monitor]
   - datamodule: char
   - dataset: char
   - logger: null
