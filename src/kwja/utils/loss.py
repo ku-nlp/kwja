@@ -17,7 +17,7 @@ def compute_multi_label_sequence_mean_loss(input_: torch.Tensor, target: torch.T
     # binary_cross_entropy は IGNORE_INDEX を渡せない
     losses = F.binary_cross_entropy(input=input_, target=target, reduction="none")
     # batch と sequence の軸は平均を、 label の軸は和をとる
-    losses = losses.sum(dim=1).sum(dim=1)  # (b, seq_len, num_features) -> (b, num_features) -> (b, )
+    losses = losses.sum(dim=1).sum(dim=1)  # (b, seq, num_features) -> (b, num_features) -> (b, )
     loss = (losses / num_units).mean()
     return loss
 

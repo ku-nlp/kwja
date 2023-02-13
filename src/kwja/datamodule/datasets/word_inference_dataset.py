@@ -160,7 +160,7 @@ class WordInferenceDataset(BaseDataset):
                 dependency_mask[i][self.special_token2index["[ROOT]"]] = True
 
         # ---------- cohesion analysis ----------
-        cohesion_mask: List[List[List[bool]]] = []  # (rel, src, tgt)
+        cohesion_mask: List[List[List[bool]]] = []  # (rel, seq, seq)
         morphemes = document.morphemes
         for cohesion_task, cohesion_utils in self.cohesion_task2utils.items():
             rel_mask: List[List[bool]] = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]

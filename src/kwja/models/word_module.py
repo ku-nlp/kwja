@@ -118,7 +118,7 @@ class WordModule(pl.LightningModule):
         return num_cohesion_rels
 
     def forward(self, batch: Any) -> Dict[str, torch.Tensor]:
-        # (b, seq_len, hidden_size)
+        # (b, seq, hid)
         encoded = self.word_encoder(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"])
         pooled = pool_subwords(encoded.last_hidden_state, batch["subword_map"], PoolingStrategy.FIRST)
 

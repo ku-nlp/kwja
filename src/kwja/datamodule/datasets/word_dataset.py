@@ -238,8 +238,8 @@ class WordDataset(BaseDataset):
             dependency_type_labels[morpheme_global_index] = dependency_type_index
 
         # ---------- cohesion analysis ----------
-        cohesion_labels: List[List[List[int]]] = []  # (rel, src, tgt)
-        cohesion_mask: List[List[List[bool]]] = []  # (rel, src, tgt)
+        cohesion_labels: List[List[List[int]]] = []  # (rel, seq, seq)
+        cohesion_mask: List[List[List[bool]]] = []  # (rel, seq, seq)
         for cohesion_task, cohesion_utils in self.cohesion_task2utils.items():
             cohesion_base_phrases = example.cohesion_task2base_phrases[cohesion_task]
             for rel in cohesion_utils.rels:
