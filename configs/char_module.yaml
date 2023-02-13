@@ -7,7 +7,7 @@ defaults:
   - encoder: char_roberta_large
   - module: char
   - optimizer: adamw
-  - scheduler: constant_schedule_with_warmup
+  - scheduler: cosine_schedule_with_warmup
   - trainer: default
   - _self_
 

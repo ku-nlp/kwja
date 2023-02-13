@@ -7,7 +7,7 @@ defaults:
   - encoder: word_deberta_large
   - module: word
   - optimizer: adamw
-  - scheduler: constant_schedule_with_warmup
+  - scheduler: cosine_schedule_with_warmup
   - trainer: default
   - _self_
 
