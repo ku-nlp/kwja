@@ -62,27 +62,27 @@ class WordExample:
         cohesion_task2utils: Dict[CohesionTask, CohesionUtils],
     ) -> None:
         self.doc_id = document.doc_id
-        self.set_readings(document.morphemes, reading_aligner)
+        self._set_readings(document.morphemes, reading_aligner)
         for sentence in extract_target_sentences(document):
             morphemes = sentence.morphemes
             base_phrases = sentence.base_phrases
-            self.set_morpheme_attributes(morphemes)
-            self.set_word_feature_set(sentence.phrases, base_phrases, morphemes)
-            self.set_named_entities(sentence.named_entities)
-            self.set_base_phrase_feature_set(base_phrases)
-            self.set_dependencies(morphemes)
-        self.set_cohesion_base_phrases(document.base_phrases, cohesion_task2utils)
+            self._set_morpheme_attributes(morphemes)
+            self._set_word_feature_set(sentence.phrases, base_phrases, morphemes)
+            self._set_named_entities(sentence.named_entities)
+            self._set_base_phrase_feature_set(base_phrases)
+            self._set_dependencies(morphemes)
+        self._set_cohesion_base_phrases(document.base_phrases, cohesion_task2utils)
 
     def load_discourse_document(self, discourse_document: Document) -> None:
-        self.set_discourse_relation(discourse_document.clauses)
+        self._set_discourse_relation(discourse_document.clauses)
 
-    def set_readings(self, morphemes: List[Morpheme], reading_aligner: ReadingAligner) -> None:
+    def _set_readings(self, morphemes: List[Morpheme], reading_aligner: ReadingAligner) -> None:
         try:
             self.readings = reading_aligner.align(morphemes)
         except Exception as e:
             logger.warning(e)
 
-    def set_morpheme_attributes(self, morphemes: List[Morpheme]) -> None:
+    def _set_morpheme_attributes(self, morphemes: List[Morpheme]) -> None:
         for morpheme in morphemes:
             self.morpheme_global_index2morpheme_attributes[morpheme.global_index] = (
                 morpheme.pos,
@@ -91,7 +91,7 @@ class WordExample:
                 morpheme.conjform,
             )
 
-    def set_word_feature_set(
+    def _set_word_feature_set(
         self, phrases: List[Phrase], base_phrases: List[BasePhrase], morphemes: List[Morpheme]
     ) -> None:
         for morpheme in morphemes:
@@ -107,10 +107,10 @@ class WordExample:
         for phrase in phrases:
             self.morpheme_global_index2word_feature_set[phrase.morphemes[-1].global_index].add("文節-区切")
 
-    def set_named_entities(self, named_entities: List[NamedEntity]) -> None:
+    def _set_named_entities(self, named_entities: List[NamedEntity]) -> None:
         self.named_entities += named_entities
 
-    def set_base_phrase_feature_set(self, base_phrases: List[BasePhrase]) -> None:
+    def _set_base_phrase_feature_set(self, base_phrases: List[BasePhrase]) -> None:
         target_base_phrase_feature_set = set(BASE_PHRASE_FEATURES)
         for base_phrase in base_phrases:
             base_phrase_feature_set = {
@@ -121,7 +121,7 @@ class WordExample:
                 base_phrase_feature_set & target_base_phrase_feature_set
             )
 
-    def set_dependencies(self, morphemes: List[Morpheme]) -> None:
+    def _set_dependencies(self, morphemes: List[Morpheme]) -> None:
         for morpheme in morphemes:
             dependency = morpheme.parent.global_index if morpheme.parent is not None else -1
             self.morpheme_global_index2dependency[morpheme.global_index] = dependency
@@ -136,13 +136,13 @@ class WordExample:
                 dependency_type = DepType.DEPENDENCY
             self.morpheme_global_index2dependency_type[morpheme.global_index] = dependency_type
 
-    def set_cohesion_base_phrases(
+    def _set_cohesion_base_phrases(
         self, base_phrases: List[BasePhrase], cohesion_task2utils: Dict[CohesionTask, CohesionUtils]
     ) -> None:
         for cohesion_task, cohesion_utils in cohesion_task2utils.items():
             self.cohesion_task2base_phrases[cohesion_task] = cohesion_utils.wrap(base_phrases)
 
-    def set_discourse_relation(self, clauses: List[Clause]) -> None:
+    def _set_discourse_relation(self, clauses: List[Clause]) -> None:
         for modifier in clauses:
             modifier_morpheme_global_index = modifier.end.morphemes[0].global_index
             for head in clauses:
