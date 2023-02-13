@@ -2,7 +2,6 @@ defaults:
   - base
   - callbacks: [early_stopping, model_checkpoint, model_summary, char_module_writer, progress_bar]
   - datamodule: char
-  - dataset: char
   - logger: null
   - encoder: char_roberta_base
   - module: char
@@ -36,4 +35,6 @@ max_batches_per_device: 2
 num_workers: 0
 
 ignore_hparams_on_save: false
+
+# constants
 hparams_to_ignore_on_save: []

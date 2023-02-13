@@ -2,7 +2,6 @@ defaults:
   - base
   - callbacks: [early_stopping, model_checkpoint, model_summary, word_module_writer, progress_bar]
   - datamodule: word
-  - dataset: word
   - logger: wandb
   - encoder: word_roberta_large
   - module: word
@@ -62,6 +61,9 @@ max_batches_per_device: 2
 num_workers: 0
 
 ignore_hparams_on_save: false
+
+# constants
+special_tokens: ${concat:${exophora_referents},["[NULL]", "[NA]", "[ROOT]"]}
 hparams_to_ignore_on_save:
   - project
   - work_dir

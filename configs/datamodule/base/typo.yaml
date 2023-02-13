@@ -4,5 +4,5 @@ tokenizer:
   _target_: transformers.AutoTokenizer.from_pretrained
   pretrained_model_name_or_path: ${encoder.pretrained_model_name_or_path}
   do_word_tokenize: false
-  additional_special_tokens: ${dataset.special_tokens}
+  additional_special_tokens: ${special_tokens}
   _convert_: all

@@ -33,10 +33,8 @@ class TypoModule(pl.LightningModule):
 
         self.char_encoder: PreTrainedModel = hydra.utils.call(hparams.encoder)
         pretrained_model_config: PretrainedConfig = self.char_encoder.config
-        if hasattr(hparams.dataset, "special_tokens"):
-            self.char_encoder.resize_token_embeddings(
-                pretrained_model_config.vocab_size + len(hparams.dataset.special_tokens)
-            )
+        if hasattr(hparams, "special_tokens"):
+            self.char_encoder.resize_token_embeddings(pretrained_model_config.vocab_size + len(hparams.special_tokens))
         head_args: Tuple[int, float] = (
             pretrained_model_config.hidden_size,
             pretrained_model_config.hidden_dropout_prob,
