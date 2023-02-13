@@ -1,6 +1,6 @@
 defaults:
   - base
-  - callbacks: [early_stopping, model_checkpoint, model_summary, word_module_writer, progress_bar]
+  - callbacks: [early_stopping, model_checkpoint, model_summary, word_module_writer, progress_bar, lr_monitor]
   - datamodule: word
   - dataset: word
   - logger: null
