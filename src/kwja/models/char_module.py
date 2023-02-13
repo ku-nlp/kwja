@@ -11,7 +11,7 @@ from transformers import PretrainedConfig, PreTrainedModel
 from kwja.evaluators.char_module_metric import CharModuleMetric
 from kwja.models.components.head import SequenceLabelingHead
 from kwja.utils.constants import WORD_NORM_OP_TAGS, WORD_SEGMENTATION_TAGS
-from kwja.utils.loss import compute_sequence_mean_loss
+from kwja.utils.loss import compute_token_mean_loss
 from kwja.utils.omegaconf import filter_dict_items
 
 
@@ -76,11 +76,11 @@ class CharModule(pl.LightningModule):
 
     def training_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
         ret: Dict[str, torch.Tensor] = self(batch)
-        word_segmentation_loss = compute_sequence_mean_loss(
+        word_segmentation_loss = compute_token_mean_loss(
             ret["word_segmentation_logits"], batch["word_segmentation_labels"]
         )
         self.log("train/word_segmentation_loss", word_segmentation_loss)
-        word_normalization_loss = compute_sequence_mean_loss(ret["word_norm_op_logits"], batch["word_norm_op_labels"])
+        word_normalization_loss = compute_token_mean_loss(ret["word_norm_op_logits"], batch["word_norm_op_labels"])
         self.log("train/word_normalization_loss", word_normalization_loss)
         return word_segmentation_loss + word_normalization_loss
 

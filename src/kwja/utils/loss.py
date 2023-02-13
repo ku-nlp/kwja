@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from kwja.utils.constants import IGNORE_INDEX, MASKED
 
 
-def compute_sequence_mean_loss(input_: torch.Tensor, target: torch.Tensor):
+def compute_token_mean_loss(input_: torch.Tensor, target: torch.Tensor):
     return F.cross_entropy(
         input=input_.view(-1, input_.size(-1)),
         target=target.view(-1),
@@ -12,7 +12,7 @@ def compute_sequence_mean_loss(input_: torch.Tensor, target: torch.Tensor):
     )
 
 
-def compute_multi_label_sequence_mean_loss(input_: torch.Tensor, target: torch.Tensor, mask: torch.Tensor):
+def compute_multi_label_token_mean_loss(input_: torch.Tensor, target: torch.Tensor, mask: torch.Tensor):
     num_units = mask[:, :, 0].sum(dim=1)  # (b, )
     # binary_cross_entropy は IGNORE_INDEX を渡せない
     losses = F.binary_cross_entropy(input=input_, target=target, reduction="none")
