@@ -25,45 +25,43 @@ from kwja.utils.constants import (
 )
 from kwja.utils.jumandic import JumanDic
 
+AMBIG_SURF_SPECS = [
+    {
+        "conjtype": "イ形容詞アウオ段",
+        "conjform": "エ基本形",
+    },
+    {
+        "conjtype": "イ形容詞イ段",
+        "conjform": "エ基本形",
+    },
+    {
+        "conjtype": "イ形容詞イ段特殊",
+        "conjform": "エ基本形",
+    },
+]
+
 
 class MockTrainer:
     def __init__(self, predict_dataloaders):
         self.predict_dataloaders = predict_dataloaders
 
 
-def make_dummy_jumandic():
-    ambig_surf_specs = [
-        {
-            "conjtype": "イ形容詞アウオ段",
-            "conjform": "エ基本形",
-        },
-        {
-            "conjtype": "イ形容詞イ段",
-            "conjform": "エ基本形",
-        },
-        {
-            "conjtype": "イ形容詞イ段特殊",
-            "conjform": "エ基本形",
-        },
-    ]
-    jumandic_dir = tempfile.TemporaryDirectory()
-    path = Path(jumandic_dir.name)
-    JumanDic.build(
-        path,
-        [
-            ["今日", "きょう", "今日", "名詞", "時相名詞", "*", "*", "代表表記:今日/きょう カテゴリ:時間"],
-            ["あい", "あい", "あい", "名詞", "普通名詞", "*", "*", "代表表記:愛/あい 漢字読み:音 カテゴリ:抽象物"],
-            ["あい", "あい", "あい", "名詞", "普通名詞", "*", "*", "代表表記:藍/あい カテゴリ:植物"],
-        ],
-    )
-    return ambig_surf_specs, jumandic_dir
+def make_dummy_jumandic() -> JumanDic:
+    with tempfile.TemporaryDirectory() as jumandic_dir:
+        JumanDic.build(
+            Path(jumandic_dir),
+            [
+                ["今日", "きょう", "今日", "名詞", "時相名詞", "*", "*", "代表表記:今日/きょう カテゴリ:時間"],
+                ["あい", "あい", "あい", "名詞", "普通名詞", "*", "*", "代表表記:愛/あい 漢字読み:音 カテゴリ:抽象物"],
+                ["あい", "あい", "あい", "名詞", "普通名詞", "*", "*", "代表表記:藍/あい カテゴリ:植物"],
+            ],
+        )
+        return JumanDic(Path(jumandic_dir))
 
 
 def test_init():
     with tempfile.TemporaryDirectory() as tmp_dir:
-        ambig_surf_specs, jumandic_dir = make_dummy_jumandic()
-        _ = WordModuleWriter(tmp_dir, ambig_surf_specs, jumandic_dir.name)
-        jumandic_dir.cleanup()
+        _ = WordModuleWriter(tmp_dir, AMBIG_SURF_SPECS)
 
 
 def test_write_on_batch_end():
@@ -196,8 +194,8 @@ def test_write_on_batch_end():
     output_filename = "test"
     with tempfile.TemporaryDirectory() as tmp_dir:
         # max_seq_length = 6 ([CLS], 今日, は, 晴れ, だ, [SEP]) + 7 (著者, 読者, 不特定:人, 不特定:物, [NULL], [NA], [ROOT])
-        ambig_surf_specs, jumandic_dir = make_dummy_jumandic()
-        writer = WordModuleWriter(tmp_dir, ambig_surf_specs, jumandic_dir.name, output_filename=output_filename)
+        writer = WordModuleWriter(tmp_dir, AMBIG_SURF_SPECS, output_filename=output_filename)
+        writer.jumandic = make_dummy_jumandic()
 
         exophora_referents = ["著者", "読者", "不特定:人", "不特定:物"]
         special_tokens = exophora_referents + ["[NULL]", "[NA]", "[ROOT]"]
@@ -246,5 +244,4 @@ def test_write_on_batch_end():
             """
         )
         assert Path(tmp_dir).joinpath(f"{output_filename}.knp").read_text() == expected_knp
-        jumandic_dir.cleanup()
         juman_file.close()

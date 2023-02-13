@@ -175,15 +175,12 @@ class CLIProcessor:
         word_checkpoint_path: Path = download_checkpoint(task="word", model_size=self.model_size)
         word_checkpoint = torch.load(str(word_checkpoint_path), map_location=lambda storage, loc: storage)
         hparams = word_checkpoint["hyper_parameters"]
-        jumandic_path = RESOURCE_PATH / "jumandic"
-        hparams.callbacks.prediction_writer.jumandic_path = jumandic_path
         self.word_model = WordModule.load_from_checkpoint(
             str(word_checkpoint_path),
             hparams=hparams,
             map_location=self.device,
         )
         assert self.word_model is not None, "word model does not exist"
-        self.word_model.hparams.callbacks.prediction_writer.jumandic_path = jumandic_path
         self.word_model.hparams.datamodule.batch_size = self.word_batch_size
         self.word_trainer = pl.Trainer(
             logger=False,
@@ -220,8 +217,6 @@ class CLIProcessor:
             str(word_discourse_checkpoint_path), map_location=lambda storage, loc: storage
         )
         hparams = word_discourse_checkpoint["hyper_parameters"]
-        jumandic_path = RESOURCE_PATH / "jumandic"
-        hparams.callbacks.prediction_writer.jumandic_path = jumandic_path
         self.word_discourse_model = WordModule.load_from_checkpoint(
             str(word_discourse_checkpoint_path),
             hparams=hparams,

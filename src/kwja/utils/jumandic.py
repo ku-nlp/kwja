@@ -9,12 +9,11 @@ from kwja.utils.progress_bar import track
 
 
 class JumanDic:
-    def __init__(self, dicdir: Path) -> None:
-        self.dic_path = Path(dicdir)
-        with open(str(self.dic_path / "jumandic.db"), "rb") as f:
+    def __init__(self, dic_dir: Path) -> None:
+        with dic_dir.joinpath("jumandic.db").open(mode="rb") as f:
             data = f.read()
         self.jumandic = cdblib.Reader(data)
-        with open(str(self.dic_path / "grammar.json"), "r") as f:
+        with dic_dir.joinpath("grammar.json").open(mode="rt") as f:
             data2 = json.loads(f.read())
         self.id2reading = data2["id2reading"]
         self.id2lemma = data2["id2lemma"]
@@ -47,7 +46,7 @@ class JumanDic:
         return matches
 
     @classmethod
-    def build(cls, outdir: Path, entries: List[List[str]]) -> None:
+    def build(cls, out_dir: Path, entries: List[List[str]]) -> None:
         surf2entries: Dict[str, bytes] = {}
         reading2id: Dict[str, int] = {}
         lemma2id: Dict[str, int] = {}
@@ -94,13 +93,13 @@ class JumanDic:
                 surf2entries[surf] += v
             else:
                 surf2entries[surf] = v
-                (outdir / "jumandic.db").unlink(missing_ok=True)
-        with open(str(outdir / "jumandic.db"), "wb") as f:
+                out_dir.joinpath("jumandic.db").unlink(missing_ok=True)
+        with out_dir.joinpath("jumandic.db").open(mode="wb") as f:
             with cdblib.Writer(f) as writer:
                 for k, v in surf2entries.items():
                     bk = k.encode("utf-8")
                     writer.put(bk, v)
-        with open(str(outdir / "grammar.json"), "w") as f2:
+        with out_dir.joinpath("grammar.json").open(mode="wt") as f2:
             f2.write(
                 json.dumps(
                     {
