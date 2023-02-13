@@ -1,0 +1,25 @@
+project: kwja
+entity: ueda
+program: scripts/train.py
+method: bayes
+metric:
+  name: valid/aggregated_char_metrics
+  goal: maximize
+parameters:
+  effective_batch_size:
+    values: [8, 16, 32]
+  optimizer.lr:
+    values: [0.00001, 0.00002, 0.00005, 0.0001]
+  trainer.max_epochs:
+    values: [8, 12, 16, 20]
+  warmup_steps:
+    values: [100, 500, 1000]
+command:
+  - ${env}
+  - ${interpreter}
+  - ${program}
+  - "-cn"
+  - "char_module"
+  - "encoder=char_deberta_large"
+  - "do_predict_after_train=false"
+  - ${args_no_hyphens}
