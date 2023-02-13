@@ -4,7 +4,7 @@ defaults:
   - datamodule: char
   - dataset: char
   - logger: null
-  - encoder: char_roberta_base
+  - encoder: char_roberta_tiny
   - module: char
   - optimizer: adamw
   - scheduler: constant_schedule_with_warmup

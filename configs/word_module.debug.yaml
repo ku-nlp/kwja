@@ -4,7 +4,7 @@ defaults:
   - datamodule: word
   - dataset: word
   - logger: null
-  - encoder: word_roberta_base
+  - encoder: word_roberta_tiny
   - module: word
   - optimizer: adamw
   - scheduler: constant_schedule_with_warmup
