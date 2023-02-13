@@ -19,7 +19,7 @@ seed: null
 name: ${hydra:job.config_name}-${hydra:job.override_dirname}
 
 exp_dir: ${work_dir}/result/${name}
-run_id: ${seed}
+run_id: ${now:%m%d}_${now:%H%M%S}
 run_dir: ${exp_dir}/${run_id}
 config_name: ${hydra:job.config_name}
 
