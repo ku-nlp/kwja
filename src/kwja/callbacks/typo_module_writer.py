@@ -9,6 +9,7 @@ from pytorch_lightning.callbacks import BasePredictionWriter
 from transformers import PreTrainedTokenizerBase
 
 from kwja.datamodule.datasets import TypoDataset, TypoInferenceDataset
+from kwja.utils.constants import RESOURCE_PATH
 from kwja.utils.typo_module_writer import apply_edit_operations, convert_predictions_into_typo_corr_op_tags, get_maps
 
 
@@ -18,7 +19,6 @@ class TypoModuleWriter(BasePredictionWriter):
         output_dir: str,
         confidence_threshold: float,
         tokenizer: PreTrainedTokenizerBase,
-        extended_vocab_path: str,
         use_stdout: bool = False,
         output_filename: str = "predict",
     ) -> None:
@@ -33,7 +33,10 @@ class TypoModuleWriter(BasePredictionWriter):
 
         self.confidence_threshold = confidence_threshold
 
-        self.token2token_id, self.token_id2token = get_maps(tokenizer, extended_vocab_path)
+        self.token2token_id, self.token_id2token = get_maps(
+            tokenizer,
+            RESOURCE_PATH / "typo_correction" / "multi_char_vocab.txt",
+        )
 
     def write_on_batch_end(
         self,

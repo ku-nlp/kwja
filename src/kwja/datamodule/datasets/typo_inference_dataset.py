@@ -18,7 +18,6 @@ class TypoInferenceDataset(Dataset):
         texts: ListConfig,
         tokenizer: PreTrainedTokenizerBase,
         max_seq_length: int = 512,
-        **_,  # accept `extended_vocab_path` as a keyword argument
     ) -> None:
         self.tokenizer: PreTrainedTokenizerBase = tokenizer
         self.max_seq_length = max_seq_length

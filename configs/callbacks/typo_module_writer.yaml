@@ -2,7 +2,6 @@ prediction_writer:
   _target_: kwja.callbacks.typo_module_writer.TypoModuleWriter
   output_dir: ${run_dir}
   confidence_threshold: ${confidence_threshold}
-  extended_vocab_path: ${dataset.extended_vocab_path}
   output_filename: "predict"
   tokenizer:
     _target_: transformers.AutoTokenizer.from_pretrained

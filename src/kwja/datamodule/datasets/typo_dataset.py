@@ -9,7 +9,7 @@ from transformers import BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
 from kwja.datamodule.examples import TypoExample
-from kwja.utils.constants import DUMMY_TOKEN, IGNORE_INDEX, TYPO_CORR_OP_TAG2TOKEN
+from kwja.utils.constants import DUMMY_TOKEN, IGNORE_INDEX, RESOURCE_PATH, TYPO_CORR_OP_TAG2TOKEN
 from kwja.utils.progress_bar import track
 from kwja.utils.typo_module_writer import get_maps
 
@@ -19,7 +19,6 @@ class TypoDataset(Dataset):
         self,
         path: str,
         tokenizer: PreTrainedTokenizerBase,
-        extended_vocab_path: str,
         max_seq_length: int = 512,
     ) -> None:
         self.path = Path(path)
@@ -29,7 +28,10 @@ class TypoDataset(Dataset):
         assert self.tokenizer.unk_token_id is not None
         self.max_seq_length: int = max_seq_length
 
-        self.token2token_id, self.token_id2token = get_maps(self.tokenizer, extended_vocab_path)
+        self.token2token_id, self.token_id2token = get_maps(
+            self.tokenizer,
+            RESOURCE_PATH / "typo_correction" / "multi_char_vocab.txt",
+        )
 
         self.examples: List[TypoExample] = self._load_examples(self.path)
         self.stash: Dict[int, List[str]] = defaultdict(list)
