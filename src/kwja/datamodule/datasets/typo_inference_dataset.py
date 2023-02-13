@@ -17,7 +17,7 @@ class TypoInferenceDataset(Dataset):
         self,
         texts: ListConfig,
         tokenizer: PreTrainedTokenizerBase,
-        max_seq_length: int = 512,
+        max_seq_length: int,
     ) -> None:
         self.tokenizer: PreTrainedTokenizerBase = tokenizer
         self.max_seq_length = max_seq_length

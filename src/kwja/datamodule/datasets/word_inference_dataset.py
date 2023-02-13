@@ -32,9 +32,9 @@ class WordInferenceDataset(BaseDataset):
         pas_cases: ListConfig,
         br_cases: ListConfig,
         special_tokens: ListConfig,
+        max_seq_length: int,
         juman_file: Optional[Path] = None,
         knp_file: Optional[Path] = None,
-        max_seq_length: int = 256,
     ) -> None:
         if juman_file is not None:
             with juman_file.open(mode="r") as f:

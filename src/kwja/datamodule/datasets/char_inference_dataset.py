@@ -31,7 +31,7 @@ class CharInferenceDataset(BaseDataset):
         texts: ListConfig,
         tokenizer: PreTrainedTokenizerBase,
         document_split_stride: int,
-        max_seq_length: int = 512,
+        max_seq_length: int,
         doc_id_prefix: Optional[str] = None,
         **_,
     ) -> None:

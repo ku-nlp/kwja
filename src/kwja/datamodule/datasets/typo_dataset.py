@@ -19,7 +19,7 @@ class TypoDataset(Dataset):
         self,
         path: str,
         tokenizer: PreTrainedTokenizerBase,
-        max_seq_length: int = 512,
+        max_seq_length: int,
     ) -> None:
         self.path = Path(path)
         assert self.path.is_dir()

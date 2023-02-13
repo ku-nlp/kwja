@@ -39,7 +39,7 @@ class CharDataset(BaseDataset):
         path: str,
         tokenizer: PreTrainedTokenizerBase,
         document_split_stride: int,
-        max_seq_length: int = 512,
+        max_seq_length: int,
         denormalize_probability: float = 0.0,
     ) -> None:
         self.path = Path(path)
