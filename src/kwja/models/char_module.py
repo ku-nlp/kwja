@@ -97,7 +97,7 @@ class CharModule(pl.LightningModule):
             char_module_metric.set_properties(dataset)
             metrics = char_module_metric.compute()
             metrics["aggregated_char_metrics"] = mean(
-                metrics[key] for key in ["word_segmentation_f1", "word_normalization_f1"] if key in metrics
+                metrics[key] for key in self.hparams.aggregating_metrics if key in metrics
             )
             metrics_log[corpus] = metrics
             char_module_metric.reset()
@@ -123,7 +123,7 @@ class CharModule(pl.LightningModule):
             char_module_metric.set_properties(dataset)
             metrics = char_module_metric.compute()
             metrics["aggregated_char_metrics"] = mean(
-                metrics[key] for key in ["word_segmentation_f1", "word_normalization_f1"] if key in metrics
+                metrics[key] for key in self.hparams.aggregating_metrics if key in metrics
             )
             metrics_log[corpus] = metrics
             char_module_metric.reset()
