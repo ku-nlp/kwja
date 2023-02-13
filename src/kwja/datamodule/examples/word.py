@@ -1,5 +1,4 @@
 import logging
-from collections import defaultdict
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Set, Tuple
 
@@ -34,13 +33,13 @@ class WordExample:
         self.morpheme_global_index2morpheme_attributes: Dict[int, Tuple[str, str, str, str]] = {}
 
         # ---------- word feature tagging ----------
-        self.morpheme_global_index2word_feature_set: Dict[int, Set[str]] = defaultdict(set)
+        self.morpheme_global_index2word_feature_set: Dict[int, Set[str]] = {}
 
         # ---------- ner ----------
         self.named_entities: List[NamedEntity] = []
 
         # ---------- base phrase feature tagging ----------
-        self.morpheme_global_index2base_phrase_feature_set: Dict[int, Set[str]] = defaultdict(set)
+        self.morpheme_global_index2base_phrase_feature_set: Dict[int, Set[str]] = {}
 
         # ---------- dependency parsing ----------
         self.morpheme_global_index2dependency: Dict[int, int] = {}
@@ -96,6 +95,7 @@ class WordExample:
         self, phrases: List[Phrase], base_phrases: List[BasePhrase], morphemes: List[Morpheme]
     ) -> None:
         for morpheme in morphemes:
+            self.morpheme_global_index2word_feature_set.setdefault(morpheme.global_index, set())
             for sub_word_feature in SUB_WORD_FEATURES:
                 if sub_word_feature in morpheme.features:
                     self.morpheme_global_index2word_feature_set[morpheme.global_index].add(sub_word_feature)
