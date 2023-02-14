@@ -1,4 +1,4 @@
-# FIX #!/usr/bin/env python3
+# #!/usr/bin/env python3  # COMMENT OUT
 
 # Compatible with Python 2.7 and 3.2+, can be used either as a module
 # or a standalone executable.
@@ -91,13 +91,13 @@
 
 from __future__ import division, print_function
 
-# import argparse  # FIX
-# import io        # FIX
+# import argparse  # COMMENT OUT
+# import io  # COMMENT OUT
 import sys
 
-# import unicodedata  # FIX
+# import unicodedata  # COMMENT OUT
 import unittest
-from dataclasses import dataclass  # FIX
+from dataclasses import dataclass  # ADD
 from typing import List
 
 # CoNLL-U column names
@@ -176,14 +176,14 @@ def _decode(text):
 def _encode(text):
     return (
         text
-        # if sys.version_info[0] >= 3 or not isinstance(text, unicode)  # FIX
-        # else text.encode("utf-8")
+        # if sys.version_info[0] >= 3 or not isinstance(text, unicode)  # COMMENT OUT
+        # else text.encode("utf-8")  # COMMENT OUT
     )
 
 
 # Load given CoNLL-U file into internal representation
-# def load_conllu(file):
-def load_conllu(lines: List[str]):  # FIX
+# def load_conllu(file):  # COMMENT OUT
+def load_conllu(lines: List[str]):  # ADD
     # Internal representation classes
     class UDRepresentation:
         def __init__(self):
@@ -231,16 +231,16 @@ def load_conllu(lines: List[str]):  # FIX
 
     # Load the CoNLL-U file
     index, sentence_start = 0, None
-    line_count = 0  # FIX
+    line_count = 0  # ADD
     while True:
-        # line = file.readline()                 # FIX
-        # if not line:                           # FIX
-        #     break                              # FIX
-        if line_count >= len(lines):  # FIX
-            break  # FIX
-        line = lines[line_count].rstrip("\r\n")  # FIX
-        line_count += 1  # FIX
-        # line = _decode(line.rstrip("\r\n"))    # FIX
+        # line = file.readline()  # COMMENT OUT
+        # if not line:  # COMMENT OUT
+        #     break  # COMMENT OUT
+        # line = _decode(line.rstrip("\r\n"))  # COMMENT OUT
+        if line_count >= len(lines):  # ADD
+            break  # ADD
+        line = lines[line_count].rstrip("\r\n")  # ADD
+        line_count += 1  # ADD
 
         # Handle sentence start boundaries
         if sentence_start is None:
@@ -291,10 +291,10 @@ def load_conllu(lines: List[str]):  # FIX
         if "." in columns[ID]:
             continue
 
+        # COMMENT OUT L295-300 (allow evaluation of sentences containing white spaces)
         # Delete spaces from FORM, so gold.characters == system.characters
         # even if one of them tokenizes the space. Use any Unicode character
         # with category Zs.
-        # FIX
         # columns[FORM] = "".join(filter(lambda c: unicodedata.category(c) != "Zs", columns[FORM]))
         # if not columns[FORM]:
         #     raise UDError("There is an empty FORM in the CoNLL-U file")
@@ -312,9 +312,9 @@ def load_conllu(lines: List[str]):  # FIX
                 raise UDError("Cannot parse multi-word token ID '{}'".format(_encode(columns[ID])))
 
             for _ in range(start, end + 1):
-                # word_line = _decode(file.readline().rstrip("\r\n"))  # FIX
-                word_line = _decode(lines[line_count].rstrip("\r\n"))  # FIX
-                line_count += 1  # FIX
+                # word_line = _decode(file.readline().rstrip("\r\n"))  # COMMENT OUT
+                word_line = _decode(lines[line_count].rstrip("\r\n"))  # ADD
+                line_count += 1  # ADD
                 word_columns = word_line.split("\t")
                 if len(word_columns) != 10:
                     raise UDError(
@@ -577,34 +577,35 @@ def evaluate(gold_ud, system_ud):
     }
 
 
-# def load_conllu_file(path):
-#     _file = open(path, mode="r", **({"encoding": "utf-8"} if sys.version_info >= (3, 0) else {}))
-#     return load_conllu(_file)
-def load_conllu_lines(lines: List[str]):  # FIX
-    return load_conllu(lines)
+# def load_conllu_file(path):  # COMMENT OUT
+#     _file = open(path, mode="r", **({"encoding": "utf-8"} if sys.version_info >= (3, 0) else {}))  # COMMENT OUT
+#     return load_conllu(_file)  # COMMENT OUT
+def load_conllu_lines(lines: List[str]):  # ADD
+    return load_conllu(lines)  # ADD
 
 
-# def evaluate_wrapper(args):
-#     # Load CoNLL-U files
-#     gold_ud = load_conllu_file(args.gold_file)
-#     system_ud = load_conllu_file(args.system_file)
-#     return evaluate(gold_ud, system_ud)
-def evaluate_wrapper(args):  # FIX
-    gold_ud = load_conllu_lines(args.gold_lines)
-    system_ud = load_conllu_lines(args.system_lines)
-    return evaluate(gold_ud, system_ud)
+# def evaluate_wrapper(args):  # COMMENT OUT
+#     # Load CoNLL-U files  # COMMENT OUT
+#     gold_ud = load_conllu_file(args.gold_file)  # COMMENT OUT
+#     system_ud = load_conllu_file(args.system_file)  # COMMENT OUT
+#     return evaluate(gold_ud, system_ud)  # COMMENT OUT
+def evaluate_wrapper(args):  # ADD
+    gold_ud = load_conllu_lines(args.gold_lines)  # ADD
+    system_ud = load_conllu_lines(args.system_lines)  # ADD
+    return evaluate(gold_ud, system_ud)  # ADD
 
 
-@dataclass  # FIX
-class Args:
-    gold_lines: List[str]
-    system_lines: List[str]
-    verbose: bool
-    counts: bool
+@dataclass(frozen=True)  # ADD
+class Args:  # ADD
+    gold_lines: List[str]  # ADD
+    system_lines: List[str]  # ADD
+    verbose: bool  # ADD
+    counts: bool  # ADD
 
 
 def main(gold_lines, system_lines, verbose=False, counts=False):
     # Parse arguments
+    # COMMENT OUT L609-618
     # parser = argparse.ArgumentParser()
     # parser.add_argument("gold_file", type=str,
     #                     help="Name of the CoNLL-U file with the gold data.")
@@ -621,6 +622,7 @@ def main(gold_lines, system_lines, verbose=False, counts=False):
     evaluation = evaluate_wrapper(args)
 
     # Print the evaluation
+    # COMMENT OUT L626-652
     # if not args.verbose and not args.counts:
     #     print("LAS F1 Score: {:.2f}".format(100 * evaluation["LAS"].f1))
     #     print("MLAS Score: {:.2f}".format(100 * evaluation["MLAS"].f1))
@@ -651,8 +653,8 @@ def main(gold_lines, system_lines, verbose=False, counts=False):
     return {"UAS_f1": evaluation["UAS"].f1, "LAS_f1": evaluation["LAS"].f1}  # FIX
 
 
-# if __name__ == "__main__":
-#     main()
+# if __name__ == "__main__":  # COMMENT OUT
+#     main()  # COMMENT OUT
 
 
 # Tests, which can be executed with `python -m unittest conll18_ud_eval`.
@@ -674,11 +676,11 @@ class TestAlignment(unittest.TestCase):
                     num_words += 1
                     lines.append("{}\t{}\t_\t_\t_\t_\t{}\t_\t_\t_".format(num_words, part, int(num_words > 1)))
         return load_conllu(lines + ["\n"])
-        # return load_conllu(
-        #     (io.StringIO if sys.version_info >= (3, 0) else io.BytesIO)(
-        #         "\n".join(lines + ["\n"])
-        #     )
-        # )
+        # return load_conllu(  # COMMENT OUT
+        #     (io.StringIO if sys.version_info >= (3, 0) else io.BytesIO)(  # COMMENT OUT
+        #         "\n".join(lines + ["\n"])  # COMMENT OUT
+        #     )  # COMMENT OUT
+        # )  # COMMENT OUT
 
     def _test_exception(self, gold, system):
         self.assertRaises(UDError, evaluate, self._load_words(gold), self._load_words(system))
