@@ -61,7 +61,7 @@ def make_dummy_jumandic() -> JumanDic:
 
 def test_init():
     with tempfile.TemporaryDirectory() as tmp_dir:
-        _ = WordModuleWriter(tmp_dir, AMBIG_SURF_SPECS)
+        _ = WordModuleWriter(AMBIG_SURF_SPECS, destination=tmp_dir / Path("word_predict.knp"))
 
 
 def test_write_on_batch_end():
@@ -191,10 +191,9 @@ def test_write_on_batch_end():
         "discourse_predictions": discourse_predictions,
     }
 
-    output_filename = "test"
     with tempfile.TemporaryDirectory() as tmp_dir:
         # max_seq_length = 6 ([CLS], 今日, は, 晴れ, だ, [SEP]) + 7 (著者, 読者, 不特定:人, 不特定:物, [NULL], [NA], [ROOT])
-        writer = WordModuleWriter(tmp_dir, AMBIG_SURF_SPECS, output_filename=output_filename)
+        writer = WordModuleWriter(AMBIG_SURF_SPECS, destination=tmp_dir / Path("word_predict.knp"))
         writer.jumandic = make_dummy_jumandic()
 
         exophora_referents = ["著者", "読者", "不特定:人", "不特定:物"]
@@ -243,5 +242,5 @@ def test_write_on_batch_end():
             EOS
             """
         )
-        assert Path(tmp_dir).joinpath(f"{output_filename}.knp").read_text() == expected_knp
+        assert writer.destination.read_text() == expected_knp
         juman_file.close()

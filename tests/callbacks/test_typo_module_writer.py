@@ -1,5 +1,6 @@
 import tempfile
 import textwrap
+from pathlib import Path
 
 import torch
 from omegaconf import ListConfig
@@ -24,9 +25,7 @@ def test_init():
             additional_special_tokens=["<k>", "<d>", "<_>", "<dummy>"],
         )
         _ = TypoModuleWriter(
-            tmp_dir,
-            confidence_threshold=0.9,
-            tokenizer=tokenizer,
+            confidence_threshold=0.9, tokenizer=tokenizer, destination=tmp_dir / Path("typo_predict.txt")
         )
 
 
@@ -38,9 +37,9 @@ def test_write_on_batch_end():
             additional_special_tokens=["<k>", "<d>", "<_>", "<dummy>"],
         )
         writer = TypoModuleWriter(
-            tmp_dir,
             confidence_threshold=0.9,
             tokenizer=tokenizer,
+            destination=tmp_dir / Path("typo_predict.txt"),
         )
         text = "今日がも晴れ"
         dataset = TypoInferenceDataset(texts=ListConfig([text]), tokenizer=tokenizer, max_seq_length=len(text) + 3)

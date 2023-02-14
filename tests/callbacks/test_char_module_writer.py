@@ -1,5 +1,6 @@
 import tempfile
 import textwrap
+from pathlib import Path
 
 import torch
 from omegaconf import ListConfig
@@ -19,12 +20,12 @@ class MockTrainer:
 
 def test_init():
     with tempfile.TemporaryDirectory() as tmp_dir:
-        _ = CharModuleWriter(tmp_dir)
+        _ = CharModuleWriter(destination=tmp_dir / Path("char_predict.juman"))
 
 
 def test_write_on_batch_end():
     with tempfile.TemporaryDirectory() as tmp_dir:
-        writer = CharModuleWriter(tmp_dir)
+        writer = CharModuleWriter(destination=tmp_dir / Path("char_predict.juman"))
         text = "今日は晴れだぁ"
         tokenizer = AutoTokenizer.from_pretrained("ku-nlp/roberta-base-japanese-char-wwm")
         dataset = CharInferenceDataset(
