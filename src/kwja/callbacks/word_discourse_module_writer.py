@@ -1,5 +1,4 @@
 import logging
-import os
 import sys
 from io import TextIOBase
 from pathlib import Path
@@ -17,20 +16,16 @@ logger = logging.getLogger(__name__)
 
 
 class WordDiscourseModuleWriter(BasePredictionWriter):
-    def __init__(
-        self,
-        output_dir: str,
-        use_stdout: bool = False,
-        output_filename: str = "predict",
-    ) -> None:
+    def __init__(self, destination: Optional[Union[str, Path]] = None) -> None:
         super().__init__(write_interval="batch")
-        if use_stdout:
+        if destination is None:
             self.destination: Union[Path, TextIO] = sys.stdout
         else:
-            self.destination = Path(output_dir) / f"{output_filename}.knp"
+            if isinstance(destination, str):
+                destination = Path(destination)
+            self.destination = destination
             self.destination.parent.mkdir(exist_ok=True, parents=True)
-            if self.destination.exists():
-                os.remove(str(self.destination))
+            self.destination.unlink(missing_ok=True)
 
     def write_on_batch_end(
         self,

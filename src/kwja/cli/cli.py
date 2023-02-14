@@ -59,10 +59,10 @@ class CLIProcessor:
         self.word_batch_size: int = word_batch_size
 
         self.tmp_dir: TemporaryDirectory = TemporaryDirectory()
-        self.typo_path: Path = self.tmp_dir.name / Path("predict_typo.txt")
-        self.char_path: Path = self.tmp_dir.name / Path("predict_char.juman")
-        self.word_path: Path = self.tmp_dir.name / Path("predict_word.knp")
-        self.word_discourse_path: Path = self.tmp_dir.name / Path("predict_word_discourse.knp")
+        self.typo_destination: Path = self.tmp_dir.name / Path("typo_predict.txt")
+        self.char_destination: Path = self.tmp_dir.name / Path("char_predict.juman")
+        self.word_destination: Path = self.tmp_dir.name / Path("word_predict.knp")
+        self.word_discourse_destination: Path = self.tmp_dir.name / Path("word_discourse_predict.knp")
 
         self.typo_model: Optional[TypoModule] = None
         self.typo_trainer: Optional[pl.Trainer] = None
@@ -105,8 +105,7 @@ class CLIProcessor:
             callbacks=[
                 hydra.utils.instantiate(
                     self.typo_model.hparams.callbacks.prediction_writer,
-                    output_dir=str(self.tmp_dir.name),
-                    output_filename=self.typo_path.stem,
+                    destination=self.typo_destination,
                 ),
                 hydra.utils.instantiate(self.typo_model.hparams.callbacks.progress_bar),
             ],
@@ -139,8 +138,7 @@ class CLIProcessor:
             callbacks=[
                 hydra.utils.instantiate(
                     self.char_model.hparams.callbacks.prediction_writer,
-                    output_dir=str(self.tmp_dir.name),
-                    output_filename=self.char_path.stem,
+                    destination=self.char_destination,
                 ),
                 hydra.utils.instantiate(self.char_model.hparams.callbacks.progress_bar),
             ],
@@ -152,7 +150,9 @@ class CLIProcessor:
     def apply_char(self, input_texts: Optional[List[str]] = None) -> None:
         assert self.char_model is not None, "char model does not exist"
         if input_texts is None:
-            self.char_model.hparams.datamodule.predict.texts = self._split_input_texts([self.typo_path.read_text()])
+            self.char_model.hparams.datamodule.predict.texts = self._split_input_texts(
+                [self.typo_destination.read_text()]
+            )
         else:
             self.char_model.hparams.datamodule.predict.texts = self._split_input_texts(input_texts)
         char_datamodule = DataModule(cfg=self.char_model.hparams.datamodule)
@@ -182,8 +182,7 @@ class CLIProcessor:
             callbacks=[
                 hydra.utils.instantiate(
                     self.word_model.hparams.callbacks.prediction_writer,
-                    output_dir=str(self.tmp_dir.name),
-                    output_filename=self.word_path.stem,
+                    destination=self.word_destination,
                 ),
                 hydra.utils.instantiate(self.word_model.hparams.callbacks.progress_bar),
             ],
@@ -194,7 +193,7 @@ class CLIProcessor:
 
     def apply_word(self) -> None:
         assert self.word_model is not None, "word model does not exist"
-        self.word_model.hparams.datamodule.predict.juman_file = self.char_path
+        self.word_model.hparams.datamodule.predict.juman_file = self.char_destination
         word_datamodule = DataModule(cfg=self.word_model.hparams.datamodule)
         word_datamodule.setup(stage=TrainerFn.PREDICTING)
         assert self.word_trainer is not None, "word trainer does not exist"
@@ -222,10 +221,7 @@ class CLIProcessor:
         self.word_discourse_trainer = pl.Trainer(
             logger=False,
             callbacks=[
-                WordDiscourseModuleWriter(
-                    output_dir=str(self.tmp_dir.name),
-                    output_filename=self.word_discourse_path.stem,
-                ),
+                WordDiscourseModuleWriter(destination=self.word_discourse_destination),
                 hydra.utils.instantiate(self.word_discourse_model.hparams.callbacks.progress_bar),
             ],
             accelerator=self.device_name,
@@ -235,7 +231,7 @@ class CLIProcessor:
 
     def apply_word_discourse(self) -> None:
         assert self.word_discourse_model is not None, "word discourse model does not exist"
-        self.word_discourse_model.hparams.datamodule.predict.knp_file = self.word_path
+        self.word_discourse_model.hparams.datamodule.predict.knp_file = self.word_destination
         word_discourse_datamodule = DataModule(cfg=self.word_discourse_model.hparams.datamodule)
         word_discourse_datamodule.setup(stage=TrainerFn.PREDICTING)
         assert self.word_discourse_trainer is not None, "word discourse trainer does not exist"
@@ -247,7 +243,7 @@ class CLIProcessor:
 
     def output_typo_result(self) -> None:
         typo_texts: List[str] = []
-        with self.typo_path.open(mode="r") as f:
+        with self.typo_destination.open(mode="r") as f:
             for line in f:
                 if line.strip() != "EOD":
                     typo_texts.append(line.strip())
@@ -255,23 +251,23 @@ class CLIProcessor:
 
     def output_char_result(self) -> None:
         word_segmented_texts: List[str] = []
-        with self.char_path.open(mode="r") as f:
+        with self.char_destination.open(mode="r") as f:
             for juman_text in chunk_by_document(f):
                 document = Document.from_jumanpp(juman_text)
                 word_segmented_texts.append(" ".join(m.text for m in document.morphemes))
         print("\n".join(word_segmented_texts))
 
     def output_word_result(self) -> None:
-        print(self.word_path.read_text(), end="")
+        print(self.word_destination.read_text(), end="")
 
     def output_word_discourse_result(self) -> None:
-        print(self.word_discourse_path.read_text(), end="")
+        print(self.word_discourse_destination.read_text(), end="")
 
     def refresh(self) -> None:
-        self.typo_path.unlink(missing_ok=True)
-        self.char_path.unlink(missing_ok=True)
-        self.word_path.unlink(missing_ok=True)
-        self.word_discourse_path.unlink(missing_ok=True)
+        self.typo_destination.unlink(missing_ok=True)
+        self.char_destination.unlink(missing_ok=True)
+        self.word_destination.unlink(missing_ok=True)
+        self.word_discourse_destination.unlink(missing_ok=True)
 
 
 def version_callback(value: bool) -> None:

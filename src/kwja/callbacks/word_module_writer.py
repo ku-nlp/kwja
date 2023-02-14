@@ -1,5 +1,4 @@
 import logging
-import os
 import sys
 from collections import defaultdict
 from io import TextIOBase
@@ -44,21 +43,16 @@ logger = logging.getLogger(__name__)
 
 
 class WordModuleWriter(BasePredictionWriter):
-    def __init__(
-        self,
-        output_dir: str,
-        ambig_surf_specs: List[Dict[str, str]],
-        use_stdout: bool = False,
-        output_filename: str = "predict",
-    ) -> None:
+    def __init__(self, ambig_surf_specs: List[Dict[str, str]], destination: Optional[Union[str, Path]] = None) -> None:
         super().__init__(write_interval="batch")
-        if use_stdout:
+        if destination is None:
             self.destination: Union[Path, TextIO] = sys.stdout
         else:
-            self.destination = Path(output_dir) / f"{output_filename}.knp"
+            if isinstance(destination, str):
+                destination = Path(destination)
+            self.destination = destination
             self.destination.parent.mkdir(exist_ok=True, parents=True)
-            if self.destination.exists():
-                os.remove(str(self.destination))
+            self.destination.unlink(missing_ok=True)
 
         reading2reading_id = get_reading2reading_id(RESOURCE_PATH / "reading_prediction" / "vocab.txt")
         self.reading_id2reading = {v: k for k, v in reading2reading_id.items()}

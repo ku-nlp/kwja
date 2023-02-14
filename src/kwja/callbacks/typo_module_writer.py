@@ -1,4 +1,3 @@
-import os
 import sys
 from io import TextIOBase
 from pathlib import Path
@@ -16,20 +15,19 @@ from kwja.utils.typo_module_writer import apply_edit_operations, convert_predict
 class TypoModuleWriter(BasePredictionWriter):
     def __init__(
         self,
-        output_dir: str,
         confidence_threshold: float,
         tokenizer: PreTrainedTokenizerBase,
-        use_stdout: bool = False,
-        output_filename: str = "predict",
+        destination: Optional[Union[str, Path]] = None,
     ) -> None:
         super().__init__(write_interval="batch")
-        if use_stdout:
+        if destination is None:
             self.destination: Union[Path, TextIO] = sys.stdout
         else:
-            self.destination = Path(output_dir) / f"{output_filename}.txt"
+            if isinstance(destination, str):
+                destination = Path(destination)
+            self.destination = destination
             self.destination.parent.mkdir(exist_ok=True, parents=True)
-            if self.destination.exists():
-                os.remove(str(self.destination))
+            self.destination.unlink(missing_ok=True)
 
         self.confidence_threshold = confidence_threshold
 

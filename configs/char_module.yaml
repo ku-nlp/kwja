@@ -51,7 +51,7 @@ hparams_to_ignore_on_save:
     - model_checkpoint
     - model_summary
     - prediction_writer:
-        - output_dir
+        - destination
   - datamodule:
     - train
     - valid

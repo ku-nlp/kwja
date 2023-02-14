@@ -1,6 +1,5 @@
 prediction_writer:
   _target_: kwja.callbacks.word_module_writer.WordModuleWriter
-  output_dir: ${run_dir}
   ambig_surf_specs:
     - conjtype: "イ形容詞アウオ段"
       conjform: "エ基本形"
@@ -8,4 +7,4 @@ prediction_writer:
       conjform: "エ基本形"
     - conjtype: "イ形容詞イ段特殊"
       conjform: "エ基本形"
-  output_filename: "predict"
+  destination: ${run_dir}/predict.knp
