@@ -1,5 +1,4 @@
 import logging
-from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Optional, Union
 from unicodedata import normalize
@@ -12,17 +11,11 @@ from transformers.utils import PaddingStrategy
 
 import kwja
 from kwja.datamodule.datasets.base_dataset import BaseDataset
+from kwja.datamodule.examples import CharInferenceExample
 from kwja.utils.constants import TRANSLATION_TABLE
 from kwja.utils.progress_bar import track
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass(frozen=True)
-class CharInferenceExample:
-    example_id: int
-    doc_id: str
-    encoding: BatchEncoding
 
 
 class CharInferenceDataset(BaseDataset):
@@ -62,8 +55,8 @@ class CharInferenceDataset(BaseDataset):
             examples.append(
                 CharInferenceExample(
                     example_id=example_id,
-                    doc_id=document.doc_id,
                     encoding=encoding,
+                    doc_id=document.doc_id,
                 )
             )
             example_id += 1

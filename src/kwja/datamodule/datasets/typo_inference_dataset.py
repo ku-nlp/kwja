@@ -7,7 +7,7 @@ from torch.utils.data import Dataset
 from transformers import BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
-from kwja.datamodule.examples.typo import TypoInferenceExample
+from kwja.datamodule.examples import TypoInferenceExample
 from kwja.utils.constants import DUMMY_TOKEN
 from kwja.utils.progress_bar import track
 

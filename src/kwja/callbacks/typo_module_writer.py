@@ -8,6 +8,7 @@ from pytorch_lightning.callbacks import BasePredictionWriter
 from transformers import PreTrainedTokenizerBase
 
 from kwja.datamodule.datasets import TypoDataset, TypoInferenceDataset
+from kwja.datamodule.examples import TypoExample, TypoInferenceExample
 from kwja.utils.constants import RESOURCE_PATH
 from kwja.utils.typo_module_writer import apply_edit_operations, convert_predictions_into_typo_corr_op_tags, get_maps
 
@@ -61,7 +62,7 @@ class TypoModuleWriter(BasePredictionWriter):
                 texts = dataset.stash.pop(example_id)
                 post_texts.extend(texts)
 
-            example = dataset.examples[example_id]
+            example: Union[TypoExample, TypoInferenceExample] = dataset.examples[example_id]
             seq_len: int = len(example.pre_text)
             if seq_len == 0:
                 continue

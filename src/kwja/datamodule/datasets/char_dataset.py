@@ -1,5 +1,4 @@
 import logging
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Union
 from unicodedata import normalize
@@ -10,7 +9,7 @@ from transformers import BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
 from kwja.datamodule.datasets.base_dataset import BaseDataset
-from kwja.datamodule.examples.char_feature import CharFeatureExample
+from kwja.datamodule.examples import CharExample
 from kwja.utils.constants import (
     IGNORE_INDEX,
     IGNORE_WORD_NORM_OP_TAG,
@@ -22,15 +21,6 @@ from kwja.utils.progress_bar import track
 from kwja.utils.word_normalization import SentenceDenormalizer
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass(frozen=True)
-class CharExampleSet:
-    example_id: int
-    doc_id: str
-    text: str  # space-delimited word sequence
-    encoding: BatchEncoding
-    char_feature_example: CharFeatureExample
 
 
 class CharDataset(BaseDataset):
@@ -46,7 +36,7 @@ class CharDataset(BaseDataset):
         super().__init__(self.path, tokenizer, max_seq_length, document_split_stride)
         self.denormalizer: SentenceDenormalizer = SentenceDenormalizer()
         self.denormalize_probability: float = denormalize_probability
-        self.examples: List[CharExampleSet] = self._load_examples(self.documents)
+        self.examples: List[CharExample] = self._load_examples(self.documents)
 
     def __len__(self) -> int:
         return len(self.examples)
@@ -54,7 +44,7 @@ class CharDataset(BaseDataset):
     def __getitem__(self, index: int) -> Dict[str, torch.Tensor]:
         return self.encode(self.examples[index])
 
-    def _load_examples(self, documents: List[Document]) -> List[CharExampleSet]:
+    def _load_examples(self, documents: List[Document]) -> List[CharExample]:
         examples = []
         example_id = 0
         for document in track(documents, description="Loading examples"):
@@ -70,18 +60,10 @@ class CharDataset(BaseDataset):
                 logger.warning(f"Length of sub document is too long: {document.text}")
                 continue
 
-            char_feature_example = CharFeatureExample()
-            char_feature_example.load(document)
+            char_example = CharExample(example_id, encoding)
+            char_example.load_document(document)
 
-            examples.append(
-                CharExampleSet(
-                    example_id=example_id,
-                    doc_id=document.doc_id,
-                    text=document.text,
-                    encoding=encoding,
-                    char_feature_example=char_feature_example,
-                )
-            )
+            examples.append(char_example)
             example_id += 1
         if len(examples) == 0:
             logger.error(
@@ -90,21 +72,19 @@ class CharDataset(BaseDataset):
             )
         return examples
 
-    def encode(self, example: CharExampleSet) -> Dict[str, torch.Tensor]:
-        char_feature_example = example.char_feature_example
-
+    def encode(self, example: CharExample) -> Dict[str, torch.Tensor]:
         word_segmentation_labels: List[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
-        for char_index, word_segmentation_tag in char_feature_example.index2word_segmentation_tag.items():
+        for char_global_index, word_segmentation_tag in example.char_global_index2word_segmentation_tag.items():
             # 先頭の[CLS]をIGNORE_INDEXにするため+1
-            word_segmentation_labels[char_index + 1] = WORD_SEGMENTATION_TAGS.index(word_segmentation_tag)
+            word_segmentation_labels[char_global_index + 1] = WORD_SEGMENTATION_TAGS.index(word_segmentation_tag)
 
         word_norm_op_labels: List[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
-        for char_index, word_norm_op_tag in char_feature_example.index2word_norm_op_tag.items():
+        for char_global_index, word_norm_op_tag in example.char_global_index2word_norm_op_tag.items():
             # 先頭の[CLS]をIGNORE_INDEXにするため+1
             if word_norm_op_tag == IGNORE_WORD_NORM_OP_TAG:
-                word_norm_op_labels[char_index + 1] = IGNORE_INDEX
+                word_norm_op_labels[char_global_index + 1] = IGNORE_INDEX
             else:
-                word_norm_op_labels[char_index + 1] = WORD_NORM_OP_TAGS.index(word_norm_op_tag)
+                word_norm_op_labels[char_global_index + 1] = WORD_NORM_OP_TAGS.index(word_norm_op_tag)
 
         return {
             "example_ids": torch.tensor(example.example_id, dtype=torch.long),

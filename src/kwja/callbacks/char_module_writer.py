@@ -7,8 +7,7 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import BasePredictionWriter
 
 from kwja.datamodule.datasets import CharDataset, CharInferenceDataset
-from kwja.datamodule.datasets.char_dataset import CharExampleSet
-from kwja.datamodule.datasets.char_inference_dataset import CharInferenceExample
+from kwja.datamodule.examples import CharExample, CharInferenceExample
 from kwja.utils.char_module_writer import convert_predictions_into_tags, set_morphemes
 from kwja.utils.sub_document import extract_target_sentences
 
@@ -44,7 +43,8 @@ class CharModuleWriter(BasePredictionWriter):
             prediction["word_segmentation_predictions"].tolist(),
             prediction["word_norm_op_predictions"].tolist(),
         ):
-            example: Union[CharExampleSet, CharInferenceExample] = dataset.examples[example_id]
+            example: Union[CharExample, CharInferenceExample] = dataset.examples[example_id]
+            assert example.doc_id is not None, "doc_id isn't set"
             document = dataset.doc_id2document[example.doc_id]
             # メモリリーク対策
             predicted_document = document.reparse()
