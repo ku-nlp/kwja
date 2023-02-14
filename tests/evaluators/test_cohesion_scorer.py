@@ -2,7 +2,7 @@ import io
 import json
 from pathlib import Path
 
-from kwja.evaluators.cohesion_scorer import Measure, Scorer
+from kwja.evaluators.cohesion_scorer import Metric, Scorer
 
 
 def test_scorer(fixture_data_dir: Path, fixture_scorer: Scorer):
@@ -12,10 +12,10 @@ def test_scorer(fixture_data_dir: Path, fixture_scorer: Scorer):
         case_result = score_dict[case]
         for analysis in Scorer.ARGUMENT_TYPE2ANALYSIS.values():
             expected: dict = expected_scores[case][analysis]
-            actual: Measure = case_result[analysis]
-            assert expected["denom_pred"] == actual.denom_pred
-            assert expected["denom_gold"] == actual.denom_gold
-            assert expected["correct"] == actual.correct
+            actual: Metric = case_result[analysis]
+            assert expected["tp_fp"] == actual.tp_fp
+            assert expected["tp_fn"] == actual.tp_fn
+            assert expected["tp"] == actual.tp
 
 
 def test_score_result_add(fixture_data_dir: Path, fixture_scorer: Scorer):
@@ -28,10 +28,10 @@ def test_score_result_add(fixture_data_dir: Path, fixture_scorer: Scorer):
         case_result = score_dict[case]
         for analysis in Scorer.ARGUMENT_TYPE2ANALYSIS.values():
             expected: dict = expected_scores[case][analysis]
-            actual: Measure = case_result[analysis]
-            assert actual.denom_pred == expected["denom_pred"] * 2
-            assert actual.denom_gold == expected["denom_gold"] * 2
-            assert actual.correct == expected["correct"] * 2
+            actual: Metric = case_result[analysis]
+            assert actual.tp_fp == expected["tp_fp"] * 2
+            assert actual.tp_fn == expected["tp_fn"] * 2
+            assert actual.tp == expected["tp"] * 2
 
 
 def test_export_txt(fixture_data_dir: Path, fixture_scorer: Scorer):

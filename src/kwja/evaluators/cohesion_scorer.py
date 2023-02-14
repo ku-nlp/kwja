@@ -190,15 +190,15 @@ class SubScorer:
             ScoreResult: 評価結果のスコア
         """
         self.comp_result.clear()
-        pas_measures = self._evaluate_pas() if self.pas is True else None
-        bridging_measures = self._evaluate_bridging() if self.bridging is True else None
-        coreference_measure = self._evaluate_coreference() if self.coreference is True else None
-        return ScoreResult(pas_measures, bridging_measures, coreference_measure)
+        pas_metrics = self._evaluate_pas() if self.pas is True else None
+        bridging_metrics = self._evaluate_bridging() if self.bridging is True else None
+        coreference_metric = self._evaluate_coreference() if self.coreference is True else None
+        return ScoreResult(pas_metrics, bridging_metrics, coreference_metric)
 
     def _evaluate_pas(self) -> pd.DataFrame:
         """compute predicate-argument structure analysis scores"""
-        measures = pd.DataFrame(
-            [[Measure() for _ in Scorer.ARGUMENT_TYPE2ANALYSIS.values()] for _ in self.pas_cases],
+        metrics = pd.DataFrame(
+            [[Metric() for _ in Scorer.ARGUMENT_TYPE2ANALYSIS.values()] for _ in self.pas_cases],
             index=self.pas_cases,
             columns=list(Scorer.ARGUMENT_TYPE2ANALYSIS.values()),
         )
@@ -247,12 +247,12 @@ class SubScorer:
                         # use argument_type of gold argument if possible
                         analysis = Scorer.ARGUMENT_TYPE2ANALYSIS[relaxed_gold_pas_argument.type]
                         self.comp_result[key] = analysis
-                        measures.at[pas_case, analysis].correct += 1
+                        metrics.at[pas_case, analysis].tp += 1
                     else:
                         # system出力のargument_typeはgoldのものと違うので不整合が起きるかもしれない
                         analysis = Scorer.ARGUMENT_TYPE2ANALYSIS[predicted_pas_argument.type]
                         self.comp_result[key] = "wrong"  # precision が下がる
-                    measures.at[pas_case, analysis].denom_pred += 1
+                    metrics.at[pas_case, analysis].tp_fp += 1
 
                 # compute recall
                 # 正解が複数ある場合、そのうち一つが当てられていればそれを正解に採用
@@ -274,8 +274,8 @@ class SubScorer:
                             assert self.comp_result[key] == "wrong"
                         else:
                             self.comp_result[key] = "wrong"  # recall が下がる
-                    measures.at[pas_case, analysis].denom_gold += 1
-        return measures
+                    metrics.at[pas_case, analysis].tp_fn += 1
+        return metrics
 
     def _filter_arguments(self, arguments: List[Argument], predicate: Predicate) -> List[Argument]:
         filtered = []
@@ -307,8 +307,8 @@ class SubScorer:
 
     def _evaluate_bridging(self) -> pd.Series:
         """compute bridging reference resolution scores"""
-        measures: Dict[str, Measure] = OrderedDict(
-            (analysis, Measure()) for analysis in Scorer.ARGUMENT_TYPE2ANALYSIS.values()
+        metrics: Dict[str, Metric] = OrderedDict(
+            (analysis, Metric()) for analysis in Scorer.ARGUMENT_TYPE2ANALYSIS.values()
         )
         global_index2predicted_anaphor: Dict[int, Predicate] = {
             p.base_phrase.global_index: p for p in self.predicted_bridging_anaphors
@@ -355,13 +355,13 @@ class SubScorer:
                     if analysis == "overt":
                         analysis = "dep"
                     self.comp_result[key] = analysis
-                    measures[analysis].correct += 1
+                    metrics[analysis].tp += 1
                 else:
                     analysis = Scorer.ARGUMENT_TYPE2ANALYSIS[predicted_antecedent.type]
                     if analysis == "overt":
                         analysis = "dep"
                     self.comp_result[key] = "wrong"
-                measures[analysis].denom_pred += 1
+                metrics[analysis].tp_fp += 1
 
             # calculate recall
             if gold_antecedents or (self.comp_result.get(key, None) in Scorer.ARGUMENT_TYPE2ANALYSIS.values()):
@@ -383,12 +383,12 @@ class SubScorer:
                         assert self.comp_result[key] == "wrong"
                     else:
                         self.comp_result[key] = "wrong"
-                measures[analysis].denom_gold += 1
-        return pd.Series(measures)
+                metrics[analysis].tp_fn += 1
+        return pd.Series(metrics)
 
     def _evaluate_coreference(self) -> pd.Series:
         """compute coreference resolution scores"""
-        measure = Measure()
+        metric = Metric()
         global_index2predicted_mention: Dict[int, BasePhrase] = {p.global_index: p for p in self.predicted_mentions}
         global_index2gold_mention: Dict[int, BasePhrase] = {p.global_index: p for p in self.gold_mentions}
         for global_index in range(len(self.predicted_document.base_phrases)):
@@ -427,26 +427,26 @@ class SubScorer:
                 if (predicted_other_mentions & relaxed_gold_other_mentions) or (
                     predicted_exophora_referents & relaxed_gold_exophora_referents
                 ):
-                    self.comp_result[key] = "correct"
-                    measure.correct += 1
+                    self.comp_result[key] = "tp"
+                    metric.tp += 1
                 else:
                     self.comp_result[key] = "wrong"
-                measure.denom_pred += 1
+                metric.tp_fp += 1
 
             # compute recall
             if (
                 (len(gold_other_mentions) > 0)
                 or (len(gold_exophora_referents) > 0)
-                or (self.comp_result.get(key, None) == "correct")
+                or (self.comp_result.get(key, None) == "tp")
             ):
                 if (predicted_other_mentions & relaxed_gold_other_mentions) or (
                     predicted_exophora_referents & relaxed_gold_exophora_referents
                 ):
-                    assert self.comp_result[key] == "correct"
+                    assert self.comp_result[key] == "tp"
                 else:
                     self.comp_result[key] = "wrong"
-                measure.denom_gold += 1
-        return pd.Series([measure], index=["all"])
+                metric.tp_fn += 1
+        return pd.Series([metric], index=["all"])
 
     @staticmethod
     def _filter_mentions(other_mentions: Set[BasePhrase], mention: BasePhrase) -> Set[BasePhrase]:
@@ -469,16 +469,16 @@ class SubScorer:
 class ScoreResult:
     """A data class for storing the numerical result of an evaluation"""
 
-    measures_pas: Optional[pd.DataFrame]
-    measures_bridging: Optional[pd.Series]
-    measure_coreference: Optional[pd.Series]
+    pas_metrics: Optional[pd.DataFrame]
+    bridging_metrics: Optional[pd.Series]
+    coreference_metric: Optional[pd.Series]
 
-    def to_dict(self) -> Dict[str, Dict[str, "Measure"]]:
+    def to_dict(self) -> Dict[str, Dict[str, "Metric"]]:
         """convert data to dictionary"""
         df_all = pd.DataFrame(index=["all_case"])
         if self.pas is True:
-            assert self.measures_pas is not None
-            df_pas: pd.DataFrame = self.measures_pas.copy()
+            assert self.pas_metrics is not None
+            df_pas: pd.DataFrame = self.pas_metrics.copy()
             df_pas["zero"] = df_pas["zero_endophora"] + df_pas["zero_exophora"]
             df_pas["dep_zero"] = df_pas["zero"] + df_pas["dep"]
             df_pas["pas"] = df_pas["dep_zero"] + df_pas["overt"]
@@ -486,21 +486,21 @@ class ScoreResult:
             df_all.loc["all_case"] = df_pas.sum(axis=0)
 
         if self.bridging is True:
-            assert self.measures_bridging is not None
-            df_bar = self.measures_bridging.copy()
+            assert self.bridging_metrics is not None
+            df_bar = self.bridging_metrics.copy()
             df_bar["zero"] = df_bar["zero_endophora"] + df_bar["zero_exophora"]
             df_bar["dep_zero"] = df_bar["zero"] + df_bar["dep"]
-            assert df_bar["overt"] == Measure()  # No overt in BAR
+            assert df_bar["overt"] == Metric()  # No overt in BAR
             df_bar["pas"] = df_bar["dep_zero"]
             df_all.at["all_case", "bridging"] = df_bar["pas"]
 
         if self.coreference is True:
-            assert self.measure_coreference is not None
-            df_all.at["all_case", "coreference"] = self.measure_coreference["all"]
+            assert self.coreference_metric is not None
+            df_all.at["all_case", "coreference"] = self.coreference_metric["all"]
 
         return {
-            rel: {analysis: measure for analysis, measure in analysis2measure.items() if pd.notnull(measure)}
-            for rel, analysis2measure in df_all.to_dict(orient="index").items()
+            rel: {analysis: metric for analysis, metric in analysis2metric.items() if pd.notnull(metric)}
+            for rel, analysis2metric in df_all.to_dict(orient="index").items()
         }
 
     def export_txt(self, destination: Union[str, Path, TextIO]) -> None:
@@ -510,13 +510,13 @@ class ScoreResult:
             destination (Union[str, Path, TextIO]): 書き出す先
         """
         lines = []
-        for rel, analysis2measure in self.to_dict().items():
-            lines.append(f"{rel}格" if (self.measures_pas is not None) and (rel in self.measures_pas.index) else rel)
-            for analysis, measure in analysis2measure.items():
+        for rel, analysis2metric in self.to_dict().items():
+            lines.append(f"{rel}格" if (self.pas_metrics is not None) and (rel in self.pas_metrics.index) else rel)
+            for analysis, metric in analysis2metric.items():
                 lines.append(f"  {analysis}")
-                lines.append(f"    precision: {measure.precision:.4f} ({measure.correct}/{measure.denom_pred})")
-                lines.append(f"    recall   : {measure.recall:.4f} ({measure.correct}/{measure.denom_gold})")
-                lines.append(f"    F        : {measure.f1:.4f}")
+                lines.append(f"    precision: {metric.precision:.4f} ({metric.tp}/{metric.tp_fp})")
+                lines.append(f"    recall   : {metric.recall:.4f} ({metric.tp}/{metric.tp_fn})")
+                lines.append(f"    F        : {metric.f1:.4f}")
         text = "\n".join(lines) + "\n"
 
         if isinstance(destination, str) or isinstance(destination, Path):
@@ -535,9 +535,9 @@ class ScoreResult:
         score_result_dict = self.to_dict()
         text += "case" + sep
         text += sep.join(score_result_dict["all_case"].keys()) + "\n"
-        for rel, analysis2measure in score_result_dict.items():
+        for rel, analysis2metric in score_result_dict.items():
             text += rel + sep
-            text += sep.join(f"{measure.f1:.6}" for measure in analysis2measure.values())
+            text += sep.join(f"{metric.f1:.6}" for metric in analysis2metric.values())
             text += "\n"
 
         if isinstance(destination, str) or isinstance(destination, Path):
@@ -548,76 +548,70 @@ class ScoreResult:
     @property
     def pas(self):
         """Whether self includes the score of predicate-argument structure analysis."""
-        return self.measures_pas is not None
+        return self.pas_metrics is not None
 
     @property
     def bridging(self):
         """Whether self includes the score of bridging anaphora resolution."""
-        return self.measures_bridging is not None
+        return self.bridging_metrics is not None
 
     @property
     def coreference(self):
         """Whether self includes the score of coreference resolution."""
-        return self.measure_coreference is not None
+        return self.coreference_metric is not None
 
     def __add__(self, other: "ScoreResult") -> "ScoreResult":
         if self.pas is True:
-            assert (self.measures_pas is not None) and (other.measures_pas is not None)
-            measures_pas = self.measures_pas + other.measures_pas
+            assert (self.pas_metrics is not None) and (other.pas_metrics is not None)
+            pas_metrics = self.pas_metrics + other.pas_metrics
         else:
-            measures_pas = None
+            pas_metrics = None
         if self.bridging is True:
-            assert (self.measures_bridging is not None) and (other.measures_bridging is not None)
-            measures_bridging = self.measures_bridging + other.measures_bridging
+            assert (self.bridging_metrics is not None) and (other.bridging_metrics is not None)
+            bridging_metrics = self.bridging_metrics + other.bridging_metrics
         else:
-            measures_bridging = None
+            bridging_metrics = None
         if self.coreference is True:
-            assert (self.measure_coreference is not None) and (other.measure_coreference is not None)
-            measure_coreference = self.measure_coreference + other.measure_coreference
+            assert (self.coreference_metric is not None) and (other.coreference_metric is not None)
+            coreference_metric = self.coreference_metric + other.coreference_metric
         else:
-            measure_coreference = None
-        return ScoreResult(measures_pas, measures_bridging, measure_coreference)
+            coreference_metric = None
+        return ScoreResult(pas_metrics, bridging_metrics, coreference_metric)
 
 
 @dataclass
-class Measure:
-    """A data class to calculate and represent F-measure"""
+class Metric:
+    """A data class to calculate and represent F-score"""
 
-    denom_pred: int = 0
-    denom_gold: int = 0
-    correct: int = 0
+    tp_fp: int = 0
+    tp_fn: int = 0
+    tp: int = 0
 
-    def __add__(self, other: "Measure"):
-        return Measure(
-            self.denom_pred + other.denom_pred, self.denom_gold + other.denom_gold, self.correct + other.correct
-        )
+    def __add__(self, other: "Metric"):
+        return Metric(self.tp_fp + other.tp_fp, self.tp_fn + other.tp_fn, self.tp + other.tp)
 
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, type(self)):
             return False
-        return (
-            (self.denom_pred == other.denom_pred)
-            and (self.denom_gold == other.denom_gold)
-            and (self.correct == other.correct)
-        )
+        return (self.tp_fp == other.tp_fp) and (self.tp_fn == other.tp_fn) and (self.tp == other.tp)
 
     @property
     def precision(self) -> float:
-        if self.denom_pred == 0:
+        if self.tp_fp == 0:
             return 0.0
-        return self.correct / self.denom_pred
+        return self.tp / self.tp_fp
 
     @property
     def recall(self) -> float:
-        if self.denom_gold == 0:
+        if self.tp_fn == 0:
             return 0.0
-        return self.correct / self.denom_gold
+        return self.tp / self.tp_fn
 
     @property
     def f1(self) -> float:
-        if (self.denom_pred + self.denom_gold) == 0:
+        if (self.tp_fp + self.tp_fn) == 0:
             return 0.0
-        return (2 * self.correct) / (self.denom_pred + self.denom_gold)
+        return (2 * self.tp) / (self.tp_fp + self.tp_fn)
 
 
 def main():

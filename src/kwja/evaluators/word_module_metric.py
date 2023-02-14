@@ -473,17 +473,17 @@ class WordModuleMetric(Metric):
         score_result: ScoreResult = scorer.run()
 
         metrics: Dict[str, float] = {}
-        for rel, analysis2measure in score_result.to_dict().items():
-            for analysis, measure in analysis2measure.items():
-                metrics[f"{analysis}_{rel}"] = measure.f1
-        f1s = []
+        for rel, analysis2metric in score_result.to_dict().items():
+            for analysis, metric in analysis2metric.items():
+                metrics[f"{analysis}_{rel}"] = metric.f1
+        cohesion_analysis_f1s = []
         if CohesionTask.PAS_ANALYSIS in self.dataset.cohesion_tasks:
-            f1s.append(metrics["pas_all_case"])
+            cohesion_analysis_f1s.append(metrics["pas_all_case"])
         if CohesionTask.BRIDGING_REFERENCE_RESOLUTION in self.dataset.cohesion_tasks:
-            f1s.append(metrics["bridging_all_case"])
+            cohesion_analysis_f1s.append(metrics["bridging_all_case"])
         if CohesionTask.COREFERENCE_RESOLUTION in self.dataset.cohesion_tasks:
-            f1s.append(metrics["coreference_all_case"])
-        metrics["cohesion_analysis_f1"] = mean(f1s)
+            cohesion_analysis_f1s.append(metrics["coreference_all_case"])
+        metrics["cohesion_analysis_f1"] = mean(cohesion_analysis_f1s)
         return metrics
 
     @staticmethod
