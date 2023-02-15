@@ -1,7 +1,7 @@
 prediction_writer:
   _target_: kwja.callbacks.typo_module_writer.TypoModuleWriter
   confidence_threshold: ${confidence_threshold}
-  destination: ${run_dir}/typo_predict.txt
+  destination: ${run_dir}/typo_prediction.txt
   tokenizer:
     _target_: transformers.AutoTokenizer.from_pretrained
     pretrained_model_name_or_path: ${encoder.pretrained_model_name_or_path}

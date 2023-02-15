@@ -12,6 +12,8 @@ from torch.hub import download_url_to_file
 
 import kwja
 
+logger = logging.getLogger(__name__)
+
 ENV_KWJA_CACHE_DIR = "KWJA_CACHE_DIR"
 ENV_XDG_CACHE_HOME = "XDG_CACHE_HOME"
 DEFAULT_CACHE_DIR = Path.home() / ".cache"
@@ -37,8 +39,6 @@ _CHECKPOINT_FILE_NAMES = {
         "word_discourse": "disc_roberta-large.ckpt",
     },
 }
-
-logger = logging.getLogger(__name__)
 
 
 def suppress_debug_info() -> None:

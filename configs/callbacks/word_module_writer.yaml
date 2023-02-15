@@ -7,4 +7,4 @@ prediction_writer:
       conjform: "エ基本形"
     - conjtype: "イ形容詞イ段特殊"
       conjform: "エ基本形"
-  destination: ${run_dir}/word_predict.knp
+  destination: ${run_dir}/word_prediction.knp
