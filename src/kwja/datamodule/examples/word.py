@@ -44,7 +44,7 @@ class WordExample:
         # ---------- dependency parsing ----------
         self.morpheme_global_index2dependency: Dict[int, int] = {}
         # 形態素単位係り先候補
-        self.morpheme_global_index2dependent_candidates: Dict[int, List[int]] = {}
+        self.morpheme_global_index2head_candidates: Dict[int, List[Morpheme]] = {}
         self.morpheme_global_index2dependency_type: Dict[int, DepType] = {}
 
         # ---------- cohesion analysis ----------
@@ -125,9 +125,7 @@ class WordExample:
         for morpheme in morphemes:
             dependency = morpheme.parent.global_index if morpheme.parent is not None else -1
             self.morpheme_global_index2dependency[morpheme.global_index] = dependency
-            self.morpheme_global_index2dependent_candidates[morpheme.global_index] = [
-                m.global_index for m in morphemes if m != morpheme
-            ]
+            self.morpheme_global_index2head_candidates[morpheme.global_index] = [m for m in morphemes if m != morpheme]
 
             if morpheme == morpheme.base_phrase.head:
                 assert morpheme.base_phrase.dep_type is not None

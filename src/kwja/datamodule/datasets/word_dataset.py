@@ -224,14 +224,15 @@ class WordDataset(BaseDataset):
                 base_phrase_feature_labels[morpheme_global_index][i] = int(base_phrase_feature in feature_set)
 
         # ---------- dependency parsing ----------
-        root_index = self.special_token2index["[ROOT]"]
         dependency_labels: List[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
+        root_index = self.special_token2index["[ROOT]"]
         for morpheme_global_index, dependency in example.morpheme_global_index2dependency.items():
             dependency_labels[morpheme_global_index] = dependency if dependency >= 0 else root_index
         dependency_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
-        for morpheme_global_index, dependent_candidates in example.morpheme_global_index2dependent_candidates.items():
-            for dependent_candidate_index in dependent_candidates + [root_index]:
-                dependency_mask[morpheme_global_index][dependent_candidate_index] = True
+        for morpheme_global_index, head_candidates in example.morpheme_global_index2head_candidates.items():
+            for head_candidate in head_candidates:
+                dependency_mask[morpheme_global_index][head_candidate.global_index] = True
+            dependency_mask[morpheme_global_index][root_index] = True
         dependency_type_labels: List[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
         for morpheme_global_index, dependency_type in example.morpheme_global_index2dependency_type.items():
             dependency_type_index = DEPENDENCY_TYPES.index(dependency_type)
