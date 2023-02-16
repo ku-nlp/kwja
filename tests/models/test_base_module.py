@@ -1,7 +1,7 @@
 import pytest
 from omegaconf import DictConfig, ListConfig
 
-from kwja.utils.omegaconf import filter_dict_items
+from kwja.models.base_module import filter_dict_items
 
 
 @pytest.mark.parametrize(

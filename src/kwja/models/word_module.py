@@ -1,14 +1,13 @@
-import copy
 from statistics import mean
 from typing import Any, Dict, List, Optional, Tuple
 
 import hydra
-import pytorch_lightning as pl
 import torch
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig
 from transformers import PretrainedConfig, PreTrainedModel
 
 from kwja.evaluators.word_module_metric import WordModuleMetric
+from kwja.models.base_module import BaseModule
 from kwja.models.components.crf import CRF
 from kwja.models.components.head import SequenceLabelingHead, WordSelectionHead
 from kwja.models.components.pooling import PoolingStrategy, pool_subwords
@@ -29,14 +28,13 @@ from kwja.utils.constants import (
     WordTask,
 )
 from kwja.utils.loss import compute_multi_label_token_mean_loss, compute_token_mean_loss, mask_logits
-from kwja.utils.omegaconf import filter_dict_items
 from kwja.utils.reading_prediction import get_reading2reading_id
 
 
-class WordModule(pl.LightningModule):
+class WordModule(BaseModule):
     def __init__(self, hparams: DictConfig) -> None:
-        super().__init__()
-        self.save_hyperparameters(hparams)
+        super().__init__(hparams)
+
         self.training_tasks: List[WordTask] = list(map(WordTask, self.hparams.training_tasks))
 
         if valid_corpora := getattr(hparams.datamodule, "valid", None):
@@ -299,39 +297,3 @@ class WordModule(pl.LightningModule):
             "cohesion_logits": ret["cohesion_logits"],
             "discourse_predictions": discourse_predictions,
         }
-
-    def configure_optimizers(self):
-        # Split weights in two groups, one with weight decay and the other not.
-        no_decay = ("bias", "LayerNorm.weight")
-        optimizer_grouped_parameters = [
-            {
-                "params": [
-                    p for n, p in self.named_parameters() if not any(nd in n for nd in no_decay) and p.requires_grad
-                ],
-                "weight_decay": self.hparams.optimizer.weight_decay,
-                "name": "decay",
-            },
-            {
-                "params": [
-                    p for n, p in self.named_parameters() if any(nd in n for nd in no_decay) and p.requires_grad
-                ],
-                "weight_decay": 0.0,
-                "name": "no_decay",
-            },
-        ]
-        optimizer = hydra.utils.instantiate(
-            self.hparams.optimizer, params=optimizer_grouped_parameters, _convert_="partial"
-        )
-
-        warmup_steps = self.hparams.warmup_steps
-        lr_scheduler = hydra.utils.instantiate(
-            self.hparams.scheduler, optimizer=optimizer, num_warmup_steps=warmup_steps
-        )
-        return {"optimizer": optimizer, "lr_scheduler": {"scheduler": lr_scheduler, "interval": "step", "frequency": 1}}
-
-    def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
-        hparams: DictConfig = copy.deepcopy(checkpoint["hyper_parameters"])
-        OmegaConf.set_struct(hparams, False)
-        if self.hparams.ignore_hparams_on_save:
-            hparams = filter_dict_items(hparams, self.hparams.hparams_to_ignore_on_save)
-        checkpoint["hyper_parameters"] = hparams
