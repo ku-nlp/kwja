@@ -13,6 +13,7 @@ from torchmetrics import Metric
 from kwja.datamodule.datasets import WordDataset
 from kwja.evaluators.cohesion_scorer import Scorer, ScoreResult
 from kwja.evaluators.conll18_ud_eval import main as conll18_ud_eval
+from kwja.evaluators.utils import unique
 from kwja.utils.cohesion_analysis import PasUtils
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
@@ -26,7 +27,6 @@ from kwja.utils.constants import (
     CohesionTask,
     WordTask,
 )
-from kwja.utils.metric import unique
 from kwja.utils.sub_document import extract_target_sentences, to_orig_doc_id
 from kwja.utils.word_module_writer import (  # add_discourse,
     add_base_phrase_features,

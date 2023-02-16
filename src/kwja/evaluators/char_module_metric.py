@@ -8,9 +8,9 @@ from seqeval.scheme import IOB2
 from torchmetrics import Metric
 
 from kwja.datamodule.datasets import CharDataset
+from kwja.evaluators.utils import unique
 from kwja.utils.char_module_writer import convert_predictions_into_tags, set_morphemes
 from kwja.utils.constants import IGNORE_INDEX, WORD_NORM_OP_TAGS
-from kwja.utils.metric import unique
 from kwja.utils.sub_document import extract_target_sentences, to_orig_doc_id
 
 
