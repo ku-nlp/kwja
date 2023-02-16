@@ -127,3 +127,8 @@ def test_average_pooling():
         dtype=torch.float,
     )
     assert pooled_output == pytest.approx(expected_output)
+
+
+def test_error():
+    with pytest.raises(ValueError):
+        _ = pool_subwords(sequence_output, subword_map, None)  # type: ignore
