@@ -90,7 +90,7 @@ class CharInferenceDataset(BaseDataset):
                 sentence.misc_comment = f"kwja:{kwja.__version__}"
         return documents
 
-    def _normalize(self, document):
+    def _normalize_text(self, document):
         for sentence in document.sentences:
             normalized = normalize("NFKC", sentence.text).translate(TRANSLATION_TABLE)
             if normalized != sentence.text:
