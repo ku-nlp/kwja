@@ -6,11 +6,7 @@ import torch.nn as nn
 
 class SequenceLabelingHead(nn.Sequential):
     def __init__(
-        self,
-        num_labels: int,
-        hidden_size: int,
-        hidden_dropout_prob: float,
-        multi_label: bool = False,
+        self, num_labels: int, hidden_size: int, hidden_dropout_prob: float, multi_label: bool = False
     ) -> None:
         super().__init__(
             nn.Linear(hidden_size, hidden_size),
@@ -23,12 +19,7 @@ class SequenceLabelingHead(nn.Sequential):
 
 
 class WordSelectionHead(nn.Module):
-    def __init__(
-        self,
-        num_relations: int,
-        hidden_size: int,
-        hidden_dropout_prob: float,
-    ) -> None:
+    def __init__(self, num_relations: int, hidden_size: int, hidden_dropout_prob: float) -> None:
         super().__init__()
         self.l_source = nn.Linear(hidden_size, hidden_size)
         self.l_target = nn.Linear(hidden_size, hidden_size)
