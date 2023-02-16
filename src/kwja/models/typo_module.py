@@ -52,10 +52,7 @@ class TypoModule(pl.LightningModule):
         if truncation_length > 0:
             kdr_logits = self._pad(kdr_logits, truncation_length)
             ins_logits = self._pad(ins_logits, truncation_length)
-        return {
-            "kdr_logits": kdr_logits,
-            "ins_logits": ins_logits,
-        }
+        return {"kdr_logits": kdr_logits, "ins_logits": ins_logits}
 
     def _truncate(self, batch: Any) -> int:
         max_seq_length = batch["attention_mask"].sum(dim=1).max().item()
@@ -96,10 +93,8 @@ class TypoModule(pl.LightningModule):
         for corpus, metrics in metrics_log.items():
             self.log_dict({f"valid_{corpus}/{key}": value for key, value in metrics.items()})
         for key in list(metrics_log.values())[0].keys():
-            self.log(
-                f"valid/{key}",
-                mean(metrics_log[corpus][key] for corpus in self.valid_corpora if key in metrics_log[corpus]),
-            )
+            mean_score = mean(metrics_log[corpus][key] for corpus in self.valid_corpora if key in metrics_log[corpus])
+            self.log(f"valid/{key}", mean_score)
 
     def test_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> None:
         kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
@@ -119,10 +114,8 @@ class TypoModule(pl.LightningModule):
         for corpus, metrics in metrics_log.items():
             self.log_dict({f"test_{corpus}/{key}": value for key, value in metrics.items()})
         for key in list(metrics_log.values())[0].keys():
-            self.log(
-                f"test/{key}",
-                mean(metrics_log[corpus][key] for corpus in self.test_corpora if key in metrics_log[corpus]),
-            )
+            mean_score = mean(metrics_log[corpus][key] for corpus in self.test_corpora if key in metrics_log[corpus])
+            self.log(f"test/{key}", mean_score)
 
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Dict[str, torch.Tensor]:
         ret: Dict[str, torch.Tensor] = self(batch)
@@ -158,25 +151,14 @@ class TypoModule(pl.LightningModule):
             },
         ]
         optimizer = hydra.utils.instantiate(
-            self.hparams.optimizer,
-            params=optimizer_grouped_parameters,
-            _convert_="partial",
+            self.hparams.optimizer, params=optimizer_grouped_parameters, _convert_="partial"
         )
 
         warmup_steps = self.hparams.warmup_steps
         lr_scheduler = hydra.utils.instantiate(
-            self.hparams.scheduler,
-            optimizer=optimizer,
-            num_warmup_steps=warmup_steps,
+            self.hparams.scheduler, optimizer=optimizer, num_warmup_steps=warmup_steps
         )
-        return {
-            "optimizer": optimizer,
-            "lr_scheduler": {
-                "scheduler": lr_scheduler,
-                "interval": "step",
-                "frequency": 1,
-            },
-        }
+        return {"optimizer": optimizer, "lr_scheduler": {"scheduler": lr_scheduler, "interval": "step", "frequency": 1}}
 
     def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         hparams: DictConfig = copy.deepcopy(checkpoint["hyper_parameters"])
