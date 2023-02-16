@@ -21,6 +21,7 @@ mode: max
 confidence_threshold: 0.8   # valid only for inference
 
 # hyper-parameters to be tuned
+lr: 5e-5
 warmup_steps: 100
 effective_batch_size: 64
 

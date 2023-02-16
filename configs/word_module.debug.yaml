@@ -52,6 +52,7 @@ aggregating_metrics:
   - discourse_parsing_f1
 
 # hyper-parameters to be tuned
+lr: 1e-4
 warmup_steps: 100
 effective_batch_size: 16
 

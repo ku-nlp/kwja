@@ -26,6 +26,7 @@ aggregating_metrics:
 #  - word_normalization_f1  # exclude because this metric is unstable
 
 # hyper-parameters to be tuned
+lr: 2e-5
 warmup_steps: 100
 effective_batch_size: 16
 
