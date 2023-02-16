@@ -1,10 +1,7 @@
 from omegaconf import DictConfig, ListConfig
 
 
-def filter_dict_items(
-    item: DictConfig,
-    keys_to_ignore: ListConfig,
-) -> DictConfig:
+def filter_dict_items(item: DictConfig, keys_to_ignore: ListConfig) -> DictConfig:
     """Filter out dictionary items whose key is in keys_to_ignore recursively."""
     for key, value in item.items():
         ignore = False
