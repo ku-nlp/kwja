@@ -218,11 +218,7 @@ class WordModule(pl.LightningModule):
             self.log("train/cohesion_analysis_loss", cohesion_analysis_loss)
 
         if WordTask.DISCOURSE_PARSING in self.training_tasks:
-            ignored_indices = batch["discourse_labels"].eq(IGNORE_INDEX)
-            if (~ignored_indices).sum().item() == 0:
-                discourse_parsing_loss = torch.tensor(0.0, device=self.device)
-            else:
-                discourse_parsing_loss = compute_token_mean_loss(ret["discourse_logits"], batch["discourse_labels"])
+            discourse_parsing_loss = compute_token_mean_loss(ret["discourse_logits"], batch["discourse_labels"])
             loss += discourse_parsing_loss
             self.log("train/discourse_parsing_loss", discourse_parsing_loss)
 
