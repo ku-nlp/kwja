@@ -9,8 +9,8 @@ from transformers import PretrainedConfig, PreTrainedModel
 from kwja.evaluators.char_module_metric import CharModuleMetric
 from kwja.models.base_module import BaseModule
 from kwja.models.components.head import SequenceLabelingHead
+from kwja.models.functions.loss import compute_token_mean_loss
 from kwja.utils.constants import WORD_NORM_OP_TAGS, WORD_SEGMENTATION_TAGS
-from kwja.utils.loss import compute_token_mean_loss
 
 
 class CharModule(BaseModule):

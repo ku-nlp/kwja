@@ -11,6 +11,7 @@ from kwja.models.base_module import BaseModule
 from kwja.models.components.crf import CRF
 from kwja.models.components.head import SequenceLabelingHead, WordSelectionHead
 from kwja.models.components.pooling import PoolingStrategy, pool_subwords
+from kwja.models.functions.loss import compute_multi_label_token_mean_loss, compute_token_mean_loss, mask_logits
 from kwja.utils.cohesion_analysis import BridgingUtils, CoreferenceUtils, PasUtils
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
@@ -27,7 +28,6 @@ from kwja.utils.constants import (
     CohesionTask,
     WordTask,
 )
-from kwja.utils.loss import compute_multi_label_token_mean_loss, compute_token_mean_loss, mask_logits
 from kwja.utils.reading_prediction import get_reading2reading_id
 
 
