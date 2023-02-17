@@ -27,8 +27,8 @@ aggregating_metrics:
 
 # hyper-parameters to be tuned
 lr: 2e-5
-warmup_steps: 100
-effective_batch_size: 16
+warmup_steps: 1000
+effective_batch_size: 32
 
 # environment dependent settings
 devices: ${oc.env:GPUS,0}
