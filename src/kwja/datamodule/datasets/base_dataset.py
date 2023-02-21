@@ -1,7 +1,7 @@
 import logging
 from functools import cached_property
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Dict, List, TypeVar, Union
 
 from rhoknp import Document, Sentence
 from torch.utils.data import Dataset
@@ -12,8 +12,10 @@ from kwja.utils.sub_document import SequenceSplitter, SpanCandidate, to_sub_doc_
 
 logger = logging.getLogger(__name__)
 
+T_co = TypeVar("T_co", covariant=True)
 
-class BaseDataset(Dataset):
+
+class BaseDataset(Dataset[T_co]):
     def __init__(
         self,
         source: Union[Path, List[Document]],
@@ -49,6 +51,9 @@ class BaseDataset(Dataset):
     @cached_property
     def documents(self) -> List[Document]:
         return list(self.doc_id2document.values())
+
+    def __getitem__(self, index) -> T_co:
+        raise NotImplementedError
 
     @staticmethod
     def _load_documents(document_dir: Path, ext: str = "knp") -> List[Document]:
