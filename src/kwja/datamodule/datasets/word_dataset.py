@@ -318,14 +318,10 @@ class WordDataset(BaseDataset):
                 continue
             assert cohesion_base_phrase.rel2tags is not None, "rel2tags isn't set"
             for tag in cohesion_base_phrase.rel2tags[rel]:
-                # tag: 著者, 8%C, 15%O, 2, [NULL], ...
-                if tag[-2:] in ("%C", "%N", "%O"):
-                    # PAS only
-                    tag = tag[:-2]
                 if tag in self.special_token2index:
                     target_morpheme_global_index = self.special_token2index[tag]
                 else:
-                    # int(tag) = base phrase global index
+                    # int(tag) is the base phrase global index of an endophora argument
                     target_morpheme_global_index = cohesion_base_phrases[int(tag)].head.global_index
                 rel_labels[cohesion_base_phrase.head.global_index][target_morpheme_global_index] = 1
         return rel_labels

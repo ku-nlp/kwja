@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Union
 
 from rhoknp import BasePhrase, Morpheme
-from rhoknp.cohesion import Argument, ArgumentType, EndophoraArgument, ExophoraArgument, ExophoraReferent
+from rhoknp.cohesion import Argument, EndophoraArgument, ExophoraArgument, ExophoraReferent
 
 from kwja.utils.sub_document import is_target_sentence
 
@@ -103,10 +103,8 @@ class PasUtils(CohesionUtils):
         Note:
             If the return value is an empty list, do not compute loss for the argument.
 
-            overt: {base_phrase_global_index}%C
-            case: {base_phrase_global_index}%N
-            zero: {base_phrase_global_index}%O
-            exophora argument: {exophora argument}
+            endophora argument: string of base phrase global index
+            exophora argument: exophora referent
             no argument: [NULL]
         """
         target_arguments: List[Argument] = []
@@ -128,14 +126,6 @@ class PasUtils(CohesionUtils):
         for target_argument in target_arguments:
             if isinstance(target_argument, EndophoraArgument):
                 argument_tag = str(target_argument.base_phrase.global_index)
-                if target_argument.type == ArgumentType.CASE_EXPLICIT:
-                    argument_tag += "%C"
-                elif target_argument.type == ArgumentType.CASE_HIDDEN:
-                    argument_tag += "%N"
-                elif target_argument.type == ArgumentType.OMISSION:
-                    argument_tag += "%O"
-                else:
-                    raise ValueError("invalid endophora argument type")
             else:
                 assert isinstance(target_argument, ExophoraArgument)
                 argument_tag = target_argument.exophora_referent.text
