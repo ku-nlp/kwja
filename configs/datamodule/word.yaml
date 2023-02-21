@@ -3,17 +3,17 @@ defaults:
     - word_kyoto.yaml
     - word_kwdlc.yaml
     - word_fuman.yaml
-#    - word_wac.yaml
+    - word_wac.yaml
   - valid:
     - word_kyoto.yaml
     - word_kwdlc.yaml
     - word_fuman.yaml
-#    - word_wac.yaml
+    - word_wac.yaml
   - test:
     - word_kyoto.yaml
     - word_kwdlc.yaml
     - word_fuman.yaml
-#    - word_wac.yaml
+    - word_wac.yaml
   - predict:
     - word_inference.yaml
 
