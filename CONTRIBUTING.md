@@ -27,7 +27,7 @@ echo DATA_DIR="/path/to/data_dir" >> .env
 If you want to use the word segmenter, please prepare a word matcher in advance with the following command.
 
 ```shell
-poetry run python src/kwja/preprocessors/wiki_ene_dic.py
+poetry run python scripts/preprocessors/wiki_ene_dic.py
   --input-json-path "/path/to/wiki_ene_json_file"
 ```
 
@@ -47,7 +47,7 @@ make kwja
 and
 
 ```shell
-poetry run python src/kwja/preprocessors/preprocess_jumandic.py
+poetry run python scripts/preprocessors/preprocess_jumandic.py
   --input-dir /path/to/JumanDIC
   --output-dir /path/to/dic_dir
 ```
@@ -62,7 +62,7 @@ Options:
 You must preprocess Japanese Wikipedia Typo Dataset.
 
 ```shell
-poetry run python src/kwja/preprocessors/preprocess_typo.py
+poetry run python scripts/preprocessors/preprocess_typo.py
   --input-dir "/path/to/unzipped_typo_dataset_dir"
 ```
 
