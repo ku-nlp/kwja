@@ -18,7 +18,7 @@ checkpoint_path: ""
 monitor: valid/typo_correction_0.0_f1
 mode: max
 # option
-confidence_threshold: 0.8   # valid only for inference
+confidence_threshold: 0.9   # valid only for inference
 
 # hyper-parameters to be tuned
 lr: 5e-5
