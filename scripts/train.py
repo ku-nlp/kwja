@@ -34,6 +34,10 @@ def main(cfg: DictConfig):
             cfg.devices = [int(x) for x in cfg.devices.split(",")]
         except ValueError:
             cfg.devices = None
+    if isinstance(cfg.max_batches_per_device, str):
+        cfg.max_batches_per_device = int(cfg.max_batches_per_device)
+    if isinstance(cfg.num_workers, str):
+        cfg.num_workers = int(cfg.num_workers)
     cfg.seed = pl.seed_everything(seed=cfg.seed, workers=True)
 
     logger: Optional[Logger] = cfg.get("logger") and hydra.utils.instantiate(cfg.get("logger"))

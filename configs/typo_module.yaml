@@ -1,16 +1,16 @@
 defaults:
   - base
-  - callbacks: [early_stopping, model_checkpoint, model_summary, typo_module_writer, progress_bar]
+  - callbacks: [early_stopping, model_checkpoint, model_summary, typo_module_writer, progress_bar, lr_monitor]
   - datamodule: typo
   - logger: wandb
   - encoder: char_roberta_large
   - module: typo
   - optimizer: adamw
-  - scheduler: constant_schedule_with_warmup
+  - scheduler: cosine_schedule_with_warmup
   - trainer: default
   - _self_
 
-max_seq_length: 512
+max_seq_length: 256
 do_predict_after_train: true
 checkpoint_path: ""
 
@@ -19,17 +19,17 @@ monitor: valid/typo_correction_0.0_f1
 mode: max
 
 # option
-confidence_threshold: 0.9   # valid only for inference
-
+confidence_threshold: 0.8   # valid only for inference
 
 # hyper-parameters to be tuned
-warmup_steps: 100
-effective_batch_size: 64
+lr: 2e-5
+warmup_steps: 1000
+effective_batch_size: 176
 
 # environment dependent settings
 devices: ${oc.env:GPUS,0}
-max_batches_per_device: 2
-num_workers: 0
+max_batches_per_device: ${oc.env:MAX_BATCHES_PER_DEVICE,2}
+num_workers: ${oc.env:NUM_WORKERS,4}
 
 ignore_hparams_on_save: false
 

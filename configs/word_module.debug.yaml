@@ -1,9 +1,9 @@
 defaults:
   - base
-  - callbacks: [early_stopping, model_checkpoint, model_summary, word_module_writer, progress_bar]
+  - callbacks: [early_stopping, model_checkpoint, model_summary, word_module_writer, progress_bar, lr_monitor]
   - datamodule: word
   - logger: null
-  - encoder: word_roberta_base
+  - encoder: word_roberta_tiny
   - module: word
   - optimizer: adamw
   - scheduler: constant_schedule_with_warmup
@@ -52,13 +52,14 @@ aggregating_metrics:
   - discourse_parsing_f1
 
 # hyper-parameters to be tuned
+lr: 1e-4
 warmup_steps: 100
 effective_batch_size: 16
 
 # environment dependent settings
 devices: ${oc.env:GPUS,0}
-max_batches_per_device: 2
-num_workers: 0
+max_batches_per_device: ${oc.env:MAX_BATCHES_PER_DEVICE,2}
+num_workers: ${oc.env:NUM_WORKERS,0}
 
 ignore_hparams_on_save: false
 

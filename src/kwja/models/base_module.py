@@ -33,11 +33,10 @@ class BaseModule(pl.LightningModule):
         optimizer = hydra.utils.instantiate(
             self.hparams.optimizer, params=optimizer_grouped_parameters, _convert_="partial"
         )
-
-        warmup_steps = self.hparams.warmup_steps
-        lr_scheduler = hydra.utils.instantiate(
-            self.hparams.scheduler, optimizer=optimizer, num_warmup_steps=warmup_steps
-        )
+        total_steps = self.trainer.estimated_stepping_batches
+        if hasattr(self.hparams.scheduler, "num_training_steps"):
+            self.hparams.scheduler.num_training_steps = total_steps
+        lr_scheduler = hydra.utils.instantiate(self.hparams.scheduler, optimizer=optimizer)
         return {"optimizer": optimizer, "lr_scheduler": {"scheduler": lr_scheduler, "interval": "step", "frequency": 1}}
 
     def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
