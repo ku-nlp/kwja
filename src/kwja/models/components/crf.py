@@ -43,7 +43,7 @@ class CRF(nn.Module):
         emissions: torch.Tensor,
         tags: torch.Tensor,
         mask: Optional[torch.Tensor] = None,
-        reduction: Literal["token_mean", "sum", "mean", "none"] = "token_mean",
+        reduction: Literal["token_mean", "mean", "sum", "none"] = "token_mean",
     ) -> torch.Tensor:
         if mask is None:
             mask = torch.ones_like(tags)

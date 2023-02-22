@@ -6,7 +6,7 @@ CHAR_BATCH_SIZE=1
 WORD_BATCH_SIZE=1
 
 usage() {
-  echo "Usage: scripts/benchmark.sh --input=\${INPUT} --work-dir=\${WORK_DIR} --typo-module=\${TYPO_MODULE} --char-module=\${CHAR_MODULE} --word-module=\${WORD_MODULE} --device=${DEVICE} --typo-batch-size=${TYPO_BATCH_SIZE} --char-batch-size=${CHAR_BATCH_SIZE} --word-batch-size=${WORD_BATCH_SIZE}"
+  echo "Usage: ./scripts/benchmark.sh --input=\${INPUT} --work-dir=\${WORK_DIR} --typo-module=\${TYPO_MODULE} --char-module=\${CHAR_MODULE} --word-module=\${WORD_MODULE} --device=${DEVICE} --typo-batch-size=${TYPO_BATCH_SIZE} --char-batch-size=${CHAR_BATCH_SIZE} --word-batch-size=${WORD_BATCH_SIZE}"
   echo "*** NOTE: specify arguments with \"=\" ***"
   echo "  --input              path to input text"
   echo "  --work-dir           path to working directory"
