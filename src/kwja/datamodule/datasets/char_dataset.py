@@ -43,9 +43,9 @@ class CharDataset(BaseDataset):
         denormalize_probability: float = 0.0,
     ) -> None:
         self.path = Path(path)
-        super().__init__(self.path, tokenizer, max_seq_length, document_split_stride)
         self.denormalizer: SentenceDenormalizer = SentenceDenormalizer()
         self.denormalize_probability: float = denormalize_probability
+        super().__init__(self.path, tokenizer, max_seq_length, document_split_stride)
         self.examples: List[CharExampleSet] = self._load_examples(self.documents)
 
     def __len__(self) -> int:
@@ -58,8 +58,6 @@ class CharDataset(BaseDataset):
         examples = []
         example_id = 0
         for document in track(documents, description="Loading examples"):
-            for sentence in document.sentences:
-                self.denormalizer.denormalize(sentence, self.denormalize_probability)
             encoding: BatchEncoding = self.tokenizer(
                 document.text,
                 padding=PaddingStrategy.MAX_LENGTH,
@@ -115,13 +113,17 @@ class CharDataset(BaseDataset):
         }
 
     def _normalize_text(self, document: Document) -> Document:
-        for morpheme in document.morphemes:
-            normalized = normalize("NFKC", morpheme.text).translate(TRANSLATION_TABLE)
-            if normalized != morpheme.text:
-                logger.warning(f"apply normalization ({morpheme.text} -> {normalized})")
-                morpheme.text = normalized
-                morpheme.lemma = normalize("NFKC", morpheme.lemma).translate(TRANSLATION_TABLE)
-        return document
+        for sentence in document.sentences:
+            # e.g. です -> でーす
+            self.denormalizer.denormalize(sentence, self.denormalize_probability)
+            for morpheme in sentence.morphemes:
+                normalized = normalize("NFKC", morpheme.text).translate(TRANSLATION_TABLE)
+                if normalized != morpheme.text:
+                    logger.warning(f"apply normalization ({morpheme.text} -> {normalized})")
+                    morpheme.text = normalized
+                    morpheme.lemma = normalize("NFKC", morpheme.lemma).translate(TRANSLATION_TABLE)
+        # propagate updates of morpheme.text to sentence.text and document.text
+        return document.reparse()
 
     def _get_tokenized_len(self, document_or_sentence: Union[Document, Sentence]) -> int:
         return len(self.tokenizer.tokenize(document_or_sentence.text))
