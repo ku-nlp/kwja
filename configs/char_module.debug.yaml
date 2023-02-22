@@ -3,7 +3,7 @@ defaults:
   - callbacks: [early_stopping, model_checkpoint, model_summary, char_module_writer, progress_bar]
   - datamodule: char
   - logger: null
-  - encoder: char_roberta_tiny
+  - encoder: char_deberta_tiny
   - module: char
   - optimizer: adamw
   - scheduler: constant_schedule_with_warmup
