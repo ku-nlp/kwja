@@ -24,18 +24,6 @@ echo DATA_DIR="/path/to/data_dir" >> .env
 
 ## Preprocessing
 
-If you want to use the word segmenter, please prepare a word matcher in advance with the following command.
-
-```shell
-poetry run python scripts/preprocessors/wiki_ene_dic.py
-  --input-json-path "/path/to/wiki_ene_json_file"
-```
-
-Options:
-
-- `--output-dir, -o`: path to directory to save. Default: `./data`
-- `--save-filtered-results, -s`: whether to create an intermediate file to save the filtering results.
-
 For morphological analysis, you need to convert JumanDIC in advance with the following commands.
 
 ```shell
