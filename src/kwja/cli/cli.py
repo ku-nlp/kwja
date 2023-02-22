@@ -471,6 +471,7 @@ def main(
                         processor.apply_word()
                         if specified_task.word_discourse:
                             processor.apply_word_discourse()
+                            processor.output_word_discourse_result()
                         else:
                             processor.output_word_result()
                     else:
