@@ -88,8 +88,9 @@ def test_write_on_batch_end(tokenizer: PreTrainedTokenizerBase):
             "ins_predictions": ins_predictions,
         }
 
-        writer.write_on_batch_end(trainer, ..., prediction, ..., ..., 0, 0)
-        with open(writer.destination) as f:
+        writer.write_on_batch_end(trainer, ..., prediction, ..., ..., 0, 0)  # type: ignore
+        assert isinstance(writer.destination, Path)
+        with writer.destination.open() as f:
             assert f.read() == textwrap.dedent(
                 """\
                 今日は晴れだ
