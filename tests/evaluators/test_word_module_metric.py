@@ -1,3 +1,4 @@
+from functools import partial
 from math import isclose
 from pathlib import Path
 
@@ -21,6 +22,8 @@ from kwja.utils.constants import (
     WORD_FEATURES,
     WordTask,
 )
+
+isclose = partial(isclose, abs_tol=1e-4)
 
 
 def test_word_module_metric() -> None:

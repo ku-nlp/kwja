@@ -1,3 +1,4 @@
+from math import isclose
 from pathlib import Path
 
 import torch
@@ -58,20 +59,20 @@ def test_typo_module_metric() -> None:
     ins_probabilities[1, 9, dataset.token2token_id["<_>"]] = 1.0  # <dummy>
     metric.ins_probabilities, metric.ins_predictions = ins_probabilities.max(dim=2)
 
-    digits = 4
-    metrics = {k: round(v, digits) for k, v in metric.compute().items()}
+    metrics = metric.compute()
+
     # tp = 5, fp = 0, fn = 0
-    assert metrics["typo_correction_0.0_precision"] == round(5 / 5, digits)
-    assert metrics["typo_correction_0.0_recall"] == round(5 / 5, digits)
-    assert metrics["typo_correction_0.0_f1"] == round((2 * 5 / 5 * 5 / 5) / (5 / 5 + 5 / 5), digits)
-    assert metrics["typo_correction_0.0_f0.5"] == round((1.25 * 5 / 5 * 5 / 5) / (0.25 * 5 / 5 + 5 / 5), digits)
+    assert isclose(metrics["typo_correction_0.0_precision"], 5 / 5)
+    assert isclose(metrics["typo_correction_0.0_recall"], 5 / 5)
+    assert isclose(metrics["typo_correction_0.0_f1"], (2 * 5 / 5 * 5 / 5) / (5 / 5 + 5 / 5))
+    assert isclose(metrics["typo_correction_0.0_f0.5"], (1.25 * 5 / 5 * 5 / 5) / (0.25 * 5 / 5 + 5 / 5))
     # tp = 4, fp = 0, fn = 1
-    assert metrics["typo_correction_0.8_precision"] == round(4 / 4, digits)
-    assert metrics["typo_correction_0.8_recall"] == round(4 / 5, digits)
-    assert metrics["typo_correction_0.8_f1"] == round((2 * 4 / 4 * 4 / 5) / (4 / 4 + 4 / 5), digits)
-    assert metrics["typo_correction_0.8_f0.5"] == round((1.25 * 4 / 4 * 4 / 5) / (0.25 * 4 / 4 + 4 / 5), digits)
+    assert isclose(metrics["typo_correction_0.8_precision"], 4 / 4)
+    assert isclose(metrics["typo_correction_0.8_recall"], 4 / 5)
+    assert isclose(metrics["typo_correction_0.8_f1"], (2 * 4 / 4 * 4 / 5) / (4 / 4 + 4 / 5))
+    assert isclose(metrics["typo_correction_0.8_f0.5"], (1.25 * 4 / 4 * 4 / 5) / (0.25 * 4 / 4 + 4 / 5))
     # tp = 3, fp = 0, fn = 2
-    assert metrics["typo_correction_0.9_precision"] == round(3 / 3, digits)
-    assert metrics["typo_correction_0.9_recall"] == round(3 / 5, digits)
-    assert metrics["typo_correction_0.9_f1"] == round((2 * 3 / 3 * 3 / 5) / (3 / 3 + 3 / 5), digits)
-    assert metrics["typo_correction_0.9_f0.5"] == round((1.25 * 3 / 3 * 3 / 5) / (0.25 * 3 / 3 + 3 / 5), digits)
+    assert isclose(metrics["typo_correction_0.9_precision"], 3 / 3)
+    assert isclose(metrics["typo_correction_0.9_recall"], 3 / 5)
+    assert isclose(metrics["typo_correction_0.9_f1"], (2 * 3 / 3 * 3 / 5) / (3 / 3 + 3 / 5))
+    assert isclose(metrics["typo_correction_0.9_f0.5"], (1.25 * 3 / 3 * 3 / 5) / (0.25 * 3 / 3 + 3 / 5))
