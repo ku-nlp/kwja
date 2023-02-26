@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Any, Dict, List
 
+import numpy as np
 import pytest
 import torch
 from omegaconf import ListConfig
@@ -88,50 +89,54 @@ def test_getitem(path: Path, tokenizer: PreTrainedTokenizerBase, dataset_kwargs:
     num_cohesion_rels = len([r for utils in dataset.cohesion_task2utils.values() for r in utils.rels])
     for i in range(len(dataset)):
         document = dataset.documents[i]
-        item = dataset[i]
-        assert isinstance(item, dict)
-        assert "example_ids" in item
-        assert "input_ids" in item
-        assert "attention_mask" in item
-        assert "target_mask" in item
-        assert "subword_map" in item
-        assert "reading_labels" in item
-        assert "reading_subword_map" in item
-        assert "pos_labels" in item
-        assert "subpos_labels" in item
-        assert "conjtype_labels" in item
-        assert "conjform_labels" in item
-        assert "word_feature_labels" in item
-        assert "ne_labels" in item
-        assert "base_phrase_feature_labels" in item
-        assert "dependency_labels" in item
-        assert "dependency_mask" in item
-        assert "dependency_type_labels" in item
-        assert "cohesion_labels" in item
-        assert "cohesion_mask" in item
-        assert "discourse_labels" in item
-        assert item["example_ids"] == i
-        assert item["input_ids"].shape == (max_seq_length,)
-        assert item["attention_mask"].shape == (max_seq_length,)
-        assert item["target_mask"].shape == (max_seq_length,)
-        assert item["subword_map"].shape == (max_seq_length, max_seq_length)
-        assert (item["subword_map"].sum(dim=1) != 0).sum() == len(document.morphemes) + dataset.num_special_tokens
-        assert item["reading_labels"].shape == (max_seq_length,)
-        assert item["reading_subword_map"].shape == (max_seq_length, max_seq_length)
-        assert (item["reading_subword_map"].sum(dim=1) != 0).sum() == len(document.morphemes)
-        assert item["pos_labels"].shape == (max_seq_length,)
-        assert item["subpos_labels"].shape == (max_seq_length,)
-        assert item["conjtype_labels"].shape == (max_seq_length,)
-        assert item["conjform_labels"].shape == (max_seq_length,)
-        assert item["word_feature_labels"].shape == (max_seq_length, len(WORD_FEATURES))
-        assert item["ne_labels"].shape == (max_seq_length,)
-        assert item["base_phrase_feature_labels"].shape == (max_seq_length, len(BASE_PHRASE_FEATURES))
-        assert item["dependency_labels"].shape == (max_seq_length,)
-        assert item["dependency_mask"].shape == (max_seq_length, max_seq_length)
-        assert item["dependency_type_labels"].shape == (max_seq_length,)
-        assert item["cohesion_labels"].shape == (num_cohesion_rels, max_seq_length, max_seq_length)
-        assert item["cohesion_mask"].shape == (num_cohesion_rels, max_seq_length, max_seq_length)
-        assert item["discourse_labels"].shape == (max_seq_length, max_seq_length)
+        # assert item["example_ids"] == i
+        # assert item["input_ids"].shape == (max_seq_length,)
+        # assert item["attention_mask"].shape == (max_seq_length,)
+        # assert item["target_mask"].shape == (max_seq_length,)
+        # assert item["subword_map"].shape == (max_seq_length, max_seq_length)
+        # assert (item["subword_map"].sum(dim=1) != 0).sum() == len(document.morphemes) + dataset.num_special_tokens
+        # assert item["reading_labels"].shape == (max_seq_length,)
+        # assert item["reading_subword_map"].shape == (max_seq_length, max_seq_length)
+        # assert (item["reading_subword_map"].sum(dim=1) != 0).sum() == len(document.morphemes)
+        # assert item["pos_labels"].shape == (max_seq_length,)
+        # assert item["subpos_labels"].shape == (max_seq_length,)
+        # assert item["conjtype_labels"].shape == (max_seq_length,)
+        # assert item["conjform_labels"].shape == (max_seq_length,)
+        # assert item["word_feature_labels"].shape == (max_seq_length, len(WORD_FEATURES))
+        # assert item["ne_labels"].shape == (max_seq_length,)
+        # assert item["base_phrase_feature_labels"].shape == (max_seq_length, len(BASE_PHRASE_FEATURES))
+        # assert item["dependency_labels"].shape == (max_seq_length,)
+        # assert item["dependency_mask"].shape == (max_seq_length, max_seq_length)
+        # assert item["dependency_type_labels"].shape == (max_seq_length,)
+        # assert item["cohesion_labels"].shape == (num_cohesion_rels, max_seq_length, max_seq_length)
+        # assert item["cohesion_mask"].shape == (num_cohesion_rels, max_seq_length, max_seq_length)
+        # assert item["discourse_labels"].shape == (max_seq_length, max_seq_length)
+
+        feature = dataset[i]
+        assert feature.example_ids == i
+        assert len(feature.input_ids) == max_seq_length
+        assert len(feature.attention_mask) == max_seq_length
+        assert len(feature.target_mask) == max_seq_length
+        assert np.array(feature.subword_map).shape == (max_seq_length, max_seq_length)
+        assert (np.array(feature.subword_map).sum(axis=1) != 0).sum() == len(
+            document.morphemes
+        ) + dataset.num_special_tokens
+        assert len(feature.reading_labels) == max_seq_length
+        assert np.array(feature.reading_subword_map).shape == (max_seq_length, max_seq_length)
+        assert (np.array(feature.reading_subword_map).sum(axis=1) != 0).sum() == len(document.morphemes)
+        assert len(feature.pos_labels) == max_seq_length
+        assert len(feature.subpos_labels) == max_seq_length
+        assert len(feature.conjtype_labels) == max_seq_length
+        assert len(feature.conjform_labels) == max_seq_length
+        assert np.array(feature.word_feature_labels).shape == (max_seq_length, len(WORD_FEATURES))
+        assert len(feature.ne_labels) == max_seq_length
+        assert np.array(feature.base_phrase_feature_labels).shape == (max_seq_length, len(BASE_PHRASE_FEATURES))
+        assert len(feature.dependency_labels) == max_seq_length
+        assert np.array(feature.dependency_mask).shape == (max_seq_length, max_seq_length)
+        assert len(feature.dependency_type_labels) == max_seq_length
+        assert np.array(feature.cohesion_labels).shape == (num_cohesion_rels, max_seq_length, max_seq_length)
+        assert np.array(feature.cohesion_mask).shape == (num_cohesion_rels, max_seq_length, max_seq_length)
+        assert np.array(feature.discourse_labels).shape == (max_seq_length, max_seq_length)
 
 
 def test_encode(path: Path, tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
@@ -158,8 +163,8 @@ def test_encode(path: Path, tokenizer: PreTrainedTokenizerBase, dataset_kwargs: 
     reading_labels[1, 5] = dataset.reading2reading_id["[ID]"]  # ので
     reading_labels[1, 6] = dataset.reading2reading_id["たのみ"]  # 頼み -> たのみ
     reading_labels[1, 7] = dataset.reading2reading_id["[ID]"]  # ました
-    assert reading_labels[0].tolist() == dataset[0]["reading_labels"].tolist()
-    assert reading_labels[1].tolist() == dataset[1]["reading_labels"].tolist()
+    assert reading_labels[0].tolist() == dataset[0].reading_labels
+    assert reading_labels[1].tolist() == dataset[1].reading_labels
 
     reading_subword_map = torch.zeros((num_examples, max_seq_length, max_seq_length), dtype=torch.bool)
     reading_subword_map[0, 0, 1] = True
@@ -177,8 +182,8 @@ def test_encode(path: Path, tokenizer: PreTrainedTokenizerBase, dataset_kwargs: 
     reading_subword_map[1, 4, 5] = True
     reading_subword_map[1, 5, 6] = True
     reading_subword_map[1, 6, 7] = True
-    assert reading_subword_map[0].tolist() == dataset[0]["reading_subword_map"].tolist()
-    assert reading_subword_map[1].tolist() == dataset[1]["reading_subword_map"].tolist()
+    assert reading_subword_map[0].tolist() == dataset[0].reading_subword_map
+    assert reading_subword_map[1].tolist() == dataset[1].reading_subword_map
 
     pos_labels = torch.full((num_examples, max_seq_length), IGNORE_INDEX, dtype=torch.long)
     pos_labels[0, 0] = POS_TAGS.index("名詞")  # 太郎
@@ -195,8 +200,8 @@ def test_encode(path: Path, tokenizer: PreTrainedTokenizerBase, dataset_kwargs: 
     pos_labels[1, 4] = POS_TAGS.index("助動詞")  # ので
     pos_labels[1, 5] = POS_TAGS.index("動詞")  # 頼み
     pos_labels[1, 6] = POS_TAGS.index("接尾辞")  # ました
-    assert pos_labels[0].tolist() == dataset[0]["pos_labels"].tolist()
-    assert pos_labels[1].tolist() == dataset[1]["pos_labels"].tolist()
+    assert pos_labels[0].tolist() == dataset[0].pos_labels
+    assert pos_labels[1].tolist() == dataset[1].pos_labels
 
     subpos_labels = torch.full((num_examples, max_seq_length), IGNORE_INDEX, dtype=torch.long)
     subpos_labels[0, 0] = SUBPOS_TAGS.index("人名")  # 太郎
@@ -213,8 +218,8 @@ def test_encode(path: Path, tokenizer: PreTrainedTokenizerBase, dataset_kwargs: 
     subpos_labels[1, 4] = SUBPOS_TAGS.index("*")  # ので
     subpos_labels[1, 5] = SUBPOS_TAGS.index("*")  # 頼み
     subpos_labels[1, 6] = SUBPOS_TAGS.index("動詞性接尾辞")  # ました
-    assert subpos_labels[0].tolist() == dataset[0]["subpos_labels"].tolist()
-    assert subpos_labels[1].tolist() == dataset[1]["subpos_labels"].tolist()
+    assert subpos_labels[0].tolist() == dataset[0].subpos_labels
+    assert subpos_labels[1].tolist() == dataset[1].subpos_labels
 
     conjtype_labels = torch.full((num_examples, max_seq_length), IGNORE_INDEX, dtype=torch.long)
     conjtype_labels[0, 0] = CONJTYPE_TAGS.index("*")  # 太郎
@@ -231,8 +236,8 @@ def test_encode(path: Path, tokenizer: PreTrainedTokenizerBase, dataset_kwargs: 
     conjtype_labels[1, 4] = CONJTYPE_TAGS.index("ナ形容詞")  # ので
     conjtype_labels[1, 5] = CONJTYPE_TAGS.index("子音動詞マ行")  # 頼み
     conjtype_labels[1, 6] = CONJTYPE_TAGS.index("動詞性接尾辞ます型")  # ました
-    assert conjtype_labels[0].tolist() == dataset[0]["conjtype_labels"].tolist()
-    assert conjtype_labels[1].tolist() == dataset[1]["conjtype_labels"].tolist()
+    assert conjtype_labels[0].tolist() == dataset[0].conjtype_labels
+    assert conjtype_labels[1].tolist() == dataset[1].conjtype_labels
 
     conjform_labels = torch.full((num_examples, max_seq_length), IGNORE_INDEX, dtype=torch.long)
     conjform_labels[0, 0] = CONJFORM_TAGS.index("*")  # 太郎
@@ -249,8 +254,8 @@ def test_encode(path: Path, tokenizer: PreTrainedTokenizerBase, dataset_kwargs: 
     conjform_labels[1, 4] = CONJFORM_TAGS.index("ダ列タ系連用テ形")  # ので
     conjform_labels[1, 5] = CONJFORM_TAGS.index("基本連用形")  # 頼み
     conjform_labels[1, 6] = CONJFORM_TAGS.index("タ形")  # ました
-    assert conjform_labels[0].tolist() == dataset[0]["conjform_labels"].tolist()
-    assert conjform_labels[1].tolist() == dataset[1]["conjform_labels"].tolist()
+    assert conjform_labels[0].tolist() == dataset[0].conjform_labels
+    assert conjform_labels[1].tolist() == dataset[1].conjform_labels
 
     word_feature_labels = torch.zeros((num_examples, max_seq_length, len(WORD_FEATURES)), dtype=torch.long)
     word_feature_labels[0, 0, WORD_FEATURES.index("基本句-主辞")] = 1  # 太郎
@@ -289,8 +294,8 @@ def test_encode(path: Path, tokenizer: PreTrainedTokenizerBase, dataset_kwargs: 
     word_feature_labels[1, 6, WORD_FEATURES.index("基本句-区切")] = 1  # ました
     word_feature_labels[1, 6, WORD_FEATURES.index("文節-区切")] = 1
     word_feature_labels[1, 7:, :] = IGNORE_INDEX
-    assert word_feature_labels[0].tolist() == dataset[0]["word_feature_labels"].tolist()
-    assert word_feature_labels[1].tolist() == dataset[1]["word_feature_labels"].tolist()
+    assert word_feature_labels[0].tolist() == dataset[0].word_feature_labels
+    assert word_feature_labels[1].tolist() == dataset[1].word_feature_labels
 
     ne_labels = torch.full((num_examples, max_seq_length), IGNORE_INDEX, dtype=torch.long)
     ne_labels[0, 0] = NE_TAGS.index("B-PERSON")  # 太郎
@@ -298,8 +303,8 @@ def test_encode(path: Path, tokenizer: PreTrainedTokenizerBase, dataset_kwargs: 
     ne_labels[0, 2] = NE_TAGS.index("B-PERSON")  # 次郎
     ne_labels[0, 3:7] = NE_TAGS.index("O")  # は よく けんか する
     ne_labels[1, :7] = NE_TAGS.index("O")  # 辛い ラーメン が 好きな ので 頼み ました
-    assert ne_labels[0].tolist() == dataset[0]["ne_labels"].tolist()
-    assert ne_labels[1].tolist() == dataset[1]["ne_labels"].tolist()
+    assert ne_labels[0].tolist() == dataset[0].ne_labels
+    assert ne_labels[1].tolist() == dataset[1].ne_labels
 
     base_phrase_feature_labels = torch.zeros(
         (num_examples, max_seq_length, len(BASE_PHRASE_FEATURES)), dtype=torch.long
@@ -340,8 +345,8 @@ def test_encode(path: Path, tokenizer: PreTrainedTokenizerBase, dataset_kwargs: 
     base_phrase_feature_labels[1, 5, BASE_PHRASE_FEATURES.index("動態述語")] = 1
     base_phrase_feature_labels[1, 5, BASE_PHRASE_FEATURES.index("敬語:丁寧表現")] = 1
     base_phrase_feature_labels[1, 6:, :] = IGNORE_INDEX  # ました 〜
-    assert base_phrase_feature_labels[0].tolist() == dataset[0]["base_phrase_feature_labels"].tolist()
-    assert base_phrase_feature_labels[1].tolist() == dataset[1]["base_phrase_feature_labels"].tolist()
+    assert base_phrase_feature_labels[0].tolist() == dataset[0].base_phrase_feature_labels
+    assert base_phrase_feature_labels[1].tolist() == dataset[1].base_phrase_feature_labels
 
     dependency_labels = torch.full((num_examples, max_seq_length), IGNORE_INDEX, dtype=torch.long)
     dependency_labels[0, 0] = 2  # 太郎 -> 次郎
@@ -358,8 +363,8 @@ def test_encode(path: Path, tokenizer: PreTrainedTokenizerBase, dataset_kwargs: 
     dependency_labels[1, 4] = 3  # ので -> 好きな
     dependency_labels[1, 5] = dataset.special_token2index["[ROOT]"]  # 頼み -> [ROOT]
     dependency_labels[1, 6] = 5  # ました -> 頼み
-    assert dependency_labels[0].tolist() == dataset[0]["dependency_labels"].tolist()
-    assert dependency_labels[1].tolist() == dataset[1]["dependency_labels"].tolist()
+    assert dependency_labels[0].tolist() == dataset[0].dependency_labels
+    assert dependency_labels[1].tolist() == dataset[1].dependency_labels
 
     dependency_type_labels = torch.full((num_examples, max_seq_length), IGNORE_INDEX, dtype=torch.long)
     dependency_type_labels[0, 0] = DEPENDENCY_TYPES.index(DepType.PARALLEL)  # 太郎 -> 次郎
@@ -376,8 +381,8 @@ def test_encode(path: Path, tokenizer: PreTrainedTokenizerBase, dataset_kwargs: 
     dependency_type_labels[1, 4] = DEPENDENCY_TYPES.index(DepType.DEPENDENCY)  # ので -> 好きな
     dependency_type_labels[1, 5] = DEPENDENCY_TYPES.index(DepType.DEPENDENCY)  # 頼み -> [ROOT]
     dependency_type_labels[1, 6] = DEPENDENCY_TYPES.index(DepType.DEPENDENCY)  # ました -> 頼み
-    assert dependency_type_labels[0].tolist() == dataset[0]["dependency_type_labels"].tolist()
-    assert dependency_type_labels[1].tolist() == dataset[1]["dependency_type_labels"].tolist()
+    assert dependency_type_labels[0].tolist() == dataset[0].dependency_type_labels
+    assert dependency_type_labels[1].tolist() == dataset[1].dependency_type_labels
 
     flatten_rels = [r for cohesion_utils in dataset.cohesion_task2utils.values() for r in cohesion_utils.rels]
     cohesion_labels = torch.zeros((num_examples, len(flatten_rels), max_seq_length, max_seq_length), dtype=torch.long)
@@ -403,13 +408,13 @@ def test_encode(path: Path, tokenizer: PreTrainedTokenizerBase, dataset_kwargs: 
     cohesion_labels[1, flatten_rels.index("ヲ"), 5, 1] = 1  # ラーメン ヲ 頼み
     cohesion_labels[1, flatten_rels.index("ニ"), 5, dataset.special_token2index["[NULL]"]] = 1  # φ ニ 頼み
     cohesion_labels[1, flatten_rels.index("ガ２"), 5, dataset.special_token2index["[NULL]"]] = 1  # φ ガ２ 頼み
-    assert cohesion_labels[0].tolist() == dataset[0]["cohesion_labels"].tolist()
-    assert cohesion_labels[1].tolist() == dataset[1]["cohesion_labels"].tolist()
+    assert cohesion_labels[0].tolist() == dataset[0].cohesion_labels
+    assert cohesion_labels[1].tolist() == dataset[1].cohesion_labels
 
     discourse_labels = torch.full((num_examples, max_seq_length, max_seq_length), IGNORE_INDEX, dtype=torch.long)
     discourse_labels[1, 3, 3] = DISCOURSE_RELATIONS.index("談話関係なし")  # 好きな - 好きな|談話関係なし
     discourse_labels[1, 3, 5] = DISCOURSE_RELATIONS.index("原因・理由")  # 好きな - 頼み|原因・理由
     discourse_labels[1, 5, 3] = DISCOURSE_RELATIONS.index("談話関係なし")  # 頼み - 好きな|談話関係なし
     discourse_labels[1, 5, 5] = DISCOURSE_RELATIONS.index("談話関係なし")  # 頼み - 頼み|談話関係なし
-    assert discourse_labels[0].tolist() == dataset[0]["discourse_labels"].tolist()
-    assert discourse_labels[1].tolist() == dataset[1]["discourse_labels"].tolist()
+    assert discourse_labels[0].tolist() == dataset[0].discourse_labels
+    assert discourse_labels[1].tolist() == dataset[1].discourse_labels

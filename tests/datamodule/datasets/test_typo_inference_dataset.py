@@ -33,11 +33,7 @@ def test_getitem(tokenizer: PreTrainedTokenizerBase):
     max_seq_length = 256
     dataset = TypoInferenceDataset(ListConfig(["テスト", "テスト"]), tokenizer, max_seq_length=max_seq_length)
     for i in range(len(dataset)):
-        item = dataset[i]
-        assert isinstance(item, dict)
-        assert "example_ids" in item
-        assert "input_ids" in item
-        assert "attention_mask" in item
-        assert item["example_ids"] == i
-        assert item["input_ids"].shape == (max_seq_length,)
-        assert item["attention_mask"].shape == (max_seq_length,)
+        feature = dataset[i]
+        assert feature.example_ids == i
+        assert len(feature.input_ids) == max_seq_length
+        assert len(feature.attention_mask) == max_seq_length

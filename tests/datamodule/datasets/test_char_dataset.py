@@ -26,18 +26,12 @@ def test_getitem(path: Path, tokenizer: PreTrainedTokenizerBase):
     max_seq_length: int = 512
     dataset = CharDataset(str(path), tokenizer, max_seq_length)
     for i in range(len(dataset)):
-        item = dataset[i]
-        assert isinstance(item, dict)
-        assert "example_ids" in item
-        assert "input_ids" in item
-        assert "attention_mask" in item
-        assert "word_segmentation_labels" in item
-        assert "word_norm_op_labels" in item
-        assert item["example_ids"] == i
-        assert item["input_ids"].shape == (max_seq_length,)
-        assert item["attention_mask"].shape == (max_seq_length,)
-        assert item["word_segmentation_labels"].shape == (max_seq_length,)
-        assert item["word_norm_op_labels"].shape == (max_seq_length,)
+        feature = dataset[i]
+        assert feature.example_ids == i
+        assert len(feature.input_ids) == max_seq_length
+        assert len(feature.attention_mask) == max_seq_length
+        assert len(feature.word_segmentation_labels) == max_seq_length
+        assert len(feature.word_norm_op_labels) == max_seq_length
 
 
 def test_encode(path: Path, tokenizer: PreTrainedTokenizerBase):
@@ -62,8 +56,8 @@ def test_encode(path: Path, tokenizer: PreTrainedTokenizerBase):
     word_segmentation_labels[1, 7] = WORD_SEGMENTATION_TAGS.index("B")  # ね
     word_segmentation_labels[1, 8] = WORD_SEGMENTATION_TAGS.index("I")  # 〜
     word_segmentation_labels[1, 9] = WORD_SEGMENTATION_TAGS.index("I")  # 〜
-    assert dataset[0]["word_segmentation_labels"].tolist() == word_segmentation_labels[0].tolist()
-    assert dataset[1]["word_segmentation_labels"].tolist() == word_segmentation_labels[1].tolist()
+    assert dataset[0].word_segmentation_labels == word_segmentation_labels[0].tolist()
+    assert dataset[1].word_segmentation_labels == word_segmentation_labels[1].tolist()
 
     word_norm_op_labels = torch.full((num_examples, max_seq_length), IGNORE_INDEX, dtype=torch.long)
     word_norm_op_labels[0, 1] = WORD_NORM_OP_TAGS.index("K")  # 花
@@ -82,5 +76,5 @@ def test_encode(path: Path, tokenizer: PreTrainedTokenizerBase):
     word_norm_op_labels[1, 7] = WORD_NORM_OP_TAGS.index("K")  # ね
     word_norm_op_labels[1, 8] = WORD_NORM_OP_TAGS.index("E")  # 〜
     word_norm_op_labels[1, 9] = WORD_NORM_OP_TAGS.index("D")  # 〜
-    assert dataset[0]["word_norm_op_labels"].tolist() == word_norm_op_labels[0].tolist()
-    assert dataset[1]["word_norm_op_labels"].tolist() == word_norm_op_labels[1].tolist()
+    assert dataset[0].word_norm_op_labels == word_norm_op_labels[0].tolist()
+    assert dataset[1].word_norm_op_labels == word_norm_op_labels[1].tolist()

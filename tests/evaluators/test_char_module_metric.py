@@ -66,7 +66,9 @@ def test_char_module_metric() -> None:
     metric.word_norm_op_predictions[1, 7] = WORD_NORM_OP_TAGS.index("K")  # ね
     metric.word_norm_op_predictions[1, 8] = WORD_NORM_OP_TAGS.index("E")  # 〜
     metric.word_norm_op_predictions[1, 9] = WORD_NORM_OP_TAGS.index("D")  # 〜
-    metric.word_norm_op_labels = torch.stack([dataset[eid]["word_norm_op_labels"] for eid in metric.example_ids], dim=0)
+    metric.word_norm_op_labels = torch.stack(
+        [torch.as_tensor(dataset[eid].word_norm_op_labels) for eid in metric.example_ids], dim=0
+    )
 
     digits = 4
     metrics = {k: round(v, digits) for k, v in metric.compute().items()}
