@@ -6,7 +6,7 @@ import torch
 from transformers import AutoTokenizer
 
 from kwja.datamodule.datasets import CharDataset
-from kwja.evaluators.char_module_metric import CharModuleMetric
+from kwja.metrics.char import CharModuleMetric
 from kwja.utils.constants import IGNORE_INDEX, WORD_NORM_OP_TAGS, WORD_SEGMENTATION_TAGS
 
 isclose = partial(isclose, abs_tol=1e-4)

@@ -6,7 +6,7 @@ import torch
 from transformers import AutoTokenizer
 
 from kwja.datamodule.datasets import TypoDataset
-from kwja.evaluators.typo_module_metric import TypoModuleMetric
+from kwja.metrics.typo import TypoModuleMetric
 
 isclose = partial(isclose, abs_tol=1e-4)
 

@@ -16,9 +16,7 @@ from rhoknp.utils.reader import chunk_by_document
 import kwja
 from kwja.cli.utils import download_checkpoint, prepare_device, suppress_debug_info
 from kwja.datamodule.datamodule import DataModule
-from kwja.models.char_module import CharModule
-from kwja.models.typo_module import TypoModule
-from kwja.models.word_module import WordModule
+from kwja.modules import CharModule, TypoModule, WordModule
 
 suppress_debug_info()
 os.environ["TOKENIZERS_PARALLELISM"] = "false"

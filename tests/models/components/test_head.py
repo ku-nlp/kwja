@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from kwja.models.components.head import SequenceLabelingHead, WordSelectionHead
+from kwja.modules.components.head import SequenceLabelingHead, WordSelectionHead
 
 
 @pytest.mark.parametrize(

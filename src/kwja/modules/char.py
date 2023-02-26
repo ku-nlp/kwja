@@ -6,26 +6,26 @@ import torch
 from omegaconf import DictConfig
 from transformers import PretrainedConfig, PreTrainedModel
 
-from kwja.evaluators.typo_module_metric import TypoModuleMetric
-from kwja.models.base import BaseModule
-from kwja.models.components.head import SequenceLabelingHead
-from kwja.models.functions.loss import compute_token_mean_loss
-from kwja.utils.constants import RESOURCE_PATH
+from kwja.metrics.char import CharModuleMetric
+from kwja.modules.base import BaseModule
+from kwja.modules.components.head import SequenceLabelingHead
+from kwja.modules.functions.loss import compute_token_mean_loss
+from kwja.utils.constants import WORD_NORM_OP_TAGS, WORD_SEGMENTATION_TAGS
 
 
-class TypoModule(BaseModule):
+class CharModule(BaseModule):
     def __init__(self, hparams: DictConfig) -> None:
         super().__init__(hparams)
 
         if valid_corpora := getattr(hparams.datamodule, "valid", None):
             self.valid_corpora: List[str] = list(valid_corpora)
-            self.valid_corpus2typo_module_metric: Dict[str, TypoModuleMetric] = {
-                corpus: TypoModuleMetric() for corpus in self.valid_corpora
+            self.valid_corpus2char_module_metric: Dict[str, CharModuleMetric] = {
+                corpus: CharModuleMetric() for corpus in self.valid_corpora
             }
         if test_corpora := getattr(hparams.datamodule, "test", None):
             self.test_corpora: List[str] = list(test_corpora)
-            self.test_corpus2typo_module_metric: Dict[str, TypoModuleMetric] = {
-                corpus: TypoModuleMetric() for corpus in self.test_corpora
+            self.test_corpus2char_module_metric: Dict[str, CharModuleMetric] = {
+                corpus: CharModuleMetric() for corpus in self.test_corpora
             }
 
         self.char_encoder: PreTrainedModel = hydra.utils.call(hparams.encoder)
@@ -37,19 +37,24 @@ class TypoModule(BaseModule):
             pretrained_model_config.hidden_dropout_prob,
         )
 
-        self.kdr_tagger = SequenceLabelingHead(pretrained_model_config.vocab_size, *head_args)
-        extended_vocab_size = sum(1 for _ in RESOURCE_PATH.joinpath("typo_correction", "multi_char_vocab.txt").open())
-        self.ins_tagger = SequenceLabelingHead(pretrained_model_config.vocab_size + extended_vocab_size, *head_args)
+        # ---------- word segmentation ----------
+        self.word_segmentation_tagger = SequenceLabelingHead(len(WORD_SEGMENTATION_TAGS), *head_args)
+
+        # ---------- word normalization ----------
+        self.word_norm_op_tagger = SequenceLabelingHead(len(WORD_NORM_OP_TAGS), *head_args)
 
     def forward(self, batch: Any) -> Dict[str, torch.Tensor]:
         truncation_length = self._truncate(batch)
         encoded = self.char_encoder(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"])
-        kdr_logits = self.kdr_tagger(encoded.last_hidden_state)
-        ins_logits = self.ins_tagger(encoded.last_hidden_state)
+        word_segmentation_logits = self.word_segmentation_tagger(encoded.last_hidden_state)
+        word_norm_op_logits = self.word_norm_op_tagger(encoded.last_hidden_state)
         if truncation_length > 0:
-            kdr_logits = self._pad(kdr_logits, truncation_length)
-            ins_logits = self._pad(ins_logits, truncation_length)
-        return {"kdr_logits": kdr_logits, "ins_logits": ins_logits}
+            word_segmentation_logits = self._pad(word_segmentation_logits, truncation_length)
+            word_norm_op_logits = self._pad(word_norm_op_logits, truncation_length)
+        return {
+            "word_segmentation_logits": word_segmentation_logits,
+            "word_norm_op_logits": word_norm_op_logits,
+        }
 
     def _truncate(self, batch: Any) -> int:
         max_seq_length = batch["attention_mask"].sum(dim=1).max().item()
@@ -66,26 +71,31 @@ class TypoModule(BaseModule):
 
     def training_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
         ret: Dict[str, torch.Tensor] = self(batch)
-        kdr_loss = compute_token_mean_loss(ret["kdr_logits"], batch["kdr_labels"])
-        self.log("train/kdr_loss", kdr_loss)
-        ins_loss = compute_token_mean_loss(ret["ins_logits"], batch["ins_labels"])
-        self.log("train/ins_loss", ins_loss)
-        return kdr_loss + ins_loss
+        word_segmentation_loss = compute_token_mean_loss(
+            ret["word_segmentation_logits"], batch["word_segmentation_labels"]
+        )
+        self.log("train/word_segmentation_loss", word_segmentation_loss)
+        word_normalization_loss = compute_token_mean_loss(ret["word_norm_op_logits"], batch["word_norm_op_labels"])
+        self.log("train/word_normalization_loss", word_normalization_loss)
+        return word_segmentation_loss + word_normalization_loss
 
     def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> None:
         kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
-        kwargs.update({"kdr_labels": batch["kdr_labels"], "ins_labels": batch["ins_labels"]})
+        kwargs.update({"word_norm_op_labels": batch["word_norm_op_labels"]})
         corpus = self.valid_corpora[dataloader_idx or 0]
-        self.valid_corpus2typo_module_metric[corpus].update(kwargs)
+        self.valid_corpus2char_module_metric[corpus].update(kwargs)
 
     def validation_epoch_end(self, validation_step_outputs) -> None:
         metrics_log: Dict[str, Dict[str, float]] = {corpus: {} for corpus in self.valid_corpora}
-        for corpus, typo_module_metric in self.valid_corpus2typo_module_metric.items():
+        for corpus, char_module_metric in self.valid_corpus2char_module_metric.items():
             dataset = self.trainer.val_dataloaders[self.valid_corpora.index(corpus)].dataset
-            typo_module_metric.set_properties(dataset)
-            metrics = typo_module_metric.compute()
+            char_module_metric.set_properties(dataset)
+            metrics = char_module_metric.compute()
+            metrics["aggregated_char_metrics"] = mean(
+                metrics[key] for key in self.hparams.aggregating_metrics if key in metrics
+            )
             metrics_log[corpus] = metrics
-            typo_module_metric.reset()
+            char_module_metric.reset()
 
         for corpus, metrics in metrics_log.items():
             self.log_dict({f"valid_{corpus}/{key}": value for key, value in metrics.items()})
@@ -95,18 +105,21 @@ class TypoModule(BaseModule):
 
     def test_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> None:
         kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
-        kwargs.update({"kdr_labels": batch["kdr_labels"], "ins_labels": batch["ins_labels"]})
+        kwargs.update({"word_norm_op_labels": batch["word_norm_op_labels"]})
         corpus = self.test_corpora[dataloader_idx or 0]
-        self.test_corpus2typo_module_metric[corpus].update(kwargs)
+        self.test_corpus2char_module_metric[corpus].update(kwargs)
 
     def test_epoch_end(self, test_step_outputs) -> None:
         metrics_log: Dict[str, Dict[str, float]] = {corpus: {} for corpus in self.test_corpora}
-        for corpus, typo_module_metric in self.test_corpus2typo_module_metric.items():
+        for corpus, char_module_metric in self.test_corpus2char_module_metric.items():
             dataset = self.trainer.test_dataloaders[self.test_corpora.index(corpus)].dataset
-            typo_module_metric.set_properties(dataset)
-            metrics = typo_module_metric.compute()
+            char_module_metric.set_properties(dataset)
+            metrics = char_module_metric.compute()
+            metrics["aggregated_char_metrics"] = mean(
+                metrics[key] for key in self.hparams.aggregating_metrics if key in metrics
+            )
             metrics_log[corpus] = metrics
-            typo_module_metric.reset()
+            char_module_metric.reset()
 
         for corpus, metrics in metrics_log.items():
             self.log_dict({f"test_{corpus}/{key}": value for key, value in metrics.items()})
@@ -116,14 +129,8 @@ class TypoModule(BaseModule):
 
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Dict[str, torch.Tensor]:
         ret: Dict[str, torch.Tensor] = self(batch)
-        kdr_probabilities = ret["kdr_logits"].softmax(dim=2)
-        kdr_max_probabilities, kdr_predictions = kdr_probabilities.max(dim=2)
-        ins_probabilities = ret["ins_logits"].softmax(dim=2)
-        ins_max_probabilities, ins_predictions = ins_probabilities.max(dim=2)
         return {
             "example_ids": batch["example_ids"],
-            "kdr_predictions": kdr_predictions,
-            "kdr_probabilities": kdr_max_probabilities,
-            "ins_predictions": ins_predictions,
-            "ins_probabilities": ins_max_probabilities,
+            "word_segmentation_predictions": ret["word_segmentation_logits"].argmax(dim=2),
+            "word_norm_op_predictions": ret["word_norm_op_logits"].argmax(dim=2),
         }

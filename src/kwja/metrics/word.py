@@ -21,9 +21,9 @@ from kwja.callbacks.utils import (  # add_discourse,
     get_word_reading_predictions,
 )
 from kwja.datamodule.datasets import WordDataset
-from kwja.evaluators.cohesion_scorer import Scorer, ScoreResult
-from kwja.evaluators.conll18_ud_eval import main as conll18_ud_eval
-from kwja.evaluators.utils import unique
+from kwja.metrics.cohesion_scorer import Scorer, ScoreResult
+from kwja.metrics.conll18_ud_eval import main as conll18_ud_eval
+from kwja.metrics.utils import unique
 from kwja.utils.cohesion_analysis import PasUtils
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,

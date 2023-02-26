@@ -3,7 +3,7 @@ from typing import Tuple
 import pytest
 import torch
 
-from kwja.models.components.crf import CRF
+from kwja.modules.components.crf import CRF
 from kwja.utils.constants import MASKED, NE_TAGS
 
 

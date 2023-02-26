@@ -6,12 +6,12 @@ import torch
 from omegaconf import DictConfig
 from transformers import PretrainedConfig, PreTrainedModel
 
-from kwja.evaluators.word_module_metric import WordModuleMetric
-from kwja.models.base import BaseModule
-from kwja.models.components.crf import CRF
-from kwja.models.components.head import SequenceLabelingHead, WordSelectionHead
-from kwja.models.components.pooling import PoolingStrategy, pool_subwords
-from kwja.models.functions.loss import compute_multi_label_token_mean_loss, compute_token_mean_loss, mask_logits
+from kwja.metrics.word import WordModuleMetric
+from kwja.modules.base import BaseModule
+from kwja.modules.components.crf import CRF
+from kwja.modules.components.head import SequenceLabelingHead, WordSelectionHead
+from kwja.modules.components.pooling import PoolingStrategy, pool_subwords
+from kwja.modules.functions.loss import compute_multi_label_token_mean_loss, compute_token_mean_loss, mask_logits
 from kwja.utils.cohesion_analysis import BridgingUtils, CoreferenceUtils, PasUtils
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,

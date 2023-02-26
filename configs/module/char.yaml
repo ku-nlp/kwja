@@ -1,5 +1,5 @@
 cls:
-  _target_: kwja.models.char.CharModule
+  _target_: kwja.modules.char.CharModule
 
 load_from_checkpoint:
   _target_: ${module.cls._target_}.load_from_checkpoint

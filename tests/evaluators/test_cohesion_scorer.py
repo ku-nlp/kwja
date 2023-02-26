@@ -2,7 +2,7 @@ import io
 import json
 from pathlib import Path
 
-from kwja.evaluators.cohesion_scorer import Metric, Scorer
+from kwja.metrics.cohesion_scorer import Metric, Scorer
 
 
 def test_scorer(fixture_data_dir: Path, fixture_scorer: Scorer):

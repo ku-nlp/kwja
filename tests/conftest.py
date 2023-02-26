@@ -4,7 +4,7 @@ import pytest
 from rhoknp import Document
 from rhoknp.cohesion import ExophoraReferent
 
-from kwja.evaluators.cohesion_scorer import Scorer
+from kwja.metrics.cohesion_scorer import Scorer
 
 here = Path(__file__).parent
 

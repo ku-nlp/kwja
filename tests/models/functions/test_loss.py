@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from kwja.models.functions.loss import compute_multi_label_token_mean_loss, compute_token_mean_loss, mask_logits
+from kwja.modules.functions.loss import compute_multi_label_token_mean_loss, compute_token_mean_loss, mask_logits
 from kwja.utils.constants import MASKED
 
 
