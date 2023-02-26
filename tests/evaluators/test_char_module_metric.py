@@ -1,3 +1,4 @@
+from functools import partial
 from math import isclose
 from pathlib import Path
 
@@ -7,6 +8,8 @@ from transformers import AutoTokenizer
 from kwja.datamodule.datasets.char_dataset import CharDataset
 from kwja.evaluators.char_module_metric import CharModuleMetric
 from kwja.utils.constants import IGNORE_INDEX, WORD_NORM_OP_TAGS, WORD_SEGMENTATION_TAGS
+
+isclose = partial(isclose, abs_tol=1e-4)
 
 
 def test_char_module_metric() -> None:

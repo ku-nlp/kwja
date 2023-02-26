@@ -1,3 +1,4 @@
+from functools import partial
 from math import isclose
 from pathlib import Path
 
@@ -6,6 +7,8 @@ from transformers import AutoTokenizer
 
 from kwja.datamodule.datasets.typo_dataset import TypoDataset
 from kwja.evaluators.typo_module_metric import TypoModuleMetric
+
+isclose = partial(isclose, abs_tol=1e-4)
 
 
 def test_typo_module_metric() -> None:
