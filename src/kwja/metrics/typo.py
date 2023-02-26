@@ -1,16 +1,14 @@
 from typing import Dict, List, Optional, Tuple
 
-import torch
 from Levenshtein import opcodes
-from torchmetrics import Metric
 
 from kwja.callbacks.utils import apply_edit_operations, convert_predictions_into_typo_corr_op_tags
 from kwja.datamodule.datasets import TypoDataset
+from kwja.metrics.base import BaseModuleMetric
 from kwja.metrics.utils import unique
 
 
-class TypoModuleMetric(Metric):
-    full_state_update = False
+class TypoModuleMetric(BaseModuleMetric):
     STATE_NAMES = (
         "example_ids",
         "kdr_predictions",
@@ -21,19 +19,8 @@ class TypoModuleMetric(Metric):
 
     def __init__(self, confidence_thresholds: Tuple[float, ...] = (0.0, 0.8, 0.9)) -> None:
         super().__init__()
-        for state_name in self.STATE_NAMES:
-            self.add_state(state_name, default=[], dist_reduce_fx="cat")
-
         self.confidence_thresholds = confidence_thresholds
         self.dataset: Optional[TypoDataset] = None
-
-    def update(self, kwargs: Dict[str, torch.Tensor]) -> None:
-        for state_name in self.STATE_NAMES:
-            state = getattr(self, state_name)
-            state.append(kwargs[state_name])
-
-    def set_properties(self, dataset: TypoDataset) -> None:
-        self.dataset = dataset
 
     def compute(self) -> Dict[str, float]:
         sorted_indices = unique(self.example_ids)

@@ -82,7 +82,7 @@ class TypoModule(BaseModule):
         metrics_log: Dict[str, Dict[str, float]] = {corpus: {} for corpus in self.valid_corpora}
         for corpus, typo_module_metric in self.valid_corpus2typo_module_metric.items():
             dataset = self.trainer.val_dataloaders[self.valid_corpora.index(corpus)].dataset
-            typo_module_metric.set_properties(dataset)
+            typo_module_metric.set_properties({"dataset": dataset})
             metrics = typo_module_metric.compute()
             metrics_log[corpus] = metrics
             typo_module_metric.reset()
@@ -103,7 +103,7 @@ class TypoModule(BaseModule):
         metrics_log: Dict[str, Dict[str, float]] = {corpus: {} for corpus in self.test_corpora}
         for corpus, typo_module_metric in self.test_corpus2typo_module_metric.items():
             dataset = self.trainer.test_dataloaders[self.test_corpora.index(corpus)].dataset
-            typo_module_metric.set_properties(dataset)
+            typo_module_metric.set_properties({"dataset": dataset})
             metrics = typo_module_metric.compute()
             metrics_log[corpus] = metrics
             typo_module_metric.reset()

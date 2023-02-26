@@ -5,17 +5,16 @@ import torch
 from rhoknp import Document, Sentence
 from seqeval.metrics import accuracy_score, f1_score
 from seqeval.scheme import IOB2
-from torchmetrics import Metric
 
 from kwja.callbacks.utils import convert_predictions_into_tags, set_morphemes
 from kwja.datamodule.datasets import CharDataset
+from kwja.metrics.base import BaseModuleMetric
 from kwja.metrics.utils import unique
 from kwja.utils.constants import IGNORE_INDEX, WORD_NORM_OP_TAGS
 from kwja.utils.sub_document import extract_target_sentences, to_orig_doc_id
 
 
-class CharModuleMetric(Metric):
-    full_state_update = False
+class CharModuleMetric(BaseModuleMetric):
     STATE_NAMES = [
         "example_ids",
         "word_segmentation_predictions",
@@ -25,18 +24,7 @@ class CharModuleMetric(Metric):
 
     def __init__(self) -> None:
         super().__init__()
-        for state_name in self.STATE_NAMES:
-            self.add_state(state_name, default=[], dist_reduce_fx="cat")
-
         self.dataset: Optional[CharDataset] = None
-
-    def update(self, kwargs: Dict[str, torch.Tensor]) -> None:
-        for state_name in self.STATE_NAMES:
-            state = getattr(self, state_name)
-            state.append(kwargs[state_name])
-
-    def set_properties(self, dataset: CharDataset) -> None:
-        self.dataset = dataset
 
     def compute(self) -> Dict[str, float]:
         sorted_indices = unique(self.example_ids)

@@ -56,7 +56,13 @@ def test_word_module_metric() -> None:
         WordTask.COHESION_ANALYSIS,
         WordTask.DISCOURSE_PARSING,
     ]
-    metric.set_properties(dataset, reading_id2reading, training_tasks)
+    metric.set_properties(
+        {
+            "dataset": dataset,
+            "reading_id2reading": reading_id2reading,
+            "training_tasks": training_tasks,
+        }
+    )
 
     metric.update(
         {

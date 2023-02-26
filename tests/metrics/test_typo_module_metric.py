@@ -19,7 +19,7 @@ def test_typo_module_metric() -> None:
     )
     max_seq_length = 20
     dataset = TypoDataset(str(path), tokenizer, max_seq_length=max_seq_length)
-    metric.set_properties(dataset)
+    metric.set_properties({"dataset": dataset})
 
     metric.update(
         {

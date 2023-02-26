@@ -8,7 +8,6 @@ from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
 from rhoknp.props import DepType
 from seqeval.metrics import accuracy_score, f1_score
 from seqeval.scheme import IOB2
-from torchmetrics import Metric
 
 from kwja.callbacks.utils import (  # add_discourse,
     add_base_phrase_features,
@@ -21,6 +20,7 @@ from kwja.callbacks.utils import (  # add_discourse,
     get_word_reading_predictions,
 )
 from kwja.datamodule.datasets import WordDataset
+from kwja.metrics.base import BaseModuleMetric
 from kwja.metrics.cohesion_scorer import Scorer, ScoreResult
 from kwja.metrics.conll18_ud_eval import main as conll18_ud_eval
 from kwja.metrics.utils import unique
@@ -40,8 +40,7 @@ from kwja.utils.constants import (
 from kwja.utils.sub_document import extract_target_sentences, to_orig_doc_id
 
 
-class WordModuleMetric(Metric):
-    full_state_update = False
+class WordModuleMetric(BaseModuleMetric):
     STATE_NAMES = (
         "example_ids",
         "reading_predictions",
@@ -62,17 +61,9 @@ class WordModuleMetric(Metric):
 
     def __init__(self) -> None:
         super().__init__()
-        for state_name in self.STATE_NAMES:
-            self.add_state(state_name, default=[], dist_reduce_fx="cat")
-
         self.dataset: Optional[WordDataset] = None
         self.reading_id2reading: Optional[Dict[int, str]] = None
         self.training_tasks: Optional[List[WordTask]] = None
-
-    def update(self, kwargs: Dict[str, torch.Tensor]) -> None:
-        for state_name in self.STATE_NAMES:
-            state = getattr(self, state_name)
-            state.append(kwargs[state_name])
 
     def compute(self) -> Dict[str, float]:
         assert self.training_tasks is not None, "training_tasks isn't set"
@@ -104,13 +95,6 @@ class WordModuleMetric(Metric):
             labels = self.discourse_labels.view(-1)
             metrics.update(self.compute_discourse_parsing_metrics(predictions, labels))
         return metrics
-
-    def set_properties(
-        self, dataset: WordDataset, reading_id2reading: Dict[int, str], training_tasks: List[WordTask]
-    ) -> None:
-        self.dataset = dataset
-        self.reading_id2reading = reading_id2reading
-        self.training_tasks = training_tasks
 
     def _build_documents(self) -> Tuple[List[Document], ...]:
         assert self.dataset is not None, "dataset isn't set"
