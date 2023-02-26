@@ -11,15 +11,25 @@ from kwja.utils.constants import IGNORE_INDEX, WORD_NORM_OP_TAGS, WORD_SEGMENTAT
 def test_char_module_metric() -> None:
     metric = CharModuleMetric()
 
-    path = Path(__file__).absolute().parent.joinpath("char_files")
-    tokenizer = AutoTokenizer.from_pretrained("ku-nlp/roberta-base-japanese-char-wwm")
+    path = Path(__file__).absolute().parent.parent / "data" / "datasets" / "char_files"
+    tokenizer = AutoTokenizer.from_pretrained("ku-nlp/roberta-base-japanese-char-wwm", do_word_tokenize=False)
     max_seq_length = 20
     dataset = CharDataset(str(path), tokenizer, max_seq_length)  # denormalize_probability == 0.0
     metric.set_properties(dataset)
 
-    metric.example_ids = torch.arange(len(dataset), dtype=torch.long)
+    metric.update(
+        {
+            "example_ids": torch.empty(0),  # dummy
+            "word_segmentation_predictions": torch.empty(0),
+            "word_norm_op_predictions": torch.empty(0),
+            "word_norm_op_labels": torch.empty(0),
+        }
+    )
 
-    metric.word_segmentation_predictions = torch.full((len(dataset), max_seq_length), IGNORE_INDEX, dtype=torch.long)
+    num_examples = len(dataset)
+    metric.example_ids = torch.arange(num_examples, dtype=torch.long)
+
+    metric.word_segmentation_predictions = torch.full((num_examples, max_seq_length), IGNORE_INDEX, dtype=torch.long)
     # [:, 0] = [CLS]
     metric.word_segmentation_predictions[0, 1] = WORD_SEGMENTATION_TAGS.index("B")  # 花
     metric.word_segmentation_predictions[0, 2] = WORD_SEGMENTATION_TAGS.index("I")  # 咲
@@ -38,7 +48,7 @@ def test_char_module_metric() -> None:
     metric.word_segmentation_predictions[1, 8] = WORD_SEGMENTATION_TAGS.index("I")  # 〜
     metric.word_segmentation_predictions[1, 9] = WORD_SEGMENTATION_TAGS.index("I")  # 〜
 
-    metric.word_norm_op_predictions = torch.full((len(dataset), max_seq_length), IGNORE_INDEX, dtype=torch.long)
+    metric.word_norm_op_predictions = torch.full((num_examples, max_seq_length), IGNORE_INDEX, dtype=torch.long)
     # [:, 0] = [CLS]
     metric.word_norm_op_predictions[0, 1] = WORD_NORM_OP_TAGS.index("K")  # 花
     metric.word_norm_op_predictions[0, 2] = WORD_NORM_OP_TAGS.index("K")  # 咲
