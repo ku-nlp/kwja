@@ -314,7 +314,7 @@ def test_write_on_batch_end():
     base_phrase_feature_probabilities[1, 5, BASE_PHRASE_FEATURES.index("動態述語")] = 1.0
     base_phrase_feature_probabilities[1, 5, BASE_PHRASE_FEATURES.index("敬語:丁寧表現")] = 1.0
 
-    dependency_topk = 1
+    dependency_topk = 2
     dependency_logits = torch.zeros(
         (num_examples, max_seq_length, max_seq_length), dtype=torch.float
     )  # (b, word, word)

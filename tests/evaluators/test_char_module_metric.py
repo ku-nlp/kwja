@@ -1,3 +1,5 @@
+from functools import partial
+from math import isclose
 from pathlib import Path
 
 import torch
@@ -6,6 +8,8 @@ from transformers import AutoTokenizer
 from kwja.datamodule.datasets.char_dataset import CharDataset
 from kwja.evaluators.char_module_metric import CharModuleMetric
 from kwja.utils.constants import IGNORE_INDEX, WORD_NORM_OP_TAGS, WORD_SEGMENTATION_TAGS
+
+isclose = partial(isclose, abs_tol=1e-4)
 
 
 def test_char_module_metric() -> None:
@@ -70,25 +74,24 @@ def test_char_module_metric() -> None:
         [torch.as_tensor(dataset[eid].word_norm_op_labels) for eid in metric.example_ids], dim=0
     )
 
-    digits = 4
-    metrics = {k: round(v, digits) for k, v in metric.compute().items()}
+    metrics = metric.compute()
 
-    assert metrics["word_segmentation_accuracy"] == round(15 / 16, digits)
+    assert isclose(metrics["word_segmentation_accuracy"], 15 / 16)
     # tp = 5, fp = 1, fn = 2 (span-level)
-    assert metrics["word_segmentation_f1"] == round((2 * 5 / 6 * 5 / 7) / (5 / 6 + 5 / 7), digits)
+    assert isclose(metrics["word_segmentation_f1"], (2 * 5 / 6 * 5 / 7) / (5 / 6 + 5 / 7))
 
-    assert metrics["word_normalization_accuracy"] == round(14 / 16, digits)
+    assert isclose(metrics["word_normalization_accuracy"], 14 / 16)
     # tp = 3, fp = 2, fn = 0 (other than KEEP)
-    assert metrics["word_normalization_f1"] == round((2 * 3 / 5 * 3 / 3) / (3 / 5 + 3 / 3), digits)
+    assert isclose(metrics["word_normalization_f1"], (2 * 3 / 5 * 3 / 3) / (3 / 5 + 3 / 3))
     # tp = 11, fp = 2, fn = 0
-    assert metrics["word_normalization_f1:K"] == round((2 * 11 / 13 * 11 / 11) / (11 / 13 + 11 / 11), digits)
+    assert isclose(metrics["word_normalization_f1:K"], (2 * 11 / 13 * 11 / 11) / (11 / 13 + 11 / 11))
     # tp = 1, fp = 0, fn = 0
-    assert metrics["word_normalization_f1:D"] == round((2 * 1 / 1 * 1 / 1) / (1 / 1 + 1 / 1), digits)
+    assert isclose(metrics["word_normalization_f1:D"], (2 * 1 / 1 * 1 / 1) / (1 / 1 + 1 / 1))
     # tp = 0, fp = 0, fn = 1
-    assert metrics["word_normalization_f1:V"] == 0.0
+    assert isclose(metrics["word_normalization_f1:V"], 0.0)
     # tp = 1, fp = 0, fn = 0
-    assert metrics["word_normalization_f1:S"] == round((2 * 1 / 1 * 1 / 1) / (1 / 1 + 1 / 1), digits)
+    assert isclose(metrics["word_normalization_f1:S"], (2 * 1 / 1 * 1 / 1) / (1 / 1 + 1 / 1))
     # tp = 0, fp = 0, fn = 1
-    assert metrics["word_normalization_f1:P"] == 0.0
+    assert isclose(metrics["word_normalization_f1:P"], 0.0)
     # tp = 1, fp = 0, fn = 0
-    assert metrics["word_normalization_f1:E"] == round((2 * 1 / 1 * 1 / 1) / (1 / 1 + 1 / 1), digits)
+    assert isclose(metrics["word_normalization_f1:E"], (2 * 1 / 1 * 1 / 1) / (1 / 1 + 1 / 1))
