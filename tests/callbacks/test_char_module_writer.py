@@ -1,7 +1,9 @@
 import tempfile
 import textwrap
 from pathlib import Path
+from typing import Optional, Union
 
+import pytest
 import torch
 from omegaconf import ListConfig
 from torch.utils.data import DataLoader
@@ -18,9 +20,16 @@ class MockTrainer:
         self.predict_dataloaders = predict_dataloaders
 
 
-def test_init():
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        _ = CharModuleWriter(destination=tmp_dir / Path("char_predict.juman"))
+@pytest.mark.parametrize(
+    "destination",
+    [
+        None,
+        Path(tempfile.TemporaryDirectory().name) / Path("char_predict.juman"),
+        str(Path(tempfile.TemporaryDirectory().name) / Path("char_predict.juman")),
+    ],
+)
+def test_init(destination: Optional[Union[str, Path]]):
+    _ = CharModuleWriter(destination=destination)
 
 
 def test_write_on_batch_end():

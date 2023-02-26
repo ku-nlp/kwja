@@ -1,7 +1,9 @@
 import tempfile
 import textwrap
 from pathlib import Path
+from typing import Optional, Union
 
+import pytest
 import pytorch_lightning as pl
 import torch
 from omegaconf import ListConfig
@@ -59,9 +61,16 @@ def make_dummy_jumandic() -> JumanDic:
         return JumanDic(Path(jumandic_dir))
 
 
-def test_init():
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        _ = WordModuleWriter(AMBIG_SURF_SPECS, destination=tmp_dir / Path("word_predict.knp"))
+@pytest.mark.parametrize(
+    "destination",
+    [
+        None,
+        Path(tempfile.TemporaryDirectory().name) / Path("word_predict.juman"),
+        str(Path(tempfile.TemporaryDirectory().name) / Path("word_predict.juman")),
+    ],
+)
+def test_init(destination: Optional[Union[str, Path]]):
+    _ = WordModuleWriter(AMBIG_SURF_SPECS, destination=destination)
 
 
 def test_write_on_batch_end():

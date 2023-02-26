@@ -1,11 +1,13 @@
 import tempfile
 import textwrap
 from pathlib import Path
+from typing import Optional, Union
 
+import pytest
 import torch
 from omegaconf import ListConfig
 from torch.utils.data import DataLoader
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from kwja.callbacks.typo_module_writer import TypoModuleWriter
 from kwja.datamodule.datasets.typo_inference_dataset import TypoInferenceDataset
@@ -17,25 +19,29 @@ class MockTrainer:
         self.predict_dataloaders = predict_dataloaders
 
 
-def test_init():
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        tokenizer = AutoTokenizer.from_pretrained(
-            "ku-nlp/roberta-base-japanese-char-wwm",
-            do_word_tokenize=False,
-            additional_special_tokens=["<k>", "<d>", "<_>", "<dummy>"],
-        )
-        _ = TypoModuleWriter(
-            confidence_threshold=0.9, tokenizer=tokenizer, destination=tmp_dir / Path("typo_predict.txt")
-        )
+@pytest.fixture()
+def tokenizer() -> PreTrainedTokenizerBase:
+    return AutoTokenizer.from_pretrained(
+        "ku-nlp/roberta-base-japanese-char-wwm",
+        do_word_tokenize=False,
+        additional_special_tokens=["<k>", "<d>", "<_>", "<dummy>"],
+    )
 
 
-def test_write_on_batch_end():
+@pytest.mark.parametrize(
+    "destination",
+    [
+        None,
+        Path(tempfile.TemporaryDirectory().name) / Path("typo_predict.juman"),
+        str(Path(tempfile.TemporaryDirectory().name) / Path("typo_predict.juman")),
+    ],
+)
+def test_init(destination: Optional[Union[str, Path]], tokenizer: PreTrainedTokenizerBase):
+    _ = TypoModuleWriter(confidence_threshold=0.9, tokenizer=tokenizer, destination=destination)
+
+
+def test_write_on_batch_end(tokenizer: PreTrainedTokenizerBase):
     with tempfile.TemporaryDirectory() as tmp_dir:
-        tokenizer = AutoTokenizer.from_pretrained(
-            "ku-nlp/roberta-base-japanese-char-wwm",
-            do_word_tokenize=False,
-            additional_special_tokens=["<k>", "<d>", "<_>", "<dummy>"],
-        )
         writer = TypoModuleWriter(
             confidence_threshold=0.9,
             tokenizer=tokenizer,
@@ -82,8 +88,9 @@ def test_write_on_batch_end():
             "ins_predictions": ins_predictions,
         }
 
-        writer.write_on_batch_end(trainer, ..., prediction, ..., ..., 0, 0)
-        with open(writer.destination) as f:
+        writer.write_on_batch_end(trainer, ..., prediction, ..., ..., 0, 0)  # type: ignore
+        assert isinstance(writer.destination, Path)
+        with writer.destination.open() as f:
             assert f.read() == textwrap.dedent(
                 """\
                 今日は晴れだ

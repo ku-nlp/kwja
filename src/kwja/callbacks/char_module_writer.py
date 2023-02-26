@@ -74,4 +74,4 @@ class CharModuleWriter(BasePredictionWriter):
         predictions: Sequence[Any],
         batch_indices: Optional[Sequence[Any]] = None,
     ) -> None:
-        pass
+        pass  # pragma: no cover
