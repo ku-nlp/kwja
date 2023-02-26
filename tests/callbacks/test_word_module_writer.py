@@ -392,7 +392,8 @@ def test_write_on_batch_end():
     with tempfile.TemporaryDirectory() as tmp_dir:
         writer = WordModuleWriter(AMBIG_SURF_SPECS, destination=tmp_dir / Path("word_prediction.knp"))
         writer.jumandic = build_dummy_jumandic()
-        writer.write_on_batch_end(trainer, module, prediction, ..., ..., 0, 0)  # noqa
+        writer.write_on_batch_end(trainer, module, prediction, None, ..., 0, 0)  # noqa
+        assert isinstance(writer.destination, Path), "destination isn't set"
         assert writer.destination.read_text() == dedent(
             f"""\
             # S-ID:{doc_id_prefix}-0-0 kwja:{kwja.__version__}

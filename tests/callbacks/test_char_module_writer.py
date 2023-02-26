@@ -94,7 +94,8 @@ def test_write_on_batch_end():
 
     with TemporaryDirectory() as tmp_dir:
         writer = CharModuleWriter(destination=tmp_dir / Path("char_prediction.juman"))
-        writer.write_on_batch_end(trainer, ..., prediction, ..., ..., ..., 0)
+        writer.write_on_batch_end(trainer, ..., prediction, None, ..., ..., 0)
+        assert isinstance(writer.destination, Path), "destination isn't set"
         assert writer.destination.read_text() == dedent(
             f"""\
             # S-ID:{doc_id_prefix}-0-0 kwja:{kwja.__version__}
