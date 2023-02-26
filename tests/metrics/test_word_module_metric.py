@@ -10,7 +10,7 @@ from rhoknp.props import DepType
 from transformers import AutoTokenizer
 
 from kwja.datamodule.datasets import WordDataset
-from kwja.metrics.word import WordModuleMetric
+from kwja.metrics import WordModuleMetric
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TAGS,

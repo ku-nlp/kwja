@@ -6,7 +6,7 @@ import torch
 from omegaconf import DictConfig
 from transformers import PretrainedConfig, PreTrainedModel
 
-from kwja.metrics.typo import TypoModuleMetric
+from kwja.metrics import TypoModuleMetric
 from kwja.modules.base import BaseModule
 from kwja.modules.components.head import SequenceLabelingHead
 from kwja.modules.functions.loss import compute_token_mean_loss

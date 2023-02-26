@@ -6,7 +6,7 @@ import torch
 from omegaconf import DictConfig
 from transformers import PretrainedConfig, PreTrainedModel
 
-from kwja.metrics.word import WordModuleMetric
+from kwja.metrics import WordModuleMetric
 from kwja.modules.base import BaseModule
 from kwja.modules.components.crf import CRF
 from kwja.modules.components.head import SequenceLabelingHead, WordSelectionHead
