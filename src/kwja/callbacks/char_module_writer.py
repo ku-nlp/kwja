@@ -39,7 +39,7 @@ class CharModuleWriter(BasePredictionWriter):
 
         special_ids = set(dataset.tokenizer.all_special_ids) - {dataset.tokenizer.unk_token_id}
         for example_id, word_segmentation_predictions, word_norm_op_predictions in zip(
-            prediction["example_ids"],
+            prediction["example_ids"].tolist(),
             prediction["word_segmentation_predictions"].tolist(),
             prediction["word_norm_op_predictions"].tolist(),
         ):

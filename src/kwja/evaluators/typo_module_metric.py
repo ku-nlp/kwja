@@ -50,7 +50,7 @@ class TypoModuleMetric(Metric):
     def _build_texts(self, confidence_threshold: float) -> List[Tuple[str, str, str]]:
         example_id2texts = {}
         for example_id, kdr_predictions, kdr_probabilities, ins_predictions, ins_probabilities in zip(
-            self.example_ids,
+            self.example_ids.tolist(),
             self.kdr_predictions.tolist(),
             self.kdr_probabilities.tolist(),
             self.ins_predictions.tolist(),

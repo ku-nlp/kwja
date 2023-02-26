@@ -41,7 +41,7 @@ class WordDiscourseModuleWriter(BasePredictionWriter):
         dataset: Union[WordDataset, WordInferenceDataset] = dataloaders[dataloader_idx].dataset
 
         for example_id, discourse_predictions in zip(
-            prediction["example_ids"], prediction["discourse_predictions"].tolist()
+            prediction["example_ids"].tolist(), prediction["discourse_predictions"].tolist()
         ):
             example: Union[WordExample, WordInferenceExample] = dataset.examples[example_id]
             assert example.doc_id is not None, "doc_id isn't set"

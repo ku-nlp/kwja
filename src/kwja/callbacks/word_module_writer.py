@@ -93,7 +93,7 @@ class WordModuleWriter(BasePredictionWriter):
             cohesion_logits,
             discourse_predictions,
         ) in zip(
-            prediction["example_ids"],
+            prediction["example_ids"].tolist(),
             prediction["reading_predictions"].tolist(),
             prediction["reading_subword_map"].tolist(),
             prediction["pos_logits"],

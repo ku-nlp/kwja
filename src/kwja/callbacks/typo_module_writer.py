@@ -52,7 +52,7 @@ class TypoModuleWriter(BasePredictionWriter):
 
         post_texts = []
         for example_id, kdr_predictions, kdr_probabilities, ins_predictions, ins_probabilities in zip(
-            prediction["example_ids"],
+            prediction["example_ids"].tolist(),
             prediction["kdr_predictions"].tolist(),
             prediction["kdr_probabilities"].tolist(),
             prediction["ins_predictions"].tolist(),
