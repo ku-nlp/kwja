@@ -58,7 +58,7 @@ class BaseDataset(Dataset[T_co]):
     @staticmethod
     def _load_documents(document_dir: Path, ext: str = "knp") -> List[Document]:
         documents = []
-        for path in track(sorted(document_dir.glob(f"*.{ext}"))[:5], description="Loading documents"):
+        for path in track(sorted(document_dir.glob(f"*.{ext}")), description="Loading documents"):
             # TODO: fix document files that raise exception
             try:
                 documents.append(Document.from_knp(path.read_text()))

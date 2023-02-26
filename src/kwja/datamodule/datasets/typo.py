@@ -60,8 +60,6 @@ class TypoDataset(Dataset[TypoModuleFeatures]):
             for line in path.read_text().strip().split("\n"):
                 examples.append(TypoExample(**json.loads(line), example_id=example_id))
                 example_id += 1
-                if example_id >= 10:
-                    break
         return examples
 
     def encode(self, example: TypoExample) -> TypoModuleFeatures:
