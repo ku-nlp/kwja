@@ -1,9 +1,12 @@
-from typing import Dict, List, Optional, Union
+from dataclasses import fields, is_dataclass
+from typing import Any, Dict, List, Optional, Union
 
 import hydra
 import pytorch_lightning as pl
+import torch
 from omegaconf import DictConfig
 from pytorch_lightning.trainer.states import TrainerFn
+from torch import Tensor
 from torch.utils.data import ConcatDataset, DataLoader, Dataset
 
 from kwja.datamodule.datasets import (
@@ -65,5 +68,16 @@ class DataModule(pl.LightningDataModule):
             batch_size=self.batch_size,
             shuffle=shuffle,
             num_workers=self.num_workers,
+            collate_fn=dataclass_data_collator,
             pin_memory=True,
         )
+
+
+def dataclass_data_collator(features: List[Any]) -> Dict[str, Tensor]:
+    first: Any = features[0]
+    assert is_dataclass(first), "Data must be a dataclass"
+    batch: Dict[str, Tensor] = {}
+    for field in fields(first):
+        feats = [getattr(f, field.name) for f in features]
+        batch[field.name] = torch.as_tensor(feats)
+    return batch

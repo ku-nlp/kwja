@@ -2,7 +2,6 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Literal, Optional, Union
 
-import torch
 from omegaconf import ListConfig
 from rhoknp import Document, Sentence
 from rhoknp.cohesion import ExophoraReferent
@@ -12,6 +11,7 @@ from transformers import PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
 from kwja.datamodule.datasets.base_dataset import BaseDataset
+from kwja.datamodule.datasets.word_dataset import WordModuleFeatures
 from kwja.datamodule.examples import WordInferenceExample
 from kwja.utils.cohesion_analysis import BridgingUtils, CohesionUtils, CoreferenceUtils, PasUtils
 from kwja.utils.constants import SPLIT_INTO_WORDS_MODEL_NAMES, CohesionTask
@@ -21,7 +21,7 @@ from kwja.utils.sub_document import extract_target_sentences
 logger = logging.getLogger(__name__)
 
 
-class WordInferenceDataset(BaseDataset):
+class WordInferenceDataset(BaseDataset[WordModuleFeatures]):
     def __init__(
         self,
         tokenizer: PreTrainedTokenizerBase,
@@ -94,7 +94,7 @@ class WordInferenceDataset(BaseDataset):
     def __len__(self) -> int:
         return len(self.examples)
 
-    def __getitem__(self, index: int) -> Dict[str, torch.Tensor]:
+    def __getitem__(self, index: int) -> WordModuleFeatures:
         return self.encode(self.examples[index])
 
     def _get_tokenized_len(self, document_or_sentence: Union[Document, Sentence]) -> int:
@@ -139,7 +139,7 @@ class WordInferenceDataset(BaseDataset):
             logger.error("No examples to process. Make sure any texts are given and they are not too long.")
         return examples
 
-    def encode(self, example: WordInferenceExample) -> Dict[str, torch.Tensor]:
+    def encode(self, example: WordInferenceExample) -> WordModuleFeatures:
         document = self.doc_id2document[example.doc_id]
 
         target_mask = [0 for _ in range(self.max_seq_length)]
@@ -175,18 +175,28 @@ class WordInferenceDataset(BaseDataset):
 
         merged_encoding: Encoding = Encoding.merge([example.encoding, self.special_encoding])
 
-        return {
-            "example_ids": torch.tensor(example.example_id, dtype=torch.long),
-            "input_ids": torch.tensor(merged_encoding.ids, dtype=torch.long),
-            "attention_mask": torch.tensor(merged_encoding.attention_mask, dtype=torch.long),
-            "target_mask": torch.tensor(target_mask, dtype=torch.long),
-            "subword_map": torch.tensor(self._get_subword_map(merged_encoding), dtype=torch.bool),
-            "reading_subword_map": torch.tensor(
-                self._get_subword_map(merged_encoding, include_special_tokens=False), dtype=torch.bool
-            ),
-            "dependency_mask": torch.tensor(dependency_mask, dtype=torch.bool),
-            "cohesion_mask": torch.tensor(cohesion_mask, dtype=torch.bool),
-        }
+        return WordModuleFeatures(
+            example_ids=example.example_id,
+            input_ids=merged_encoding.ids,
+            attention_mask=merged_encoding.attention_mask,
+            target_mask=target_mask,
+            subword_map=self._get_subword_map(merged_encoding),
+            reading_labels=[],
+            reading_subword_map=self._get_subword_map(merged_encoding, include_special_tokens=False),
+            pos_labels=[],
+            subpos_labels=[],
+            conjtype_labels=[],
+            conjform_labels=[],
+            word_feature_labels=[],
+            ne_labels=[],
+            base_phrase_feature_labels=[],
+            dependency_labels=[],
+            dependency_mask=dependency_mask,
+            dependency_type_labels=[],
+            cohesion_labels=[],
+            cohesion_mask=cohesion_mask,
+            discourse_labels=[],
+        )
 
     def _get_subword_map(self, encoding: Encoding, include_special_tokens: bool = True) -> List[List[bool]]:
         subword_map = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]

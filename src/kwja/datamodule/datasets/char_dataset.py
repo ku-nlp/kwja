@@ -1,9 +1,9 @@
 import logging
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import List, Union
 from unicodedata import normalize
 
-import torch
 from rhoknp import Document, Sentence
 from transformers import BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
@@ -23,7 +23,16 @@ from kwja.utils.word_normalization import SentenceDenormalizer
 logger = logging.getLogger(__name__)
 
 
-class CharDataset(BaseDataset):
+@dataclass(frozen=True)
+class CharModuleFeatures:
+    example_ids: int
+    input_ids: List[int]
+    attention_mask: List[int]
+    word_segmentation_labels: List[int]
+    word_norm_op_labels: List[int]
+
+
+class CharDataset(BaseDataset[CharModuleFeatures]):
     def __init__(
         self,
         path: str,
@@ -41,7 +50,7 @@ class CharDataset(BaseDataset):
     def __len__(self) -> int:
         return len(self.examples)
 
-    def __getitem__(self, index: int) -> Dict[str, torch.Tensor]:
+    def __getitem__(self, index: int) -> CharModuleFeatures:
         return self.encode(self.examples[index])
 
     def _load_examples(self, documents: List[Document]) -> List[CharExample]:
@@ -70,7 +79,7 @@ class CharDataset(BaseDataset):
             )
         return examples
 
-    def encode(self, example: CharExample) -> Dict[str, torch.Tensor]:
+    def encode(self, example: CharExample) -> CharModuleFeatures:
         word_segmentation_labels: List[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
         for char_global_index, word_segmentation_tag in example.char_global_index2word_segmentation_tag.items():
             # 先頭の[CLS]をIGNORE_INDEXにするため+1
@@ -84,13 +93,13 @@ class CharDataset(BaseDataset):
             else:
                 word_norm_op_labels[char_global_index + 1] = WORD_NORM_OP_TAGS.index(word_norm_op_tag)
 
-        return {
-            "example_ids": torch.tensor(example.example_id, dtype=torch.long),
-            "input_ids": torch.tensor(example.encoding.input_ids, dtype=torch.long),
-            "attention_mask": torch.tensor(example.encoding.attention_mask, dtype=torch.long),
-            "word_segmentation_labels": torch.tensor(word_segmentation_labels, dtype=torch.long),
-            "word_norm_op_labels": torch.tensor(word_norm_op_labels, dtype=torch.long),
-        }
+        return CharModuleFeatures(
+            example_ids=example.example_id,
+            input_ids=example.encoding.input_ids,
+            attention_mask=example.encoding.attention_mask,
+            word_segmentation_labels=word_segmentation_labels,
+            word_norm_op_labels=word_norm_op_labels,
+        )
 
     def _normalize_text(self, document: Document) -> Document:
         for sentence in document.sentences:

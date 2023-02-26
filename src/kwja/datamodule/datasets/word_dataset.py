@@ -1,8 +1,8 @@
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Literal, Union
 
-import torch
 from omegaconf import ListConfig
 from rhoknp import Document, Sentence
 from rhoknp.cohesion import ExophoraReferent
@@ -36,7 +36,31 @@ from kwja.utils.sub_document import extract_target_sentences
 logger = logging.getLogger(__name__)
 
 
-class WordDataset(BaseDataset):
+@dataclass(frozen=True)
+class WordModuleFeatures:
+    example_ids: int
+    input_ids: List[int]
+    attention_mask: List[int]
+    target_mask: List[int]
+    subword_map: List[List[bool]]
+    reading_labels: List[int]
+    reading_subword_map: List[List[bool]]
+    pos_labels: List[int]
+    subpos_labels: List[int]
+    conjtype_labels: List[int]
+    conjform_labels: List[int]
+    word_feature_labels: List[List[int]]
+    ne_labels: List[int]
+    base_phrase_feature_labels: List[List[int]]
+    dependency_labels: List[int]
+    dependency_mask: List[List[bool]]  # True/False = keep/mask
+    dependency_type_labels: List[int]
+    cohesion_labels: List[List[List[int]]]
+    cohesion_mask: List[List[List[bool]]]  # True/False = keep/mask
+    discourse_labels: List[List[int]]
+
+
+class WordDataset(BaseDataset[WordModuleFeatures]):
     def __init__(
         self,
         path: str,
@@ -104,7 +128,7 @@ class WordDataset(BaseDataset):
     def __len__(self) -> int:
         return len(self.examples)
 
-    def __getitem__(self, index: int) -> Dict[str, torch.Tensor]:
+    def __getitem__(self, index: int) -> WordModuleFeatures:
         return self.encode(self.examples[index])
 
     def _get_tokenized_len(self, document_or_sentence: Union[Document, Sentence]) -> int:
@@ -155,7 +179,7 @@ class WordDataset(BaseDataset):
             )
         return examples
 
-    def encode(self, example: WordExample) -> Dict[str, torch.Tensor]:
+    def encode(self, example: WordExample) -> WordModuleFeatures:
         merged_encoding: Encoding = Encoding.merge([example.encoding, self.special_encoding])
         assert example.doc_id is not None, "doc_id isn't set"
         document = self.doc_id2document[example.doc_id]
@@ -187,16 +211,14 @@ class WordDataset(BaseDataset):
 
         # ---------- morphological analysis ----------
         morpheme_attribute_tags_list = (POS_TAGS, SUBPOS_TAGS, CONJTYPE_TAGS, CONJFORM_TAGS)
-        morpheme_attribute_labels = torch.tensor(
-            [[IGNORE_INDEX] * len(morpheme_attribute_tags_list) for _ in range(self.max_seq_length)], dtype=torch.long
-        )
+        morpheme_attribute_labels = tuple([IGNORE_INDEX] * self.max_seq_length for _ in morpheme_attribute_tags_list)
         for morpheme_global_index, morpheme_attributes in example.morpheme_global_index2morpheme_attributes.items():
             for i, (morpheme_attribute, morpheme_attribute_tags) in enumerate(
                 zip(morpheme_attributes, morpheme_attribute_tags_list)
             ):
                 if morpheme_attribute in morpheme_attribute_tags:
                     morpheme_attribute_index = morpheme_attribute_tags.index(morpheme_attribute)
-                    morpheme_attribute_labels[morpheme_global_index][i] = morpheme_attribute_index
+                    morpheme_attribute_labels[i][morpheme_global_index] = morpheme_attribute_index
 
         # ---------- word feature tagging ----------
         word_feature_labels = [[IGNORE_INDEX] * len(WORD_FEATURES) for _ in range(self.max_seq_length)]
@@ -259,30 +281,28 @@ class WordDataset(BaseDataset):
                 discourse_index = DISCOURSE_RELATIONS.index(relation)
                 discourse_labels[modifier_morpheme_global_index][head_morpheme_global_index] = discourse_index
 
-        return {
-            "example_ids": torch.tensor(example.example_id, dtype=torch.long),
-            "input_ids": torch.tensor(merged_encoding.ids, dtype=torch.long),
-            "attention_mask": torch.tensor(merged_encoding.attention_mask, dtype=torch.long),
-            "target_mask": torch.tensor(target_mask, dtype=torch.long),
-            "subword_map": torch.tensor(self._get_subword_map(merged_encoding), dtype=torch.bool),
-            "reading_labels": torch.tensor(reading_labels, dtype=torch.long),
-            "reading_subword_map": torch.tensor(
-                self._get_subword_map(merged_encoding, include_special_tokens=False), dtype=torch.bool
-            ),
-            "pos_labels": morpheme_attribute_labels[:, 0],
-            "subpos_labels": morpheme_attribute_labels[:, 1],
-            "conjtype_labels": morpheme_attribute_labels[:, 2],
-            "conjform_labels": morpheme_attribute_labels[:, 3],
-            "word_feature_labels": torch.tensor(word_feature_labels, dtype=torch.long),
-            "ne_labels": torch.tensor(ne_labels, dtype=torch.long),
-            "base_phrase_feature_labels": torch.tensor(base_phrase_feature_labels, dtype=torch.long),
-            "dependency_labels": torch.tensor(dependency_labels, dtype=torch.long),
-            "dependency_mask": torch.tensor(dependency_mask, dtype=torch.bool),  # True/False = keep/mask
-            "dependency_type_labels": torch.tensor(dependency_type_labels, dtype=torch.long),
-            "cohesion_labels": torch.tensor(cohesion_labels, dtype=torch.long),
-            "cohesion_mask": torch.tensor(cohesion_mask, dtype=torch.bool),  # True/False = keep/mask
-            "discourse_labels": torch.tensor(discourse_labels, dtype=torch.long),
-        }
+        return WordModuleFeatures(
+            example_ids=example.example_id,
+            input_ids=merged_encoding.ids,
+            attention_mask=merged_encoding.attention_mask,
+            target_mask=target_mask,
+            subword_map=self._get_subword_map(merged_encoding),
+            reading_labels=reading_labels,
+            reading_subword_map=self._get_subword_map(merged_encoding, include_special_tokens=False),
+            pos_labels=morpheme_attribute_labels[0],
+            subpos_labels=morpheme_attribute_labels[1],
+            conjtype_labels=morpheme_attribute_labels[2],
+            conjform_labels=morpheme_attribute_labels[3],
+            word_feature_labels=word_feature_labels,
+            ne_labels=ne_labels,
+            base_phrase_feature_labels=base_phrase_feature_labels,
+            dependency_labels=dependency_labels,
+            dependency_mask=dependency_mask,
+            dependency_type_labels=dependency_type_labels,
+            cohesion_labels=cohesion_labels,
+            cohesion_mask=cohesion_mask,
+            discourse_labels=discourse_labels,
+        )
 
     def _get_subword_map(self, encoding: Encoding, include_special_tokens: bool = True) -> List[List[bool]]:
         subword_map = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]

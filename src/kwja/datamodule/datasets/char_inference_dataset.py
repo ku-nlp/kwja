@@ -1,9 +1,8 @@
 import logging
 from datetime import datetime
-from typing import Dict, List, Optional, Union
+from typing import List, Optional, Union
 from unicodedata import normalize
 
-import torch
 from omegaconf import ListConfig
 from rhoknp import Document, RegexSenter, Sentence
 from transformers import BatchEncoding, PreTrainedTokenizerBase
@@ -11,6 +10,7 @@ from transformers.utils import PaddingStrategy
 
 import kwja
 from kwja.datamodule.datasets.base_dataset import BaseDataset
+from kwja.datamodule.datasets.char_dataset import CharModuleFeatures
 from kwja.datamodule.examples import CharInferenceExample
 from kwja.utils.constants import TRANSLATION_TABLE
 from kwja.utils.progress_bar import track
@@ -18,7 +18,7 @@ from kwja.utils.progress_bar import track
 logger = logging.getLogger(__name__)
 
 
-class CharInferenceDataset(BaseDataset):
+class CharInferenceDataset(BaseDataset[CharModuleFeatures]):
     def __init__(
         self,
         texts: ListConfig,
@@ -35,7 +35,7 @@ class CharInferenceDataset(BaseDataset):
     def __len__(self) -> int:
         return len(self.examples)
 
-    def __getitem__(self, index: int) -> Dict[str, torch.Tensor]:
+    def __getitem__(self, index: int) -> CharModuleFeatures:
         return self.encode(self.examples[index])
 
     def _load_examples(self, documents: List[Document]) -> List[CharInferenceExample]:
@@ -65,12 +65,14 @@ class CharInferenceDataset(BaseDataset):
         return examples
 
     @staticmethod
-    def encode(example: CharInferenceExample) -> Dict[str, torch.Tensor]:
-        return {
-            "example_ids": torch.tensor(example.example_id, dtype=torch.long),
-            "input_ids": torch.tensor(example.encoding.input_ids, dtype=torch.long),
-            "attention_mask": torch.tensor(example.encoding.attention_mask, dtype=torch.long),
-        }
+    def encode(example: CharInferenceExample) -> CharModuleFeatures:
+        return CharModuleFeatures(
+            example_ids=example.example_id,
+            input_ids=example.encoding.input_ids,
+            attention_mask=example.encoding.attention_mask,
+            word_segmentation_labels=[],
+            word_norm_op_labels=[],
+        )
 
     @staticmethod
     def _build_documents_from_texts(texts: List[str], doc_id_prefix: Optional[str]) -> List[Document]:

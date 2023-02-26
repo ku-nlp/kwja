@@ -1,9 +1,9 @@
 import json
 from collections import defaultdict
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List
 
-import torch
 from torch.utils.data import Dataset
 from transformers import BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
@@ -14,7 +14,16 @@ from kwja.utils.progress_bar import track
 from kwja.utils.typo_module_writer import get_maps
 
 
-class TypoDataset(Dataset):
+@dataclass(frozen=True)
+class TypoModuleFeatures:
+    example_ids: int
+    input_ids: List[int]
+    attention_mask: List[int]
+    kdr_labels: List[int]
+    ins_labels: List[int]
+
+
+class TypoDataset(Dataset[TypoModuleFeatures]):
     def __init__(
         self,
         path: str,
@@ -40,7 +49,7 @@ class TypoDataset(Dataset):
     def __len__(self) -> int:
         return len(self.examples)
 
-    def __getitem__(self, index: int) -> Dict[str, torch.Tensor]:
+    def __getitem__(self, index: int) -> TypoModuleFeatures:
         return self.encode(self.examples[index])
 
     @staticmethod
@@ -53,7 +62,7 @@ class TypoDataset(Dataset):
                 example_id += 1
         return examples
 
-    def encode(self, example: TypoExample) -> Dict[str, torch.Tensor]:
+    def encode(self, example: TypoExample) -> TypoModuleFeatures:
         encoding: BatchEncoding = self.tokenizer(
             example.pre_text + DUMMY_TOKEN,
             truncation=True,
@@ -86,10 +95,10 @@ class TypoDataset(Dataset):
         ins_labels = [IGNORE_INDEX] + ins_labels[: self.max_seq_length - 2] + [IGNORE_INDEX]
         ins_labels += [IGNORE_INDEX] * (self.max_seq_length - len(ins_labels))
 
-        return {
-            "example_ids": torch.tensor(example.example_id, dtype=torch.long),
-            "input_ids": torch.tensor(encoding.input_ids, dtype=torch.long),
-            "attention_mask": torch.tensor(encoding.attention_mask, dtype=torch.long),
-            "kdr_labels": torch.tensor(kdr_labels, dtype=torch.long),
-            "ins_labels": torch.tensor(ins_labels, dtype=torch.long),
-        }
+        return TypoModuleFeatures(
+            example_ids=example.example_id,
+            input_ids=encoding.input_ids,
+            attention_mask=encoding.attention_mask,
+            kdr_labels=kdr_labels,
+            ins_labels=ins_labels,
+        )

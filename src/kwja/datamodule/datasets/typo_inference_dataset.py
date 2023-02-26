@@ -1,18 +1,18 @@
 from collections import defaultdict
 from typing import Dict, List
 
-import torch
 from omegaconf import ListConfig
 from torch.utils.data import Dataset
 from transformers import BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
+from kwja.datamodule.datasets.typo_dataset import TypoModuleFeatures
 from kwja.datamodule.examples import TypoInferenceExample
 from kwja.utils.constants import DUMMY_TOKEN
 from kwja.utils.progress_bar import track
 
 
-class TypoInferenceDataset(Dataset):
+class TypoInferenceDataset(Dataset[TypoModuleFeatures]):
     def __init__(
         self,
         texts: ListConfig,
@@ -39,18 +39,20 @@ class TypoInferenceDataset(Dataset):
     def __len__(self) -> int:
         return len(self.examples)
 
-    def __getitem__(self, index: int) -> Dict[str, torch.Tensor]:
+    def __getitem__(self, index: int) -> TypoModuleFeatures:
         return self.encode(self.examples[index])
 
-    def encode(self, example: TypoInferenceExample) -> Dict[str, torch.Tensor]:
+    def encode(self, example: TypoInferenceExample) -> TypoModuleFeatures:
         encoding: BatchEncoding = self.tokenizer(
             example.pre_text + DUMMY_TOKEN,
             truncation=True,
             padding=PaddingStrategy.MAX_LENGTH,
             max_length=self.max_seq_length,
         )
-        return {
-            "example_ids": torch.tensor(example.example_id, dtype=torch.long),
-            "input_ids": torch.tensor(encoding.input_ids, dtype=torch.long),
-            "attention_mask": torch.tensor(encoding.attention_mask, dtype=torch.long),
-        }
+        return TypoModuleFeatures(
+            example_ids=example.example_id,
+            input_ids=encoding.input_ids,
+            attention_mask=encoding.attention_mask,
+            kdr_labels=[],
+            ins_labels=[],
+        )
