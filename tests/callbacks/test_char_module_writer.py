@@ -34,7 +34,7 @@ def test_init(destination: Optional[Union[str, Path]]):
 
 def test_write_on_batch_end():
     texts = ["花咲ガニを買ぅ", "うまそーですね〜〜"]
-    tokenizer = AutoTokenizer.from_pretrained("ku-nlp/roberta-base-japanese-char-wwm")
+    tokenizer = AutoTokenizer.from_pretrained("ku-nlp/roberta-base-japanese-char-wwm", do_word_tokenize=False)
     max_seq_length = 20
     doc_id_prefix = "test"
     dataset = CharInferenceDataset(
