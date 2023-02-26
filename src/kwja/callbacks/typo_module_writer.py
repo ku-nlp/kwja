@@ -7,10 +7,10 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import BasePredictionWriter
 from transformers import PreTrainedTokenizerBase
 
+from kwja.callbacks.utils import apply_edit_operations, convert_predictions_into_typo_corr_op_tags, get_maps
 from kwja.datamodule.datasets import TypoDataset, TypoInferenceDataset
 from kwja.datamodule.examples import TypoExample, TypoInferenceExample
 from kwja.utils.constants import RESOURCE_PATH
-from kwja.utils.typo_module_writer import apply_edit_operations, convert_predictions_into_typo_corr_op_tags, get_maps
 
 
 class TypoModuleWriter(BasePredictionWriter):

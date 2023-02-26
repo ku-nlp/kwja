@@ -12,6 +12,16 @@ from pytorch_lightning.callbacks import BasePredictionWriter
 from rhoknp import Document, Morpheme, Sentence
 from rhoknp.props import SemanticsDict
 
+from kwja.callbacks.utils import (
+    add_base_phrase_features,
+    add_cohesion,
+    add_dependency,
+    add_discourse,
+    add_named_entities,
+    chunk_morphemes,
+    get_morpheme_attribute_predictions,
+    get_word_reading_predictions,
+)
 from kwja.datamodule.datasets import WordDataset, WordInferenceDataset
 from kwja.datamodule.examples import WordExample, WordInferenceExample
 from kwja.utils.constants import (
@@ -28,16 +38,6 @@ from kwja.utils.constants import (
 from kwja.utils.jumandic import JumanDic
 from kwja.utils.reading_prediction import get_reading2reading_id
 from kwja.utils.sub_document import extract_target_sentences, to_orig_doc_id
-from kwja.utils.word_module_writer import (
-    add_base_phrase_features,
-    add_cohesion,
-    add_dependency,
-    add_discourse,
-    add_named_entities,
-    chunk_morphemes,
-    get_morpheme_attribute_predictions,
-    get_word_reading_predictions,
-)
 
 logger = logging.getLogger(__name__)
 

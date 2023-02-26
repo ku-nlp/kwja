@@ -7,10 +7,10 @@ from typing import Any, Optional, Sequence, TextIO, Union
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import BasePredictionWriter
 
+from kwja.callbacks.utils import add_discourse
 from kwja.datamodule.datasets import WordDataset, WordInferenceDataset
 from kwja.datamodule.examples import WordExample, WordInferenceExample
 from kwja.utils.sub_document import extract_target_sentences
-from kwja.utils.word_module_writer import add_discourse
 
 logger = logging.getLogger(__name__)
 

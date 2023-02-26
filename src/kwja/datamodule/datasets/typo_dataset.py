@@ -8,10 +8,10 @@ from torch.utils.data import Dataset
 from transformers import BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
+from kwja.callbacks.utils import get_maps
 from kwja.datamodule.examples import TypoExample
 from kwja.utils.constants import DUMMY_TOKEN, IGNORE_INDEX, RESOURCE_PATH, TYPO_CORR_OP_TAG2TOKEN
 from kwja.utils.progress_bar import track
-from kwja.utils.typo_module_writer import get_maps
 
 
 @dataclass(frozen=True)

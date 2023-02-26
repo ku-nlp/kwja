@@ -10,6 +10,16 @@ from seqeval.metrics import accuracy_score, f1_score
 from seqeval.scheme import IOB2
 from torchmetrics import Metric
 
+from kwja.callbacks.utils import (  # add_discourse,
+    add_base_phrase_features,
+    add_cohesion,
+    add_dependency,
+    add_named_entities,
+    build_morphemes,
+    chunk_morphemes,
+    get_morpheme_attribute_predictions,
+    get_word_reading_predictions,
+)
 from kwja.datamodule.datasets import WordDataset
 from kwja.evaluators.cohesion_scorer import Scorer, ScoreResult
 from kwja.evaluators.conll18_ud_eval import main as conll18_ud_eval
@@ -28,16 +38,6 @@ from kwja.utils.constants import (
     WordTask,
 )
 from kwja.utils.sub_document import extract_target_sentences, to_orig_doc_id
-from kwja.utils.word_module_writer import (  # add_discourse,
-    add_base_phrase_features,
-    add_cohesion,
-    add_dependency,
-    add_named_entities,
-    build_morphemes,
-    chunk_morphemes,
-    get_morpheme_attribute_predictions,
-    get_word_reading_predictions,
-)
 
 
 class WordModuleMetric(Metric):

@@ -6,9 +6,9 @@ from typing import Any, Optional, Sequence, TextIO, Union
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import BasePredictionWriter
 
+from kwja.callbacks.utils import convert_predictions_into_tags, set_morphemes
 from kwja.datamodule.datasets import CharDataset, CharInferenceDataset
 from kwja.datamodule.examples import CharExample, CharInferenceExample
-from kwja.utils.char_module_writer import convert_predictions_into_tags, set_morphemes
 from kwja.utils.sub_document import extract_target_sentences
 
 
