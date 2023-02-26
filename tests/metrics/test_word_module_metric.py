@@ -1,8 +1,7 @@
-from functools import partial
-from math import isclose
 from pathlib import Path
 from typing import Any, Dict
 
+import pytest
 import torch
 from omegaconf import ListConfig
 from rhoknp import Document
@@ -23,8 +22,6 @@ from kwja.utils.constants import (
     WORD_FEATURES,
     WordTask,
 )
-
-isclose = partial(isclose, abs_tol=1e-4)
 
 
 def test_word_module_metric() -> None:
@@ -324,37 +321,37 @@ def test_word_module_metric() -> None:
     assert metrics["reading_prediction_accuracy"] == 1.0
 
     # tp = , fp = , fn =
-    assert isclose(metrics["pos_f1"], 1.0)
+    assert metrics["pos_f1"] == pytest.approx(1.0)
     # tp = , fp = , fn =
-    assert isclose(metrics["subpos_f1"], 1.0)
+    assert metrics["subpos_f1"] == pytest.approx(1.0)
     # tp = , fp = , fn =
-    assert isclose(metrics["conjtype_f1"], 1.0)
+    assert metrics["conjtype_f1"] == pytest.approx(1.0)
     # tp = , fp = , fn =
-    assert isclose(metrics["conjform_f1"], 1.0)
+    assert metrics["conjform_f1"] == pytest.approx(1.0)
     # tp = , fp = , fn =
-    assert isclose(metrics["morphological_analysis_f1"], 1.0)
+    assert metrics["morphological_analysis_f1"] == pytest.approx(1.0)
 
-    assert isclose(metrics["macro_word_feature_tagging_f1"], 1.0)
-    assert isclose(metrics["micro_word_feature_tagging_f1"], 1.0)
-
-    # tp = , fp = , fn =
-    assert isclose(metrics["ner_f1"], 1.0)
-
-    assert isclose(metrics["macro_base_phrase_feature_tagging_f1"], 1.0)
-    assert isclose(metrics["micro_base_phrase_feature_tagging_f1"], 1.0)
+    assert metrics["macro_word_feature_tagging_f1"] == pytest.approx(1.0)
+    assert metrics["micro_word_feature_tagging_f1"] == pytest.approx(1.0)
 
     # tp = , fp = , fn =
-    assert isclose(metrics["base_phrase_LAS_f1"], 1.0)
-    # tp = , fp = , fn =
-    assert isclose(metrics["base_phrase_UAS_f1"], 1.0)
-    # tp = , fp = , fn =
-    assert isclose(metrics["morpheme_LAS_f1"], 1.0)
-    # tp = , fp = , fn =
-    assert isclose(metrics["morpheme_UAS_f1"], 1.0)
+    assert metrics["ner_f1"] == pytest.approx(1.0)
 
-    assert isclose(metrics["pas_all_case"], 1.0)
-    assert isclose(metrics["bridging_all_case"], 0.0)
-    assert isclose(metrics["coreference_all_case"], 0.0)
-    assert isclose(metrics["cohesion_analysis_f1"], 1 / 3)
+    assert metrics["macro_base_phrase_feature_tagging_f1"] == pytest.approx(1.0)
+    assert metrics["micro_base_phrase_feature_tagging_f1"] == pytest.approx(1.0)
 
-    assert isclose(metrics["discourse_parsing_f1"], 1.0)
+    # tp = , fp = , fn =
+    assert metrics["base_phrase_LAS_f1"] == pytest.approx(1.0)
+    # tp = , fp = , fn =
+    assert metrics["base_phrase_UAS_f1"] == pytest.approx(1.0)
+    # tp = , fp = , fn =
+    assert metrics["morpheme_LAS_f1"] == pytest.approx(1.0)
+    # tp = , fp = , fn =
+    assert metrics["morpheme_UAS_f1"] == pytest.approx(1.0)
+
+    assert metrics["pas_all_case"] == pytest.approx(1.0)
+    assert metrics["bridging_all_case"] == pytest.approx(0.0)
+    assert metrics["coreference_all_case"] == pytest.approx(0.0)
+    assert metrics["cohesion_analysis_f1"] == pytest.approx(1 / 3)
+
+    assert metrics["discourse_parsing_f1"] == pytest.approx(1.0)

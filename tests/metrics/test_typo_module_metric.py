@@ -1,14 +1,11 @@
-from functools import partial
-from math import isclose
 from pathlib import Path
 
+import pytest
 import torch
 from transformers import AutoTokenizer
 
 from kwja.datamodule.datasets import TypoDataset
 from kwja.metrics import TypoModuleMetric
-
-isclose = partial(isclose, abs_tol=1e-4)
 
 
 def test_typo_module_metric() -> None:
@@ -65,17 +62,17 @@ def test_typo_module_metric() -> None:
     metrics = metric.compute()
 
     # tp = 5, fp = 0, fn = 0
-    assert isclose(metrics["typo_correction_0.0_precision"], 5 / 5)
-    assert isclose(metrics["typo_correction_0.0_recall"], 5 / 5)
-    assert isclose(metrics["typo_correction_0.0_f1"], (2 * 5 / 5 * 5 / 5) / (5 / 5 + 5 / 5))
-    assert isclose(metrics["typo_correction_0.0_f0.5"], (1.25 * 5 / 5 * 5 / 5) / (0.25 * 5 / 5 + 5 / 5))
+    assert metrics["typo_correction_0.0_precision"] == pytest.approx(5 / 5)
+    assert metrics["typo_correction_0.0_recall"] == pytest.approx(5 / 5)
+    assert metrics["typo_correction_0.0_f1"] == pytest.approx((2 * 5 / 5 * 5 / 5) / (5 / 5 + 5 / 5))
+    assert metrics["typo_correction_0.0_f0.5"] == pytest.approx((1.25 * 5 / 5 * 5 / 5) / (0.25 * 5 / 5 + 5 / 5))
     # tp = 4, fp = 0, fn = 1
-    assert isclose(metrics["typo_correction_0.8_precision"], 4 / 4)
-    assert isclose(metrics["typo_correction_0.8_recall"], 4 / 5)
-    assert isclose(metrics["typo_correction_0.8_f1"], (2 * 4 / 4 * 4 / 5) / (4 / 4 + 4 / 5))
-    assert isclose(metrics["typo_correction_0.8_f0.5"], (1.25 * 4 / 4 * 4 / 5) / (0.25 * 4 / 4 + 4 / 5))
+    assert metrics["typo_correction_0.8_precision"] == pytest.approx(4 / 4)
+    assert metrics["typo_correction_0.8_recall"] == pytest.approx(4 / 5)
+    assert metrics["typo_correction_0.8_f1"] == pytest.approx((2 * 4 / 4 * 4 / 5) / (4 / 4 + 4 / 5))
+    assert metrics["typo_correction_0.8_f0.5"] == pytest.approx((1.25 * 4 / 4 * 4 / 5) / (0.25 * 4 / 4 + 4 / 5))
     # tp = 3, fp = 0, fn = 2
-    assert isclose(metrics["typo_correction_0.9_precision"], 3 / 3)
-    assert isclose(metrics["typo_correction_0.9_recall"], 3 / 5)
-    assert isclose(metrics["typo_correction_0.9_f1"], (2 * 3 / 3 * 3 / 5) / (3 / 3 + 3 / 5))
-    assert isclose(metrics["typo_correction_0.9_f0.5"], (1.25 * 3 / 3 * 3 / 5) / (0.25 * 3 / 3 + 3 / 5))
+    assert metrics["typo_correction_0.9_precision"] == pytest.approx(3 / 3)
+    assert metrics["typo_correction_0.9_recall"] == pytest.approx(3 / 5)
+    assert metrics["typo_correction_0.9_f1"] == pytest.approx((2 * 3 / 3 * 3 / 5) / (3 / 3 + 3 / 5))
+    assert metrics["typo_correction_0.9_f0.5"] == pytest.approx((1.25 * 3 / 3 * 3 / 5) / (0.25 * 3 / 3 + 3 / 5))
