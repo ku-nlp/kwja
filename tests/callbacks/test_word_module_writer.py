@@ -1,7 +1,7 @@
 import tempfile
-import textwrap
 from pathlib import Path
-from typing import Optional, Union
+from textwrap import dedent
+from typing import List, Optional, Union
 
 import pytest
 import pytorch_lightning as pl
@@ -19,13 +19,16 @@ from kwja.utils.constants import (
     CONJFORM_TAGS,
     CONJTYPE_TAGS,
     DEPENDENCY_TYPES,
+    DISCOURSE_RELATIONS,
     NE_TAGS,
     POS_TAGS,
+    RESOURCE_PATH,
     SUBPOS_TAGS,
     WORD_FEATURES,
     WordTask,
 )
 from kwja.utils.jumandic import JumanDic
+from kwja.utils.reading_prediction import get_reading2reading_id
 
 AMBIG_SURF_SPECS = [
     {
@@ -44,18 +47,19 @@ AMBIG_SURF_SPECS = [
 
 
 class MockTrainer:
-    def __init__(self, predict_dataloaders):
+    def __init__(self, predict_dataloaders: List[DataLoader]):
         self.predict_dataloaders = predict_dataloaders
 
 
-def make_dummy_jumandic() -> JumanDic:
+def build_dummy_jumandic() -> JumanDic:
     with tempfile.TemporaryDirectory() as jumandic_dir:
         JumanDic.build(
             Path(jumandic_dir),
             [
-                ["今日", "きょう", "今日", "名詞", "時相名詞", "*", "*", "代表表記:今日/きょう カテゴリ:時間"],
-                ["あい", "あい", "あい", "名詞", "普通名詞", "*", "*", "代表表記:愛/あい 漢字読み:音 カテゴリ:抽象物"],
-                ["あい", "あい", "あい", "名詞", "普通名詞", "*", "*", "代表表記:藍/あい カテゴリ:植物"],
+                ["太郎", "たろう", "太郎", "名詞", "人名", "*", "*", "代表表記:太郎/たろう 人名"],
+                ["次郎", "じろう", "次郎", "名詞", "人名", "*", "*", "代表表記:次郎/じろう 人名"],
+                ["けんか", "けんか", "けんか", "名詞", "サ変名詞", "*", "*", "代表表記:喧嘩/けんか"],
+                ["けんか", "けんか", "けんか", "名詞", "サ変名詞", "*", "*", "代表表記:献花/けんか"],
             ],
         )
         return JumanDic(Path(jumandic_dir))
@@ -65,8 +69,8 @@ def make_dummy_jumandic() -> JumanDic:
     "destination",
     [
         None,
-        Path(tempfile.TemporaryDirectory().name) / Path("word_predict.juman"),
-        str(Path(tempfile.TemporaryDirectory().name) / Path("word_predict.juman")),
+        Path(tempfile.TemporaryDirectory().name) / Path("word_prediction.knp"),
+        str(Path(tempfile.TemporaryDirectory().name) / Path("word_prediction.knp")),
     ],
 )
 def test_init(destination: Optional[Union[str, Path]]):
@@ -74,117 +78,292 @@ def test_init(destination: Optional[Union[str, Path]]):
 
 
 def test_write_on_batch_end():
-    juman_texts = [
-        textwrap.dedent(
-            f"""\
-            # S-ID:test-0-0 kwja:{kwja.__version__}
-            今日 _ 今日 未定義語 15 その他 1 * 0 * 0
-            は _ は 未定義語 15 その他 1 * 0 * 0
-            晴れ _ 晴れ 未定義語 15 その他 1 * 0 * 0
-            だ _ だ 未定義語 15 その他 1 * 0 * 0
-            EOS
-            """
-        )
-    ]
-    tokens = ["[CLS] 今日 は 晴れ だ"]
-
+    doc_id_prefix = "test"
+    juman_text = dedent(
+        f"""\
+        # S-ID:{doc_id_prefix}-0-0 kwja:{kwja.__version__}
+        太郎 _ 太郎 未定義語 15 その他 1 * 0 * 0
+        と _ と 未定義語 15 その他 1 * 0 * 0
+        次郎 _ 次郎 未定義語 15 その他 1 * 0 * 0
+        は _ は 未定義語 15 その他 1 * 0 * 0
+        よく _ よく 未定義語 15 その他 1 * 0 * 0
+        けんか _ けんか 未定義語 15 その他 1 * 0 * 0
+        する _ する 未定義語 15 その他 1 * 0 * 0
+        EOS
+        # S-ID:{doc_id_prefix}-1-0 kwja:{kwja.__version__}
+        辛い _ 辛い 未定義語 15 その他 1 * 0 * 0
+        ラーメン _ ラーメン 未定義語 15 その他 1 * 0 * 0
+        が _ が 未定義語 15 その他 1 * 0 * 0
+        好きな _ 好きな 未定義語 15 その他 1 * 0 * 0
+        ので _ ので 未定義語 15 その他 1 * 0 * 0
+        頼み _ 頼み 未定義語 15 その他 1 * 0 * 0
+        ました _ ました 未定義語 15 その他 1 * 0 * 0
+        EOS
+        """
+    )
     juman_file = tempfile.NamedTemporaryFile("wt")
-    juman_file.write("".join(juman_texts))
+    juman_file.write(juman_text)
     juman_file.seek(0)
 
-    reading_logits = torch.zeros(1, 5, 12907, dtype=torch.float)  # 12907: vocab size
-    reading_logits[0][1][255] = 1.0  # きょう
-    reading_logits[0][2][1] = 1.0  # ID
-    reading_logits[0][3][4039] = 1.0  # はれ
-    reading_logits[0][4][1] = 1.0  # ID
-
-    reading_subword_map = torch.tensor(
-        [
-            [
-                [False, True, False, False, False],
-                [False, False, True, False, False],
-                [False, False, False, True, False],
-                [False, False, False, False, True],
-                [False, False, False, False, False],
-                [False, False, False, False, False],
-            ]
-        ],
-        dtype=torch.bool,
+    exophora_referents = ["著者", "読者", "不特定:人", "不特定:物"]
+    special_tokens = exophora_referents + ["[NULL]", "[NA]", "[ROOT]"]
+    tokenizer = AutoTokenizer.from_pretrained(
+        "nlp-waseda/roberta-base-japanese", additional_special_tokens=special_tokens
+    )
+    max_seq_length = 20  # >= 17
+    dataset = WordInferenceDataset(
+        tokenizer=tokenizer,
+        document_split_stride=1,
+        cohesion_tasks=ListConfig(["pas_analysis", "bridging_reference_resolution", "coreference_resolution"]),
+        exophora_referents=ListConfig(exophora_referents),
+        restrict_cohesion_target=True,
+        pas_cases=ListConfig(["ガ", "ヲ", "ニ", "ガ２"]),
+        br_cases=ListConfig(["ノ"]),
+        special_tokens=ListConfig(special_tokens),
+        juman_file=Path(juman_file.name),
+        max_seq_length=max_seq_length,
     )
 
-    pos_logits = torch.zeros(1, 13, len(POS_TAGS), dtype=torch.float)
-    pos_logits[0][0][POS_TAGS.index("名詞")] = 1.0
-    pos_logits[0][1][POS_TAGS.index("助詞")] = 1.0
-    pos_logits[0][2][POS_TAGS.index("名詞")] = 1.0
-    pos_logits[0][3][POS_TAGS.index("判定詞")] = 1.0
+    trainer = MockTrainer([DataLoader(dataset, batch_size=len(dataset))])
 
-    subpos_logits = torch.zeros(1, 13, len(SUBPOS_TAGS), dtype=torch.float)
-    subpos_logits[0][0][SUBPOS_TAGS.index("時相名詞")] = 1.0
-    subpos_logits[0][1][SUBPOS_TAGS.index("副助詞")] = 1.0
-    subpos_logits[0][2][SUBPOS_TAGS.index("普通名詞")] = 1.0
-    subpos_logits[0][3][SUBPOS_TAGS.index("*")] = 1.0
+    module = pl.LightningModule()
+    module.training_tasks = [
+        WordTask.READING_PREDICTION,
+        WordTask.MORPHOLOGICAL_ANALYSIS,
+        WordTask.WORD_FEATURE_TAGGING,
+        WordTask.NER,
+        WordTask.BASE_PHRASE_FEATURE_TAGGING,
+        WordTask.DEPENDENCY_PARSING,
+        WordTask.COHESION_ANALYSIS,
+        WordTask.DISCOURSE_PARSING,
+    ]
 
-    conjtype_logits = torch.zeros(1, 13, len(CONJTYPE_TAGS), dtype=torch.float)
-    conjtype_logits[0][0][CONJTYPE_TAGS.index("*")] = 1.0
-    conjtype_logits[0][1][CONJTYPE_TAGS.index("*")] = 1.0
-    conjtype_logits[0][2][CONJTYPE_TAGS.index("*")] = 1.0
-    conjtype_logits[0][3][CONJTYPE_TAGS.index("判定詞")] = 1.0
+    reading_resource_path = RESOURCE_PATH / "reading_prediction"
+    reading2reading_id = get_reading2reading_id(reading_resource_path / "vocab.txt")
+    reading_logits = torch.zeros((2, max_seq_length, len(reading2reading_id)), dtype=torch.float)
+    reading_logits[0, 1, reading2reading_id["たろう"]] = 1.0  # 太郎 -> たろう
+    reading_logits[0, 2, reading2reading_id["[ID]"]] = 1.0  # と
+    reading_logits[0, 3, reading2reading_id["じろう"]] = 1.0  # 次郎 -> じろう
+    reading_logits[0, 4, reading2reading_id["[ID]"]] = 1.0  # は
+    reading_logits[0, 5, reading2reading_id["[ID]"]] = 1.0  # よく
+    reading_logits[0, 6, reading2reading_id["[ID]"]] = 1.0  # けん
+    reading_logits[0, 7, reading2reading_id["[ID]"]] = 1.0  # か
+    reading_logits[0, 8, reading2reading_id["[ID]"]] = 1.0  # する
+    reading_logits[1, 1, reading2reading_id["からい"]] = 1.0  # 辛い -> からい
+    reading_logits[1, 2, reading2reading_id["らーめん"]] = 1.0  # ラーメン -> らーめん
+    reading_logits[1, 3, reading2reading_id["[ID]"]] = 1.0  # が
+    reading_logits[1, 4, reading2reading_id["すきな"]] = 1.0  # 好きな -> すきな
+    reading_logits[1, 5, reading2reading_id["[ID]"]] = 1.0  # ので
+    reading_logits[1, 6, reading2reading_id["たのみ"]] = 1.0  # 頼み -> たのみ
+    reading_logits[1, 7, reading2reading_id["[ID]"]] = 1.0  # ました
 
-    conjform_logits = torch.zeros(1, 13, len(CONJFORM_TAGS), dtype=torch.float)
-    conjform_logits[0][0][CONJFORM_TAGS.index("*")] = 1.0
-    conjform_logits[0][1][CONJFORM_TAGS.index("*")] = 1.0
-    conjform_logits[0][2][CONJFORM_TAGS.index("*")] = 1.0
-    conjform_logits[0][3][CONJFORM_TAGS.index("基本形")] = 1.0
+    # (b, word, token)
+    reading_subword_map = torch.zeros((2, max_seq_length, max_seq_length), dtype=torch.bool)
+    reading_subword_map[0, 0, 1] = True
+    reading_subword_map[0, 1, 2] = True
+    reading_subword_map[0, 2, 3] = True
+    reading_subword_map[0, 3, 4] = True
+    reading_subword_map[0, 4, 5] = True
+    reading_subword_map[0, 5, 6] = True  # けんか -> けん
+    reading_subword_map[0, 5, 7] = True  # けんか -> か
+    reading_subword_map[0, 6, 8] = True
+    reading_subword_map[1, 0, 1] = True
+    reading_subword_map[1, 1, 2] = True
+    reading_subword_map[1, 2, 3] = True
+    reading_subword_map[1, 3, 4] = True
+    reading_subword_map[1, 4, 5] = True
+    reading_subword_map[1, 5, 6] = True
+    reading_subword_map[1, 6, 7] = True
 
-    word_feature_probabilities = torch.zeros(1, 13, len(WORD_FEATURES), dtype=torch.float)
-    word_feature_probabilities[0][0][WORD_FEATURES.index("基本句-主辞")] = 1.0
-    word_feature_probabilities[0][1][WORD_FEATURES.index("基本句-区切")] = 1.0
-    word_feature_probabilities[0][1][WORD_FEATURES.index("文節-区切")] = 1.0
-    word_feature_probabilities[0][2][WORD_FEATURES.index("基本句-主辞")] = 1.0
-    word_feature_probabilities[0][2][WORD_FEATURES.index("用言表記先頭")] = 1.0
-    word_feature_probabilities[0][2][WORD_FEATURES.index("用言表記末尾")] = 1.0
-    word_feature_probabilities[0][3][WORD_FEATURES.index("基本句-区切")] = 1.0
-    word_feature_probabilities[0][3][WORD_FEATURES.index("文節-区切")] = 1.0
+    pos_logits = torch.zeros((2, max_seq_length, len(POS_TAGS)), dtype=torch.float)
+    pos_logits[0, 0, POS_TAGS.index("名詞")] = 1.0  # 太郎
+    pos_logits[0, 1, POS_TAGS.index("助詞")] = 1.0  # と
+    pos_logits[0, 2, POS_TAGS.index("名詞")] = 1.0  # 次郎
+    pos_logits[0, 3, POS_TAGS.index("助詞")] = 1.0  # は
+    pos_logits[0, 4, POS_TAGS.index("副詞")] = 1.0  # よく
+    pos_logits[0, 5, POS_TAGS.index("名詞")] = 1.0  # けんか
+    pos_logits[0, 6, POS_TAGS.index("動詞")] = 1.0  # する
+    pos_logits[1, 0, POS_TAGS.index("形容詞")] = 1.0  # 辛い
+    pos_logits[1, 1, POS_TAGS.index("名詞")] = 1.0  # ラーメン
+    pos_logits[1, 2, POS_TAGS.index("助詞")] = 1.0  # が
+    pos_logits[1, 3, POS_TAGS.index("形容詞")] = 1.0  # 好きな
+    pos_logits[1, 4, POS_TAGS.index("助動詞")] = 1.0  # ので
+    pos_logits[1, 5, POS_TAGS.index("動詞")] = 1.0  # 頼み
+    pos_logits[1, 6, POS_TAGS.index("接尾辞")] = 1.0  # ました
 
-    ne_predictions = torch.full((1, 13), NE_TAGS.index("O"), dtype=torch.long)
-    ne_predictions[0][2] = NE_TAGS.index("B-DATE")
+    subpos_logits = torch.zeros((2, max_seq_length, len(SUBPOS_TAGS)), dtype=torch.float)
+    subpos_logits[0, 0, SUBPOS_TAGS.index("人名")] = 1.0  # 太郎
+    subpos_logits[0, 1, SUBPOS_TAGS.index("格助詞")] = 1.0  # と
+    subpos_logits[0, 2, SUBPOS_TAGS.index("人名")] = 1.0  # 次郎
+    subpos_logits[0, 3, SUBPOS_TAGS.index("副助詞")] = 1.0  # は
+    subpos_logits[0, 4, SUBPOS_TAGS.index("*")] = 1.0  # よく
+    subpos_logits[0, 5, SUBPOS_TAGS.index("サ変名詞")] = 1.0  # けんか
+    subpos_logits[0, 6, SUBPOS_TAGS.index("*")] = 1.0  # する
+    subpos_logits[1, 0, SUBPOS_TAGS.index("*")] = 1.0  # 辛い
+    subpos_logits[1, 1, SUBPOS_TAGS.index("普通名詞")] = 1.0  # ラーメン
+    subpos_logits[1, 2, SUBPOS_TAGS.index("*")] = 1.0  # が
+    subpos_logits[1, 3, SUBPOS_TAGS.index("*")] = 1.0  # 好きな
+    subpos_logits[1, 4, SUBPOS_TAGS.index("*")] = 1.0  # ので
+    subpos_logits[1, 5, SUBPOS_TAGS.index("*")] = 1.0  # 頼み
+    subpos_logits[1, 6, SUBPOS_TAGS.index("動詞性接尾辞")] = 1.0  # ました
 
-    base_phrase_feature_probabilities = torch.zeros(1, 13, len(BASE_PHRASE_FEATURES), dtype=torch.float)
-    base_phrase_feature_probabilities[0][0][BASE_PHRASE_FEATURES.index("体言")] = 1.0
-    base_phrase_feature_probabilities[0][2][BASE_PHRASE_FEATURES.index("用言:判")] = 1.0
-    base_phrase_feature_probabilities[0][2][BASE_PHRASE_FEATURES.index("時制:非過去")] = 1.0
-    base_phrase_feature_probabilities[0][2][BASE_PHRASE_FEATURES.index("節-主辞")] = 1.0
-    base_phrase_feature_probabilities[0][2][BASE_PHRASE_FEATURES.index("節-区切")] = 1.0
-    base_phrase_feature_probabilities[0][2][BASE_PHRASE_FEATURES.index("レベル:C")] = 1.0
-    base_phrase_feature_probabilities[0][2][BASE_PHRASE_FEATURES.index("状態述語")] = 1.0
+    conjtype_logits = torch.zeros((2, max_seq_length, len(CONJTYPE_TAGS)), dtype=torch.float)
+    conjtype_logits[0, 0, CONJTYPE_TAGS.index("*")] = 1.0  # 太郎
+    conjtype_logits[0, 1, CONJTYPE_TAGS.index("*")] = 1.0  # と
+    conjtype_logits[0, 2, CONJTYPE_TAGS.index("*")] = 1.0  # 次郎
+    conjtype_logits[0, 3, CONJTYPE_TAGS.index("*")] = 1.0  # は
+    conjtype_logits[0, 4, CONJTYPE_TAGS.index("*")] = 1.0  # よく
+    conjtype_logits[0, 5, CONJTYPE_TAGS.index("*")] = 1.0  # けんか
+    conjtype_logits[0, 6, CONJTYPE_TAGS.index("サ変動詞")] = 1.0  # する
+    conjtype_logits[1, 0, CONJTYPE_TAGS.index("イ形容詞アウオ段")] = 1.0  # 辛い
+    conjtype_logits[1, 1, CONJTYPE_TAGS.index("*")] = 1.0  # ラーメン
+    conjtype_logits[1, 2, CONJTYPE_TAGS.index("母音動詞")] = 1.0  # が
+    conjtype_logits[1, 3, CONJTYPE_TAGS.index("ナ形容詞")] = 1.0  # 好きな
+    conjtype_logits[1, 4, CONJTYPE_TAGS.index("ナ形容詞")] = 1.0  # ので
+    conjtype_logits[1, 5, CONJTYPE_TAGS.index("子音動詞マ行")] = 1.0  # 頼み
+    conjtype_logits[1, 6, CONJTYPE_TAGS.index("動詞性接尾辞ます型")] = 1.0  # ました
 
-    dependency_topk = 2
-    dependency_logits = torch.zeros(1, 4, 13, dtype=torch.float)  # (b, word, word)
-    dependency_logits[0][0][2] = 1.0
-    dependency_logits[0][1][1] = 1.0
-    dependency_logits[0][2][12] = 1.0  # [ROOT]
-    dependency_logits[0][3][2] = 1.0
+    conjform_logits = torch.zeros((2, max_seq_length, len(CONJFORM_TAGS)), dtype=torch.float)
+    conjform_logits[0, 0, CONJFORM_TAGS.index("*")] = 1.0  # 太郎
+    conjform_logits[0, 1, CONJFORM_TAGS.index("*")] = 1.0  # と
+    conjform_logits[0, 2, CONJFORM_TAGS.index("*")] = 1.0  # 次郎
+    conjform_logits[0, 3, CONJFORM_TAGS.index("*")] = 1.0  # は
+    conjform_logits[0, 4, CONJFORM_TAGS.index("*")] = 1.0  # よく
+    conjform_logits[0, 5, CONJFORM_TAGS.index("*")] = 1.0  # けんか
+    conjform_logits[0, 6, CONJFORM_TAGS.index("基本形")] = 1.0  # する
+    conjform_logits[1, 0, CONJFORM_TAGS.index("基本形")] = 1.0  # 辛い
+    conjform_logits[1, 1, CONJFORM_TAGS.index("*")] = 1.0  # ラーメン
+    conjform_logits[1, 2, CONJFORM_TAGS.index("*")] = 1.0  # が
+    conjform_logits[1, 3, CONJFORM_TAGS.index("ダ列基本連体形")] = 1.0  # 好きな
+    conjform_logits[1, 4, CONJFORM_TAGS.index("ダ列タ系連用テ形")] = 1.0  # ので
+    conjform_logits[1, 5, CONJFORM_TAGS.index("基本連用形")] = 1.0  # 頼み
+    conjform_logits[1, 6, CONJFORM_TAGS.index("タ形")] = 1.0  # ました
 
-    dependency_type_logits = torch.zeros(1, 13, 1, len(DEPENDENCY_TYPES), dtype=torch.float)
-    dependency_type_logits[0][0][0][DEPENDENCY_TYPES.index(DepType.DEPENDENCY)] = 1.0
-    dependency_type_logits[0][1][0][DEPENDENCY_TYPES.index(DepType.DEPENDENCY)] = 1.0
-    dependency_type_logits[0][2][0][DEPENDENCY_TYPES.index(DepType.DEPENDENCY)] = 1.0
-    dependency_type_logits[0][3][0][DEPENDENCY_TYPES.index(DepType.DEPENDENCY)] = 1.0
+    word_feature_probabilities = torch.zeros((2, max_seq_length, len(WORD_FEATURES)), dtype=torch.float)
+    word_feature_probabilities[0, 0, WORD_FEATURES.index("基本句-主辞")] = 1.0  # 太郎
+    word_feature_probabilities[0, 1, WORD_FEATURES.index("基本句-区切")] = 1.0  # と
+    word_feature_probabilities[0, 1, WORD_FEATURES.index("文節-区切")] = 1.0
+    word_feature_probabilities[0, 2, WORD_FEATURES.index("基本句-主辞")] = 1.0  # 次郎
+    word_feature_probabilities[0, 3, WORD_FEATURES.index("基本句-区切")] = 1.0  # は
+    word_feature_probabilities[0, 3, WORD_FEATURES.index("文節-区切")] = 1.0
+    word_feature_probabilities[0, 4, WORD_FEATURES.index("基本句-主辞")] = 1.0  # よく
+    word_feature_probabilities[0, 4, WORD_FEATURES.index("基本句-区切")] = 1.0
+    word_feature_probabilities[0, 4, WORD_FEATURES.index("文節-区切")] = 1.0
+    word_feature_probabilities[0, 4, WORD_FEATURES.index("用言表記先頭")] = 1.0
+    word_feature_probabilities[0, 4, WORD_FEATURES.index("用言表記末尾")] = 1.0
+    word_feature_probabilities[0, 5, WORD_FEATURES.index("基本句-主辞")] = 1.0  # けんか
+    word_feature_probabilities[0, 5, WORD_FEATURES.index("用言表記先頭")] = 1.0
+    word_feature_probabilities[0, 5, WORD_FEATURES.index("用言表記末尾")] = 1.0
+    word_feature_probabilities[0, 6, WORD_FEATURES.index("基本句-区切")] = 1.0  # する
+    word_feature_probabilities[0, 6, WORD_FEATURES.index("文節-区切")] = 1.0
+    word_feature_probabilities[1, 0, WORD_FEATURES.index("基本句-主辞")] = 1.0  # 辛い
+    word_feature_probabilities[1, 0, WORD_FEATURES.index("基本句-区切")] = 1.0
+    word_feature_probabilities[1, 0, WORD_FEATURES.index("文節-区切")] = 1.0
+    word_feature_probabilities[1, 0, WORD_FEATURES.index("用言表記先頭")] = 1.0
+    word_feature_probabilities[1, 0, WORD_FEATURES.index("用言表記末尾")] = 1.0
+    word_feature_probabilities[1, 1, WORD_FEATURES.index("基本句-主辞")] = 1.0  # ラーメン
+    word_feature_probabilities[1, 2, WORD_FEATURES.index("基本句-区切")] = 1.0  # が
+    word_feature_probabilities[1, 2, WORD_FEATURES.index("文節-区切")] = 1.0
+    word_feature_probabilities[1, 3, WORD_FEATURES.index("基本句-主辞")] = 1.0  # 好きな
+    word_feature_probabilities[1, 3, WORD_FEATURES.index("用言表記先頭")] = 1.0
+    word_feature_probabilities[1, 3, WORD_FEATURES.index("用言表記末尾")] = 1.0
+    word_feature_probabilities[1, 4, WORD_FEATURES.index("基本句-区切")] = 1.0  # ので
+    word_feature_probabilities[1, 4, WORD_FEATURES.index("文節-区切")] = 1.0
+    word_feature_probabilities[1, 5, WORD_FEATURES.index("基本句-主辞")] = 1.0  # 頼み
+    word_feature_probabilities[1, 5, WORD_FEATURES.index("用言表記先頭")] = 1.0
+    word_feature_probabilities[1, 5, WORD_FEATURES.index("用言表記末尾")] = 1.0
+    word_feature_probabilities[1, 6, WORD_FEATURES.index("基本句-区切")] = 1.0  # ました
+    word_feature_probabilities[1, 6, WORD_FEATURES.index("文節-区切")] = 1.0
 
-    cohesion_logits = torch.zeros(1, 6, 4, 13, dtype=torch.float)  # (b, rel, word, word)
-    cohesion_logits[0, :, :, 10] = 1.0  # [NULL]
-    cohesion_logits[0, :, :, 11] = 1.0  # [NA]
-    cohesion_logits[0, 0, 2, 0] = 2.0  # 今日 ガ 晴れ
+    ne_predictions = torch.full((2, max_seq_length), NE_TAGS.index("O"), dtype=torch.long)
+    ne_predictions[0, 0] = NE_TAGS.index("B-PERSON")  # 太郎
+    ne_predictions[0, 2] = NE_TAGS.index("B-PERSON")  # 次郎
 
-    # NOTE: This is not a correct prediction, but it is used to test the module.
-    discourse_logits = torch.zeros(1, 4, 13, 7, dtype=torch.float)  # (b, word, word, rel)
-    discourse_logits[0][2][2][1] = 1.0  # 晴れ -> 晴れ: 原因・理由
+    base_phrase_feature_probabilities = torch.zeros((2, max_seq_length, len(BASE_PHRASE_FEATURES)), dtype=torch.float)
+    base_phrase_feature_probabilities[0, 0, BASE_PHRASE_FEATURES.index("体言")] = 1.0  # 太郎
+    base_phrase_feature_probabilities[0, 0, BASE_PHRASE_FEATURES.index("SM-主体")] = 1.0
+    base_phrase_feature_probabilities[0, 2, BASE_PHRASE_FEATURES.index("体言")] = 1.0  # 次郎
+    base_phrase_feature_probabilities[0, 2, BASE_PHRASE_FEATURES.index("SM-主体")] = 1.0
+    base_phrase_feature_probabilities[0, 4, BASE_PHRASE_FEATURES.index("修飾")] = 1.0  # よく
+    base_phrase_feature_probabilities[0, 5, BASE_PHRASE_FEATURES.index("用言:動")] = 1.0  # けんか
+    base_phrase_feature_probabilities[0, 5, BASE_PHRASE_FEATURES.index("時制:非過去")] = 1.0
+    base_phrase_feature_probabilities[0, 5, BASE_PHRASE_FEATURES.index("節-主辞")] = 1.0
+    base_phrase_feature_probabilities[0, 5, BASE_PHRASE_FEATURES.index("節-区切")] = 1.0
+    base_phrase_feature_probabilities[0, 5, BASE_PHRASE_FEATURES.index("レベル:C")] = 1.0
+    base_phrase_feature_probabilities[0, 5, BASE_PHRASE_FEATURES.index("動態述語")] = 1.0
+    base_phrase_feature_probabilities[1, 0, BASE_PHRASE_FEATURES.index("用言:形")] = 1.0  # 辛い
+    base_phrase_feature_probabilities[1, 0, BASE_PHRASE_FEATURES.index("時制:非過去")] = 1.0
+    base_phrase_feature_probabilities[1, 0, BASE_PHRASE_FEATURES.index("レベル:B-")] = 1.0
+    base_phrase_feature_probabilities[1, 0, BASE_PHRASE_FEATURES.index("状態述語")] = 1.0
+    base_phrase_feature_probabilities[1, 1, BASE_PHRASE_FEATURES.index("体言")] = 1.0  # ラーメン
+    base_phrase_feature_probabilities[1, 3, BASE_PHRASE_FEATURES.index("用言:形")] = 1.0  # 好きな
+    base_phrase_feature_probabilities[1, 3, BASE_PHRASE_FEATURES.index("時制:非過去")] = 1.0
+    base_phrase_feature_probabilities[1, 3, BASE_PHRASE_FEATURES.index("節-主辞")] = 1.0
+    base_phrase_feature_probabilities[1, 3, BASE_PHRASE_FEATURES.index("節-区切")] = 1.0
+    base_phrase_feature_probabilities[1, 3, BASE_PHRASE_FEATURES.index("レベル:B+")] = 1.0
+    base_phrase_feature_probabilities[1, 3, BASE_PHRASE_FEATURES.index("状態述語")] = 1.0
+    base_phrase_feature_probabilities[1, 3, BASE_PHRASE_FEATURES.index("節-機能-原因・理由")] = 1.0
+    base_phrase_feature_probabilities[1, 5, BASE_PHRASE_FEATURES.index("用言:動")] = 1.0  # 頼み
+    base_phrase_feature_probabilities[1, 5, BASE_PHRASE_FEATURES.index("時制:過去")] = 1.0
+    base_phrase_feature_probabilities[1, 5, BASE_PHRASE_FEATURES.index("節-主辞")] = 1.0
+    base_phrase_feature_probabilities[1, 5, BASE_PHRASE_FEATURES.index("節-区切")] = 1.0
+    base_phrase_feature_probabilities[1, 5, BASE_PHRASE_FEATURES.index("レベル:C")] = 1.0
+    base_phrase_feature_probabilities[1, 5, BASE_PHRASE_FEATURES.index("動態述語")] = 1.0
+    base_phrase_feature_probabilities[1, 5, BASE_PHRASE_FEATURES.index("敬語:丁寧表現")] = 1.0
+
+    dependency_topk = 1
+    dependency_logits = torch.zeros((2, max_seq_length, max_seq_length), dtype=torch.float)  # (b, word, word)
+    dependency_logits[0, 0, 2] = 1.0  # 太郎 -> 次郎
+    dependency_logits[0, 1, 0] = 1.0  # と -> 太郎
+    dependency_logits[0, 2, 5] = 1.0  # 次郎 -> けんか
+    dependency_logits[0, 3, 2] = 1.0  # は -> 次郎
+    dependency_logits[0, 4, 5] = 1.0  # よく -> けんか
+    dependency_logits[0, 5, dataset.special_token2index["[ROOT]"]] = 1.0  # けんか -> [ROOT]
+    dependency_logits[0, 6, 5] = 1.0  # する -> けんか
+    dependency_logits[1, 0, 1] = 1.0  # 辛い -> ラーメン
+    dependency_logits[1, 1, 2] = 1.0  # ラーメン -> 好きな
+    dependency_logits[1, 2, 1] = 1.0  # が -> ラーメン
+    dependency_logits[1, 3, 5] = 1.0  # 好きな -> 頼み
+    dependency_logits[1, 4, 3] = 1.0  # ので -> 好きな
+    dependency_logits[1, 5, dataset.special_token2index["[ROOT]"]] = 1.0  # 頼み -> [ROOT]
+    dependency_logits[1, 6, 5] = 1.0  # ました -> 頼み
+
+    dependency_type_logits = torch.zeros((2, max_seq_length, dependency_topk, len(DEPENDENCY_TYPES)), dtype=torch.float)
+    dependency_type_logits[0, 0, 0, DEPENDENCY_TYPES.index(DepType.PARALLEL)] = 1.0  # 太郎 -> 次郎
+    dependency_type_logits[0, 1, 0, DEPENDENCY_TYPES.index(DepType.DEPENDENCY)] = 1.0  # が -> 太郎
+    dependency_type_logits[0, 2, 0, DEPENDENCY_TYPES.index(DepType.DEPENDENCY)] = 1.0  # 次郎 -> けんか
+    dependency_type_logits[0, 3, 0, DEPENDENCY_TYPES.index(DepType.DEPENDENCY)] = 1.0  # は -> 次郎
+    dependency_type_logits[0, 4, 0, DEPENDENCY_TYPES.index(DepType.DEPENDENCY)] = 1.0  # よく -> けんか
+    dependency_type_logits[0, 5, 0, DEPENDENCY_TYPES.index(DepType.DEPENDENCY)] = 1.0  # けんか -> [ROOT]
+    dependency_type_logits[0, 6, 0, DEPENDENCY_TYPES.index(DepType.DEPENDENCY)] = 1.0  # する -> けんか
+    dependency_type_logits[1, 0, 0, DEPENDENCY_TYPES.index(DepType.DEPENDENCY)] = 1.0  # 辛い -> ラーメン
+    dependency_type_logits[1, 1, 0, DEPENDENCY_TYPES.index(DepType.DEPENDENCY)] = 1.0  # ラーメン -> 好きな
+    dependency_type_logits[1, 2, 0, DEPENDENCY_TYPES.index(DepType.DEPENDENCY)] = 1.0  # が -> ラーメン
+    dependency_type_logits[1, 3, 0, DEPENDENCY_TYPES.index(DepType.DEPENDENCY)] = 1.0  # 好きな -> 頼み
+    dependency_type_logits[1, 4, 0, DEPENDENCY_TYPES.index(DepType.DEPENDENCY)] = 1.0  # ので -> 好きな
+    dependency_type_logits[1, 5, 0, DEPENDENCY_TYPES.index(DepType.DEPENDENCY)] = 1.0  # 頼み -> [ROOT]
+    dependency_type_logits[1, 6, 0, DEPENDENCY_TYPES.index(DepType.DEPENDENCY)] = 1.0  # ました -> 頼み
+
+    # (b, rel, src, tgt)
+    flatten_rels = [r for cohesion_utils in dataset.cohesion_task2utils.values() for r in cohesion_utils.rels]
+    cohesion_logits = torch.zeros((2, len(flatten_rels), max_seq_length, max_seq_length), dtype=torch.float)
+    cohesion_logits[:, :, :, dataset.special_token2index["[NULL]"]] = 1.0
+    cohesion_logits[:, :, :, dataset.special_token2index["[NA]"]] = 1.0
+    cohesion_logits[0, flatten_rels.index("ガ"), 5, 2] = 2.0  # 次郎 ガ けんか
+    cohesion_logits[1, flatten_rels.index("ガ"), 0, 1] = 1.0  # ラーメン ガ 辛い
+    cohesion_logits[1, flatten_rels.index("ガ"), 3, 1] = 1.0  # ラーメン ガ 好き
+    cohesion_logits[1, flatten_rels.index("ガ２"), 3, dataset.special_token2index["著者"]] = 1.0  # 著者 ガ 好き
+    cohesion_logits[1, flatten_rels.index("ガ"), 5, dataset.special_token2index["著者"]] = 1.0  # 著者 ガ 頼み
+    cohesion_logits[1, flatten_rels.index("ヲ"), 5, 1] = 1.0  # ラーメン ヲ 頼み
+
+    # (b, src, tgt, rel)
+    discourse_logits = torch.zeros((2, max_seq_length, max_seq_length, len(DISCOURSE_RELATIONS)), dtype=torch.float)
+    discourse_logits[1, 3, 5, DISCOURSE_RELATIONS.index("原因・理由")] = 1.0  # 好きな - 頼み|原因・理由
     discourse_probabilities = discourse_logits.softmax(dim=3)
     discourse_max_probabilities, discourse_predictions = discourse_probabilities.max(dim=3)
 
     prediction = {
-        "tokens": tokens,
-        "example_ids": [0],
+        "example_ids": torch.arange(len(dataset), dtype=torch.long),
         "reading_predictions": reading_logits.argmax(dim=2),
         "reading_subword_map": reading_subword_map,
         "pos_logits": pos_logits,
@@ -201,55 +380,45 @@ def test_write_on_batch_end():
     }
 
     with tempfile.TemporaryDirectory() as tmp_dir:
-        # max_seq_length = 6 ([CLS], 今日, は, 晴れ, だ, [SEP]) + 7 (著者, 読者, 不特定:人, 不特定:物, [NULL], [NA], [ROOT])
-        writer = WordModuleWriter(AMBIG_SURF_SPECS, destination=tmp_dir / Path("word_predict.knp"))
-        writer.jumandic = make_dummy_jumandic()
-
-        exophora_referents = ["著者", "読者", "不特定:人", "不特定:物"]
-        special_tokens = exophora_referents + ["[NULL]", "[NA]", "[ROOT]"]
-        tokenizer = AutoTokenizer.from_pretrained(
-            "nlp-waseda/roberta-base-japanese", additional_special_tokens=special_tokens
-        )
-        dataset = WordInferenceDataset(
-            tokenizer=tokenizer,
-            document_split_stride=1,
-            cohesion_tasks=ListConfig(["pas_analysis", "bridging_reference_resolution", "coreference_resolution"]),
-            exophora_referents=ListConfig(exophora_referents),
-            restrict_cohesion_target=True,
-            pas_cases=ListConfig(["ガ", "ヲ", "ニ", "ガ２"]),
-            br_cases=ListConfig(["ノ"]),
-            special_tokens=ListConfig(special_tokens),
-            juman_file=Path(juman_file.name),
-            max_seq_length=13,
-        )
-
-        trainer = MockTrainer([DataLoader(dataset)])
-        module = pl.LightningModule()
-        module.training_tasks = [
-            WordTask.READING_PREDICTION,
-            WordTask.MORPHOLOGICAL_ANALYSIS,
-            WordTask.WORD_FEATURE_TAGGING,
-            WordTask.NER,
-            WordTask.BASE_PHRASE_FEATURE_TAGGING,
-            WordTask.DEPENDENCY_PARSING,
-            WordTask.COHESION_ANALYSIS,
-            WordTask.DISCOURSE_PARSING,
-        ]
-
+        writer = WordModuleWriter(AMBIG_SURF_SPECS, destination=tmp_dir / Path("word_prediction.knp"))
+        writer.jumandic = build_dummy_jumandic()
         writer.write_on_batch_end(trainer, module, prediction, ..., ..., 0, 0)  # noqa
-        expected_knp = textwrap.dedent(
+        assert writer.destination.read_text() == dedent(
             f"""\
-            # S-ID:test-0-0 kwja:{kwja.__version__}
-            * 1D
-            + 1D <体言>
-            今日 きょう 今日 名詞 6 時相名詞 10 * 0 * 0 "代表表記:今日/きょう カテゴリ:時間" <基本句-主辞>
+            # S-ID:{doc_id_prefix}-0-0 kwja:{kwja.__version__}
+            * 1P
+            + 1P <NE:PERSON:太郎><体言><SM-主体>
+            太郎 たろう 太郎 名詞 6 人名 5 * 0 * 0 "代表表記:太郎/たろう 人名" <基本句-主辞>
+            と と と 助詞 9 格助詞 1 * 0 * 0
+            * 3D
+            + 3D <NE:PERSON:次郎><体言><SM-主体>
+            次郎 じろう 次郎 名詞 6 人名 5 * 0 * 0 "代表表記:次郎/じろう 人名" <基本句-主辞>
             は は は 助詞 9 副助詞 2 * 0 * 0
+            * 3D
+            + 3D <修飾>
+            よく よく よく 副詞 8 * 0 * 0 * 0 <基本句-主辞><用言表記先頭><用言表記末尾>
             * -1D
-            + -1D <rel type="ガ" target="今日" sid="test-0-0" id="0"/><NE:DATE:晴れ><用言:判><時制:非過去><レベル:C><状態述語><節-区切><節-主辞><談話関係:test-0-0/1/原因・理由>
-            晴れ はれ 晴れ 名詞 6 普通名詞 1 * 0 * 0 <基本句-主辞><用言表記先頭><用言表記末尾>
-            だ だ だ 判定詞 4 * 0 判定詞 25 基本形 2
+            + -1D <rel type="ガ" target="次郎" sid="test-0-0" id="1"/><用言:動><時制:非過去><レベル:C><動態述語><節-区切><節-主辞>
+            けんか けんか けんか 名詞 6 サ変名詞 2 * 0 * 0 "代表表記:喧嘩/けんか" <基本句-主辞><用言表記先頭><用言表記末尾><ALT-けんか-けんか-けんか-6-2-0-0-"代表表記:献花/けんか">
+            する する する 動詞 2 * 0 サ変動詞 16 基本形 2
+            EOS
+            # S-ID:{doc_id_prefix}-1-0 kwja:{kwja.__version__}
+            * 1D
+            + 1D <rel type="ガ" target="ラーメン" sid="test-1-0" id="1"/><用言:形><時制:非過去><レベル:B-><状態述語>
+            辛い からい 辛い 形容詞 3 * 0 イ形容詞アウオ段 18 基本形 2 <基本句-主辞><用言表記先頭><用言表記末尾>
+            * 2D
+            + 2D <体言>
+            ラーメン らーめん ラーメン 名詞 6 普通名詞 1 * 0 * 0 <基本句-主辞>
+            が が が 助詞 9 格助詞 1 * 0 * 0
+            * 3D
+            + 3D <rel type="ガ" target="ラーメン" sid="test-1-0" id="1"/><rel type="ガ２" target="著者"/><用言:形><時制:非過去><レベル:B+><状態述語><節-機能-原因・理由><節-区切><節-主辞><談話関係:test-1-0/3/原因・理由>
+            好きな すきな 好きだ 形容詞 3 * 0 ナ形容詞 21 ダ列基本連体形 3 <基本句-主辞><用言表記先頭><用言表記末尾>
+            ので ので のだ 助動詞 5 * 0 ナ形容詞 21 ダ列タ系連用テ形 12
+            * -1D
+            + -1D <rel type="ガ" target="著者"/><rel type="ヲ" target="ラーメン" sid="test-1-0" id="1"/><用言:動><時制:過去><レベル:C><動態述語><敬語:丁寧表現><節-区切><節-主辞>
+            頼み たのみ 頼む 動詞 2 * 0 子音動詞マ行 9 基本連用形 8 <基本句-主辞><用言表記先頭><用言表記末尾>
+            ました ました ます 接尾辞 14 動詞性接尾辞 7 動詞性接尾辞ます型 31 タ形 7
             EOS
             """
         )
-        assert writer.destination.read_text() == expected_knp
         juman_file.close()
