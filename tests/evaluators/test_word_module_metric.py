@@ -1,6 +1,7 @@
 from functools import partial
 from math import isclose
 from pathlib import Path
+from typing import Any, Dict
 
 import torch
 from omegaconf import ListConfig
@@ -36,7 +37,7 @@ def test_word_module_metric() -> None:
         "nlp-waseda/roberta-base-japanese", additional_special_tokens=special_tokens
     )
     max_seq_length = 20
-    dataset_kwargs = {
+    dataset_kwargs: Dict[str, Any] = {
         "cohesion_tasks": ListConfig(["pas_analysis", "bridging_reference_resolution", "coreference_resolution"]),
         "exophora_referents": ListConfig(exophora_referents),
         "restrict_cohesion_target": True,
