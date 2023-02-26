@@ -15,7 +15,7 @@ def test_char_module_metric() -> None:
     path = Path(__file__).absolute().parent.parent / "data" / "datasets" / "char_files"
     tokenizer = AutoTokenizer.from_pretrained("ku-nlp/roberta-base-japanese-char-wwm", do_word_tokenize=False)
     max_seq_length = 20
-    dataset = CharDataset(str(path), tokenizer, max_seq_length)  # denormalize_probability == 0.0
+    dataset = CharDataset(str(path), tokenizer, max_seq_length, denormalize_probability=0.0)
     metric.set_properties(dataset)
 
     metric.update(

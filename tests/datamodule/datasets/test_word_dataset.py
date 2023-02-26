@@ -83,35 +83,10 @@ def test_init(path: Path, tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Di
 
 def test_getitem(path: Path, tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
     max_seq_length = 256
-    dataset = WordDataset(
-        str(path), tokenizer, max_seq_length=max_seq_length, document_split_stride=1, **dataset_kwargs
-    )
+    dataset = WordDataset(str(path), tokenizer, max_seq_length, document_split_stride=1, **dataset_kwargs)
     num_cohesion_rels = len([r for utils in dataset.cohesion_task2utils.values() for r in utils.rels])
     for i in range(len(dataset)):
         document = dataset.documents[i]
-        # assert item["example_ids"] == i
-        # assert item["input_ids"].shape == (max_seq_length,)
-        # assert item["attention_mask"].shape == (max_seq_length,)
-        # assert item["target_mask"].shape == (max_seq_length,)
-        # assert item["subword_map"].shape == (max_seq_length, max_seq_length)
-        # assert (item["subword_map"].sum(dim=1) != 0).sum() == len(document.morphemes) + dataset.num_special_tokens
-        # assert item["reading_labels"].shape == (max_seq_length,)
-        # assert item["reading_subword_map"].shape == (max_seq_length, max_seq_length)
-        # assert (item["reading_subword_map"].sum(dim=1) != 0).sum() == len(document.morphemes)
-        # assert item["pos_labels"].shape == (max_seq_length,)
-        # assert item["subpos_labels"].shape == (max_seq_length,)
-        # assert item["conjtype_labels"].shape == (max_seq_length,)
-        # assert item["conjform_labels"].shape == (max_seq_length,)
-        # assert item["word_feature_labels"].shape == (max_seq_length, len(WORD_FEATURES))
-        # assert item["ne_labels"].shape == (max_seq_length,)
-        # assert item["base_phrase_feature_labels"].shape == (max_seq_length, len(BASE_PHRASE_FEATURES))
-        # assert item["dependency_labels"].shape == (max_seq_length,)
-        # assert item["dependency_mask"].shape == (max_seq_length, max_seq_length)
-        # assert item["dependency_type_labels"].shape == (max_seq_length,)
-        # assert item["cohesion_labels"].shape == (num_cohesion_rels, max_seq_length, max_seq_length)
-        # assert item["cohesion_mask"].shape == (num_cohesion_rels, max_seq_length, max_seq_length)
-        # assert item["discourse_labels"].shape == (max_seq_length, max_seq_length)
-
         feature = dataset[i]
         assert feature.example_ids == i
         assert len(feature.input_ids) == max_seq_length

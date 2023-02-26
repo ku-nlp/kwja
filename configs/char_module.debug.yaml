@@ -16,7 +16,7 @@ checkpoint_path: ""
 document_split_stride: -1
 
 # For word normalization
-denormalize_probability: 0.0
+denormalize_probability: 0.5
 
 # set monitor and mode for early_stopping and model_checkpoint
 monitor: valid/aggregated_char_metrics
@@ -31,7 +31,7 @@ warmup_steps: 100
 effective_batch_size: 16
 
 # environment dependent settings
-devices: ${oc.env:GPUS,0}
+devices: ${oc.env:DEVICES,0}
 max_batches_per_device: ${oc.env:MAX_BATCHES_PER_DEVICE,2}
 num_workers: ${oc.env:NUM_WORKERS,0}
 
