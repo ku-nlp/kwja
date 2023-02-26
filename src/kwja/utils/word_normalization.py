@@ -26,7 +26,7 @@ class MorphemeNormalizer:
     def get_word_norm_op_tags(self, morpheme: Morpheme) -> List[str]:
         try:
             if morpheme.conjtype == "*":
-                normalized = morpheme.surf
+                normalized = morpheme.lemma
             else:
                 normalized = self.jinf(morpheme.lemma, morpheme.conjtype, "基本形", morpheme.conjform)
             return get_word_norm_op_tags(morpheme.surf, normalized)
