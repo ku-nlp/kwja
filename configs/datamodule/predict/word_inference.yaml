@@ -2,6 +2,6 @@ defaults:
   - /datamodule/base/word@
   - _self_
 
-_target_: kwja.datamodule.datasets.word_inference_dataset.WordInferenceDataset
+_target_: kwja.datamodule.datasets.WordInferenceDataset
 juman_file: null
 knp_file: null

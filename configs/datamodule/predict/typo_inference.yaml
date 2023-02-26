@@ -2,5 +2,5 @@ defaults:
   - /datamodule/base/typo@
   - _self_
 
-_target_: kwja.datamodule.datasets.typo_inference_dataset.TypoInferenceDataset
+_target_: kwja.datamodule.datasets.TypoInferenceDataset
 texts: []
