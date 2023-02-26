@@ -10,7 +10,7 @@ from kwja.evaluators.typo_module_metric import TypoModuleMetric
 def test_typo_module_metric() -> None:
     metric = TypoModuleMetric(confidence_thresholds=(0.0, 0.8, 0.9))
 
-    path = Path(__file__).absolute().parent.joinpath("typo_files")
+    path = Path(__file__).absolute().parent.parent / "data" / "datasets" / "typo_files"
     tokenizer = AutoTokenizer.from_pretrained(
         "ku-nlp/roberta-base-japanese-char-wwm",
         do_word_tokenize=False,
@@ -20,9 +20,20 @@ def test_typo_module_metric() -> None:
     dataset = TypoDataset(str(path), tokenizer, max_seq_length=max_seq_length)
     metric.set_properties(dataset)
 
-    metric.example_ids = torch.arange(len(dataset), dtype=torch.long)
-    kdr_probabilities = torch.zeros((2, max_seq_length, len(dataset.token2token_id)), dtype=torch.float)
-    kdr_probabilities[0, 0, dataset.token2token_id["<k>"]] = 1.0  # [CLS]
+    metric.update(
+        {
+            "example_ids": torch.empty(0),  # dummy
+            "kdr_predictions": torch.empty(0),
+            "kdr_probabilities": torch.empty(0),
+            "ins_predictions": torch.empty(0),
+            "ins_probabilities": torch.empty(0),
+        }
+    )
+
+    num_examples = len(dataset)
+    metric.example_ids = torch.arange(num_examples, dtype=torch.long)
+
+    kdr_probabilities = torch.zeros((num_examples, max_seq_length, len(dataset.token2token_id)), dtype=torch.float)
     kdr_probabilities[0, 1, dataset.token2token_id["松"]] = 0.65  # 待 -> 松
     kdr_probabilities[0, 2, dataset.token2token_id["<d>"]] = 0.85  # つ -> φ
     kdr_probabilities[0, 3, dataset.token2token_id["<k>"]] = 1.0  # の
@@ -31,13 +42,11 @@ def test_typo_module_metric() -> None:
     kdr_probabilities[0, 6, dataset.token2token_id["<k>"]] = 1.0  # 枯
     kdr_probabilities[0, 7, dataset.token2token_id["<k>"]] = 1.0  # れ
     kdr_probabilities[0, 8, dataset.token2token_id["<k>"]] = 1.0  # る
-    kdr_probabilities[0, 9, dataset.token2token_id["<k>"]] = 1.0  # <dummy>
-    kdr_probabilities[0, 10, dataset.token2token_id["<k>"]] = 1.0  # [SEP]
-    kdr_probabilities[1, :, dataset.token2token_id["<k>"]] = 1.0
+    kdr_probabilities[1, 1:9, dataset.token2token_id["<k>"]] = 1.0  # 紹介ことなかった
     metric.kdr_probabilities, metric.kdr_predictions = kdr_probabilities.max(dim=2)
-    ins_probabilities = torch.zeros((2, max_seq_length, len(dataset.token2token_id)), dtype=torch.float)
-    ins_probabilities[0, :, dataset.token2token_id["<_>"]] = 1.0
-    ins_probabilities[1, 0, dataset.token2token_id["<_>"]] = 1.0  # [CLS]
+
+    ins_probabilities = torch.zeros((num_examples, max_seq_length, len(dataset.token2token_id)), dtype=torch.float)
+    ins_probabilities[0, 1:10, dataset.token2token_id["<_>"]] = 1.0  # 待つの木が枯れる
     ins_probabilities[1, 1, dataset.token2token_id["<_>"]] = 1.0  # 紹
     ins_probabilities[1, 2, dataset.token2token_id["<_>"]] = 1.0  # 介
     ins_probabilities[1, 3, dataset.token2token_id["する"]] = 1.0  # こ -> するこ
@@ -47,7 +56,6 @@ def test_typo_module_metric() -> None:
     ins_probabilities[1, 7, dataset.token2token_id["<_>"]] = 1.0  # っ
     ins_probabilities[1, 8, dataset.token2token_id["<_>"]] = 1.0  # た
     ins_probabilities[1, 9, dataset.token2token_id["<_>"]] = 1.0  # <dummy>
-    ins_probabilities[1, 10, dataset.token2token_id["<_>"]] = 1.0  # [SEP]
     metric.ins_probabilities, metric.ins_predictions = ins_probabilities.max(dim=2)
 
     digits = 4

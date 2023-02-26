@@ -58,7 +58,7 @@ class CharModuleMetric(Metric):
         doc_id2gold_sentences: Dict[str, List[Sentence]] = defaultdict(list)
         special_ids = set(self.dataset.tokenizer.all_special_ids) - {self.dataset.tokenizer.unk_token_id}
         for example_id, word_segmentation_predictions, word_norm_op_predictions in zip(
-            self.example_ids,
+            self.example_ids.tolist(),
             self.word_segmentation_predictions.tolist(),
             self.word_norm_op_predictions.tolist(),
         ):

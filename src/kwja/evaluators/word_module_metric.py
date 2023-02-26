@@ -135,7 +135,7 @@ class WordModuleMetric(Metric):
             dependency_type_predictions,
             cohesion_logits,
         ) in zip(
-            self.example_ids,
+            self.example_ids.tolist(),
             self.reading_predictions.tolist(),
             self.reading_subword_map.tolist(),
             self.pos_logits,

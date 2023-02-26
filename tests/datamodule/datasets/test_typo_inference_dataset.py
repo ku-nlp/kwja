@@ -1,32 +1,36 @@
+import pytest
 from omegaconf import ListConfig
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from kwja.datamodule.datasets.typo_inference_dataset import TypoInferenceDataset
 
-tokenizer = AutoTokenizer.from_pretrained(
-    "ku-nlp/roberta-base-japanese-char-wwm",
-    do_word_tokenize=False,
-    additional_special_tokens=["<k>", "<d>", "<_>", "<dummy>"],
-)
+
+@pytest.fixture()
+def tokenizer() -> PreTrainedTokenizerBase:
+    return AutoTokenizer.from_pretrained(
+        "ku-nlp/roberta-base-japanese-char-wwm",
+        do_word_tokenize=False,
+        additional_special_tokens=["<k>", "<d>", "<_>", "<dummy>"],
+    )
 
 
-def test_init():
+def test_init(tokenizer: PreTrainedTokenizerBase):
     _ = TypoInferenceDataset(ListConfig(["テスト", "テスト"]), tokenizer, max_seq_length=256)
 
 
-def test_len():
+def test_len(tokenizer: PreTrainedTokenizerBase):
     dataset = TypoInferenceDataset(ListConfig(["テスト", "テスト"]), tokenizer, max_seq_length=256)
     assert len(dataset) == 2
 
 
-def test_stash():
-    dataset = TypoInferenceDataset(ListConfig(["テスト", "テスト", "テスト…"]), tokenizer, max_seq_length=256)
-    assert len(dataset) == 2
+def test_stash(tokenizer: PreTrainedTokenizerBase):
+    dataset = TypoInferenceDataset(ListConfig(["テスト", "テスト…"]), tokenizer, max_seq_length=256)
+    assert len(dataset) == 1
     assert len(dataset.stash) == 1
 
 
-def test_getitem():
-    max_seq_length = 512
+def test_getitem(tokenizer: PreTrainedTokenizerBase):
+    max_seq_length = 256
     dataset = TypoInferenceDataset(ListConfig(["テスト", "テスト"]), tokenizer, max_seq_length=max_seq_length)
     for i in range(len(dataset)):
         item = dataset[i]
