@@ -16,7 +16,7 @@ checkpoint_path: ""
 document_split_stride: -1
 
 # For word normalization
-denormalize_probability: 0.0
+denormalize_probability: 0.5
 
 # set monitor and mode for early_stopping and model_checkpoint
 monitor: valid/aggregated_char_metrics

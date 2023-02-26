@@ -19,12 +19,12 @@ def tokenizer() -> PreTrainedTokenizerBase:
 
 
 def test_init(path: Path, tokenizer: PreTrainedTokenizerBase):
-    _ = CharDataset(str(path), tokenizer, max_seq_length=512)
+    _ = CharDataset(str(path), tokenizer, max_seq_length=512, denormalize_probability=0.0)
 
 
 def test_getitem(path: Path, tokenizer: PreTrainedTokenizerBase):
     max_seq_length: int = 512
-    dataset = CharDataset(str(path), tokenizer, max_seq_length)
+    dataset = CharDataset(str(path), tokenizer, max_seq_length, denormalize_probability=0.0)
     for i in range(len(dataset)):
         feature = dataset[i]
         assert feature.example_ids == i
@@ -36,7 +36,7 @@ def test_getitem(path: Path, tokenizer: PreTrainedTokenizerBase):
 
 def test_encode(path: Path, tokenizer: PreTrainedTokenizerBase):
     max_seq_length = 512
-    dataset = CharDataset(str(path), tokenizer, max_seq_length)
+    dataset = CharDataset(str(path), tokenizer, max_seq_length, denormalize_probability=0.0)
     num_examples = len(dataset)
 
     word_segmentation_labels = torch.full((num_examples, max_seq_length), IGNORE_INDEX, dtype=torch.long)

@@ -38,8 +38,8 @@ class CharDataset(BaseDataset[CharModuleFeatures]):
         path: str,
         tokenizer: PreTrainedTokenizerBase,
         max_seq_length: int,
+        denormalize_probability: float,
         document_split_stride: int = -1,
-        denormalize_probability: float = 0.0,
     ) -> None:
         self.path = Path(path)
         self.denormalizer: SentenceDenormalizer = SentenceDenormalizer()
