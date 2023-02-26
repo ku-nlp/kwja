@@ -5,7 +5,7 @@ from Levenshtein import opcodes
 from torchmetrics import Metric
 
 from kwja.callbacks.utils import apply_edit_operations, convert_predictions_into_typo_corr_op_tags
-from kwja.datamodule.datasets.typo_dataset import TypoDataset
+from kwja.datamodule.datasets import TypoDataset
 from kwja.evaluators.utils import unique
 
 

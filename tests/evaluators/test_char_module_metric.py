@@ -5,7 +5,7 @@ from pathlib import Path
 import torch
 from transformers import AutoTokenizer
 
-from kwja.datamodule.datasets.char_dataset import CharDataset
+from kwja.datamodule.datasets import CharDataset
 from kwja.evaluators.char_module_metric import CharModuleMetric
 from kwja.utils.constants import IGNORE_INDEX, WORD_NORM_OP_TAGS, WORD_SEGMENTATION_TAGS
 

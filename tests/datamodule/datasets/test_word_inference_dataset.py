@@ -8,7 +8,7 @@ import pytest
 from omegaconf import ListConfig
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from kwja.datamodule.datasets.word_inference_dataset import WordInferenceDataset
+from kwja.datamodule.datasets import WordInferenceDataset
 
 
 @pytest.fixture()

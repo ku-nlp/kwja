@@ -1,4 +1,4 @@
-_target_: kwja.datamodule.datasets.word_dataset.WordDataset
+_target_: kwja.datamodule.datasets.WordDataset
 max_seq_length: ${max_seq_length}
 document_split_stride: ${document_split_stride}
 cohesion_tasks: ${cohesion_tasks}

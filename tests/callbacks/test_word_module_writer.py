@@ -13,7 +13,7 @@ from transformers import AutoTokenizer
 
 import kwja
 from kwja.callbacks.word_module_writer import WordModuleWriter
-from kwja.datamodule.datasets.word_inference_dataset import WordInferenceDataset
+from kwja.datamodule.datasets import WordInferenceDataset
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TAGS,

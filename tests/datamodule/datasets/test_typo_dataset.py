@@ -4,7 +4,7 @@ import pytest
 import torch
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from kwja.datamodule.datasets.typo_dataset import TypoDataset
+from kwja.datamodule.datasets import TypoDataset
 from kwja.utils.constants import IGNORE_INDEX
 
 

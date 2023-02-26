@@ -11,7 +11,7 @@ from transformers import AutoTokenizer
 
 import kwja
 from kwja.callbacks.char_module_writer import CharModuleWriter
-from kwja.datamodule.datasets.char_inference_dataset import CharInferenceDataset
+from kwja.datamodule.datasets import CharInferenceDataset
 from kwja.utils.constants import WORD_NORM_OP_TAGS, WORD_SEGMENTATION_TAGS
 
 

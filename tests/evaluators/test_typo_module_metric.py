@@ -5,7 +5,7 @@ from pathlib import Path
 import torch
 from transformers import AutoTokenizer
 
-from kwja.datamodule.datasets.typo_dataset import TypoDataset
+from kwja.datamodule.datasets import TypoDataset
 from kwja.evaluators.typo_module_metric import TypoModuleMetric
 
 isclose = partial(isclose, abs_tol=1e-4)

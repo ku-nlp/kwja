@@ -9,7 +9,7 @@ from rhoknp import Document
 from rhoknp.props import DepType
 from transformers import AutoTokenizer
 
-from kwja.datamodule.datasets.word_dataset import WordDataset
+from kwja.datamodule.datasets import WordDataset
 from kwja.evaluators.word_module_metric import WordModuleMetric
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,

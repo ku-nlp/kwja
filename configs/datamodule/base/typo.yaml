@@ -1,4 +1,4 @@
-_target_: kwja.datamodule.datasets.typo_dataset.TypoDataset
+_target_: kwja.datamodule.datasets.TypoDataset
 max_seq_length: ${max_seq_length}
 tokenizer:
   _target_: transformers.AutoTokenizer.from_pretrained

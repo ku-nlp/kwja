@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from kwja.datamodule.datasets.base_dataset import BaseDataset
+from kwja.datamodule.datasets.base import BaseDataset
 
 
 @pytest.fixture()

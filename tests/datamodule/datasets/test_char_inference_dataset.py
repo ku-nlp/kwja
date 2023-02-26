@@ -2,7 +2,7 @@ import pytest
 from omegaconf import ListConfig
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from kwja.datamodule.datasets.char_inference_dataset import CharInferenceDataset
+from kwja.datamodule.datasets import CharInferenceDataset
 
 
 @pytest.fixture()

@@ -9,7 +9,7 @@ from rhoknp import Document
 from rhoknp.props import DepType
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from kwja.datamodule.datasets.word_dataset import WordDataset
+from kwja.datamodule.datasets import WordDataset
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TAGS,

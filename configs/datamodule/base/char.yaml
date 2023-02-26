@@ -1,4 +1,4 @@
-_target_: kwja.datamodule.datasets.char_dataset.CharDataset
+_target_: kwja.datamodule.datasets.CharDataset
 max_seq_length: ${max_seq_length}
 document_split_stride: ${document_split_stride}
 denormalize_probability: ${denormalize_probability}

@@ -11,7 +11,7 @@ from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from kwja.callbacks.typo_module_writer import TypoModuleWriter
 from kwja.callbacks.utils import get_maps
-from kwja.datamodule.datasets.typo_inference_dataset import TypoInferenceDataset
+from kwja.datamodule.datasets import TypoInferenceDataset
 from kwja.utils.constants import RESOURCE_PATH
 
 
