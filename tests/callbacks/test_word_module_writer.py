@@ -202,7 +202,7 @@ def test_write_on_batch_end():
     subpos_logits[0, 6, SUBPOS_TAGS.index("*")] = 1.0  # する
     subpos_logits[1, 0, SUBPOS_TAGS.index("*")] = 1.0  # 辛い
     subpos_logits[1, 1, SUBPOS_TAGS.index("普通名詞")] = 1.0  # ラーメン
-    subpos_logits[1, 2, SUBPOS_TAGS.index("*")] = 1.0  # が
+    subpos_logits[1, 2, SUBPOS_TAGS.index("格助詞")] = 1.0  # が
     subpos_logits[1, 3, SUBPOS_TAGS.index("*")] = 1.0  # 好きな
     subpos_logits[1, 4, SUBPOS_TAGS.index("*")] = 1.0  # ので
     subpos_logits[1, 5, SUBPOS_TAGS.index("*")] = 1.0  # 頼み
@@ -218,7 +218,7 @@ def test_write_on_batch_end():
     conjtype_logits[0, 6, CONJTYPE_TAGS.index("サ変動詞")] = 1.0  # する
     conjtype_logits[1, 0, CONJTYPE_TAGS.index("イ形容詞アウオ段")] = 1.0  # 辛い
     conjtype_logits[1, 1, CONJTYPE_TAGS.index("*")] = 1.0  # ラーメン
-    conjtype_logits[1, 2, CONJTYPE_TAGS.index("母音動詞")] = 1.0  # が
+    conjtype_logits[1, 2, CONJTYPE_TAGS.index("*")] = 1.0  # が
     conjtype_logits[1, 3, CONJTYPE_TAGS.index("ナ形容詞")] = 1.0  # 好きな
     conjtype_logits[1, 4, CONJTYPE_TAGS.index("ナ形容詞")] = 1.0  # ので
     conjtype_logits[1, 5, CONJTYPE_TAGS.index("子音動詞マ行")] = 1.0  # 頼み
@@ -326,7 +326,7 @@ def test_write_on_batch_end():
     dependency_logits[0, 5, dataset.special_token2index["[ROOT]"]] = 1.0  # けんか -> [ROOT]
     dependency_logits[0, 6, 5] = 1.0  # する -> けんか
     dependency_logits[1, 0, 1] = 1.0  # 辛い -> ラーメン
-    dependency_logits[1, 1, 2] = 1.0  # ラーメン -> 好きな
+    dependency_logits[1, 1, 3] = 1.0  # ラーメン -> 好きな
     dependency_logits[1, 2, 1] = 1.0  # が -> ラーメン
     dependency_logits[1, 3, 5] = 1.0  # 好きな -> 頼み
     dependency_logits[1, 4, 3] = 1.0  # ので -> 好きな
@@ -354,14 +354,15 @@ def test_write_on_batch_end():
     # (b, rel, src, tgt)
     flatten_rels = [r for cohesion_utils in dataset.cohesion_task2utils.values() for r in cohesion_utils.rels]
     cohesion_logits = torch.zeros((num_examples, len(flatten_rels), max_seq_length, max_seq_length), dtype=torch.float)
-    cohesion_logits[:, :, :, dataset.special_token2index["[NULL]"]] = 1.0
-    cohesion_logits[:, :, :, dataset.special_token2index["[NA]"]] = 1.0
+    for i, rel in enumerate(flatten_rels):
+        j = dataset.special_token2index["[NA]"] if rel == "=" else dataset.special_token2index["[NULL]"]
+        cohesion_logits[:, i, :, j] = 1.0
     cohesion_logits[0, flatten_rels.index("ガ"), 5, 2] = 2.0  # 次郎 ガ けんか
-    cohesion_logits[1, flatten_rels.index("ガ"), 0, 1] = 1.0  # ラーメン ガ 辛い
-    cohesion_logits[1, flatten_rels.index("ガ"), 3, 1] = 1.0  # ラーメン ガ 好き
-    cohesion_logits[1, flatten_rels.index("ガ２"), 3, dataset.special_token2index["著者"]] = 1.0  # 著者 ガ 好き
-    cohesion_logits[1, flatten_rels.index("ガ"), 5, dataset.special_token2index["著者"]] = 1.0  # 著者 ガ 頼み
-    cohesion_logits[1, flatten_rels.index("ヲ"), 5, 1] = 1.0  # ラーメン ヲ 頼み
+    cohesion_logits[1, flatten_rels.index("ガ"), 0, 1] = 2.0  # ラーメン ガ 辛い
+    cohesion_logits[1, flatten_rels.index("ガ"), 3, 1] = 2.0  # ラーメン ガ 好き
+    cohesion_logits[1, flatten_rels.index("ガ２"), 3, dataset.special_token2index["著者"]] = 2.0  # 著者 ガ２ 好き
+    cohesion_logits[1, flatten_rels.index("ガ"), 5, dataset.special_token2index["著者"]] = 2.0  # 著者 ガ 頼み
+    cohesion_logits[1, flatten_rels.index("ヲ"), 5, 1] = 2.0  # ラーメン ヲ 頼み
 
     # (b, src, tgt, rel)
     discourse_logits = torch.zeros(
