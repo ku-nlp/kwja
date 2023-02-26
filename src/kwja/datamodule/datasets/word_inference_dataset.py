@@ -25,6 +25,7 @@ class WordInferenceDataset(BaseDataset):
     def __init__(
         self,
         tokenizer: PreTrainedTokenizerBase,
+        max_seq_length: int,
         document_split_stride: int,
         cohesion_tasks: ListConfig,
         exophora_referents: ListConfig,
@@ -32,7 +33,6 @@ class WordInferenceDataset(BaseDataset):
         pas_cases: ListConfig,
         br_cases: ListConfig,
         special_tokens: ListConfig,
-        max_seq_length: int,
         juman_file: Optional[Path] = None,
         knp_file: Optional[Path] = None,
     ) -> None:

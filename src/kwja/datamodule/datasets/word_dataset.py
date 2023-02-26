@@ -41,6 +41,7 @@ class WordDataset(BaseDataset):
         self,
         path: str,
         tokenizer: PreTrainedTokenizerBase,
+        max_seq_length: int,
         document_split_stride: int,
         cohesion_tasks: ListConfig,
         exophora_referents: ListConfig,
@@ -48,7 +49,6 @@ class WordDataset(BaseDataset):
         pas_cases: ListConfig,
         br_cases: ListConfig,
         special_tokens: ListConfig,
-        max_seq_length: int,
     ) -> None:
         self.path = Path(path)
         if tokenizer.name_or_path in SPLIT_INTO_WORDS_MODEL_NAMES:

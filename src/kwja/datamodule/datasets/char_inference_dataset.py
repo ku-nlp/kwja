@@ -23,8 +23,8 @@ class CharInferenceDataset(BaseDataset):
         self,
         texts: ListConfig,
         tokenizer: PreTrainedTokenizerBase,
-        document_split_stride: int,
         max_seq_length: int,
+        document_split_stride: int = -1,
         doc_id_prefix: Optional[str] = None,
         **_,
     ) -> None:

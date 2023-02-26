@@ -19,11 +19,12 @@ class TypoModuleMetric(Metric):
         "ins_probabilities",
     )
 
-    def __init__(self) -> None:
+    def __init__(self, confidence_thresholds: Tuple[float, ...] = (0.0, 0.8, 0.9)) -> None:
         super().__init__()
         for state_name in self.STATE_NAMES:
             self.add_state(state_name, default=[], dist_reduce_fx="cat")
 
+        self.confidence_thresholds = confidence_thresholds
         self.dataset: Optional[TypoDataset] = None
 
     def update(self, kwargs: Dict[str, torch.Tensor]) -> None:
@@ -41,7 +42,7 @@ class TypoModuleMetric(Metric):
             setattr(self, state_name, state[sorted_indices])
 
         metrics: Dict[str, float] = {}
-        for confidence_threshold in [0.0, 0.8, 0.9]:
+        for confidence_threshold in self.confidence_thresholds:
             texts = self._build_texts(confidence_threshold)
             metrics.update(self.compute_typo_correction_metrics(texts, confidence_threshold))
         return metrics
