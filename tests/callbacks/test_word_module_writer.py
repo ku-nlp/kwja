@@ -113,6 +113,7 @@ def test_write_on_batch_end():
     max_seq_length = 20  # >= 17
     dataset = WordInferenceDataset(
         tokenizer=tokenizer,
+        max_seq_length=max_seq_length,
         document_split_stride=1,
         cohesion_tasks=ListConfig(["pas_analysis", "bridging_reference_resolution", "coreference_resolution"]),
         exophora_referents=ListConfig(exophora_referents),
@@ -121,10 +122,10 @@ def test_write_on_batch_end():
         br_cases=ListConfig(["ノ"]),
         special_tokens=ListConfig(special_tokens),
         juman_file=Path(juman_file.name),
-        max_seq_length=max_seq_length,
     )
+    num_examples = len(dataset)
 
-    trainer = MockTrainer([DataLoader(dataset, batch_size=len(dataset))])
+    trainer = MockTrainer([DataLoader(dataset, batch_size=num_examples)])
 
     module = pl.LightningModule()
     module.training_tasks = [
@@ -140,7 +141,7 @@ def test_write_on_batch_end():
 
     reading_resource_path = RESOURCE_PATH / "reading_prediction"
     reading2reading_id = get_reading2reading_id(reading_resource_path / "vocab.txt")
-    reading_logits = torch.zeros((2, max_seq_length, len(reading2reading_id)), dtype=torch.float)
+    reading_logits = torch.zeros((num_examples, max_seq_length, len(reading2reading_id)), dtype=torch.float)
     reading_logits[0, 1, reading2reading_id["たろう"]] = 1.0  # 太郎 -> たろう
     reading_logits[0, 2, reading2reading_id["[ID]"]] = 1.0  # と
     reading_logits[0, 3, reading2reading_id["じろう"]] = 1.0  # 次郎 -> じろう
@@ -158,7 +159,7 @@ def test_write_on_batch_end():
     reading_logits[1, 7, reading2reading_id["[ID]"]] = 1.0  # ました
 
     # (b, word, token)
-    reading_subword_map = torch.zeros((2, max_seq_length, max_seq_length), dtype=torch.bool)
+    reading_subword_map = torch.zeros((num_examples, max_seq_length, max_seq_length), dtype=torch.bool)
     reading_subword_map[0, 0, 1] = True
     reading_subword_map[0, 1, 2] = True
     reading_subword_map[0, 2, 3] = True
@@ -175,7 +176,7 @@ def test_write_on_batch_end():
     reading_subword_map[1, 5, 6] = True
     reading_subword_map[1, 6, 7] = True
 
-    pos_logits = torch.zeros((2, max_seq_length, len(POS_TAGS)), dtype=torch.float)
+    pos_logits = torch.zeros((num_examples, max_seq_length, len(POS_TAGS)), dtype=torch.float)
     pos_logits[0, 0, POS_TAGS.index("名詞")] = 1.0  # 太郎
     pos_logits[0, 1, POS_TAGS.index("助詞")] = 1.0  # と
     pos_logits[0, 2, POS_TAGS.index("名詞")] = 1.0  # 次郎
@@ -191,7 +192,7 @@ def test_write_on_batch_end():
     pos_logits[1, 5, POS_TAGS.index("動詞")] = 1.0  # 頼み
     pos_logits[1, 6, POS_TAGS.index("接尾辞")] = 1.0  # ました
 
-    subpos_logits = torch.zeros((2, max_seq_length, len(SUBPOS_TAGS)), dtype=torch.float)
+    subpos_logits = torch.zeros((num_examples, max_seq_length, len(SUBPOS_TAGS)), dtype=torch.float)
     subpos_logits[0, 0, SUBPOS_TAGS.index("人名")] = 1.0  # 太郎
     subpos_logits[0, 1, SUBPOS_TAGS.index("格助詞")] = 1.0  # と
     subpos_logits[0, 2, SUBPOS_TAGS.index("人名")] = 1.0  # 次郎
@@ -207,7 +208,7 @@ def test_write_on_batch_end():
     subpos_logits[1, 5, SUBPOS_TAGS.index("*")] = 1.0  # 頼み
     subpos_logits[1, 6, SUBPOS_TAGS.index("動詞性接尾辞")] = 1.0  # ました
 
-    conjtype_logits = torch.zeros((2, max_seq_length, len(CONJTYPE_TAGS)), dtype=torch.float)
+    conjtype_logits = torch.zeros((num_examples, max_seq_length, len(CONJTYPE_TAGS)), dtype=torch.float)
     conjtype_logits[0, 0, CONJTYPE_TAGS.index("*")] = 1.0  # 太郎
     conjtype_logits[0, 1, CONJTYPE_TAGS.index("*")] = 1.0  # と
     conjtype_logits[0, 2, CONJTYPE_TAGS.index("*")] = 1.0  # 次郎
@@ -223,7 +224,7 @@ def test_write_on_batch_end():
     conjtype_logits[1, 5, CONJTYPE_TAGS.index("子音動詞マ行")] = 1.0  # 頼み
     conjtype_logits[1, 6, CONJTYPE_TAGS.index("動詞性接尾辞ます型")] = 1.0  # ました
 
-    conjform_logits = torch.zeros((2, max_seq_length, len(CONJFORM_TAGS)), dtype=torch.float)
+    conjform_logits = torch.zeros((num_examples, max_seq_length, len(CONJFORM_TAGS)), dtype=torch.float)
     conjform_logits[0, 0, CONJFORM_TAGS.index("*")] = 1.0  # 太郎
     conjform_logits[0, 1, CONJFORM_TAGS.index("*")] = 1.0  # と
     conjform_logits[0, 2, CONJFORM_TAGS.index("*")] = 1.0  # 次郎
@@ -239,7 +240,7 @@ def test_write_on_batch_end():
     conjform_logits[1, 5, CONJFORM_TAGS.index("基本連用形")] = 1.0  # 頼み
     conjform_logits[1, 6, CONJFORM_TAGS.index("タ形")] = 1.0  # ました
 
-    word_feature_probabilities = torch.zeros((2, max_seq_length, len(WORD_FEATURES)), dtype=torch.float)
+    word_feature_probabilities = torch.zeros((num_examples, max_seq_length, len(WORD_FEATURES)), dtype=torch.float)
     word_feature_probabilities[0, 0, WORD_FEATURES.index("基本句-主辞")] = 1.0  # 太郎
     word_feature_probabilities[0, 1, WORD_FEATURES.index("基本句-区切")] = 1.0  # と
     word_feature_probabilities[0, 1, WORD_FEATURES.index("文節-区切")] = 1.0
@@ -275,11 +276,13 @@ def test_write_on_batch_end():
     word_feature_probabilities[1, 6, WORD_FEATURES.index("基本句-区切")] = 1.0  # ました
     word_feature_probabilities[1, 6, WORD_FEATURES.index("文節-区切")] = 1.0
 
-    ne_predictions = torch.full((2, max_seq_length), NE_TAGS.index("O"), dtype=torch.long)
+    ne_predictions = torch.full((num_examples, max_seq_length), NE_TAGS.index("O"), dtype=torch.long)
     ne_predictions[0, 0] = NE_TAGS.index("B-PERSON")  # 太郎
     ne_predictions[0, 2] = NE_TAGS.index("B-PERSON")  # 次郎
 
-    base_phrase_feature_probabilities = torch.zeros((2, max_seq_length, len(BASE_PHRASE_FEATURES)), dtype=torch.float)
+    base_phrase_feature_probabilities = torch.zeros(
+        (num_examples, max_seq_length, len(BASE_PHRASE_FEATURES)), dtype=torch.float
+    )
     base_phrase_feature_probabilities[0, 0, BASE_PHRASE_FEATURES.index("体言")] = 1.0  # 太郎
     base_phrase_feature_probabilities[0, 0, BASE_PHRASE_FEATURES.index("SM-主体")] = 1.0
     base_phrase_feature_probabilities[0, 2, BASE_PHRASE_FEATURES.index("体言")] = 1.0  # 次郎
@@ -312,7 +315,9 @@ def test_write_on_batch_end():
     base_phrase_feature_probabilities[1, 5, BASE_PHRASE_FEATURES.index("敬語:丁寧表現")] = 1.0
 
     dependency_topk = 1
-    dependency_logits = torch.zeros((2, max_seq_length, max_seq_length), dtype=torch.float)  # (b, word, word)
+    dependency_logits = torch.zeros(
+        (num_examples, max_seq_length, max_seq_length), dtype=torch.float
+    )  # (b, word, word)
     dependency_logits[0, 0, 2] = 1.0  # 太郎 -> 次郎
     dependency_logits[0, 1, 0] = 1.0  # と -> 太郎
     dependency_logits[0, 2, 5] = 1.0  # 次郎 -> けんか
@@ -328,7 +333,9 @@ def test_write_on_batch_end():
     dependency_logits[1, 5, dataset.special_token2index["[ROOT]"]] = 1.0  # 頼み -> [ROOT]
     dependency_logits[1, 6, 5] = 1.0  # ました -> 頼み
 
-    dependency_type_logits = torch.zeros((2, max_seq_length, dependency_topk, len(DEPENDENCY_TYPES)), dtype=torch.float)
+    dependency_type_logits = torch.zeros(
+        (num_examples, max_seq_length, dependency_topk, len(DEPENDENCY_TYPES)), dtype=torch.float
+    )
     dependency_type_logits[0, 0, 0, DEPENDENCY_TYPES.index(DepType.PARALLEL)] = 1.0  # 太郎 -> 次郎
     dependency_type_logits[0, 1, 0, DEPENDENCY_TYPES.index(DepType.DEPENDENCY)] = 1.0  # が -> 太郎
     dependency_type_logits[0, 2, 0, DEPENDENCY_TYPES.index(DepType.DEPENDENCY)] = 1.0  # 次郎 -> けんか
@@ -346,7 +353,7 @@ def test_write_on_batch_end():
 
     # (b, rel, src, tgt)
     flatten_rels = [r for cohesion_utils in dataset.cohesion_task2utils.values() for r in cohesion_utils.rels]
-    cohesion_logits = torch.zeros((2, len(flatten_rels), max_seq_length, max_seq_length), dtype=torch.float)
+    cohesion_logits = torch.zeros((num_examples, len(flatten_rels), max_seq_length, max_seq_length), dtype=torch.float)
     cohesion_logits[:, :, :, dataset.special_token2index["[NULL]"]] = 1.0
     cohesion_logits[:, :, :, dataset.special_token2index["[NA]"]] = 1.0
     cohesion_logits[0, flatten_rels.index("ガ"), 5, 2] = 2.0  # 次郎 ガ けんか
@@ -357,13 +364,15 @@ def test_write_on_batch_end():
     cohesion_logits[1, flatten_rels.index("ヲ"), 5, 1] = 1.0  # ラーメン ヲ 頼み
 
     # (b, src, tgt, rel)
-    discourse_logits = torch.zeros((2, max_seq_length, max_seq_length, len(DISCOURSE_RELATIONS)), dtype=torch.float)
+    discourse_logits = torch.zeros(
+        (num_examples, max_seq_length, max_seq_length, len(DISCOURSE_RELATIONS)), dtype=torch.float
+    )
     discourse_logits[1, 3, 5, DISCOURSE_RELATIONS.index("原因・理由")] = 1.0  # 好きな - 頼み|原因・理由
     discourse_probabilities = discourse_logits.softmax(dim=3)
     discourse_max_probabilities, discourse_predictions = discourse_probabilities.max(dim=3)
 
     prediction = {
-        "example_ids": torch.arange(len(dataset), dtype=torch.long),
+        "example_ids": torch.arange(num_examples, dtype=torch.long),
         "reading_predictions": reading_logits.argmax(dim=2),
         "reading_subword_map": reading_subword_map,
         "pos_logits": pos_logits,

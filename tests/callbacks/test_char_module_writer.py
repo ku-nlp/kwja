@@ -44,10 +44,11 @@ def test_write_on_batch_end():
         document_split_stride=-1,
         doc_id_prefix=doc_id_prefix,
     )
+    num_examples = len(dataset)
 
-    trainer = MockTrainer([DataLoader(dataset, batch_size=len(dataset))])
+    trainer = MockTrainer([DataLoader(dataset, batch_size=num_examples)])
 
-    word_segmentation_predictions = torch.zeros((len(dataset), max_seq_length), dtype=torch.long)
+    word_segmentation_predictions = torch.zeros((num_examples, max_seq_length), dtype=torch.long)
     # [:, 0] = [CLS]
     word_segmentation_predictions[0, 1] = WORD_SEGMENTATION_TAGS.index("B")  # 花
     word_segmentation_predictions[0, 2] = WORD_SEGMENTATION_TAGS.index("I")  # 咲
@@ -66,7 +67,7 @@ def test_write_on_batch_end():
     word_segmentation_predictions[1, 8] = WORD_SEGMENTATION_TAGS.index("I")  # 〜
     word_segmentation_predictions[1, 9] = WORD_SEGMENTATION_TAGS.index("I")  # 〜
 
-    word_norm_op_predictions = torch.zeros((len(dataset), max_seq_length), dtype=torch.long)
+    word_norm_op_predictions = torch.zeros((num_examples, max_seq_length), dtype=torch.long)
     # [:, 0] = [CLS]
     word_norm_op_predictions[0, 1] = WORD_NORM_OP_TAGS.index("K")  # 花
     word_norm_op_predictions[0, 2] = WORD_NORM_OP_TAGS.index("K")  # 咲
@@ -86,7 +87,7 @@ def test_write_on_batch_end():
     word_norm_op_predictions[1, 9] = WORD_NORM_OP_TAGS.index("D")  # 〜
 
     prediction = {
-        "example_ids": torch.arange(len(dataset), dtype=torch.long),
+        "example_ids": torch.arange(num_examples, dtype=torch.long),
         "word_segmentation_predictions": word_segmentation_predictions,
         "word_norm_op_predictions": word_norm_op_predictions,
     }

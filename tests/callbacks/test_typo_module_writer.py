@@ -132,7 +132,7 @@ def test_write_on_batch_end(tokenizer: PreTrainedTokenizerBase):
         ]
         for confidence_threshold, expected_text in zip(confidence_thresholds, expected_texts):
             dataset = TypoInferenceDataset(texts=ListConfig(texts), tokenizer=tokenizer, max_seq_length=max_seq_length)
-            trainer = MockTrainer([DataLoader(dataset, batch_size=len(dataset))])
+            trainer = MockTrainer([DataLoader(dataset, batch_size=num_examples)])
             writer = TypoModuleWriter(confidence_threshold, tokenizer, destination=destination)
             writer.write_on_batch_end(trainer, ..., prediction, ..., ..., 0, 0)
             assert writer.destination.read_text() == expected_text
