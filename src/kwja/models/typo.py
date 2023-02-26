@@ -7,7 +7,7 @@ from omegaconf import DictConfig
 from transformers import PretrainedConfig, PreTrainedModel
 
 from kwja.evaluators.typo_module_metric import TypoModuleMetric
-from kwja.models.base_module import BaseModule
+from kwja.models.base import BaseModule
 from kwja.models.components.head import SequenceLabelingHead
 from kwja.models.functions.loss import compute_token_mean_loss
 from kwja.utils.constants import RESOURCE_PATH

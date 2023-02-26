@@ -7,7 +7,7 @@ from omegaconf import DictConfig
 from transformers import PretrainedConfig, PreTrainedModel
 
 from kwja.evaluators.word_module_metric import WordModuleMetric
-from kwja.models.base_module import BaseModule
+from kwja.models.base import BaseModule
 from kwja.models.components.crf import CRF
 from kwja.models.components.head import SequenceLabelingHead, WordSelectionHead
 from kwja.models.components.pooling import PoolingStrategy, pool_subwords
