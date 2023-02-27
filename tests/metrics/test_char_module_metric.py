@@ -2,20 +2,19 @@ from pathlib import Path
 
 import pytest
 import torch
-from transformers import AutoTokenizer
+from transformers import PreTrainedTokenizerBase
 
 from kwja.datamodule.datasets import CharDataset
 from kwja.metrics import CharModuleMetric
 from kwja.utils.constants import IGNORE_INDEX, WORD_NORM_OP_TAGS, WORD_SEGMENTATION_TAGS
 
 
-def test_char_module_metric() -> None:
+def test_char_module_metric(fixture_data_dir: Path, char_tokenizer: PreTrainedTokenizerBase) -> None:
     metric = CharModuleMetric()
 
-    path = Path(__file__).absolute().parent.parent / "data" / "datasets" / "char_files"
-    tokenizer = AutoTokenizer.from_pretrained("ku-nlp/roberta-base-japanese-char-wwm", do_word_tokenize=False)
+    path = fixture_data_dir / "datasets" / "char_files"
     max_seq_length = 20
-    dataset = CharDataset(str(path), tokenizer, max_seq_length, denormalize_probability=0.0)
+    dataset = CharDataset(str(path), char_tokenizer, max_seq_length, denormalize_probability=0.0)
     metric.set_properties({"dataset": dataset})
 
     metric.update(

@@ -2,23 +2,18 @@ from pathlib import Path
 
 import pytest
 import torch
-from transformers import AutoTokenizer
+from transformers import PreTrainedTokenizerBase
 
 from kwja.datamodule.datasets import TypoDataset
 from kwja.metrics import TypoModuleMetric
 
 
-def test_typo_module_metric() -> None:
+def test_typo_module_metric(fixture_data_dir: Path, typo_tokenizer: PreTrainedTokenizerBase) -> None:
     metric = TypoModuleMetric(confidence_thresholds=(0.0, 0.8, 0.9))
 
-    path = Path(__file__).absolute().parent.parent / "data" / "datasets" / "typo_files"
-    tokenizer = AutoTokenizer.from_pretrained(
-        "ku-nlp/roberta-base-japanese-char-wwm",
-        do_word_tokenize=False,
-        additional_special_tokens=["<k>", "<d>", "<_>", "<dummy>"],
-    )
+    path = fixture_data_dir / "datasets" / "typo_files"
     max_seq_length = 20
-    dataset = TypoDataset(str(path), tokenizer, max_seq_length=max_seq_length)
+    dataset = TypoDataset(str(path), typo_tokenizer, max_seq_length)
     metric.set_properties({"dataset": dataset})
 
     metric.update(

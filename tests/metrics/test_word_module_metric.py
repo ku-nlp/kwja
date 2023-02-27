@@ -3,10 +3,9 @@ from typing import Any, Dict
 
 import pytest
 import torch
-from omegaconf import ListConfig
 from rhoknp import Document
 from rhoknp.props import DepType
-from transformers import AutoTokenizer
+from transformers import PreTrainedTokenizerBase
 
 from kwja.datamodule.datasets import WordDataset
 from kwja.metrics import WordModuleMetric
@@ -24,25 +23,16 @@ from kwja.utils.constants import (
 )
 
 
-def test_word_module_metric() -> None:
+def test_word_module_metric(
+    fixture_data_dir: Path,
+    word_tokenizer: PreTrainedTokenizerBase,
+    dataset_kwargs: Dict[str, Any],
+) -> None:
     metric = WordModuleMetric()
 
-    path = Path(__file__).absolute().parent.parent / "data" / "datasets" / "word_files"
-    exophora_referents = ["著者", "読者", "不特定:人", "不特定:物"]
-    special_tokens = exophora_referents + ["[NULL]", "[NA]", "[ROOT]"]
-    tokenizer = AutoTokenizer.from_pretrained(
-        "nlp-waseda/roberta-base-japanese", additional_special_tokens=special_tokens
-    )
+    path = fixture_data_dir / "datasets" / "word_files"
     max_seq_length = 20
-    dataset_kwargs: Dict[str, Any] = {
-        "cohesion_tasks": ListConfig(["pas_analysis", "bridging_reference_resolution", "coreference_resolution"]),
-        "exophora_referents": ListConfig(exophora_referents),
-        "restrict_cohesion_target": True,
-        "pas_cases": ListConfig(["ガ", "ヲ", "ニ", "ガ２"]),
-        "br_cases": ListConfig(["ノ"]),
-        "special_tokens": ListConfig(special_tokens),
-    }
-    dataset = WordDataset(str(path), tokenizer, max_seq_length, document_split_stride=1, **dataset_kwargs)
+    dataset = WordDataset(str(path), word_tokenizer, max_seq_length, document_split_stride=1, **dataset_kwargs)
     dataset.examples[1].load_discourse_document(Document.from_knp(path.joinpath("1.knp").read_text()))
 
     reading_id2reading = {v: k for k, v in dataset.reading2reading_id.items()}
