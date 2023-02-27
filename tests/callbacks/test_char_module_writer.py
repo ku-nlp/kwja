@@ -7,7 +7,7 @@ import pytest
 import torch
 from omegaconf import ListConfig
 from torch.utils.data import DataLoader
-from transformers import AutoTokenizer
+from transformers import PreTrainedTokenizerBase
 
 import kwja
 from kwja.callbacks.char_module_writer import CharModuleWriter
@@ -32,14 +32,13 @@ def test_init(destination: Optional[Union[str, Path]]):
     _ = CharModuleWriter(destination=destination)
 
 
-def test_write_on_batch_end():
+def test_write_on_batch_end(char_tokenizer: PreTrainedTokenizerBase):
     texts = ["花咲ガニを買ぅ", "うまそーですね〜〜"]
-    tokenizer = AutoTokenizer.from_pretrained("ku-nlp/roberta-base-japanese-char-wwm", do_word_tokenize=False)
     max_seq_length = 20
     doc_id_prefix = "test"
     dataset = CharInferenceDataset(
         texts=ListConfig(texts),
-        tokenizer=tokenizer,
+        tokenizer=char_tokenizer,
         max_seq_length=max_seq_length,
         document_split_stride=-1,
         doc_id_prefix=doc_id_prefix,
@@ -94,7 +93,7 @@ def test_write_on_batch_end():
 
     with TemporaryDirectory() as tmp_dir:
         writer = CharModuleWriter(destination=tmp_dir / Path("char_prediction.juman"))
-        writer.write_on_batch_end(trainer, ..., prediction, None, ..., ..., 0)
+        writer.write_on_batch_end(trainer, ..., prediction, None, ..., 0, 0)
         assert isinstance(writer.destination, Path), "destination isn't set"
         assert writer.destination.read_text() == dedent(
             f"""\

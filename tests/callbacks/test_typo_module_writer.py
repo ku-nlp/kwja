@@ -7,7 +7,7 @@ import pytest
 import torch
 from omegaconf import ListConfig
 from torch.utils.data import DataLoader
-from transformers import AutoTokenizer, PreTrainedTokenizerBase
+from transformers import PreTrainedTokenizerBase
 
 from kwja.callbacks.typo_module_writer import TypoModuleWriter
 from kwja.callbacks.utils import get_maps
@@ -20,15 +20,6 @@ class MockTrainer:
         self.predict_dataloaders = predict_dataloaders
 
 
-@pytest.fixture()
-def tokenizer() -> PreTrainedTokenizerBase:
-    return AutoTokenizer.from_pretrained(
-        "ku-nlp/roberta-base-japanese-char-wwm",
-        do_word_tokenize=False,
-        additional_special_tokens=["<k>", "<d>", "<_>", "<dummy>"],
-    )
-
-
 @pytest.mark.parametrize(
     "destination",
     [
@@ -37,17 +28,17 @@ def tokenizer() -> PreTrainedTokenizerBase:
         str(Path(TemporaryDirectory().name) / Path("typo_prediction.juman")),
     ],
 )
-def test_init(destination: Optional[Union[str, Path]], tokenizer: PreTrainedTokenizerBase):
-    _ = TypoModuleWriter(confidence_threshold=0.9, tokenizer=tokenizer, destination=destination)
+def test_init(destination: Optional[Union[str, Path]], typo_tokenizer: PreTrainedTokenizerBase):
+    _ = TypoModuleWriter(confidence_threshold=0.9, tokenizer=typo_tokenizer, destination=destination)
 
 
-def test_write_on_batch_end(tokenizer: PreTrainedTokenizerBase):
+def test_write_on_batch_end(typo_tokenizer: PreTrainedTokenizerBase):
     texts = ["この文は解析されません…", "待つの木が枯れる", "紹介ことなかった", "この文は解析されません…"]
     num_examples = 2  # num_stash = 2
     max_seq_length = 20  # >= 11
 
     token2token_id, _ = get_maps(
-        tokenizer,
+        typo_tokenizer,
         RESOURCE_PATH / "typo_correction" / "multi_char_vocab.txt",
     )
 
@@ -131,9 +122,9 @@ def test_write_on_batch_end(tokenizer: PreTrainedTokenizerBase):
             ),
         ]
         for confidence_threshold, expected_text in zip(confidence_thresholds, expected_texts):
-            dataset = TypoInferenceDataset(texts=ListConfig(texts), tokenizer=tokenizer, max_seq_length=max_seq_length)
+            dataset = TypoInferenceDataset(ListConfig(texts), typo_tokenizer, max_seq_length)
             trainer = MockTrainer([DataLoader(dataset, batch_size=num_examples)])
-            writer = TypoModuleWriter(confidence_threshold, tokenizer, destination=destination)
+            writer = TypoModuleWriter(confidence_threshold, typo_tokenizer, destination=destination)
             writer.write_on_batch_end(trainer, ..., prediction, None, ..., 0, 0)
             assert isinstance(writer.destination, Path), "destination isn't set"
             assert writer.destination.read_text() == expected_text

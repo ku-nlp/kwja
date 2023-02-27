@@ -1,15 +1,14 @@
 import tempfile
 from pathlib import Path
 from textwrap import dedent
-from typing import List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import pytest
 import pytorch_lightning as pl
 import torch
-from omegaconf import ListConfig
 from rhoknp.props import DepType
 from torch.utils.data import DataLoader
-from transformers import AutoTokenizer
+from transformers import PreTrainedTokenizerBase
 
 import kwja
 from kwja.callbacks.word_module_writer import WordModuleWriter
@@ -77,7 +76,7 @@ def test_init(destination: Optional[Union[str, Path]]):
     _ = WordModuleWriter(AMBIG_SURF_SPECS, destination=destination)
 
 
-def test_write_on_batch_end():
+def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
     doc_id_prefix = "test"
     juman_text = dedent(
         f"""\
@@ -105,23 +104,9 @@ def test_write_on_batch_end():
     juman_file.write(juman_text)
     juman_file.seek(0)
 
-    exophora_referents = ["著者", "読者", "不特定:人", "不特定:物"]
-    special_tokens = exophora_referents + ["[NULL]", "[NA]", "[ROOT]"]
-    tokenizer = AutoTokenizer.from_pretrained(
-        "nlp-waseda/roberta-base-japanese", additional_special_tokens=special_tokens
-    )
     max_seq_length = 20  # >= 17
     dataset = WordInferenceDataset(
-        tokenizer=tokenizer,
-        max_seq_length=max_seq_length,
-        document_split_stride=1,
-        cohesion_tasks=ListConfig(["pas_analysis", "bridging_reference_resolution", "coreference_resolution"]),
-        exophora_referents=ListConfig(exophora_referents),
-        restrict_cohesion_target=True,
-        pas_cases=ListConfig(["ガ", "ヲ", "ニ", "ガ２"]),
-        br_cases=ListConfig(["ノ"]),
-        special_tokens=ListConfig(special_tokens),
-        juman_file=Path(juman_file.name),
+        word_tokenizer, max_seq_length, document_split_stride=1, juman_file=Path(juman_file.name), **dataset_kwargs
     )
     num_examples = len(dataset)
 
