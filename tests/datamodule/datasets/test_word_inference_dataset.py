@@ -1,74 +1,19 @@
 import tempfile
 from pathlib import Path
 from textwrap import dedent
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 import numpy as np
-import pytest
-from omegaconf import ListConfig
-from transformers import AutoTokenizer, PreTrainedTokenizerBase
+from transformers import PreTrainedTokenizerBase
 
 from kwja.datamodule.datasets import WordInferenceDataset
 
 
-@pytest.fixture()
-def path() -> Path:
-    return Path(__file__).absolute().parent.parent.parent / "data" / "datasets" / "word_files"
+def test_init(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
+    _ = WordInferenceDataset(word_tokenizer, max_seq_length=256, document_split_stride=1, **dataset_kwargs)
 
 
-@pytest.fixture()
-def cohesion_tasks() -> List[str]:
-    return ["pas_analysis", "bridging_reference_resolution", "coreference_resolution"]
-
-
-@pytest.fixture()
-def exophora_referents() -> List[str]:
-    return ["著者", "読者", "不特定:人", "不特定:物"]
-
-
-@pytest.fixture()
-def pas_cases() -> List[str]:
-    return ["ガ", "ヲ", "ニ", "ガ２"]
-
-
-@pytest.fixture()
-def br_cases() -> List[str]:
-    return ["ノ"]
-
-
-@pytest.fixture()
-def special_tokens(exophora_referents: List[str]) -> List[str]:
-    return exophora_referents + ["[NULL]", "[NA]", "[ROOT]"]
-
-
-@pytest.fixture()
-def tokenizer(special_tokens: List[str]) -> PreTrainedTokenizerBase:
-    return AutoTokenizer.from_pretrained("nlp-waseda/roberta-base-japanese", additional_special_tokens=special_tokens)
-
-
-@pytest.fixture()
-def dataset_kwargs(
-    cohesion_tasks: List[str],
-    exophora_referents: List[str],
-    pas_cases: List[str],
-    br_cases: List[str],
-    special_tokens: List[str],
-) -> Dict[str, Any]:
-    return {
-        "cohesion_tasks": ListConfig(cohesion_tasks),
-        "exophora_referents": ListConfig(exophora_referents),
-        "restrict_cohesion_target": True,
-        "pas_cases": ListConfig(pas_cases),
-        "br_cases": ListConfig(br_cases),
-        "special_tokens": ListConfig(special_tokens),
-    }
-
-
-def test_init(tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
-    _ = WordInferenceDataset(tokenizer, max_seq_length=256, document_split_stride=1, **dataset_kwargs)
-
-
-def test_len(tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
+def test_len(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
     juman_text = dedent(
         """\
         # S-ID:test-0-0
@@ -84,12 +29,12 @@ def test_len(tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any])
     juman_file.seek(0)
 
     dataset = WordInferenceDataset(
-        tokenizer, max_seq_length=256, document_split_stride=1, juman_file=Path(juman_file.name), **dataset_kwargs
+        word_tokenizer, max_seq_length=256, document_split_stride=1, juman_file=Path(juman_file.name), **dataset_kwargs
     )
     assert len(dataset) == 1
 
 
-def test_len_multi_doc(tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
+def test_len_multi_doc(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
     juman_text = dedent(
         """\
         # S-ID:test-0-0
@@ -111,12 +56,12 @@ def test_len_multi_doc(tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[
     juman_file.seek(0)
 
     dataset = WordInferenceDataset(
-        tokenizer, max_seq_length=256, document_split_stride=1, juman_file=Path(juman_file.name), **dataset_kwargs
+        word_tokenizer, max_seq_length=256, document_split_stride=1, juman_file=Path(juman_file.name), **dataset_kwargs
     )
     assert len(dataset) == 2
 
 
-def test_getitem(tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
+def test_getitem(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
     juman_text = dedent(
         """\
         # S-ID:test-0-0
@@ -133,7 +78,7 @@ def test_getitem(tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, A
 
     max_seq_length = 256
     dataset = WordInferenceDataset(
-        tokenizer,
+        word_tokenizer,
         max_seq_length=max_seq_length,
         document_split_stride=1,
         juman_file=Path(juman_file.name),

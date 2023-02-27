@@ -1,30 +1,21 @@
 from pathlib import Path
 
-import pytest
 import torch
-from transformers import AutoTokenizer, PreTrainedTokenizerBase
+from transformers import PreTrainedTokenizerBase
 
 from kwja.datamodule.datasets import CharDataset
 from kwja.utils.constants import IGNORE_INDEX, WORD_NORM_OP_TAGS, WORD_SEGMENTATION_TAGS
 
 
-@pytest.fixture()
-def path() -> Path:
-    return Path(__file__).absolute().parent.parent.parent / "data" / "datasets" / "char_files"
+def test_init(fixture_data_dir: Path, char_tokenizer: PreTrainedTokenizerBase):
+    path = fixture_data_dir / "datasets" / "char_files"
+    _ = CharDataset(str(path), char_tokenizer, max_seq_length=512, denormalize_probability=0.0)
 
 
-@pytest.fixture()
-def tokenizer() -> PreTrainedTokenizerBase:
-    return AutoTokenizer.from_pretrained("ku-nlp/roberta-base-japanese-char-wwm", do_word_tokenize=False)
-
-
-def test_init(path: Path, tokenizer: PreTrainedTokenizerBase):
-    _ = CharDataset(str(path), tokenizer, max_seq_length=512, denormalize_probability=0.0)
-
-
-def test_getitem(path: Path, tokenizer: PreTrainedTokenizerBase):
+def test_getitem(fixture_data_dir: Path, char_tokenizer: PreTrainedTokenizerBase):
+    path = fixture_data_dir / "datasets" / "char_files"
     max_seq_length: int = 512
-    dataset = CharDataset(str(path), tokenizer, max_seq_length, denormalize_probability=0.0)
+    dataset = CharDataset(str(path), char_tokenizer, max_seq_length, denormalize_probability=0.0)
     for i in range(len(dataset)):
         feature = dataset[i]
         assert feature.example_ids == i
@@ -34,9 +25,10 @@ def test_getitem(path: Path, tokenizer: PreTrainedTokenizerBase):
         assert len(feature.word_norm_op_labels) == max_seq_length
 
 
-def test_encode(path: Path, tokenizer: PreTrainedTokenizerBase):
+def test_encode(fixture_data_dir: Path, char_tokenizer: PreTrainedTokenizerBase):
+    path = fixture_data_dir / "datasets" / "char_files"
     max_seq_length = 512
-    dataset = CharDataset(str(path), tokenizer, max_seq_length, denormalize_probability=0.0)
+    dataset = CharDataset(str(path), char_tokenizer, max_seq_length, denormalize_probability=0.0)
     num_examples = len(dataset)
 
     word_segmentation_labels = torch.full((num_examples, max_seq_length), IGNORE_INDEX, dtype=torch.long)

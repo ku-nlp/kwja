@@ -1,27 +1,21 @@
-import pytest
 from omegaconf import ListConfig
-from transformers import AutoTokenizer, PreTrainedTokenizerBase
+from transformers import PreTrainedTokenizerBase
 
 from kwja.datamodule.datasets import CharInferenceDataset
 
 
-@pytest.fixture()
-def tokenizer() -> PreTrainedTokenizerBase:
-    return AutoTokenizer.from_pretrained("ku-nlp/roberta-base-japanese-char-wwm", do_word_tokenize=False)
+def test_init(char_tokenizer: PreTrainedTokenizerBase):
+    _ = CharInferenceDataset(ListConfig(["テスト", "サンプル"]), char_tokenizer, max_seq_length=512)
 
 
-def test_init(tokenizer: PreTrainedTokenizerBase):
-    _ = CharInferenceDataset(ListConfig(["テスト", "テスト"]), tokenizer, max_seq_length=512)
-
-
-def test_len(tokenizer: PreTrainedTokenizerBase):
-    dataset = CharInferenceDataset(ListConfig(["テスト", "テスト"]), tokenizer, max_seq_length=512)
+def test_len(char_tokenizer: PreTrainedTokenizerBase):
+    dataset = CharInferenceDataset(ListConfig(["テスト", "サンプル"]), char_tokenizer, max_seq_length=512)
     assert len(dataset) == 2
 
 
-def test_getitem(tokenizer: PreTrainedTokenizerBase):
+def test_getitem(char_tokenizer: PreTrainedTokenizerBase):
     max_seq_length = 512
-    dataset = CharInferenceDataset(ListConfig(["テスト", "テスト"]), tokenizer, max_seq_length)
+    dataset = CharInferenceDataset(ListConfig(["テスト", "サンプル"]), char_tokenizer, max_seq_length)
     for i in range(len(dataset)):
         feature = dataset[i]
         assert feature.example_ids == i

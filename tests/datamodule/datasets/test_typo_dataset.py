@@ -1,34 +1,21 @@
 from pathlib import Path
 
-import pytest
 import torch
-from transformers import AutoTokenizer, PreTrainedTokenizerBase
+from transformers import PreTrainedTokenizerBase
 
 from kwja.datamodule.datasets import TypoDataset
 from kwja.utils.constants import IGNORE_INDEX
 
 
-@pytest.fixture()
-def path() -> Path:
-    return Path(__file__).absolute().parent.parent.parent / "data" / "datasets" / "typo_files"
+def test_init(fixture_data_dir: Path, typo_tokenizer: PreTrainedTokenizerBase):
+    path = fixture_data_dir / "datasets" / "typo_files"
+    _ = TypoDataset(str(path), typo_tokenizer, max_seq_length=256)
 
 
-@pytest.fixture()
-def tokenizer() -> PreTrainedTokenizerBase:
-    return AutoTokenizer.from_pretrained(
-        "ku-nlp/roberta-base-japanese-char-wwm",
-        do_word_tokenize=False,
-        additional_special_tokens=["<k>", "<d>", "<_>", "<dummy>"],
-    )
-
-
-def test_init(path: Path, tokenizer: PreTrainedTokenizerBase):
-    _ = TypoDataset(str(path), tokenizer, max_seq_length=256)
-
-
-def test_getitem(path: Path, tokenizer: PreTrainedTokenizerBase):
+def test_getitem(fixture_data_dir: Path, typo_tokenizer: PreTrainedTokenizerBase):
+    path = fixture_data_dir / "datasets" / "typo_files"
     max_seq_length = 256
-    dataset = TypoDataset(str(path), tokenizer, max_seq_length)
+    dataset = TypoDataset(str(path), typo_tokenizer, max_seq_length)
     for i in range(len(dataset)):
         feature = dataset[i]
         assert feature.example_ids == i
@@ -42,9 +29,10 @@ def test_getitem(path: Path, tokenizer: PreTrainedTokenizerBase):
         assert len(dataset.examples[i].pre_text) == len(kdr_labels) == len(ins_labels) - 1
 
 
-def test_encode(path: Path, tokenizer: PreTrainedTokenizerBase):
+def test_encode(fixture_data_dir: Path, typo_tokenizer: PreTrainedTokenizerBase):
+    path = fixture_data_dir / "datasets" / "typo_files"
     max_seq_length = 256
-    dataset = TypoDataset(str(path), tokenizer, max_seq_length)
+    dataset = TypoDataset(str(path), typo_tokenizer, max_seq_length)
 
     kdr_labels = torch.full((len(dataset), max_seq_length), IGNORE_INDEX, dtype=torch.long)
     kdr_labels[0, 1] = dataset.token2token_id["松"]  # 待 -> 松
