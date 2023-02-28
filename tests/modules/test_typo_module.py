@@ -1,55 +1,44 @@
+import os
 from pathlib import Path
 
-import torch
-from omegaconf import DictConfig, OmegaConf
+import hydra
+from hydra import compose, initialize
+from hydra.core.hydra_config import HydraConfig
+from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
-from transformers import PreTrainedTokenizerBase
 
 from kwja.datamodule.datamodule import dataclass_data_collator
 from kwja.datamodule.datasets import TypoDataset
 from kwja.modules import TypoModule
 
-HPARAMS: DictConfig = OmegaConf.create(
-    {
-        "datamodule": {
-            "valid": ["test"],
-            "test": ["test"],
-        },
-        "encoder": {
-            "_target_": "transformers.AutoModel.from_pretrained",
-            "pretrained_model_name_or_path": "ku-nlp/roberta-base-japanese-char-wwm",
-            "add_pooling_layer": False,
-        },
-        "max_seq_length": 32,
-        "special_tokens": ["<k>", "<d>", "<_>", "<dummy>"],
-    }
-)
+os.environ["DATA_DIR"] = ""
+with initialize(version_base=None, config_path="../../configs"):
+    cfg = compose(config_name="typo_module.debug", return_hydra_config=True, overrides=["max_seq_length=32"])
+    HydraConfig.instance().set_config(cfg)
+    OmegaConf.set_readonly(cfg.hydra, False)
+    OmegaConf.resolve(cfg)
 
 
 def test_init() -> None:
-    _ = TypoModule(HPARAMS)
+    _ = TypoModule(cfg)
 
 
-def test_steps(fixture_data_dir: Path, typo_tokenizer: PreTrainedTokenizerBase) -> None:
-    module = TypoModule(HPARAMS)
-
-    path = fixture_data_dir / "datasets" / "typo_files"
-    dataset = TypoDataset(str(path), typo_tokenizer, HPARAMS.max_seq_length)
-    data_loader = DataLoader(
-        dataset,
-        batch_size=len(dataset),
-        collate_fn=dataclass_data_collator,
+def test_run(fixture_data_dir: Path) -> None:
+    trainer = hydra.utils.instantiate(
+        cfg.trainer,
+        logger=None,
+        enable_checkpointing=False,
+        devices=1,
+        accelerator="cpu",
     )
 
-    for batch_idx, batch in enumerate(data_loader):
-        loss = module.training_step(batch, batch_idx)
-        assert isinstance(loss, torch.Tensor)
-        assert loss.shape == ()
-        assert module.validation_step(batch, batch_idx) is None
-        assert module.test_step(batch, batch_idx) is None
-        ret = module.predict_step(batch, batch_idx)
-        assert "example_ids" in ret
-        assert "kdr_predictions" in ret
-        assert "kdr_probabilities" in ret
-        assert "ins_predictions" in ret
-        assert "ins_probabilities" in ret
+    path = fixture_data_dir / "datasets" / "typo_files"
+    typo_tokenizer = hydra.utils.instantiate(cfg.datamodule.train.jwtd.tokenizer)
+    dataset = TypoDataset(str(path), typo_tokenizer, cfg.max_seq_length)
+    data_loader = DataLoader(dataset, batch_size=len(dataset), collate_fn=dataclass_data_collator)
+
+    module = TypoModule(cfg)
+
+    trainer.fit(model=module, train_dataloaders=data_loader, val_dataloaders=data_loader)
+    trainer.test(model=module, dataloaders=data_loader)
+    trainer.predict(model=module, dataloaders=data_loader)
