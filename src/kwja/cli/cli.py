@@ -79,9 +79,6 @@ class BaseModuleProcessor:
 
 
 class TypoModuleProcessor(BaseModuleProcessor):
-    def __init__(self, specified_device: str, model_size: str, batch_size: int, destination: Path) -> None:
-        super().__init__(specified_device, model_size, batch_size, destination)
-
     def _load_module(self) -> pl.LightningModule:
         typer.echo("Loading typo module", err=True)
         checkpoint_path: Path = download_checkpoint(task="typo", model_size=self.model_size)
@@ -104,9 +101,6 @@ class TypoModuleProcessor(BaseModuleProcessor):
 
 
 class CharModuleProcessor(BaseModuleProcessor):
-    def __init__(self, specified_device: str, model_size: str, batch_size: int, destination: Path) -> None:
-        super().__init__(specified_device, model_size, batch_size, destination)
-
     def _load_module(self) -> pl.LightningModule:
         typer.echo("Loading char module", err=True)
         checkpoint_path: Path = download_checkpoint(task="char", model_size=self.model_size)
@@ -129,9 +123,6 @@ class CharModuleProcessor(BaseModuleProcessor):
 
 
 class WordModuleProcessor(BaseModuleProcessor):
-    def __init__(self, specified_device: str, model_size: str, batch_size: int, destination: Path) -> None:
-        super().__init__(specified_device, model_size, batch_size, destination)
-
     def _load_module(self) -> pl.LightningModule:
         typer.echo("Loading word module", err=True)
         checkpoint_path: Path = download_checkpoint(task="word", model_size=self.model_size)
@@ -149,9 +140,6 @@ class WordModuleProcessor(BaseModuleProcessor):
 
 
 class WordDiscourseModuleProcessor(BaseModuleProcessor):
-    def __init__(self, specified_device: str, model_size: str, batch_size: int, destination: Path) -> None:
-        super().__init__(specified_device, model_size, batch_size, destination)
-
     def _load_module(self) -> pl.LightningModule:
         typer.echo("Loading word_discourse module", err=True)
         checkpoint_path: Path = download_checkpoint(task="word_discourse", model_size=self.model_size)
@@ -183,16 +171,16 @@ class CLIProcessor:
     ) -> None:
         self.tmp_dir = TemporaryDirectory()
         self.raw_destination = self.tmp_dir.name / Path("raw_text.txt")
-        self.typo_destination = self.tmp_dir.name / Path("typo_prediction.txt")
-        self.char_destination = self.tmp_dir.name / Path("char_prediction.juman")
-        self.word_destination = self.tmp_dir.name / Path("word_prediction.knp")
-        self.word_discourse_destination = self.tmp_dir.name / Path("word_discourse_prediction.knp")
+        typo_destination = self.tmp_dir.name / Path("typo_prediction.txt")
+        char_destination = self.tmp_dir.name / Path("char_prediction.juman")
+        word_destination = self.tmp_dir.name / Path("word_prediction.knp")
+        word_discourse_destination = self.tmp_dir.name / Path("word_discourse_prediction.knp")
         self.processors: Dict[str, BaseModuleProcessor] = {
-            "typo": TypoModuleProcessor(specified_device, model_size, typo_batch_size, self.typo_destination),
-            "char": CharModuleProcessor(specified_device, model_size, char_batch_size, self.char_destination),
-            "word": WordModuleProcessor(specified_device, model_size, word_batch_size, self.word_destination),
+            "typo": TypoModuleProcessor(specified_device, model_size, typo_batch_size, typo_destination),
+            "char": CharModuleProcessor(specified_device, model_size, char_batch_size, char_destination),
+            "word": WordModuleProcessor(specified_device, model_size, word_batch_size, word_destination),
             "word_discourse": WordDiscourseModuleProcessor(
-                specified_device, model_size, word_batch_size, self.word_discourse_destination
+                specified_device, model_size, word_batch_size, word_discourse_destination
             ),
         }
 
