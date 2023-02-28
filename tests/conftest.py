@@ -11,6 +11,9 @@ from transformers import AutoTokenizer, PreTrainedTokenizerBase
 from kwja.metrics.cohesion_scorer import Scorer
 
 os.environ["DATA_DIR"] = ""
+base_path = Path(__file__).parent.parent / "configs" / "base.yaml"
+if base_path.exists() is False:
+    base_path.symlink_to(base_path.parent / "base_template.yaml")
 
 
 @pytest.fixture()
