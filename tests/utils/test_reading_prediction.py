@@ -64,8 +64,10 @@ def test_main(fixture_data_dir: Path):
     input_path = fixture_data_dir / "datasets" / "word_files"
     subprocess.run(
         [
+            "poetry",
+            "run",
             "python",
-            str(script_path),
+            script_path,
             "-m",
             "ku-nlp/deberta-v2-tiny-japanese",
             "-k",
@@ -77,8 +79,10 @@ def test_main(fixture_data_dir: Path):
     )
     subprocess.run(
         [
+            "poetry",
+            "run",
             "python",
-            str(script_path),
+            script_path,
             "-m",
             "nlp-waseda/roberta-base-japanese",
             "-k",
