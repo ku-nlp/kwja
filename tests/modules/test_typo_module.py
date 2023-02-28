@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 import hydra
@@ -11,7 +10,6 @@ from kwja.datamodule.datamodule import dataclass_data_collator
 from kwja.datamodule.datasets import TypoDataset
 from kwja.modules import TypoModule
 
-os.environ["DATA_DIR"] = ""
 with initialize(version_base=None, config_path="../../configs"):
     cfg = compose(config_name="typo_module.debug", return_hydra_config=True, overrides=["max_seq_length=32"])
     HydraConfig.instance().set_config(cfg)

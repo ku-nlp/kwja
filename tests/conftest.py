@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -9,6 +10,8 @@ from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from kwja.metrics.cohesion_scorer import Scorer
 
+os.environ["DATA_DIR"] = ""
+
 
 @pytest.fixture()
 def fixture_data_dir():
@@ -18,7 +21,7 @@ def fixture_data_dir():
 @pytest.fixture()
 def typo_tokenizer() -> PreTrainedTokenizerBase:
     return AutoTokenizer.from_pretrained(
-        "ku-nlp/roberta-base-japanese-char-wwm",
+        "ku-nlp/deberta-v2-tiny-japanese-char-wwm",
         do_word_tokenize=False,
         additional_special_tokens=["<k>", "<d>", "<_>", "<dummy>"],
     )
@@ -26,12 +29,12 @@ def typo_tokenizer() -> PreTrainedTokenizerBase:
 
 @pytest.fixture()
 def char_tokenizer() -> PreTrainedTokenizerBase:
-    return AutoTokenizer.from_pretrained("ku-nlp/roberta-base-japanese-char-wwm", do_word_tokenize=False)
+    return AutoTokenizer.from_pretrained("ku-nlp/deberta-v2-tiny-japanese-char-wwm", do_word_tokenize=False)
 
 
 @pytest.fixture()
 def word_tokenizer(special_tokens: List[str]) -> PreTrainedTokenizerBase:
-    return AutoTokenizer.from_pretrained("ku-nlp/deberta-v2-base-japanese", additional_special_tokens=special_tokens)
+    return AutoTokenizer.from_pretrained("ku-nlp/deberta-v2-tiny-japanese", additional_special_tokens=special_tokens)
 
 
 @pytest.fixture()

@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 import hydra
@@ -11,7 +10,6 @@ from kwja.datamodule.datamodule import dataclass_data_collator
 from kwja.datamodule.datasets import CharDataset
 from kwja.modules import CharModule
 
-os.environ["DATA_DIR"] = ""
 with initialize(version_base=None, config_path="../../configs"):
     cfg = compose(config_name="char_module.debug", return_hydra_config=True, overrides=["max_seq_length=32"])
     HydraConfig.instance().set_config(cfg)
@@ -30,7 +28,6 @@ def test_steps(fixture_data_dir: Path) -> None:
         enable_checkpointing=False,
         devices=1,
         accelerator="cpu",
-        strategy=None,
     )
 
     path = fixture_data_dir / "datasets" / "char_files"
