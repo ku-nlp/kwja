@@ -4,7 +4,8 @@ from typing import List
 
 import pytest
 
-from kwja.utils.reading_prediction import get_word_level_readings
+from kwja.utils import reading_prediction
+from kwja.utils.constants import RESOURCE_PATH
 
 
 @pytest.mark.parametrize(
@@ -54,12 +55,12 @@ def test_get_word_level_readings(
     subword_map: List[List[bool]],
     expected_output: List[str],
 ):
-    assert get_word_level_readings(readings, tokens, subword_map) == expected_output
+    assert reading_prediction.get_word_level_readings(readings, tokens, subword_map) == expected_output
 
 
 def test_main(fixture_data_dir: Path):
-    script_path = Path(__file__).parent.parent.parent / "src" / "kwja" / "utils" / "reading_prediction.py"
-    kanjidic_path = Path(__file__).parent.parent.parent / "kwja" / "resource" / "reading_prediction" / "kanjidic"
+    script_path = reading_prediction.__file__
+    kanjidic_path = RESOURCE_PATH / "reading_prediction" / "kanjidic"
     input_path = fixture_data_dir / "datasets" / "word_files"
     subprocess.run(
         [
