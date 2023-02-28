@@ -1,13 +1,89 @@
+import subprocess
+from pathlib import Path
+from typing import List
+
+import pytest
+
 from kwja.utils.reading_prediction import get_word_level_readings
 
 
-def test_get_word_level_readings():
-    readings = ["[UNK]", "[ID]", "[ID]", "べんきょう"]
-    tokens = ["[CLS]", "テス", "ト", "勉強"]
-    subword_map = [
-        [False, True, True, False],
-        [False, False, False, True],
-        [False, False, False, False],
-        [False, False, False, False],
-    ]
-    assert get_word_level_readings(readings, tokens, subword_map) == ["テスト", "べんきょう"]
+@pytest.mark.parametrize(
+    "readings, tokens, subword_map, expected_output",
+    [
+        (
+            ["[UNK]", "せい", "じょう", "[ID]", "にゅうりょく"],
+            ["[CLS]", "正", "常", "な", "入力"],
+            [
+                [False, True, True, False, False],
+                [False, False, False, True, False],
+                [False, False, False, False, True],
+                [False, False, False, False, False],
+                [False, False, False, False, False],
+            ],
+            ["せいじょう", "な", "にゅうりょく"],
+        ),
+        (
+            ["[UNK]", "ふせい", "[ID]", "[ID]", "にゅうりょく"],
+            ["[CLS]", "不正", "", "な", "入力"],
+            [
+                [False, True, False, False, False],
+                [False, False, True, False, False],
+                [False, False, False, True, False],
+                [False, False, False, False, True],
+                [False, False, False, False, False],
+            ],
+            ["ふせい", "␣", "な", "にゅうりょく"],
+        ),
+        (
+            ["[UNK]", "ふせい", "[ID]", "[ID]", "にゅうりょく"],
+            ["[CLS]", "不正", "", "な", "入力"],
+            [
+                [False, True, False, False, False],
+                [False, False, True, True, False],
+                [False, False, False, False, True],
+                [False, False, False, False, False],
+                [False, False, False, False, False],
+            ],
+            ["ふせい", "な", "にゅうりょく"],
+        ),
+    ],
+)
+def test_get_word_level_readings(
+    readings: List[str],
+    tokens: List[str],
+    subword_map: List[List[bool]],
+    expected_output: List[str],
+):
+    assert get_word_level_readings(readings, tokens, subword_map) == expected_output
+
+
+def test_main(fixture_data_dir: Path):
+    script_path = Path(__file__).parent.parent.parent / "src" / "kwja" / "utils" / "reading_prediction.py"
+    kanjidic_path = Path(__file__).parent.parent.parent / "kwja" / "resource" / "reading_prediction" / "kanjidic"
+    input_path = fixture_data_dir / "datasets" / "word_files"
+    subprocess.run(
+        [
+            "python",
+            str(script_path),
+            "-m",
+            "ku-nlp/deberta-v2-tiny-japanese",
+            "-k",
+            str(kanjidic_path),
+            "-i",
+            str(input_path),
+        ],
+        check=True,
+    )
+    subprocess.run(
+        [
+            "python",
+            str(script_path),
+            "-m",
+            "nlp-waseda/roberta-base-japanese",
+            "-k",
+            str(kanjidic_path),
+            "-i",
+            str(input_path),
+        ],
+        check=True,
+    )

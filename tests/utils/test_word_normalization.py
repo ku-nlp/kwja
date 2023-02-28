@@ -111,16 +111,16 @@ def test_morpheme_normalizer():
     assert all([a == b for a, b in zip(word_norm_op_tags, expected)])
 
 
-denormalize_list = [
-    ("なあ", "なぁ"),
-    ("さあ", "さぁ"),
-    ("もうれつ", "もーれつ"),
-    ("鎌ケ谷", "鎌ヶ谷"),
-    ("八ケ岳", "八ヶ岳"),
-]
-
-
-@pytest.mark.parametrize("surf,expected", denormalize_list)
+@pytest.mark.parametrize(
+    "surf,expected",
+    [
+        ("なあ", "なぁ"),
+        ("さあ", "さぁ"),
+        ("もうれつ", "もーれつ"),
+        ("鎌ケ谷", "鎌ヶ谷"),
+        ("八ケ岳", "八ヶ岳"),
+    ],
+)
 def test_denormalize_deterministic(surf, expected):
     md = MorphemeDenormalizer()
     assert md._denormalize_deterministic(surf) == expected
