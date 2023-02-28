@@ -1,82 +1,68 @@
-import copy
-import itertools
 import logging
-import os
 import sys
 from collections import defaultdict
 from io import TextIOBase
+from itertools import product
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Set, TextIO, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, TextIO, Union
 
-import numpy as np
 import pytorch_lightning as pl
-import torch
 from jinf import Jinf
 from pytorch_lightning.callbacks import BasePredictionWriter
-from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
-from rhoknp.cohesion import ExophoraReferent, RelTag, RelTagList
-from rhoknp.props import DepType, NamedEntity, NamedEntityCategory, SemanticsDict
+from rhoknp import Document, Morpheme, Sentence
+from rhoknp.props import SemanticsDict
 
-from kwja.datamodule.datasets import WordDataset, WordInferenceDataset
-from kwja.datamodule.datasets.word_dataset import WordExampleSet
-from kwja.datamodule.datasets.word_inference_dataset import WordInferenceExample
-from kwja.datamodule.examples import CohesionTask
-from kwja.datamodule.extractors.base import Extractor
-from kwja.utils.constants import (
-    BASE_PHRASE_FEATURES,
-    CONJFORM_TYPES,
-    CONJTYPE_CONJFORM_TYPE2ID,
-    CONJTYPE_TYPES,
-    INDEX2CONJFORM_TYPE,
-    INDEX2CONJTYPE_TYPE,
-    INDEX2DEPENDENCY_TYPE,
-    INDEX2DISCOURSE_RELATION,
-    INDEX2POS_TYPE,
-    INDEX2SUBPOS_TYPE,
-    INFLECTABLE,
-    NE_TAGS,
-    POS_SUBPOS_TYPE2ID,
-    POS_TYPE2ID,
-    SUBPOS_TYPES,
+from kwja.callbacks.utils import (
+    add_base_phrase_features,
+    add_cohesion,
+    add_dependency,
+    add_discourse,
+    add_named_entities,
+    chunk_morphemes,
+    get_morpheme_attribute_predictions,
+    get_word_reading_predictions,
 )
-from kwja.utils.dependency_parsing import DependencyManager
+from kwja.datamodule.datasets import WordDataset, WordInferenceDataset
+from kwja.datamodule.examples import WordExample, WordInferenceExample
+from kwja.utils.constants import (
+    CONJFORM_TAGS,
+    CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID,
+    CONJTYPE_TAGS,
+    POS_TAG2POS_ID,
+    POS_TAG_SUBPOS_TAG2SUBPOS_ID,
+    POS_TAGS,
+    RESOURCE_PATH,
+    SUBPOS_TAGS,
+    WordTask,
+)
 from kwja.utils.jumandic import JumanDic
-from kwja.utils.reading import get_reading2id, get_word_level_readings
+from kwja.utils.reading_prediction import get_reading2reading_id
 from kwja.utils.sub_document import extract_target_sentences, to_orig_doc_id
 
 logger = logging.getLogger(__name__)
 
 
 class WordModuleWriter(BasePredictionWriter):
-    def __init__(
-        self,
-        output_dir: str,
-        reading_resource_path: str,
-        jumandic_path: str,
-        ambig_surf_specs: List[Dict[str, str]],
-        pred_filename: str = "predict",
-        use_stdout: bool = False,
-    ) -> None:
+    def __init__(self, ambig_surf_specs: List[Dict[str, str]], destination: Optional[Union[str, Path]] = None) -> None:
         super().__init__(write_interval="batch")
-
-        self.reading_resource_path = Path(reading_resource_path)
-        reading2id = get_reading2id(str(self.reading_resource_path / "vocab.txt"))
-        self.id2reading = {v: k for k, v in reading2id.items()}
-        self.jinf = Jinf()
-        self.jumandic = JumanDic(Path(jumandic_path))
-        self.ambig_surf_specs = ambig_surf_specs
-
-        self.destination: Union[Path, TextIO]
-        if use_stdout is True:
-            self.destination = sys.stdout
+        if destination is None:
+            self.destination: Union[Path, TextIO] = sys.stdout
         else:
-            self.destination = Path(f"{output_dir}/{pred_filename}.knp")
+            if isinstance(destination, str):
+                destination = Path(destination)
+            self.destination = destination
             self.destination.parent.mkdir(exist_ok=True, parents=True)
-            if self.destination.exists():
-                os.remove(str(self.destination))
+            self.destination.unlink(missing_ok=True)
+
+        reading2reading_id = get_reading2reading_id(RESOURCE_PATH / "reading_prediction" / "vocab.txt")
+        self.reading_id2reading = {v: k for k, v in reading2reading_id.items()}
+
+        self.ambig_surf_specs = ambig_surf_specs
+        self.jumandic = JumanDic(RESOURCE_PATH / "jumandic")
+        self.jinf = Jinf()
 
         self.prev_doc_id: Optional[str] = None
-        self.doc_id2analyzed_sentence: Dict[str, Dict[str, Sentence]] = defaultdict(dict)
+        self.doc_id_sid2predicted_sentence: Dict[str, Dict[str, Sentence]] = defaultdict(dict)
 
     def write_on_batch_end(
         self,
@@ -89,197 +75,141 @@ class WordModuleWriter(BasePredictionWriter):
         dataloader_idx: int,
     ) -> None:
         dataloaders = trainer.predict_dataloaders
-        batch_example_ids = prediction["example_ids"]
         dataset: Union[WordDataset, WordInferenceDataset] = dataloaders[dataloader_idx].dataset
-        batch_reading_subword_map = prediction["reading_subword_map"]
-        batch_reading_preds = torch.argmax(prediction["reading_prediction_logits"], dim=2)
-        batch_pos_logits = prediction["word_analysis_pos_logits"]
-        batch_subpos_logits = prediction["word_analysis_subpos_logits"]
-        batch_conjtype_logits = prediction["word_analysis_conjtype_logits"]
-        batch_conjform_logits = prediction["word_analysis_conjform_logits"]
-        batch_word_feature_logits = prediction["word_feature_logits"]
-        batch_ne_tag_preds = torch.argmax(prediction["ne_logits"], dim=2)
-        batch_base_phrase_feature_logits = prediction["base_phrase_feature_logits"]
-        batch_dependency_preds = torch.topk(
-            prediction["dependency_logits"],
-            k=pl_module.hparams.dependency_topk,
-            dim=2,
-        ).indices
-        batch_dependency_type_preds = torch.argmax(prediction["dependency_type_logits"], dim=3)
-        batch_cohesion_logits = prediction["cohesion_logits"]  # (b, rel, word, word)
-        batch_discourse_parsing_preds = torch.argmax(prediction["discourse_parsing_logits"], dim=3)
+
         for (
             example_id,
+            reading_predictions,
             reading_subword_map,
-            reading_preds,
             pos_logits,
             subpos_logits,
             conjtype_logits,
             conjform_logits,
-            word_feature_logits,
-            ne_tag_preds,
-            base_phrase_feature_logits,
-            dependency_preds,
-            dependency_type_preds,
+            word_feature_probabilities,
+            ne_predictions,
+            base_phrase_feature_probabilities,
+            dependency_predictions,
+            dependency_type_predictions,
             cohesion_logits,
-            discourse_parsing_preds,
+            discourse_predictions,
         ) in zip(
-            batch_example_ids,
-            batch_reading_subword_map.tolist(),
-            batch_reading_preds.tolist(),
-            batch_pos_logits,
-            batch_subpos_logits,
-            batch_conjtype_logits,
-            batch_conjform_logits,
-            batch_word_feature_logits.tolist(),
-            batch_ne_tag_preds.tolist(),
-            batch_base_phrase_feature_logits.tolist(),
-            batch_dependency_preds.tolist(),
-            batch_dependency_type_preds.tolist(),
-            batch_cohesion_logits.tolist(),
-            batch_discourse_parsing_preds.tolist(),
+            prediction["example_ids"].tolist(),
+            prediction["reading_predictions"].tolist(),
+            prediction["reading_subword_map"].tolist(),
+            prediction["pos_logits"],
+            prediction["subpos_logits"],
+            prediction["conjtype_logits"],
+            prediction["conjform_logits"],
+            prediction["word_feature_probabilities"].tolist(),
+            prediction["ne_predictions"],
+            prediction["base_phrase_feature_probabilities"].tolist(),
+            prediction["dependency_predictions"].tolist(),
+            prediction["dependency_type_predictions"].tolist(),
+            prediction["cohesion_logits"].tolist(),  # (b, rel, seq, seq)
+            prediction["discourse_predictions"].tolist(),
         ):
-            example: Union[WordExampleSet, WordInferenceExample] = dataset.examples[example_id]
-            doc_id = example.doc_id
-            document = dataset.doc_id2document[doc_id]
-            readings = [self.id2reading[pred] for pred in reading_preds]
-            decoded_tokens: List[str] = [dataset.tokenizer.decode(id_) for id_ in example.encoding.ids]
-            word_reading_preds = get_word_level_readings(readings, decoded_tokens, reading_subword_map)
-            pos_preds, subpos_preds, conjtype_preds, conjform_preds = self._get_mrph_type_preds(
-                pos_logits=pos_logits,
-                subpos_logits=subpos_logits,
-                conjtype_logits=conjtype_logits,
-                conjform_logits=conjform_logits,
+            example: Union[WordExample, WordInferenceExample] = dataset.examples[example_id]
+            assert example.doc_id is not None, "doc_id isn't set"
+            document = dataset.doc_id2document[example.doc_id]
+
+            word_reading_predictions = get_word_reading_predictions(
+                example.encoding.ids,
+                reading_predictions,
+                self.reading_id2reading,
+                dataset.tokenizer,
+                reading_subword_map,
             )
-            morphemes = self._create_morphemes(
-                [m.text for m in document.morphemes],
+            (
+                pos_predictions,
+                subpos_predictions,
+                conjtype_predictions,
+                conjform_predictions,
+            ) = get_morpheme_attribute_predictions(pos_logits, subpos_logits, conjtype_logits, conjform_logits)
+            morphemes = self._build_morphemes(
+                [m.surf for m in document.morphemes],
                 [m.lemma for m in document.morphemes],
-                word_reading_preds,
-                pos_preds,
-                subpos_preds,
-                conjtype_preds,
-                conjform_preds,
+                word_reading_predictions,
+                pos_predictions,
+                subpos_predictions,
+                conjtype_predictions,
+                conjform_predictions,
             )
-            document = self._chunk_morphemes(document, morphemes, word_feature_logits)
-            document.doc_id = doc_id
-            for sentence in extract_target_sentences(document):
-                self._add_base_phrase_features(sentence, base_phrase_feature_logits)
-                self._add_named_entities(sentence, ne_tag_preds)
-                self._add_dependency(sentence, dependency_preds, dependency_type_preds, dataset.special_to_index)
-            orig_doc_id = to_orig_doc_id(doc_id)
-            sentences = [
-                self.doc_id2analyzed_sentence[orig_doc_id].get(sentence.sid) or sentence
-                for sentence in document.sentences
+            predicted_document = chunk_morphemes(document, morphemes, word_feature_probabilities)
+            predicted_document.doc_id = document.doc_id
+            for sentence in extract_target_sentences(predicted_document):
+                add_named_entities(sentence, ne_predictions)
+                add_base_phrase_features(sentence, base_phrase_feature_probabilities)
+                add_dependency(
+                    sentence, dependency_predictions, dependency_type_predictions, dataset.special_token2index
+                )
+            orig_doc_id = to_orig_doc_id(document.doc_id)
+            # 解析済みの文とマージ
+            sentences: List[Sentence] = [
+                self.doc_id_sid2predicted_sentence[orig_doc_id].get(s.sid) or s for s in predicted_document.sentences
             ]
-            document = Document.from_sentences(sentences)
-            document.doc_id = doc_id
-            self._add_cohesion(
-                document,
+            predicted_document = Document.from_sentences(sentences)
+            predicted_document.doc_id = document.doc_id
+            add_cohesion(
+                predicted_document,
                 cohesion_logits,
-                dataset.cohesion_task_to_rel_types,
-                dataset.exophora_referents,
-                dataset.index_to_special,
-                dataset.extractors,
+                dataset.cohesion_task2utils,
+                dataset.index2special_token,
             )
-            self._add_discourse(document, discourse_parsing_preds)
-            for sentence in extract_target_sentences(document):
-                self.doc_id2analyzed_sentence[orig_doc_id][sentence.sid] = sentence
+            if WordTask.DISCOURSE_PARSING in pl_module.training_tasks:
+                add_discourse(predicted_document, discourse_predictions)
+
+            for predicted_sentence, sentence in zip(
+                extract_target_sentences(predicted_document),
+                extract_target_sentences(document),
+            ):
+                predicted_sentence.comment = sentence.comment
+                self.doc_id_sid2predicted_sentence[orig_doc_id][predicted_sentence.sid] = predicted_sentence
             self.prev_doc_id = self.prev_doc_id or orig_doc_id
             if orig_doc_id != self.prev_doc_id:
-                self.write_document(self.doc_id2analyzed_sentence[self.prev_doc_id])
-                self.doc_id2analyzed_sentence[self.prev_doc_id].clear()
+                self._write_document(self.doc_id_sid2predicted_sentence[self.prev_doc_id])
+                self.doc_id_sid2predicted_sentence[self.prev_doc_id].clear()
                 self.prev_doc_id = orig_doc_id
+
         if batch_idx == len(dataloaders[dataloader_idx]) - 1:
-            for sid2analyzed_sentence in self.doc_id2analyzed_sentence.values():
-                self.write_document(sid2analyzed_sentence)
-            self.doc_id2analyzed_sentence.clear()
+            for sid2predicted_sentence in self.doc_id_sid2predicted_sentence.values():
+                self._write_document(sid2predicted_sentence)
+            self.doc_id_sid2predicted_sentence.clear()
 
-    def _create_morphemes(
+    def _build_morphemes(
         self,
-        words: List[str],
+        surfs: List[str],
         norms: List[str],
-        reading_preds: List[str],
-        pos_preds: List[int],
-        subpos_preds: List[int],
-        conjtype_preds: List[int],
-        conjform_preds: List[int],
+        reading_predictions: List[str],
+        pos_predictions: List[int],
+        subpos_predictions: List[int],
+        conjtype_predictions: List[int],
+        conjform_predictions: List[int],
     ) -> List[Morpheme]:
-        assert len(words) == len(norms) == len(reading_preds)
+        assert len(surfs) == len(norms) == len(reading_predictions)
         morphemes = []
-        for word, norm, reading, pos_index, subpos_index, conjtype_index, conjform_index in zip(
-            words, norms, reading_preds, pos_preds, subpos_preds, conjtype_preds, conjform_preds
+        for surf, norm, reading, pos_index, subpos_index, conjtype_index, conjform_index in zip(
+            surfs,
+            norms,
+            reading_predictions,
+            pos_predictions,
+            subpos_predictions,
+            conjtype_predictions,
+            conjform_predictions,
         ):
-            pos = INDEX2POS_TYPE[pos_index]
-            pos_id = POS_TYPE2ID[pos]
-            subpos = INDEX2SUBPOS_TYPE[subpos_index]
-            subpos_id = POS_SUBPOS_TYPE2ID[pos][subpos]
-            conjtype = INDEX2CONJTYPE_TYPE[conjtype_index]
+            pos = POS_TAGS[pos_index]
+            pos_id = POS_TAG2POS_ID[pos]
+            subpos = SUBPOS_TAGS[subpos_index]
+            subpos_id = POS_TAG_SUBPOS_TAG2SUBPOS_ID[pos][subpos]
+            conjtype = CONJTYPE_TAGS[conjtype_index]
             conjtype_id = conjtype_index
-            conjform = INDEX2CONJFORM_TYPE[conjform_index]
-            conjform_id = CONJTYPE_CONJFORM_TYPE2ID[conjtype][conjform]
-            semantics: Dict[str, Union[str, bool]] = {}
-            homograph_ops: List[Dict[str, Any]] = []
+            conjform = CONJFORM_TAGS[conjform_index]
+            conjform_id = CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID[conjtype][conjform]
 
-            # create lemma using norm, conjtype and conjform
-            if conjtype == "*":
-                lemma: str = norm
-            else:
-                for ambig_surf_spec in self.ambig_surf_specs:
-                    if conjtype != ambig_surf_spec["conjtype"]:
-                        continue
-                    if conjform != ambig_surf_spec["conjform"]:
-                        continue
-                    # ambiguous: dictionary lookup to identify the lemma
-                    matches = []
-                    for entry in self.jumandic.lookup(norm):
-                        if entry["pos"] == pos and entry["subpos"] == subpos and entry["conjtype"] == conjtype:
-                            matches.append(entry)
-                    if len(matches) > 0:
-                        lemma_set: Set[str] = set()
-                        for entry in matches:
-                            lemma_set.add(entry["lemma"])
-                        lemmas: List[str] = list(lemma_set)
-                        lemma = lemmas[0]
-                        if len(lemmas) > 1:
-                            homograph_ops.append({"type": "lemma", "values": lemmas[1:]})
-                    else:
-                        logger.warning(f"failed to get lemma for {norm}")
-                        lemma = norm
-                    break
-                else:
-                    # not ambiguous: use paradigm table to generate the lemma
-                    try:
-                        lemma = self.jinf(norm, conjtype, conjform, "基本形")
-                    except ValueError as e:
-                        logger.warning(f"failed to get lemma for {norm}: ({e})")
-                        lemma = norm
-            matches = []
-            for entry in self.jumandic.lookup(norm):
-                if (
-                    entry["reading"] == reading
-                    and entry["pos"] == pos
-                    and entry["subpos"] == subpos
-                    and entry["conjtype"] == conjtype
-                ):
-                    matches.append(entry)
-            if len(matches) > 0:
-                entry = matches[0]
-                semantics.update(SemanticsDict.from_sstring('"' + entry["semantics"] + '"'))
-                if len(matches) > 1:
-                    # homograph
-                    semantics_list = []
-                    for entry2 in matches[1:]:
-                        semantics2: Dict[str, Union[str, bool]] = {}
-                        semantics2.update(SemanticsDict.from_sstring('"' + entry2["semantics"] + '"'))
-                        semantics_list.append(semantics2)
-                    homograph_ops.append(
-                        {
-                            "type": "semantics",
-                            "values": semantics_list,
-                        }
-                    )
+            homograph_ops: List[Dict[str, Any]] = []
+            lemma = self._get_lemma(norm, pos, subpos, conjtype, conjform, homograph_ops)
+            semantics = self._lookup_semantics(reading, norm, pos, subpos, conjtype, homograph_ops)
             morpheme = Morpheme(
-                word,
+                surf,
                 reading=reading,
                 lemma=lemma,
                 pos=pos,
@@ -290,353 +220,115 @@ class WordModuleWriter(BasePredictionWriter):
                 conjtype_id=conjtype_id,
                 conjform=conjform,
                 conjform_id=conjform_id,
-                semantics=SemanticsDict(semantics),
+                semantics=semantics,
             )
-
-            morphemes.append(morpheme)
             if len(homograph_ops) >= 1:
-                range_list = []
-                for homograph_op in homograph_ops:
-                    range_list.append(range(len(homograph_op["values"])))
-                for op_idx_list in itertools.product(*range_list):
-                    lemma2 = lemma
-                    semantics2 = copy.deepcopy(semantics)
-                    for i, j in enumerate(op_idx_list):
-                        homograph_op = homograph_ops[i]
-                        v = homograph_op["values"][j]
-                        if homograph_op["type"] == "lemma":
-                            lemma2 = v
-                        elif homograph_op["type"] == "semantics":
-                            semantics2 = v
-                        else:
-                            raise NotImplementedError
-                    homograph = Morpheme(
-                        word,
-                        reading=reading,
-                        lemma=lemma2,
-                        pos=pos,
-                        pos_id=pos_id,
-                        subpos=subpos,
-                        subpos_id=subpos_id,
-                        conjtype=conjtype,
-                        conjtype_id=conjtype_id,
-                        conjform=conjform,
-                        conjform_id=conjform_id,
-                        semantics=SemanticsDict(semantics2),
-                        homograph=True,
-                    )
-                    # rhoknp coverts homographs into KNP's ALT features
-                    morpheme.homographs.append(homograph)
+                self._add_homographs(homograph_ops, morpheme, semantics)
+            morphemes.append(morpheme)
         return morphemes
 
-    @staticmethod
-    def _get_mrph_type_preds(
-        pos_logits: torch.Tensor,
-        subpos_logits: torch.Tensor,
-        conjtype_logits: torch.Tensor,
-        conjform_logits: torch.Tensor,
-    ) -> Tuple[List[int], List[int], List[int], List[int]]:
-        pos_preds: List[int] = torch.argmax(pos_logits, dim=1).tolist()
-        subpos_logits_list: List[List[float]] = subpos_logits.tolist()
-        subpos_preds: List[int] = []
-        for mrph_idx, pos_pred in enumerate(pos_preds):
-            possible_subpos_ids: Set[int] = {
-                SUBPOS_TYPES.index(x) for x in POS_SUBPOS_TYPE2ID[INDEX2POS_TYPE[pos_pred]].keys()
-            }
-            subpos_logit: float = float("-inf")
-            subpos_pred: int = 0
-            for logit_idx, logit in enumerate(subpos_logits_list[mrph_idx]):
-                if logit_idx in possible_subpos_ids and logit > subpos_logit:
-                    subpos_logit = logit
-                    subpos_pred = logit_idx
-            subpos_preds.append(subpos_pred)
-
-        conjtype_preds: List[int] = torch.argmax(conjtype_logits, dim=1).tolist()
-        conjform_logits_list: List[List[float]] = conjform_logits.tolist()
-        conjform_preds: List[int] = []
-        for mrph_idx, (pos_pred, subpos_pred, conjtype_pred) in enumerate(zip(pos_preds, subpos_preds, conjtype_preds)):
-            pos: str = INDEX2POS_TYPE[pos_pred]
-            subpos: str = INDEX2SUBPOS_TYPE[subpos_pred]
-            if (pos, subpos) in INFLECTABLE:
-                possible_conjform_ids: Set[int] = {
-                    CONJFORM_TYPES.index(x)
-                    for x in CONJTYPE_CONJFORM_TYPE2ID[INDEX2CONJTYPE_TYPE[conjtype_pred]].keys()
-                }
-                conjform_logit: float = float("-inf")
-                conjform_pred: int = 0
-                for logit_idx, logit in enumerate(conjform_logits_list[mrph_idx]):
-                    if logit_idx in possible_conjform_ids and logit > conjform_logit:
-                        conjform_logit = logit
-                        conjform_pred = logit_idx
-            else:
-                conjtype_preds[mrph_idx] = CONJTYPE_TYPES.index("*")
-                conjform_pred = CONJTYPE_CONJFORM_TYPE2ID["*"]["*"]
-            conjform_preds.append(conjform_pred)
-
-        return pos_preds, subpos_preds, conjtype_preds, conjform_preds
-
-    @staticmethod
-    def _chunk_morphemes(
-        document: Document, morphemes: List[Morpheme], word_feature_logits: List[List[float]]
-    ) -> Document:
-        assert len(morphemes) <= len(word_feature_logits)
-        new_sentences = []
-        for sentence in document.sentences:
-            phrases_buff = []
-            base_phrases_buff = []
-            morphemes_buff = []
-            for i in [m.global_index for m in sentence.morphemes]:
-                morpheme = morphemes[i]
-                morphemes_buff.append(morpheme)
-                # follows kwja.utils.constants.WORD_FEATURES
-                (
-                    base_phrase_head_prob,
-                    base_phrase_end_prob,
-                    phrase_end_prob,
-                    inflectable_word_surf_head_prob,
-                    inflectable_word_surf_end_prob,
-                ) = word_feature_logits[i]
-                if base_phrase_head_prob >= 0.5:
-                    morpheme.features["基本句-主辞"] = True
-                if inflectable_word_surf_head_prob >= 0.5:
-                    morpheme.features["用言表記先頭"] = True
-                if inflectable_word_surf_end_prob >= 0.5:
-                    morpheme.features["用言表記末尾"] = True
-                # even if base_phrase_end_prob is low, if phrase_end_prob is high enough, create chunk here
-                if base_phrase_end_prob >= 0.5 or base_phrase_end_prob + phrase_end_prob >= 1.0:
-                    base_phrase = BasePhrase(parent_index=None, dep_type=None)
-                    base_phrase.morphemes = morphemes_buff
-                    morphemes_buff = []
-                    base_phrases_buff.append(base_phrase)
-                # even if phrase_end_prob is high, if base_phrase_end_prob is not high enough, do not create chunk here
-                if phrase_end_prob >= 0.5 and base_phrase_end_prob + phrase_end_prob >= 1.0:
-                    phrase = Phrase(parent_index=None, dep_type=None)
-                    phrase.base_phrases = base_phrases_buff
-                    base_phrases_buff = []
-                    phrases_buff.append(phrase)
-
-            # clear buffers
-            if morphemes_buff:
-                base_phrase = BasePhrase(parent_index=None, dep_type=None)
-                base_phrase.morphemes = morphemes_buff
-                base_phrases_buff.append(base_phrase)
-            if base_phrases_buff:
-                phrase = Phrase(parent_index=None, dep_type=None)
-                phrase.base_phrases = base_phrases_buff
-                phrases_buff.append(phrase)
-
-            new_sentence = Sentence()
-            new_sentence.comment = sentence.comment
-            new_sentence.phrases = phrases_buff
-            new_sentences.append(new_sentence)
-        return Document.from_sentences(new_sentences)
-
-    @staticmethod
-    def _add_base_phrase_features(sentence: Sentence, base_phrase_feature_logits: List[List[float]]) -> None:
-        phrases = sentence.phrases
-        clause_boundary_feature, clause_start_index = None, 0
-        for phrase in phrases:
-            for base_phrase in phrase.base_phrases:
-                for feature, prob in zip(
-                    BASE_PHRASE_FEATURES, base_phrase_feature_logits[base_phrase.head.global_index]
-                ):
-                    if feature.startswith("節-区切") and prob >= 0.5:
-                        clause_boundary_feature = feature
-                    elif feature != "節-主辞" and prob >= 0.5:
-                        k, *vs = feature.split(":")
-                        base_phrase.features[k] = ":".join(vs) or True
-            if phrase == phrases[-1] and clause_boundary_feature is None:
-                clause_boundary_feature = "節-区切"
-
-            if clause_boundary_feature is not None:
-                k, *vs = clause_boundary_feature.split(":")
-                phrase.base_phrases[-1].features[k] = ":".join(vs) or True
-                base_phrases = [bp for p in phrases[clause_start_index : phrase.index + 1] for bp in p.base_phrases]
-                clause_head_probs = [
-                    base_phrase_feature_logits[base_phrase.head.global_index][BASE_PHRASE_FEATURES.index("節-主辞")]
-                    for base_phrase in base_phrases
+    def _get_lemma(
+        self, norm: str, pos: str, subpos: str, conjtype: str, conjform: str, homograph_ops: List[Dict[str, Any]]
+    ) -> str:
+        # get lemma using norm, pos, subpos, conjtype and conjform
+        if conjtype == "*":
+            lemma: str = norm
+        else:
+            for ambig_surf_spec in self.ambig_surf_specs:
+                if conjtype != ambig_surf_spec["conjtype"] or conjform != ambig_surf_spec["conjform"]:
+                    continue
+                # ambiguous: dictionary lookup to identify the lemma
+                matched = [
+                    entry
+                    for entry in self.jumandic.lookup(norm)
+                    if entry["pos"] == pos and entry["subpos"] == subpos and entry["conjtype"] == conjtype
                 ]
-                clause_head = base_phrases[clause_head_probs.index(max(clause_head_probs))]
-                clause_head.features["節-主辞"] = True
-                clause_boundary_feature, clause_start_index = None, phrase.index + 1
-
-    @staticmethod
-    def _add_named_entities(sentence: Sentence, ne_tag_preds: List[int]) -> None:
-        category = ""
-        morphemes_buff = []
-        for morpheme in sentence.morphemes:
-            ne_tag_pred = ne_tag_preds[morpheme.global_index]
-            ne_tag: str = NE_TAGS[ne_tag_pred]
-            if ne_tag.startswith("B-"):
-                category = ne_tag[2:]
-                morphemes_buff.append(morpheme)
-            elif ne_tag.startswith("I-") and ne_tag[2:] == category:
-                morphemes_buff.append(morpheme)
-            else:
-                if morphemes_buff:
-                    named_entity = NamedEntity(category=NamedEntityCategory(category), morphemes=morphemes_buff)
-                    # NE feature must be tagged to the last base phrase the named entity contains
-                    morphemes_buff[-1].base_phrase.features["NE"] = f"{named_entity.category.value}:{named_entity.text}"
-                category = ""
-                morphemes_buff = []
-
-    @staticmethod
-    def _resolve_dependency(base_phrase: BasePhrase, dependency_manager: DependencyManager) -> None:
-        src = base_phrase.index
-        num_base_phrases = len(base_phrase.sentence.base_phrases)
-        for dst in range(src + 1, num_base_phrases):
-            dependency_manager.add_edge(src, dst)
-            if dependency_manager.has_cycle():
-                dependency_manager.remove_edge(src, dst)
-            else:
-                base_phrase.parent_index = dst
-                base_phrase.dep_type = DepType.DEPENDENCY
-                return
-
-        for dst in range(src - 1, -1, -1):
-            dependency_manager.add_edge(src, dst)
-            if dependency_manager.has_cycle():
-                dependency_manager.remove_edge(src, dst)
-            else:
-                base_phrase.parent_index = dst
-                base_phrase.dep_type = DepType.DEPENDENCY
-                return
-
-        raise RuntimeError("couldn't resolve dependency")
-
-    def _add_dependency(
-        self,
-        sentence: Sentence,
-        dependency_preds: List[List[int]],
-        dependency_type_preds: List[List[int]],
-        special_to_index: Dict[str, int],
-    ) -> None:
-        base_phrases = sentence.base_phrases
-        morpheme_global_index2base_phrase_index = {
-            morpheme.global_index: base_phrase.index
-            for base_phrase in base_phrases
-            for morpheme in base_phrase.morphemes
-        }
-        morpheme_global_index2base_phrase_index[special_to_index["[ROOT]"]] = -1
-        dependency_manager = DependencyManager()
-        for base_phrase in base_phrases:
-            for parent_morpheme_global_index, dependency_type_id in zip(
-                dependency_preds[base_phrase.head.global_index],
-                dependency_type_preds[base_phrase.head.global_index],
-            ):
-                parent_index = morpheme_global_index2base_phrase_index[parent_morpheme_global_index]
-                dependency_manager.add_edge(base_phrase.index, parent_index)
-                if dependency_manager.has_cycle() or (parent_index == -1 and dependency_manager.root):
-                    dependency_manager.remove_edge(base_phrase.index, parent_index)
+                if len(matched) > 0:
+                    lemmas: List[str] = [*{entry["lemma"] for entry in matched}]
+                    lemma = lemmas[0]
+                    if len(lemmas) > 1:
+                        homograph_ops.append({"type": "lemma", "values": lemmas[1:]})
                 else:
-                    base_phrase.parent_index = parent_index
-                    base_phrase.dep_type = INDEX2DEPENDENCY_TYPE[dependency_type_id]
-                    break
+                    logger.warning(f"failed to get lemma for {norm}")
+                    lemma = norm
+                break
             else:
-                if base_phrase == base_phrases[-1] and not dependency_manager.root:
-                    base_phrase.parent_index = -1
-                    base_phrase.dep_type = DepType.DEPENDENCY
-                else:
-                    self._resolve_dependency(base_phrase, dependency_manager)
+                # not ambiguous: use paradigm table to generate the lemma
+                try:
+                    lemma = self.jinf(norm, conjtype, conjform, "基本形")
+                except ValueError as e:
+                    logger.warning(f"failed to get lemma for {norm}: ({e})")
+                    lemma = norm
+        return lemma
 
-            assert base_phrase.parent_index is not None
-            if base_phrase.parent_index == -1:
-                base_phrase.phrase.parent_index = -1
-                base_phrase.phrase.dep_type = DepType.DEPENDENCY
-                dependency_manager.root = True
-            # base_phrase.phrase.parent_index is None and
-            elif base_phrase.phrase != base_phrases[base_phrase.parent_index].phrase:
-                base_phrase.phrase.parent_index = base_phrases[base_phrase.parent_index].phrase.index
-                base_phrase.phrase.dep_type = base_phrase.dep_type
-
-    def _add_cohesion(
-        self,
-        document: Document,
-        cohesion_logits: List[List[List[int]]],  # (rel, src, dst)
-        task_to_rel_types: Dict[CohesionTask, List[str]],
-        exophora_referents: List[ExophoraReferent],
-        index_to_special: Dict[int, str],
-        task_to_extractors: Dict[CohesionTask, Extractor],
-    ) -> None:
-        all_rel_types = [t for ts in task_to_rel_types.values() for t in ts]
-        for base_phrase in document.base_phrases:
-            base_phrase.rel_tags.clear()
-            rel_tags = self._to_rels(
-                [logits[base_phrase.head.global_index] for logits in cohesion_logits],
-                document.base_phrases,
-                all_rel_types,
-                exophora_referents,
-                index_to_special,
+    def _lookup_semantics(
+        self, reading: str, norm: str, pos: str, subpos: str, conjtype: str, homograph_ops: List[Dict[str, Any]]
+    ) -> SemanticsDict:
+        matched = [
+            entry
+            for entry in self.jumandic.lookup(norm)
+            if (
+                entry["reading"] == reading
+                and entry["pos"] == pos
+                and entry["subpos"] == subpos
+                and entry["conjtype"] == conjtype
             )
-            for task, rel_types in task_to_rel_types.items():
-                extractor = task_to_extractors[task]
-                if extractor.is_target(base_phrase):
-                    base_phrase.rel_tags += [rel for rel in rel_tags if rel.type in rel_types]
-
-    @staticmethod
-    def _add_discourse(document: Document, discourse_preds: List[List[int]]) -> None:
-        if document.need_clause_tag:
-            logger.warning("failed to output clause boundaries")
-            return
-        for modifier in document.clauses:
-            modifier_morpheme_index = modifier.end.morphemes[0].global_index
-            preds = []
-            for head in document.clauses:
-                head_sid = head.sentence.sid
-                head_morpheme_index = head.end.morphemes[0].global_index
-                head_base_phrase_index = head.end.index
-                pred = INDEX2DISCOURSE_RELATION[discourse_preds[modifier_morpheme_index][head_morpheme_index]]
-                if pred != "談話関係なし":
-                    preds.append(f"{head_sid}/{head_base_phrase_index}/{pred}")
-            if preds:
-                modifier.end.features["談話関係"] = ";".join(preds)
-
-    @staticmethod
-    def _to_rels(
-        rel_logits: List[List[int]],  # (rel, dst)
-        base_phrases: List[BasePhrase],
-        rel_types: List[str],
-        exophora_referents: List[ExophoraReferent],
-        index_to_special: Dict[int, str],
-    ) -> RelTagList:
-        rel_tags = RelTagList()
-        assert len(rel_types) == len(rel_logits)
-        for relation, logits in zip(rel_types, rel_logits):
-            head_logits = [logits[base_phrase.head.global_index] for base_phrase in base_phrases] + [
-                logits[idx] for idx in index_to_special.keys()
-            ]
-            base_phrase_index: int = np.argmax(head_logits).item()
-            if 0 <= base_phrase_index < len(base_phrases):
-                # endophora
-                prediction = base_phrases[base_phrase_index]
-                rel_tags.append(
-                    RelTag(
-                        type=relation,
-                        target=prediction.head.text,
-                        sid=prediction.sentence.sid,
-                        base_phrase_index=prediction.index,
-                        mode=None,
-                    )
+        ]
+        if len(matched) > 0:
+            entry = matched[0]
+            semantics: SemanticsDict = SemanticsDict.from_sstring('"' + entry["semantics"] + '"')
+            if len(matched) > 1:
+                # homograph
+                homograph_ops.append(
+                    {
+                        "type": "semantics",
+                        "values": [
+                            SemanticsDict.from_sstring('"' + homograph_entry["semantics"] + '"')
+                            for homograph_entry in matched[1:]
+                        ],
+                    }
                 )
-            else:
-                # exophora
-                special_token = list(index_to_special.values())[base_phrase_index - len(base_phrases)]
-                if special_token in [str(e) for e in exophora_referents]:  # exclude [NULL], [NA], and [ROOT]
-                    rel_tags.append(
-                        RelTag(
-                            type=relation,
-                            target=special_token,
-                            sid=None,
-                            base_phrase_index=None,
-                            mode=None,
-                        )
-                    )
-        return rel_tags
+        else:
+            semantics = SemanticsDict()
+        return semantics
 
-    def write_document(self, sid2sentence: Dict[str, Sentence]) -> None:
-        output_string = "".join(sentence.to_knp() for sentence in sid2sentence.values())
+    @staticmethod
+    def _add_homographs(homograph_ops: List[Dict[str, Any]], morpheme: Morpheme, semantics: SemanticsDict) -> None:
+        range_list = [range(len(homograph_op["values"])) for homograph_op in homograph_ops]
+        for op_idx_list in product(*range_list):
+            homograph_lemma = morpheme.lemma
+            homograph_semantics = SemanticsDict.from_sstring(semantics.to_sstring())
+            for i, j in enumerate(op_idx_list):
+                homograph_op = homograph_ops[i]
+                v = homograph_op["values"][j]
+                if homograph_op["type"] == "lemma":
+                    homograph_lemma = v
+                elif homograph_op["type"] == "semantics":
+                    homograph_semantics = v
+                else:
+                    raise NotImplementedError
+            homograph = Morpheme(
+                morpheme.surf,
+                reading=morpheme.reading,
+                lemma=homograph_lemma,
+                pos=morpheme.pos,
+                pos_id=morpheme.pos_id,
+                subpos=morpheme.subpos,
+                subpos_id=morpheme.subpos_id,
+                conjtype=morpheme.conjtype,
+                conjtype_id=morpheme.conjtype_id,
+                conjform=morpheme.conjform,
+                conjform_id=morpheme.conjform_id,
+                semantics=homograph_semantics,
+                homograph=True,
+            )
+            # rhoknp converts homographs into KNP's ALT features
+            morpheme.homographs.append(homograph)
+
+    def _write_document(self, sid2sentence: Dict[str, Sentence]) -> None:
+        output_string = "".join(s.to_knp() for s in sid2sentence.values())
         if isinstance(self.destination, Path):
-            with self.destination.open("a") as f:
+            with self.destination.open(mode="a") as f:
                 f.write(output_string)
         elif isinstance(self.destination, TextIOBase):
             self.destination.write(output_string)
@@ -648,4 +340,4 @@ class WordModuleWriter(BasePredictionWriter):
         predictions: Sequence[Any],
         batch_indices: Optional[Sequence[Any]] = None,
     ) -> None:
-        pass
+        pass  # pragma: no cover

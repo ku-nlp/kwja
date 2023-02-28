@@ -11,11 +11,12 @@
 KWJA is a Japanese language analyzer based on pre-trained language models.
 KWJA performs many language analysis tasks, including:
 - Typo correction
-- Tokenization
+- Word segmentation
 - Word normalization
 - Morphological analysis
-- Named entity recognition
 - Word feature tagging
+- NER (Named Entity Recognition)
+- Base phrase feature tagging
 - Dependency parsing
 - PAS analysis
 - Bridging reference resolution

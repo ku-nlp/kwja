@@ -1,123 +1,123 @@
 {
   "ガ": {
     "overt": {
-      "denom_pred": 0,
-      "denom_gold": 0,
-      "correct": 0
+      "tp_fp": 0,
+      "tp_fn": 0,
+      "tp": 0
     },
     "dep": {
-      "denom_pred": 1,
-      "denom_gold": 1,
-      "correct": 1
+      "tp_fp": 1,
+      "tp_fn": 1,
+      "tp": 1
     },
     "zero_endophora": {
-      "denom_pred": 1,
-      "denom_gold": 1,
-      "correct": 1
+      "tp_fp": 1,
+      "tp_fn": 1,
+      "tp": 1
     },
     "zero_exophora": {
-      "denom_pred": 0,
-      "denom_gold": 0,
-      "correct": 0
+      "tp_fp": 0,
+      "tp_fn": 0,
+      "tp": 0
     },
     "zero": {
-      "denom_pred": 1,
-      "denom_gold": 1,
-      "correct": 1
+      "tp_fp": 1,
+      "tp_fn": 1,
+      "tp": 1
     },
     "dep_zero": {
-      "denom_pred": 2,
-      "denom_gold": 2,
-      "correct": 2
+      "tp_fp": 2,
+      "tp_fn": 2,
+      "tp": 2
     },
     "all": {
-      "denom_pred": 2,
-      "denom_gold": 2,
-      "correct": 2
+      "tp_fp": 2,
+      "tp_fn": 2,
+      "tp": 2
     }
   },
   "ヲ": {
     "overt": {
-      "denom_pred": 0,
-      "denom_gold": 1,
-      "correct": 0
+      "tp_fp": 0,
+      "tp_fn": 1,
+      "tp": 0
     },
     "dep": {
-      "denom_pred": 0,
-      "denom_gold": 0,
-      "correct": 0
+      "tp_fp": 0,
+      "tp_fn": 0,
+      "tp": 0
     },
     "zero_endophora": {
-      "denom_pred": 1,
-      "denom_gold": 1,
-      "correct": 1
+      "tp_fp": 1,
+      "tp_fn": 1,
+      "tp": 1
     },
     "zero_exophora": {
-      "denom_pred": 0,
-      "denom_gold": 0,
-      "correct": 0
+      "tp_fp": 0,
+      "tp_fn": 0,
+      "tp": 0
     },
     "zero": {
-      "denom_pred": 1,
-      "denom_gold": 1,
-      "correct": 1
+      "tp_fp": 1,
+      "tp_fn": 1,
+      "tp": 1
     },
     "dep_zero": {
-      "denom_pred": 1,
-      "denom_gold": 1,
-      "correct": 1
+      "tp_fp": 1,
+      "tp_fn": 1,
+      "tp": 1
     },
     "all": {
-      "denom_pred": 1,
-      "denom_gold": 2,
-      "correct": 1
+      "tp_fp": 1,
+      "tp_fn": 2,
+      "tp": 1
     }
   },
   "all_case": {
     "overt": {
-      "denom_pred": 0,
-      "denom_gold": 1,
-      "correct": 0
+      "tp_fp": 0,
+      "tp_fn": 1,
+      "tp": 0
     },
     "dep": {
-      "denom_pred": 1,
-      "denom_gold": 1,
-      "correct": 1
+      "tp_fp": 1,
+      "tp_fn": 1,
+      "tp": 1
     },
     "zero_endophora": {
-      "denom_pred": 2,
-      "denom_gold": 2,
-      "correct": 2
+      "tp_fp": 2,
+      "tp_fn": 2,
+      "tp": 2
     },
     "zero_exophora": {
-      "denom_pred": 0,
-      "denom_gold": 0,
-      "correct": 0
+      "tp_fp": 0,
+      "tp_fn": 0,
+      "tp": 0
     },
     "zero": {
-      "denom_pred": 2,
-      "denom_gold": 2,
-      "correct": 2
+      "tp_fp": 2,
+      "tp_fn": 2,
+      "tp": 2
     },
     "dep_zero": {
-      "denom_pred": 3,
-      "denom_gold": 3,
-      "correct": 3
+      "tp_fp": 3,
+      "tp_fn": 3,
+      "tp": 3
     },
     "all": {
-      "denom_pred": 3,
-      "denom_gold": 4,
-      "correct": 3
+      "tp_fp": 3,
+      "tp_fn": 4,
+      "tp": 3
     },
     "bridging": {
-      "denom_pred": 1,
-      "denom_gold": 1,
-      "correct": 1
+      "tp_fp": 1,
+      "tp_fn": 1,
+      "tp": 1
     },
     "coreference": {
-      "denom_pred": 2,
-      "denom_gold": 1,
-      "correct": 0
+      "tp_fp": 2,
+      "tp_fn": 1,
+      "tp": 0
     }
   }
 }

@@ -3,7 +3,7 @@
 JOBS=1
 
 usage() {
-  echo "Usage: scripts/build_dataset.sh --work-dir=\${WORK_DIR} --out-dir=\${OUT_DIR} --jobs=${JOBS}"
+  echo "Usage: ./scripts/build_dataset.sh --work-dir=\${WORK_DIR} --out-dir=\${OUT_DIR} --jobs=${JOBS}"
   echo "*** NOTE: specify arguments with \"=\" ***"
   echo "  --work-dir    path to working directory"
   echo "  --out-dir     path to output directory"

@@ -36,7 +36,7 @@ def track(
     description: str = "Working...",
     total: Optional[float] = None,
     console: Optional[Console] = None,
-    update_period=1.0,
+    update_period: float = 1.0,
 ):
     columns: List[ProgressColumn] = [
         TextColumn("[progress.description]{task.description}", style="white"),

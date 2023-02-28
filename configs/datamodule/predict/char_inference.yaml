@@ -2,6 +2,6 @@ defaults:
   - /datamodule/base/char@
   - _self_
 
-_target_: kwja.datamodule.datasets.char_inference_dataset.CharInferenceDataset
+_target_: kwja.datamodule.datasets.CharInferenceDataset
 texts: []
 doc_id_prefix: null

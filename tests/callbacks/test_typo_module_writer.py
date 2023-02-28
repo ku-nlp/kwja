@@ -1,90 +1,130 @@
-import tempfile
-import textwrap
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from textwrap import dedent
+from typing import List, Optional, Union
 
+import pytest
 import torch
 from omegaconf import ListConfig
 from torch.utils.data import DataLoader
+from transformers import PreTrainedTokenizerBase
 
 from kwja.callbacks.typo_module_writer import TypoModuleWriter
-from kwja.datamodule.datasets.typo_inference_dataset import TypoInferenceDataset
-from kwja.utils.constants import TYPO_OPN2TOKEN
-
-
-def test_init():
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        _ = TypoModuleWriter(
-            tmp_dir,
-            extended_vocab_path="tests/datamodule/datasets/typo_files/extended_vocab.txt",
-            confidence_threshold=0.9,
-            tokenizer_kwargs={
-                "do_word_tokenize": False,
-                "additional_special_tokens": ["<k>", "<d>", "<_>", "<dummy>"],
-            },
-        )
+from kwja.callbacks.utils import get_maps
+from kwja.datamodule.datasets import TypoInferenceDataset
+from kwja.utils.constants import RESOURCE_PATH
 
 
 class MockTrainer:
-    def __init__(self, predict_dataloaders):
+    def __init__(self, predict_dataloaders: List[DataLoader]):
         self.predict_dataloaders = predict_dataloaders
 
 
-def test_write_on_batch_end():
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        writer = TypoModuleWriter(
-            tmp_dir,
-            extended_vocab_path="tests/datamodule/datasets/typo_files/extended_vocab.txt",
-            confidence_threshold=0.9,
-            tokenizer_kwargs={
-                "do_word_tokenize": False,
-                "additional_special_tokens": ["<k>", "<d>", "<_>", "<dummy>"],
-            },
-        )
+@pytest.mark.parametrize(
+    "destination",
+    [
+        None,
+        Path(TemporaryDirectory().name) / Path("typo_prediction.juman"),
+        str(Path(TemporaryDirectory().name) / Path("typo_prediction.juman")),
+    ],
+)
+def test_init(destination: Optional[Union[str, Path]], typo_tokenizer: PreTrainedTokenizerBase):
+    _ = TypoModuleWriter(confidence_threshold=0.9, tokenizer=typo_tokenizer, destination=destination)
 
-        # tokenizer = writer.tokenizer
-        texts = ["今日がも晴れ"]
 
-        kdr_logits = torch.full((1, 9, len(writer.opn2id)), float("-inf"), dtype=torch.float)
-        kdr_logits[0][0][writer.opn2id[TYPO_OPN2TOKEN["K"]]] = 1.0  # keep: [CLS]
-        kdr_logits[0][1][writer.opn2id[TYPO_OPN2TOKEN["K"]]] = 1.0  # keep: 今
-        kdr_logits[0][2][writer.opn2id[TYPO_OPN2TOKEN["K"]]] = 1.0  # keep: 日
-        kdr_logits[0][3][writer.opn2id["は"]] = 1.0  # replace: が -> は
-        kdr_logits[0][4][writer.opn2id[TYPO_OPN2TOKEN["D"]]] = 1.0  # delete: も ->
-        kdr_logits[0][5][writer.opn2id[TYPO_OPN2TOKEN["K"]]] = 1.0  # keep: 晴
-        kdr_logits[0][6][writer.opn2id[TYPO_OPN2TOKEN["K"]]] = 1.0  # keep: れ
-        kdr_logits[0][7][writer.opn2id[TYPO_OPN2TOKEN["K"]]] = 1.0  # insert: <dummy> -> だ
-        kdr_logits[0][8][writer.opn2id[TYPO_OPN2TOKEN["K"]]] = 1.0  # keep: [SEP]
+def test_write_on_batch_end(typo_tokenizer: PreTrainedTokenizerBase):
+    texts = ["この文は解析されません…", "待つの木が枯れる", "紹介ことなかった", "この文は解析されません…"]
+    num_examples = 2  # num_stash = 2
+    max_seq_length = 32  # >= 11
 
-        ins_logits = torch.full((1, 9, len(writer.opn2id)), float("-inf"), dtype=torch.float)
-        ins_logits[0][0][writer.opn2id[TYPO_OPN2TOKEN["_"]]] = 1.0  # keep: [CLS]
-        ins_logits[0][1][writer.opn2id[TYPO_OPN2TOKEN["_"]]] = 1.0  # keep: 今
-        ins_logits[0][2][writer.opn2id[TYPO_OPN2TOKEN["_"]]] = 1.0  # keep: 日
-        ins_logits[0][3][writer.opn2id[TYPO_OPN2TOKEN["_"]]] = 1.0  # replace: が -> は
-        ins_logits[0][4][writer.opn2id[TYPO_OPN2TOKEN["_"]]] = 1.0  # delete: も ->
-        ins_logits[0][5][writer.opn2id[TYPO_OPN2TOKEN["_"]]] = 1.0  # keep: 晴
-        ins_logits[0][6][writer.opn2id[TYPO_OPN2TOKEN["_"]]] = 1.0  # keep: れ
-        ins_logits[0][7][writer.opn2id["だ"]] = 1.0  # insert: <dummy> -> だ
-        ins_logits[0][8][writer.opn2id[TYPO_OPN2TOKEN["_"]]] = 1.0  # keep: [SEP]
+    token2token_id, _ = get_maps(
+        typo_tokenizer,
+        RESOURCE_PATH / "typo_correction" / "multi_char_vocab.txt",
+    )
 
-        kdr_probs = torch.softmax(kdr_logits[:, 1:, :], dim=-1)
-        kdr_values, kdr_indices = torch.max(kdr_probs, dim=-1)
-        ins_probs = torch.softmax(ins_logits[:, 1:, :], dim=-1)
-        ins_values, ins_indices = torch.max(ins_probs, dim=-1)
-        prediction = {
-            "example_ids": torch.tensor([0], dtype=torch.long),
-            "texts": texts,
-            "kdr_values": kdr_values,
-            "kdr_indices": kdr_indices,
-            "ins_values": ins_values,
-            "ins_indices": ins_indices,
-        }
+    kdr_probabilities = torch.zeros((num_examples, max_seq_length, len(token2token_id)), dtype=torch.float)
+    kdr_probabilities[0, 0, token2token_id["<k>"]] = 1.0  # [CLS]
+    kdr_probabilities[0, 1, token2token_id["松"]] = 0.65  # 待 -> 松
+    kdr_probabilities[0, 2, token2token_id["<d>"]] = 0.85  # つ -> φ
+    kdr_probabilities[0, 3, token2token_id["<k>"]] = 1.0  # の
+    kdr_probabilities[0, 4, token2token_id["<k>"]] = 1.0  # 木
+    kdr_probabilities[0, 5, token2token_id["<k>"]] = 1.0  # が
+    kdr_probabilities[0, 6, token2token_id["<k>"]] = 1.0  # 枯
+    kdr_probabilities[0, 7, token2token_id["<k>"]] = 1.0  # れ
+    kdr_probabilities[0, 8, token2token_id["<k>"]] = 1.0  # る
+    kdr_probabilities[0, 9, token2token_id["<k>"]] = 1.0  # <dummy>
+    kdr_probabilities[0, 10, token2token_id["<k>"]] = 1.0  # [SEP]
+    kdr_probabilities[1, :, token2token_id["<k>"]] = 1.0
 
-        dataset = TypoInferenceDataset(ListConfig(texts), max_seq_length=9)
-        trainer = MockTrainer([DataLoader(dataset)])
-        writer.write_on_batch_end(trainer, ..., prediction, ..., ..., 0, 0)
-        with open(writer.destination) as f:
-            assert f.read() == textwrap.dedent(
+    ins_probabilities = torch.zeros((num_examples, max_seq_length, len(token2token_id)), dtype=torch.float)
+    ins_probabilities[0, :, token2token_id["<_>"]] = 1.0
+    ins_probabilities[1, 0, token2token_id["<_>"]] = 1.0  # [CLS]
+    ins_probabilities[1, 1, token2token_id["<_>"]] = 1.0  # 紹
+    ins_probabilities[1, 2, token2token_id["<_>"]] = 1.0  # 介
+    ins_probabilities[1, 3, token2token_id["する"]] = 1.0  # こ -> するこ
+    ins_probabilities[1, 4, token2token_id["<_>"]] = 1.0  # と
+    ins_probabilities[1, 5, token2token_id["が"]] = 1.0  # な -> がな
+    ins_probabilities[1, 6, token2token_id["<_>"]] = 1.0  # か
+    ins_probabilities[1, 7, token2token_id["<_>"]] = 1.0  # っ
+    ins_probabilities[1, 8, token2token_id["<_>"]] = 1.0  # た
+    ins_probabilities[1, 9, token2token_id["<_>"]] = 1.0  # <dummy>
+    ins_probabilities[1, 10, token2token_id["<_>"]] = 1.0  # [SEP]
+
+    kdr_max_probabilities, kdr_predictions = kdr_probabilities.max(dim=2)
+    ins_max_probabilities, ins_predictions = ins_probabilities.max(dim=2)
+    prediction = {
+        "example_ids": torch.arange(num_examples, dtype=torch.long),
+        "kdr_predictions": kdr_predictions,
+        "kdr_probabilities": kdr_max_probabilities,
+        "ins_predictions": ins_predictions,
+        "ins_probabilities": ins_max_probabilities,
+    }
+
+    with TemporaryDirectory() as tmp_dir:
+        destination = tmp_dir / Path("typo_prediction.txt")
+        confidence_thresholds = [0.0, 0.8, 0.9]
+        expected_texts = [
+            dedent(
                 """\
-                今日は晴れだ
+                この文は解析されません…
+                EOD
+                松の木が枯れる
+                EOD
+                紹介することがなかった
+                EOD
+                この文は解析されません…
                 EOD
                 """
-            )
+            ),
+            dedent(
+                """\
+                この文は解析されません…
+                EOD
+                待の木が枯れる
+                EOD
+                紹介することがなかった
+                EOD
+                この文は解析されません…
+                EOD
+                """
+            ),
+            dedent(
+                """\
+                この文は解析されません…
+                EOD
+                待つの木が枯れる
+                EOD
+                紹介することがなかった
+                EOD
+                この文は解析されません…
+                EOD
+                """
+            ),
+        ]
+        for confidence_threshold, expected_text in zip(confidence_thresholds, expected_texts):
+            dataset = TypoInferenceDataset(ListConfig(texts), typo_tokenizer, max_seq_length)
+            trainer = MockTrainer([DataLoader(dataset, batch_size=num_examples)])
+            writer = TypoModuleWriter(confidence_threshold, typo_tokenizer, destination=destination)
+            writer.write_on_batch_end(trainer, ..., prediction, None, ..., 0, 0)
+            assert isinstance(writer.destination, Path), "destination isn't set"
+            assert writer.destination.read_text() == expected_text

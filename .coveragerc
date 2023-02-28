@@ -1,5 +1,7 @@
 [report]
 exclude_lines =
+    pragma: no cover
+
 	# Do not complain about missing debug-only code:
 	def __repr__
 

@@ -1,24 +1,29 @@
-from kwja.datamodule.datasets.typo_inference_dataset import TypoInferenceDataset
+from omegaconf import ListConfig
+from transformers import PreTrainedTokenizerBase
 
-tokenizer_kwargs = {"do_word_tokenize": False, "additional_special_tokens": ["<k>", "<d>", "<_>", "<dummy>"]}
-
-
-def test_init():
-    _ = TypoInferenceDataset(["テスト", "テスト"], tokenizer_kwargs=tokenizer_kwargs)
+from kwja.datamodule.datasets import TypoInferenceDataset
 
 
-def test_len():
-    dataset = TypoInferenceDataset(["テスト", "テスト"], tokenizer_kwargs=tokenizer_kwargs)
+def test_init(typo_tokenizer: PreTrainedTokenizerBase):
+    _ = TypoInferenceDataset(ListConfig(["テスト", "サンプル"]), typo_tokenizer, max_seq_length=256)
+
+
+def test_len(typo_tokenizer: PreTrainedTokenizerBase):
+    dataset = TypoInferenceDataset(ListConfig(["テスト", "サンプル"]), typo_tokenizer, max_seq_length=256)
     assert len(dataset) == 2
 
 
-def test_getitem():
-    max_seq_length = 512
-    dataset = TypoInferenceDataset(["テスト", "テスト"], tokenizer_kwargs=tokenizer_kwargs)
+def test_stash(typo_tokenizer: PreTrainedTokenizerBase):
+    dataset = TypoInferenceDataset(ListConfig(["テスト", "サンプル…"]), typo_tokenizer, max_seq_length=256)
+    assert len(dataset) == 1
+    assert len(dataset.stash) == 1
+
+
+def test_getitem(typo_tokenizer: PreTrainedTokenizerBase):
+    max_seq_length = 256
+    dataset = TypoInferenceDataset(ListConfig(["テスト", "サンプル"]), typo_tokenizer, max_seq_length=max_seq_length)
     for i in range(len(dataset)):
-        item = dataset[i]
-        assert isinstance(item, dict)
-        assert "input_ids" in item
-        assert "attention_mask" in item
-        assert item["input_ids"].shape == (max_seq_length,)
-        assert item["attention_mask"].shape == (max_seq_length,)
+        feature = dataset[i]
+        assert feature.example_ids == i
+        assert len(feature.input_ids) == max_seq_length
+        assert len(feature.attention_mask) == max_seq_length
