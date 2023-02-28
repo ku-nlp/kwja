@@ -71,6 +71,8 @@ class WordModuleMetric(BaseModuleMetric):
         sorted_indices = unique(self.example_ids)
         for state_name in self.STATE_NAMES:
             state = getattr(self, state_name)
+            if state_name == "reading_subword_map":
+                state = state.bool()
             setattr(self, state_name, state[sorted_indices])
 
         predicted_documents, partly_gold_document1, partly_gold_document2, gold_documents = self._build_documents()
