@@ -35,7 +35,7 @@ def test_init(destination: Optional[Union[str, Path]], typo_tokenizer: PreTraine
 def test_write_on_batch_end(typo_tokenizer: PreTrainedTokenizerBase):
     texts = ["この文は解析されません…", "待つの木が枯れる", "紹介ことなかった", "この文は解析されません…"]
     num_examples = 2  # num_stash = 2
-    max_seq_length = 20  # >= 11
+    max_seq_length = 32  # >= 11
 
     token2token_id, _ = get_maps(
         typo_tokenizer,

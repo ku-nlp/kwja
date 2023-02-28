@@ -104,7 +104,7 @@ def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwa
     juman_file.write(juman_text)
     juman_file.seek(0)
 
-    max_seq_length = 20  # >= 17
+    max_seq_length = 32  # >= 17
     dataset = WordInferenceDataset(
         word_tokenizer, max_seq_length, document_split_stride=1, juman_file=Path(juman_file.name), **dataset_kwargs
     )

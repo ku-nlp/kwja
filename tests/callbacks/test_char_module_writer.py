@@ -34,7 +34,7 @@ def test_init(destination: Optional[Union[str, Path]]):
 
 def test_write_on_batch_end(char_tokenizer: PreTrainedTokenizerBase):
     texts = ["花咲ガニを買ぅ", "うまそーですね〜〜"]
-    max_seq_length = 20
+    max_seq_length = 32
     doc_id_prefix = "test"
     dataset = CharInferenceDataset(
         texts=ListConfig(texts),
