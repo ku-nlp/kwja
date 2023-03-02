@@ -1,0 +1,8 @@
+_target_: kwja.datamodule.datasets.Seq2SeqDataset
+max_src_length: ${max_src_length}
+max_tgt_length: ${max_tgt_length}
+tokenizer:
+  _target_: transformers.AutoTokenizer.from_pretrained
+  pretrained_model_name_or_path: ${encoder.pretrained_model_name_or_path}
+  additional_special_tokens: ${special_tokens}
+  _convert_: all

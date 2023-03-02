@@ -1,0 +1,6 @@
+defaults:
+  - /datamodule/base/seq2seq@
+  - _self_
+
+_target_: kwja.datamodule.datasets.Seq2SeqInferenceDataset
+texts: []
