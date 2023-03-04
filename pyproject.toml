@@ -61,6 +61,7 @@ jaconv = "^0.3"
 pure-cdb = "^4.0"
 rich = ">=12.4"
 Levenshtein = "^0.20.8"
+deepspeed = "^0.8.1"
 
 [tool.poetry.group.dev.dependencies]
 dartsclone = "^0.10.2"
