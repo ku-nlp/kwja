@@ -1,11 +1,11 @@
 from statistics import mean
 from typing import Any, Dict, List, Optional
 
-import torch
 import hydra
+import torch
 from omegaconf import DictConfig
+from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from transformers.generation import LogitsProcessorList
-from transformers import PretrainedConfig, PreTrainedModel, PreTrainedTokenizerBase, AutoTokenizer
 
 from kwja.metrics import Seq2SeqModuleMetric
 from kwja.modules.base import BaseModule
@@ -41,9 +41,7 @@ class Seq2SeqModule(BaseModule):
     def forward(self, batch: Any) -> Dict[str, torch.Tensor]:
         self._truncate(batch)
         output = self.seq2seq_model(
-            input_ids=batch["input_ids"],
-            attention_mask=batch["attention_mask"],
-            labels=batch["seq2seq_labels"]
+            input_ids=batch["input_ids"], attention_mask=batch["attention_mask"], labels=batch["seq2seq_labels"]
         )
         return {"loss": output.loss, "logits": output.logits}
 
@@ -101,20 +99,21 @@ class Seq2SeqModule(BaseModule):
         generateds = self.seq2seq_model.generate(
             input_ids=batch["input_ids"],
             attention_mask=batch["attention_mask"],
-            logits_processor=LogitsProcessorList([
-                ForcedSurfLogitsProcessor(
-                    texts=batch["src_text"],
-                    tokenizer=self.tokenizer,
-                    char2tokens=self.char2tokens,
-                    char2underscore_tokens=self.char2underscore_tokens,
-                ),
-            ]) if self.use_forced_surf_decoding else None,
+            logits_processor=LogitsProcessorList(
+                [
+                    ForcedSurfLogitsProcessor(
+                        texts=batch["src_text"],
+                        tokenizer=self.tokenizer,
+                        char2tokens=self.char2tokens,
+                        char2underscore_tokens=self.char2underscore_tokens,
+                    ),
+                ]
+            )
+            if self.use_forced_surf_decoding
+            else None,
             **self.hparams.decoding,
         )  # (b, max_tgt_len)
         return {
             "example_ids": batch["example_ids"] if "example_ids" in batch else [],
             "seq2seq_predictions": generateds["sequences"],
         }
-
-
-

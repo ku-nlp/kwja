@@ -2,13 +2,13 @@ import logging
 from typing import List
 
 from omegaconf import ListConfig
-from torch.utils.data import Dataset
 from rhoknp import KNP, Jumanpp
+from torch.utils.data import Dataset
 from transformers import BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
-from kwja.datamodule.examples import Seq2SeqInferenceExample
 from kwja.datamodule.datasets.seq2seq import Seq2SeqModuleFeatures
+from kwja.datamodule.examples import Seq2SeqInferenceExample
 from kwja.utils.progress_bar import track
 
 logger = logging.getLogger(__name__)
@@ -62,5 +62,5 @@ class Seq2SeqInferenceDataset(Dataset[Seq2SeqModuleFeatures]):
             src_text=example.src_text,
             input_ids=example.src_encoding.input_ids,
             attention_mask=example.src_encoding.attention_mask,
-            seq2seq_labels=[]
+            seq2seq_labels=[],
         )

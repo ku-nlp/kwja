@@ -1,7 +1,7 @@
 import sys
 from io import TextIOBase
 from pathlib import Path
-from typing import Any, Optional, Sequence, TextIO, Union
+from typing import Any, List, Optional, Sequence, TextIO, Union
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import BasePredictionWriter
@@ -13,11 +13,7 @@ from kwja.utils.constants import NEW_LINE_TOKEN
 
 
 class Seq2SeqModuleWriter(BasePredictionWriter):
-    def __init__(
-        self,
-        tokenizer: PreTrainedTokenizerBase,
-        destination: Optional[Union[str, Path]] = None
-    ) -> None:
+    def __init__(self, tokenizer: PreTrainedTokenizerBase, destination: Optional[Union[str, Path]] = None) -> None:
         super().__init__(write_interval="batch")
         if destination is None:
             self.destination: Union[Path, TextIO] = sys.stdout
@@ -32,8 +28,12 @@ class Seq2SeqModuleWriter(BasePredictionWriter):
 
     @staticmethod
     def _shape(input_text: str) -> str:
-        output_lines: list[str] = []
-        for line in input_text.removesuffix("</s>").replace(NEW_LINE_TOKEN, "\n").split("\n"):
+        output_lines: List[str] = []
+        if input_text.startswith("</s>"):
+            refined_input_text: str = input_text[len("</s>") :]
+        else:
+            refined_input_text = input_text
+        for line in refined_input_text.replace(NEW_LINE_TOKEN, "\n").split("\n"):
             output_lines.append(line.lstrip().rstrip())
         return "\n".join(output_lines)
 
@@ -50,10 +50,9 @@ class Seq2SeqModuleWriter(BasePredictionWriter):
         dataloaders = trainer.predict_dataloaders
         dataset: Union[Seq2SeqDataset, Seq2SeqInferenceDataset] = dataloaders[dataloader_idx].dataset
 
-        outputs: list[str] = []
+        outputs: List[str] = []
         for example_id, seq2seq_predictions in zip(
-            prediction["example_ids"].tolist(),
-            prediction["seq2seq_predictions"].tolist()
+            prediction["example_ids"].tolist(), prediction["seq2seq_predictions"].tolist()
         ):
             example: Union[Seq2SeqExample, Seq2SeqInferenceExample] = dataset.examples[example_id]
             seq_len: int = len(example.src_text)
@@ -61,8 +60,7 @@ class Seq2SeqModuleWriter(BasePredictionWriter):
                 continue
 
             decoded: str = self.tokenizer.decode(
-                [x for x in seq2seq_predictions if x != self.tokenizer.pad_token_id],
-                skip_special_tokens=False
+                [x for x in seq2seq_predictions if x != self.tokenizer.pad_token_id], skip_special_tokens=False
             )
             # outputs.append(f"src{dataloader_idx}: {example.src_text}\n")
             outputs.append(self._shape(decoded))

@@ -1,6 +1,5 @@
 from typing import Dict
 
-
 from kwja.metrics.base import BaseModuleMetric
 from kwja.metrics.utils import unique
 

@@ -10,3 +10,4 @@ tokenizer:
 load_from_checkpoint:
   _target_: ${module.cls._target_}.load_from_checkpoint
   checkpoint_path: ${checkpoint_path}
+  strict: false

@@ -3,17 +3,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Union
 
+from rhoknp import KNP, Document, Jumanpp, Sentence
 from torch.utils.data import Dataset
-from rhoknp import KNP, Jumanpp, Document, Sentence
 from transformers import BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
 from kwja.datamodule.examples import Seq2SeqExample
-from kwja.utils.constants import (
-    IGNORE_INDEX,
-    NO_CANON_TOKEN,
-    NEW_LINE_TOKEN,
-)
+from kwja.utils.constants import IGNORE_INDEX, NEW_LINE_TOKEN, NO_CANON_TOKEN
 from kwja.utils.progress_bar import track
 
 logger = logging.getLogger(__name__)

@@ -1,14 +1,16 @@
+from collections import defaultdict
+from typing import Dict, List, Set, Tuple
+
 import torch
 from transformers import PreTrainedTokenizerBase
 from transformers.generation import LogitsProcessor
-from collections import defaultdict
 
 from kwja.utils.constants import NEW_LINE_TOKEN
 
 
-def get_char2tokens(tokenizer: PreTrainedTokenizerBase) -> tuple[dict[str, dict[str, int]], dict[str, dict[str, int]]]:
-    char2tokens: dict[str, dict[str, int]] = defaultdict(dict)
-    char2underscore_tokens: dict[str, dict[str, int]] = defaultdict(dict)
+def get_char2tokens(tokenizer: PreTrainedTokenizerBase) -> Tuple[Dict[str, Dict[str, int]], Dict[str, Dict[str, int]]]:
+    char2tokens: Dict[str, Dict[str, int]] = defaultdict(Dict)
+    char2underscore_tokens: Dict[str, Dict[str, int]] = defaultdict(Dict)
     for vocab_token, vocab_id in tokenizer.get_vocab().items():
         if vocab_token.startswith("▁"):
             if len(vocab_token) == 1:
@@ -22,27 +24,24 @@ def get_char2tokens(tokenizer: PreTrainedTokenizerBase) -> tuple[dict[str, dict[
 class ForcedSurfLogitsProcessor(LogitsProcessor):
     def __init__(
         self,
-        texts: list[str],
+        texts: List[str],
         tokenizer: PreTrainedTokenizerBase,
-        char2tokens: dict[str, dict[str, int]],
-        char2underscore_tokens: dict[str, dict[str, int]],
+        char2tokens: Dict[str, Dict[str, int]],
+        char2underscore_tokens: Dict[str, Dict[str, int]],
     ) -> None:
         self.tokenizer = tokenizer
-        self.texts = tokenizer.batch_decode(
-            tokenizer.batch_encode_plus(texts).input_ids,
-            skip_special_tokens=True
-        )
-        self.char2tokens: dict[str, dict[str, int]] = char2tokens
-        self.char2underscore_tokens: dict[str, dict[str, int]] = char2underscore_tokens
+        self.texts = tokenizer.batch_decode(tokenizer.batch_encode_plus(texts).input_ids, skip_special_tokens=True)
+        self.char2tokens: Dict[str, Dict[str, int]] = char2tokens
+        self.char2underscore_tokens: Dict[str, Dict[str, int]] = char2underscore_tokens
         self.new_line_token_id: int = tokenizer.convert_tokens_to_ids(NEW_LINE_TOKEN)
         self.under_score_token_id: int = tokenizer.convert_tokens_to_ids("▁")
         self.pad_token_id: int = self.tokenizer.pad_token_id
         assert self.new_line_token_id == 250100
         assert self.under_score_token_id == 259
 
-    def get_generated_surfs(self, input_ids: torch.Tensor) -> list[str]:
-        generated_surfs: list[str] = []
-        decodeds: list[str] = self.tokenizer.batch_decode(input_ids)
+    def get_generated_surfs(self, input_ids: torch.Tensor) -> List[str]:
+        generated_surfs: List[str] = []
+        decodeds: List[str] = self.tokenizer.batch_decode(input_ids)
         for decoded in decodeds:
             generated_surf: str = ""
             for line in decoded.replace(NEW_LINE_TOKEN, "\n").split("\n"):
@@ -54,28 +53,28 @@ class ForcedSurfLogitsProcessor(LogitsProcessor):
                 elif stripped_line[:3] == "...":
                     generated_surf += "..."
                 else:
-                    split_line: list[str] = stripped_line.split()
+                    split_line: List[str] = stripped_line.split()
                     if len(split_line) > 0:
                         generated_surf += split_line[0]
             generated_surfs.append(generated_surf)
         return generated_surfs
 
-    def get_permitted_token_ids(self, text: str) -> set[int]:
-        permitted_token_ids: set[int] = set()
+    def get_permitted_token_ids(self, text: str) -> Set[int]:
+        permitted_token_ids: Set[int] = set()
         for vocab_token, vocab_id in self.char2tokens[text[0]].items():
             if text.startswith(vocab_token):
                 permitted_token_ids.add(vocab_id)
         return permitted_token_ids
 
-    def get_permitted_underscore_token_ids(self, text: str) -> set[int]:
-        permitted_underscore_token_ids: set[int] = set()
+    def get_permitted_underscore_token_ids(self, text: str) -> Set[int]:
+        permitted_underscore_token_ids: Set[int] = set()
         for vocab_token, vocab_id in self.char2underscore_tokens[text[0]].items():
             if text.startswith(vocab_token[1:]):
                 permitted_underscore_token_ids.add(vocab_id)
         return permitted_underscore_token_ids
 
-    def get_permitted_consecutive_token_ids(self, text: str) -> set[int]:
-        permitted_token_ids: set[int] = set()
+    def get_permitted_consecutive_token_ids(self, text: str) -> Set[int]:
+        permitted_token_ids: Set[int] = set()
         for underscore_tokens in self.char2underscore_tokens.values():
             for vocab_id in underscore_tokens.values():
                 permitted_token_ids.add(vocab_id)
@@ -85,9 +84,9 @@ class ForcedSurfLogitsProcessor(LogitsProcessor):
                 permitted_token_ids.add(vocab_id)
         return permitted_token_ids
 
-    def get_batch_banned_token_ids(self, prev_input_ids: torch.Tensor, num_beams: int) -> list[list[int]]:
-        banned_token_ids: list[list[int]] = []
-        generated_surfs: list[str] = self.get_generated_surfs(prev_input_ids[:, 1:])
+    def get_batch_banned_token_ids(self, prev_input_ids: torch.Tensor, num_beams: int) -> List[List[int]]:
+        banned_token_ids: List[List[int]] = []
+        generated_surfs: List[str] = self.get_generated_surfs(prev_input_ids[:, 1:])
         for hypo_idx, input_ids in enumerate(prev_input_ids.tolist()):
             text: str = self.texts[hypo_idx // num_beams]
             generated_surf: str = generated_surfs[hypo_idx]
@@ -97,13 +96,13 @@ class ForcedSurfLogitsProcessor(LogitsProcessor):
                 continue
 
             if text.startswith(generated_surf):
-                remaining_surf: str = text.removeprefix(generated_surf)
+                remaining_surf: str = text[len(generated_surf) :]
             else:
                 # 生成されている文字列が，入力の先頭からの文字列とマッチしない場合は補正をしない
                 banned_token_ids.append([])
                 continue
 
-            total_permitted_token_ids: set[int] = set()
+            total_permitted_token_ids: Set[int] = set()
             if len(input_ids) == 1:
                 # 「<pad>」の次は，入力文字列の先頭からマッチするサブワードを許容
                 total_permitted_token_ids |= self.get_permitted_token_ids(text)
@@ -150,7 +149,7 @@ class ForcedSurfLogitsProcessor(LogitsProcessor):
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
         num_beams: int = input_ids.shape[0] // len(self.texts)
         input_ids[input_ids == -100] = self.tokenizer.pad_token_id
-        batch_banned_token_ids: list[list[int]] = self.get_batch_banned_token_ids(input_ids, num_beams)
+        batch_banned_token_ids: List[List[int]] = self.get_batch_banned_token_ids(input_ids, num_beams)
         for i, banned_token_ids in enumerate(batch_banned_token_ids):
             scores[i, banned_token_ids] = -float("inf")
         return scores
