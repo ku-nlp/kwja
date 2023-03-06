@@ -120,7 +120,7 @@ class WordModule(BaseModule):
 
         dependency_logits = self.dependency_parser(pooled)
         masked_dependency_logits = mask_logits(dependency_logits.squeeze(3), batch["dependency_mask"])
-        if "dependency_labels" in batch:
+        if 0 not in batch["dependency_labels"].size():
             dependency_labels = batch["dependency_labels"]
             dependency_labels = (dependency_labels * dependency_labels.ne(IGNORE_INDEX)).unsqueeze(2).unsqueeze(3)
             topk = 1
