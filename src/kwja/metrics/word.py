@@ -422,14 +422,14 @@ class WordModuleMetric(BaseModuleMetric):
             form = "".join(m.surf for m in unit.morphemes)
             lemma = "".join(m.lemma for m in unit.morphemes)
             head = unit.parent_index + 1 if unit.parent_index is not None else 0
-            deprel = unit.dep_type.value if unit.dep_type is not None else DepType.DEPENDENCY
+            deprel = unit.dep_type or DepType.DEPENDENCY
         else:
             assert isinstance(unit, Morpheme)
             form = unit.surf
             lemma = unit.lemma
             head = unit.parent.index + 1 if unit.parent is not None else 0
             if unit == unit.base_phrase.head and unit.base_phrase.dep_type is not None:
-                deprel = unit.base_phrase.dep_type.value
+                deprel = unit.base_phrase.dep_type
             else:
                 deprel = DepType.DEPENDENCY
         upos = xpos = feats = deps = misc = "_"
