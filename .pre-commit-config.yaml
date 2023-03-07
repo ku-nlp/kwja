@@ -29,3 +29,10 @@ repos:
           - transformers==4.25.1
           - tokenizers==0.13.2
           - wandb==0.13.10
+  - repo: https://github.com/jumanjihouse/pre-commit-hooks
+    rev: 3.0.0
+    hooks:
+      - id: shellcheck
+        files: ^scripts/
+        types: [ shell ]
+        args: [ --exclude=SC2002 ]
