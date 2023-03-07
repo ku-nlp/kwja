@@ -76,10 +76,6 @@ pytest-profiling = "^1.7"
 [tool.poetry.scripts]
 kwja = "kwja.cli.cli:app"
 
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
-
 [tool.black]
 line-length = 120
 target-version = ["py38", "py39", "py310"]
@@ -92,3 +88,14 @@ src_paths = ["src"]
 
 [tool.mypy]
 python_version = 3.8
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = [
+    # note the use of single quote below to denote "raw" strings in TOML
+    'ignore::UserWarning',
+]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
