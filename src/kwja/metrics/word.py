@@ -65,6 +65,22 @@ class WordModuleMetric(BaseModuleMetric):
         self.reading_id2reading: Optional[Dict[int, str]] = None
         self.training_tasks: Optional[List[WordTask]] = None
 
+        self.example_ids: torch.Tensor
+        self.reading_predictions: torch.Tensor
+        self.reading_subword_map: torch.Tensor
+        self.pos_logits: torch.Tensor
+        self.subpos_logits: torch.Tensor
+        self.conjtype_logits: torch.Tensor
+        self.conjform_logits: torch.Tensor
+        self.word_feature_probabilities: torch.Tensor
+        self.ne_predictions: torch.Tensor
+        self.base_phrase_feature_probabilities: torch.Tensor
+        self.dependency_predictions: torch.Tensor
+        self.dependency_type_predictions: torch.Tensor
+        self.cohesion_logits: torch.Tensor
+        self.discourse_predictions: torch.Tensor
+        self.discourse_labels: torch.Tensor
+
     def compute(self) -> Dict[str, float]:
         assert self.training_tasks is not None, "training_tasks isn't set"
 

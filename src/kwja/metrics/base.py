@@ -1,11 +1,13 @@
-from typing import Any, Dict
+from abc import ABC
+from typing import Any, Dict, Tuple
 
 import torch
 from torchmetrics import Metric
 
 
-class BaseModuleMetric(Metric):
+class BaseModuleMetric(Metric, ABC):
     full_state_update = False
+    STATE_NAMES: Tuple[str, ...]
 
     def __init__(self) -> None:
         super().__init__()

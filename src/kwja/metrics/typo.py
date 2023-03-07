@@ -1,5 +1,6 @@
 from typing import Dict, List, Optional, Tuple
 
+import torch
 from Levenshtein import opcodes
 
 from kwja.callbacks.utils import apply_edit_operations, convert_predictions_into_typo_corr_op_tags
@@ -21,6 +22,11 @@ class TypoModuleMetric(BaseModuleMetric):
         super().__init__()
         self.confidence_thresholds = confidence_thresholds
         self.dataset: Optional[TypoDataset] = None
+        self.example_ids: torch.Tensor
+        self.kdr_predictions: torch.Tensor
+        self.kdr_probabilities: torch.Tensor
+        self.ins_predictions: torch.Tensor
+        self.ins_probabilities: torch.Tensor
 
     def compute(self) -> Dict[str, float]:
         sorted_indices = unique(self.example_ids)
