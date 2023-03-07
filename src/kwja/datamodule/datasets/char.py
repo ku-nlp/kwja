@@ -42,7 +42,7 @@ class CharDataset(BaseDataset[CharModuleFeatures]):
         document_split_stride: int = -1,
     ) -> None:
         self.path = Path(path)
-        self.denormalizer: SentenceDenormalizer = SentenceDenormalizer()
+        self.denormalizer = SentenceDenormalizer()
         self.denormalize_probability: float = denormalize_probability
         super().__init__(self.path, tokenizer, max_seq_length, document_split_stride)
         self.examples: List[CharExample] = self._load_examples(self.documents)
@@ -67,10 +67,9 @@ class CharDataset(BaseDataset[CharModuleFeatures]):
                 logger.warning(f"Length of sub document is too long: {document.text}")
                 continue
 
-            char_example = CharExample(example_id, encoding)
-            char_example.load_document(document)
-
-            examples.append(char_example)
+            example = CharExample(example_id, encoding)
+            example.load_document(document)
+            examples.append(example)
             example_id += 1
         if len(examples) == 0:
             logger.error(

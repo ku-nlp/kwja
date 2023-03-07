@@ -44,8 +44,8 @@ class CharInferenceDataset(BaseDataset[CharModuleFeatures]):
         for document in track(documents, description="Loading examples"):
             encoding: BatchEncoding = self.tokenizer(
                 document.text,
-                truncation=False,
                 padding=PaddingStrategy.MAX_LENGTH,
+                truncation=False,
                 max_length=self.max_seq_length,
             )
             if len(encoding.input_ids) > self.max_seq_length:

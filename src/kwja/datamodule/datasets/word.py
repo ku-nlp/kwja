@@ -157,8 +157,8 @@ class WordDataset(BaseDataset[WordModuleFeatures]):
             if len(encoding.ids) > self.max_seq_length - self.num_special_tokens:
                 continue
 
-            word_example = WordExample(example_id, encoding)
-            word_example.load_document(document, self.reading_aligner, self.cohesion_task2utils)
+            example = WordExample(example_id, encoding)
+            example.load_document(document, self.reading_aligner, self.cohesion_task2utils)
             discourse_path = self.path / "disc_expert" / f"{document.doc_id}.knp"
             if not discourse_path.exists() and self.path.name == "train":
                 discourse_path = self.path / "disc_crowd" / f"{document.doc_id}.knp"
@@ -166,11 +166,11 @@ class WordDataset(BaseDataset[WordModuleFeatures]):
                 try:
                     discourse_document = Document.from_knp(discourse_path.read_text())
                     if document == discourse_document:
-                        word_example.load_discourse_document(discourse_document)
+                        example.load_discourse_document(discourse_document)
                 except AssertionError:
                     logger.warning(f"{discourse_path} is not a valid KNP file")
 
-            examples.append(word_example)
+            examples.append(example)
             example_id += 1
         if len(examples) == 0:
             logger.error(
