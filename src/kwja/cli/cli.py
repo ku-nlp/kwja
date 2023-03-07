@@ -1,5 +1,6 @@
 import os
 import re
+from abc import ABC
 from enum import Enum
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -32,7 +33,7 @@ class Device(str, Enum):
     gpu = "gpu"
 
 
-class BaseModuleProcessor:
+class BaseModuleProcessor(ABC):
     def __init__(
         self,
         specified_device: str,
@@ -60,7 +61,7 @@ class BaseModuleProcessor:
         )
 
     def _load_module(self) -> pl.LightningModule:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def delete_module_and_trainer(self) -> None:
         del self.module, self.trainer
@@ -72,10 +73,10 @@ class BaseModuleProcessor:
         return self.destination
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def output_prediction(self) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError
 
 
 class TypoModuleProcessor(BaseModuleProcessor):
