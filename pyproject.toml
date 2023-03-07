@@ -63,7 +63,6 @@ rich = ">=12.4"
 Levenshtein = "^0.20.8"
 
 [tool.poetry.group.dev.dependencies]
-dartsclone = "^0.10.2"
 ipdb = "^0.13.9"
 types-attrs = "^19.1.0"
 wandb = "^0.13.3"
