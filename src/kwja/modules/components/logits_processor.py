@@ -9,8 +9,8 @@ from kwja.utils.constants import NEW_LINE_TOKEN
 
 
 def get_char2tokens(tokenizer: PreTrainedTokenizerBase) -> Tuple[Dict[str, Dict[str, int]], Dict[str, Dict[str, int]]]:
-    char2tokens: Dict[str, Dict[str, int]] = defaultdict(Dict)
-    char2underscore_tokens: Dict[str, Dict[str, int]] = defaultdict(Dict)
+    char2tokens: Dict[str, Dict[str, int]] = defaultdict(dict)
+    char2underscore_tokens: Dict[str, Dict[str, int]] = defaultdict(dict)
     for vocab_token, vocab_id in tokenizer.get_vocab().items():
         if vocab_token.startswith("▁"):
             if len(vocab_token) == 1:
