@@ -41,5 +41,5 @@ num_workers: ${oc.env:NUM_WORKERS,0}
 ignore_hparams_on_save: false
 
 # constants
-special_tokens: ["<br>", "<no_canon>"]
+special_tokens: ["<br>", "<no_read>", "<no_canon>"]
 hparams_to_ignore_on_save: []
