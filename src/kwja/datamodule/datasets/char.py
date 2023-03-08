@@ -1,14 +1,14 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Union
+from typing import List
 from unicodedata import normalize
 
-from rhoknp import Document, Sentence
+from rhoknp import Document
 from transformers import BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
-from kwja.datamodule.datasets.base import BaseDataset
+from kwja.datamodule.datasets.base import BaseDataset, FullAnnotatedDocumentLoaderMixin
 from kwja.datamodule.examples import CharExample
 from kwja.utils.constants import (
     IGNORE_INDEX,
@@ -32,7 +32,7 @@ class CharModuleFeatures:
     word_norm_op_labels: List[int]
 
 
-class CharDataset(BaseDataset[CharModuleFeatures]):
+class CharDataset(BaseDataset[CharExample, CharModuleFeatures], FullAnnotatedDocumentLoaderMixin):
     def __init__(
         self,
         path: str,
@@ -41,17 +41,12 @@ class CharDataset(BaseDataset[CharModuleFeatures]):
         denormalize_probability: float,
         document_split_stride: int = -1,
     ) -> None:
+        super(CharDataset, self).__init__(tokenizer, max_seq_length)
         self.path = Path(path)
         self.denormalizer = SentenceDenormalizer()
         self.denormalize_probability: float = denormalize_probability
-        super().__init__(self.path, tokenizer, max_seq_length, document_split_stride)
+        super(BaseDataset, self).__init__(self.path, tokenizer, max_seq_length, document_split_stride)
         self.examples: List[CharExample] = self._load_examples(self.documents)
-
-    def __len__(self) -> int:
-        return len(self.examples)
-
-    def __getitem__(self, index: int) -> CharModuleFeatures:
-        return self.encode(self.examples[index])
 
     def _load_examples(self, documents: List[Document]) -> List[CharExample]:
         examples = []
@@ -100,7 +95,7 @@ class CharDataset(BaseDataset[CharModuleFeatures]):
             word_norm_op_labels=word_norm_op_labels,
         )
 
-    def _normalize_text(self, document: Document) -> Document:
+    def _postprocess_document(self, document: Document) -> Document:
         for sentence in document.sentences:
             # e.g. です -> でーす
             self.denormalizer.denormalize(sentence, self.denormalize_probability)
@@ -112,6 +107,3 @@ class CharDataset(BaseDataset[CharModuleFeatures]):
                     morpheme.lemma = normalize("NFKC", morpheme.lemma).translate(TRANSLATION_TABLE)
         # propagate updates of morpheme.text to sentence.text and document.text
         return document.reparse()
-
-    def _get_tokenized_len(self, document_or_sentence: Union[Document, Sentence]) -> int:
-        return len(self.tokenizer.tokenize(document_or_sentence.text))

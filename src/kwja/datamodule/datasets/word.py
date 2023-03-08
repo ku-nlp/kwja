@@ -10,7 +10,7 @@ from tokenizers import Encoding
 from transformers import PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
-from kwja.datamodule.datasets.base import BaseDataset
+from kwja.datamodule.datasets.base import BaseDataset, FullAnnotatedDocumentLoaderMixin
 from kwja.datamodule.examples import WordExample
 from kwja.utils.cohesion_analysis import BridgingUtils, CohesionBasePhrase, CohesionUtils, CoreferenceUtils, PasUtils
 from kwja.utils.constants import (
@@ -60,7 +60,7 @@ class WordModuleFeatures:
     discourse_labels: List[List[int]]
 
 
-class WordDataset(BaseDataset[WordModuleFeatures]):
+class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDocumentLoaderMixin):
     def __init__(
         self,
         path: str,
@@ -74,12 +74,13 @@ class WordDataset(BaseDataset[WordModuleFeatures]):
         br_cases: ListConfig,
         special_tokens: ListConfig,
     ) -> None:
+        super(WordDataset, self).__init__(tokenizer, max_seq_length)
         self.path = Path(path)
         if tokenizer.name_or_path in SPLIT_INTO_WORDS_MODEL_NAMES:
             self.tokenizer_input_format: Literal["words", "text"] = "words"
         else:
             self.tokenizer_input_format = "text"
-        super().__init__(self.path, tokenizer, max_seq_length, document_split_stride)
+        super(BaseDataset, self).__init__(self.path, tokenizer, max_seq_length, document_split_stride)
 
         # ---------- reading prediction ----------
         reading_resource_path = RESOURCE_PATH / "reading_prediction"
@@ -124,12 +125,6 @@ class WordDataset(BaseDataset[WordModuleFeatures]):
         ).encodings[0]
 
         self.examples: List[WordExample] = self._load_examples(self.documents)
-
-    def __len__(self) -> int:
-        return len(self.examples)
-
-    def __getitem__(self, index: int) -> WordModuleFeatures:
-        return self.encode(self.examples[index])
 
     def _get_tokenized_len(self, document_or_sentence: Union[Document, Sentence]) -> int:
         tokenizer_input: Union[List[str], str] = [m.text for m in document_or_sentence.morphemes]

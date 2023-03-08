@@ -1,7 +1,8 @@
 import logging
+from abc import ABC
 from functools import cached_property
 from pathlib import Path
-from typing import Dict, List, TypeVar, Union
+from typing import Dict, Generic, List, TypeVar, Union
 
 from rhoknp import Document, Sentence
 from torch.utils.data import Dataset
@@ -12,10 +13,31 @@ from kwja.utils.sub_document import SequenceSplitter, SpanCandidate, to_sub_doc_
 
 logger = logging.getLogger(__name__)
 
-T_co = TypeVar("T_co", covariant=True)
+ExampleType = TypeVar("ExampleType")
+FeatureType = TypeVar("FeatureType")
 
 
-class BaseDataset(Dataset[T_co]):
+class BaseDataset(Dataset[FeatureType], Generic[ExampleType, FeatureType], ABC):
+    def __init__(
+        self,
+        tokenizer: PreTrainedTokenizerBase,
+        max_seq_length: int,
+    ) -> None:
+        self.tokenizer: PreTrainedTokenizerBase = tokenizer
+        self.max_seq_length: int = max_seq_length
+        self.examples: List[ExampleType] = []
+
+    def __getitem__(self, index) -> FeatureType:
+        return self.encode(self.examples[index])
+
+    def __len__(self) -> int:
+        return len(self.examples)
+
+    def encode(self, example: ExampleType) -> FeatureType:
+        raise NotImplementedError
+
+
+class FullAnnotatedDocumentLoaderMixin:
     def __init__(
         self,
         source: Union[Path, List[Document]],
@@ -25,7 +47,6 @@ class BaseDataset(Dataset[T_co]):
         ext: str = "knp",
     ) -> None:
         self.tokenizer: PreTrainedTokenizerBase = tokenizer
-        self.max_seq_length = max_seq_length
 
         self.orig_documents: List[Document]
         if isinstance(source, Path):
@@ -36,13 +57,13 @@ class BaseDataset(Dataset[T_co]):
 
         self.doc_id2document: Dict[str, Document] = {}
         for orig_document in track(self.orig_documents, description="Splitting documents"):
-            orig_document = self._normalize_text(orig_document)
+            orig_document = self._postprocess_document(orig_document)
             self.doc_id2document.update(
                 {
                     document.doc_id: document
                     for document in self._split_document(
                         orig_document,
-                        self.max_seq_length - len(self.tokenizer.additional_special_tokens) - 2,  # -2: [CLS] and [SEP]
+                        max_seq_length - len(self.tokenizer.additional_special_tokens) - 2,  # -2: [CLS] and [SEP]
                         stride=document_split_stride,
                     )
                 }
@@ -52,11 +73,8 @@ class BaseDataset(Dataset[T_co]):
     def documents(self) -> List[Document]:
         return list(self.doc_id2document.values())
 
-    def __getitem__(self, index) -> T_co:
-        raise NotImplementedError
-
     @staticmethod
-    def _load_documents(document_dir: Path, ext: str = "knp") -> List[Document]:
+    def _load_documents(document_dir: Path, ext: str) -> List[Document]:
         documents = []
         for path in track(sorted(document_dir.glob(f"*.{ext}")), description="Loading documents"):
             # TODO: fix document files that raise exception
@@ -66,7 +84,7 @@ class BaseDataset(Dataset[T_co]):
                 logger.warning(f"{path} is not a valid knp file.")
         return documents
 
-    def _normalize_text(self, document: Document) -> Document:
+    def _postprocess_document(self, document: Document) -> Document:
         return document
 
     def _split_document(self, document: Document, max_token_length: int, stride: int) -> List[Document]:

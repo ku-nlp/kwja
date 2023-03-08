@@ -2,25 +2,24 @@ from collections import defaultdict
 from typing import Dict, List
 
 from omegaconf import ListConfig
-from torch.utils.data import Dataset
 from transformers import BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
+from kwja.datamodule.datasets.base import BaseDataset
 from kwja.datamodule.datasets.typo import TypoModuleFeatures
 from kwja.datamodule.examples import TypoInferenceExample
 from kwja.utils.constants import DUMMY_TOKEN
 from kwja.utils.progress_bar import track
 
 
-class TypoInferenceDataset(Dataset[TypoModuleFeatures]):
+class TypoInferenceDataset(BaseDataset[TypoInferenceExample, TypoModuleFeatures]):
     def __init__(
         self,
         texts: ListConfig,
         tokenizer: PreTrainedTokenizerBase,
         max_seq_length: int,
     ) -> None:
-        self.tokenizer: PreTrainedTokenizerBase = tokenizer
-        self.max_seq_length = max_seq_length
+        super().__init__(tokenizer, max_seq_length)
 
         self.examples: List[TypoInferenceExample] = []
         self.stash: Dict[int, List[str]] = defaultdict(list)
@@ -35,12 +34,6 @@ class TypoInferenceDataset(Dataset[TypoModuleFeatures]):
         if len(self.examples) == 0:
             # len(self.examples) == 0だとwriterが呼ばれないのでダミーを追加
             self.examples.append(TypoInferenceExample(example_id=example_id, pre_text=""))
-
-    def __len__(self) -> int:
-        return len(self.examples)
-
-    def __getitem__(self, index: int) -> TypoModuleFeatures:
-        return self.encode(self.examples[index])
 
     def encode(self, example: TypoInferenceExample) -> TypoModuleFeatures:
         encoding: BatchEncoding = self.tokenizer(
