@@ -18,7 +18,7 @@ jumanpp = Jumanpp()
 knp = KNP()
 
 
-def convert_sentence_to_knp_format(text: Union[str, Sentence]) -> str:
+def get_seq2seq_format(text: Union[str, Sentence]) -> str:
     if isinstance(text, str):
         sentence: Sentence = Sentence.from_raw_text(text)
         sentence = jumanpp.apply_to_sentence(sentence)
@@ -101,7 +101,7 @@ class Seq2SeqDataset(Dataset[Seq2SeqModuleFeatures]):
                     logger.warning(f"Length of source sentence is too long: {sentence.text}")
                     continue
                 tgt_encoding: BatchEncoding = self.tokenizer(
-                    convert_sentence_to_knp_format(sentence).replace("\n", NEW_LINE_TOKEN),
+                    get_seq2seq_format(sentence).replace("\n", NEW_LINE_TOKEN),
                     padding=PaddingStrategy.MAX_LENGTH,
                     truncation=False,
                     max_length=self.max_tgt_length,
