@@ -214,7 +214,9 @@ class WordModuleWriter(BasePredictionWriter):
                 lemma = norm
             else:
                 lemma = self._get_lemma(norm, pos, subpos, conjtype, conjform, homograph_ops)
-            semantics = self._lookup_semantics(reading, norm, pos, subpos, conjtype, homograph_ops) # TODO: Look up by repname
+            semantics = self._lookup_semantics(
+                reading, norm, pos, subpos, conjtype, homograph_ops
+            )  # TODO: Look up by repname
             morpheme = Morpheme(
                 surf,
                 reading=reading,

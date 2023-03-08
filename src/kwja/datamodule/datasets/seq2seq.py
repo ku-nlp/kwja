@@ -9,7 +9,7 @@ from transformers import BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
 from kwja.datamodule.examples import Seq2SeqExample
-from kwja.utils.constants import IGNORE_INDEX, NEW_LINE_TOKEN, NO_READING_TOKEN, NO_CANON_TOKEN
+from kwja.utils.constants import IGNORE_INDEX, NEW_LINE_TOKEN, NO_CANON_TOKEN, NO_READING_TOKEN
 from kwja.utils.progress_bar import track
 
 logger = logging.getLogger(__name__)
