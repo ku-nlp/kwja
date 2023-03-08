@@ -14,6 +14,7 @@ RESOURCE_PATH = importlib_resources.files(kwja) / "resource"
 
 # ---------- seq2seq module----------
 NEW_LINE_TOKEN: str = "<br>"
+NO_READING_TOKEN: str = "<no_read>"
 NO_CANON_TOKEN: str = "<no_canon>"
 
 

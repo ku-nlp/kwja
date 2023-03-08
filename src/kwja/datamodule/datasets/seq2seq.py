@@ -9,7 +9,7 @@ from transformers import BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
 from kwja.datamodule.examples import Seq2SeqExample
-from kwja.utils.constants import IGNORE_INDEX, NEW_LINE_TOKEN, NO_CANON_TOKEN
+from kwja.utils.constants import IGNORE_INDEX, NEW_LINE_TOKEN, NO_READING_TOKEN, NO_CANON_TOKEN
 from kwja.utils.progress_bar import track
 
 logger = logging.getLogger(__name__)
@@ -31,7 +31,12 @@ def convert_sentence_to_knp_format(text: Union[str, Sentence]) -> str:
     output: str = ""
     for mrph in sentence.morphemes:
         canon: str = mrph.canon if mrph.canon is not None else NO_CANON_TOKEN
-        mrph_info: str = f"{mrph.surf} {mrph.reading} {mrph.lemma} {canon}\n"
+        reading: str = mrph.reading
+        if mrph.reading == "\u3000":
+            reading = NO_READING_TOKEN
+        if "/" in mrph.reading:
+            reading = mrph.reading.split("/")[0]
+        mrph_info: str = f"{mrph.surf} {reading} {mrph.lemma} {canon}\n"
         output += mrph_info
     output += "EOS\n"
     return output
