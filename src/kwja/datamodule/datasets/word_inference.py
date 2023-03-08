@@ -54,6 +54,8 @@ class WordInferenceDataset(BaseDataset[WordModuleFeatures]):
             self.tokenizer_input_format = "text"
 
         super().__init__(documents, tokenizer, max_seq_length, document_split_stride)
+        # ---------- seq2seq ----------
+        self.from_seq2seq: bool = juman_file is not None and juman_file.suffix == ".seq2seq"
 
         # ---------- cohesion analysis ----------
         self.cohesion_tasks = [CohesionTask(t) for t in cohesion_tasks]

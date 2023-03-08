@@ -1,3 +1,4 @@
+import copy
 import sys
 from io import TextIOBase
 from pathlib import Path
@@ -5,11 +6,49 @@ from typing import Any, List, Optional, Sequence, TextIO, Union
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import BasePredictionWriter
+from rhoknp import Sentence
 from transformers import PreTrainedTokenizerBase
 
 from kwja.datamodule.datasets import Seq2SeqDataset, Seq2SeqInferenceDataset
 from kwja.datamodule.examples import Seq2SeqExample, Seq2SeqInferenceExample
 from kwja.utils.constants import NEW_LINE_TOKEN
+
+
+def format_juman(input_text: str) -> Sentence:
+    lines: List[str] = input_text.split("\n")
+    mrph_placeholder: List[str] = ["@", "@", "@", "@", "0", "@", "0", "@", "0", "@", "0", "NIL"]
+    formatted: str = ""
+    for line in lines:
+        if not line:
+            continue
+        if line == "EOS" or line.startswith("*") or line.startswith("+"):
+            formatted += line + "\n"
+        else:
+            preds: List[str] = line.split(" ")
+            if len(preds) == 4:
+                mrphs: List[str] = copy.deepcopy(mrph_placeholder)
+                for idx in range(3):
+                    mrphs[idx] = preds[idx]
+                mrphs[-1] = f'"代表表記:{preds[3]}"' if preds[3] is not None else "NIL"
+                formatted += " ".join(mrphs) + "\n"
+            elif line in ["!!!!/!", "????/?", ",,,,/,"]:
+                mrphs = copy.deepcopy(mrph_placeholder)
+                for idx in range(3):
+                    mrphs[idx] = line[idx]
+                mrphs[-1] = f'"代表表記:{line[-1]}/{line[-1]}"'
+                formatted += " ".join(mrphs) + "\n"
+            elif line == "............/...":
+                mrphs = copy.deepcopy(mrph_placeholder)
+                for idx in range(3):
+                    mrphs[idx] = "…"
+                mrphs[-1] = '"代表表記:…/…"'
+                formatted += " ".join(mrphs) + "\n"
+            else:
+                formatted += " ".join(mrph_placeholder) + "\n"
+    formatted = "# S-ID:1\n" + formatted  # TODO: Use dynamic S-ID
+    if not formatted.endswith("EOS\n"):
+        formatted += "EOS\n"
+    return Sentence.from_jumanpp(formatted)
 
 
 class Seq2SeqModuleWriter(BasePredictionWriter):
@@ -29,8 +68,8 @@ class Seq2SeqModuleWriter(BasePredictionWriter):
     @staticmethod
     def _shape(input_text: str) -> str:
         output_lines: List[str] = []
-        if input_text.startswith("</s>"):
-            refined_input_text: str = input_text[len("</s>") :]
+        if input_text.endswith("</s>"):
+            refined_input_text: str = input_text[: -len("</s>")]
         else:
             refined_input_text = input_text
         for line in refined_input_text.replace(NEW_LINE_TOKEN, "\n").split("\n"):
@@ -64,7 +103,7 @@ class Seq2SeqModuleWriter(BasePredictionWriter):
             )
             # outputs.append(f"src{dataloader_idx}: {example.src_text}\n")
             outputs.append(self._shape(decoded))
-        output_string: str = "".join(outputs)
+        output_string: str = format_juman("".join(outputs)).to_jumanpp()
         if isinstance(self.destination, Path):
             with self.destination.open(mode="a") as f:
                 f.write(output_string)
