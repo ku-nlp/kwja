@@ -16,7 +16,7 @@ from kwja.utils.constants import NEW_LINE_TOKEN
 
 def get_seq2seq_format(input_text: str) -> Sentence:
     lines: List[str] = input_text.split("\n")
-    mrph_placeholder: List[str] = ["@", "@", "@", "@", "0", "@", "0", "@", "0", "@", "0", "NIL"]
+    mrph_placeholder: List[str] = ["@", "@", "@", "未定義語", "15", "その他", "1", "*", "0", "*", "0", "NIL"]
     formatted: str = ""
     for line in lines:
         if not line:
@@ -95,9 +95,9 @@ class Seq2SeqModuleWriter(BasePredictionWriter):
             decoded: str = self.tokenizer.decode(
                 [x for x in seq2seq_predictions if x != self.tokenizer.pad_token_id], skip_special_tokens=False
             )
-            # outputs.append(f"src{dataloader_idx}: {example.src_text}\n")
-            outputs.append(self._shape(decoded))
-        output_string: str = get_seq2seq_format("".join(outputs)).to_jumanpp()
+            seq2seq_format: Sentence = get_seq2seq_format(self._shape(decoded))
+            outputs.append(seq2seq_format.to_jumanpp())
+        output_string: str = "".join(outputs)
         if isinstance(self.destination, Path):
             with self.destination.open(mode="a") as f:
                 f.write(output_string)

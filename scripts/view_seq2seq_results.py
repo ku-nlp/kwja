@@ -309,7 +309,7 @@ class MorphologicalAnalysisScorer:
 
 def format_juman(input_text: str) -> Tuple[str, bool]:
     lines: List[str] = input_text.split("\n")
-    mrph_placeholder: List[str] = ["@", "@", "@", "@", "0", "@", "0", "@", "0", "@", "0", "NIL"]
+    mrph_placeholder: List[str] = ["@", "@", "@", "未定義語", "15", "その他", "1", "*", "0", "*", "0", "NIL"]
     output_text: str = ""
     contain_dummy: bool = False
     for line in lines:
