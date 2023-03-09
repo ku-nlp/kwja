@@ -26,7 +26,7 @@ class TypoInferenceDataset(BaseDataset[TypoInferenceExample, TypoModuleFeatures]
         example_id = 0
         for text in track(texts, description="Loading documents"):
             text = text.strip()
-            if len(self.tokenizer.tokenize(text)) == len(text) <= max_seq_length - 3:
+            if len(self.tokenizer.tokenize(text)) == len(text) <= max_seq_length - 3:  # -3: [CLS], DUMMY_TOKEN, [SEP]
                 self.examples.append(TypoInferenceExample(example_id=example_id, pre_text=text))
                 example_id += 1
             else:
