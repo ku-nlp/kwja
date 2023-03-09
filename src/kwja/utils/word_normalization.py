@@ -174,7 +174,7 @@ class SentenceDenormalizer:
         self.mn = MorphemeNormalizer()
         self.md = MorphemeDenormalizer()
 
-    def denormalize(self, sentence: Sentence, p=0.5) -> None:
+    def denormalize(self, sentence: Sentence, p: float = 0.5) -> None:
         prob = p
         for morpheme in reversed(sentence.morphemes):
             if not self._is_normal_morpheme(morpheme):

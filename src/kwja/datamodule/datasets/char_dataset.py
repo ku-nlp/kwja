@@ -40,11 +40,11 @@ class CharDataset(BaseDataset):
         tokenizer: PreTrainedTokenizerBase,
         document_split_stride: int,
         max_seq_length: int,
-        denormalize_probability: float = 0.0,
+        denormalize_probability: float,
     ) -> None:
         self.path = Path(path)
         self.denormalizer: SentenceDenormalizer = SentenceDenormalizer()
-        self.denormalize_probability: float = denormalize_probability
+        self.denormalize_probability: float = denormalize_probability if "train" in path else 0.0  # TODO: refactor
         super().__init__(self.path, tokenizer, max_seq_length, document_split_stride)
         self.examples: List[CharExampleSet] = self._load_examples(self.documents)
 
