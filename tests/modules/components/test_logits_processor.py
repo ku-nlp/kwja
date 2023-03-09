@@ -127,7 +127,7 @@ def test_get_permitted_consecutive_token_ids(input_text: str, permitted_consecut
     assert permitted_tokens_without_underscore == permitted_consecutive_tokens
 
 
-def test_get_batch_banned_token_ids(fixture_data_dir: Path, char_tokenizer: PreTrainedTokenizerBase):
+def test_get_batch_banned_token_ids(fixture_data_dir: Path):
     tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
         pretrained_model_name_or_path="google/mt5-small", additional_special_tokens=["<br>", "<no_read>", "<no_canon>"]
     )
