@@ -1,22 +1,20 @@
-from pathlib import Path
-import pytest
 import json
-from typing import Set, List
-import torch
+from pathlib import Path
+from typing import List, Set
 
+import pytest
+import torch
 from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
-
-from kwja.modules.components.logits_processor import get_char2tokens, ForcedSurfLogitsProcessor
 from kwja.datamodule.datasets.seq2seq import get_seq2seq_format
+from kwja.modules.components.logits_processor import ForcedSurfLogitsProcessor, get_char2tokens
 from kwja.utils.constants import NEW_LINE_TOKEN
 
 
 def test_get_char2tokens():
     tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-        pretrained_model_name_or_path="google/mt5-small",
-        additional_special_tokens=["<br>", "<no_read>", "<no_canon>"]
+        pretrained_model_name_or_path="google/mt5-small", additional_special_tokens=["<br>", "<no_read>", "<no_canon>"]
     )
 
     char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
@@ -31,11 +29,9 @@ def test_get_char2tokens():
         "京": 11017,
         "京都市": 209455,
         "京都": 51389,
-        "京区": 208641
+        "京区": 208641,
     }
-    assert char2underscore_tokens["京"] == {
-        "▁京公网安备": 234066
-    }
+    assert char2underscore_tokens["京"] == {"▁京公网安备": 234066}
 
 
 @pytest.mark.parametrize(
@@ -44,12 +40,11 @@ def test_get_char2tokens():
         "計算機による言語理解を実現する",
         "また，校区で行われる事業や防犯など校区の情報も記載されています。",
         "「核の歴史…ヒロシマ、ナガサキを超えて」。",
-    ]
+    ],
 )
 def test_get_generated_surfs(input_text: str) -> None:
     tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-        pretrained_model_name_or_path="google/mt5-small",
-        additional_special_tokens=["<br>", "<no_read>", "<no_canon>"]
+        pretrained_model_name_or_path="google/mt5-small", additional_special_tokens=["<br>", "<no_read>", "<no_canon>"]
     )
     char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
 
@@ -73,8 +68,7 @@ def test_get_generated_surfs(input_text: str) -> None:
 @pytest.mark.parametrize("input_text, permitted_tokens", [("研究をする", ["研究", "研"])])
 def test_get_permitted_token_ids(input_text: str, permitted_tokens: List[str]) -> None:
     tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-        pretrained_model_name_or_path="google/mt5-small",
-        additional_special_tokens=["<br>", "<no_read>", "<no_canon>"]
+        pretrained_model_name_or_path="google/mt5-small", additional_special_tokens=["<br>", "<no_read>", "<no_canon>"]
     )
     char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
 
@@ -93,8 +87,7 @@ def test_get_permitted_token_ids(input_text: str, permitted_tokens: List[str]) -
 @pytest.mark.parametrize("input_text, permitted_underscore_tokens", [("楽天市場", ["▁楽天"])])
 def test_get_permitted_underscore_token_ids(input_text: str, permitted_underscore_tokens: List[str]) -> None:
     tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-        pretrained_model_name_or_path="google/mt5-small",
-        additional_special_tokens=["<br>", "<no_read>", "<no_canon>"]
+        pretrained_model_name_or_path="google/mt5-small", additional_special_tokens=["<br>", "<no_read>", "<no_canon>"]
     )
     char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
 
@@ -113,8 +106,7 @@ def test_get_permitted_underscore_token_ids(input_text: str, permitted_underscor
 @pytest.mark.parametrize("input_text, permitted_consecutive_tokens", [("研究をする", ["研究", "研"])])
 def test_get_permitted_consecutive_token_ids(input_text: str, permitted_consecutive_tokens: List[str]) -> None:
     tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-        pretrained_model_name_or_path="google/mt5-small",
-        additional_special_tokens=["<br>", "<no_read>", "<no_canon>"]
+        pretrained_model_name_or_path="google/mt5-small", additional_special_tokens=["<br>", "<no_read>", "<no_canon>"]
     )
     char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
 
@@ -139,18 +131,15 @@ def test_get_permitted_consecutive_token_ids(input_text: str, permitted_consecut
     assert permitted_tokens_without_underscore == permitted_consecutive_tokens
 
 
-def test_get_batch_banned_token_ids(
-    fixture_data_dir: Path, char_tokenizer: PreTrainedTokenizerBase
-):
+def test_get_batch_banned_token_ids(fixture_data_dir: Path, char_tokenizer: PreTrainedTokenizerBase):
     tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-        pretrained_model_name_or_path="google/mt5-small",
-        additional_special_tokens=["<br>", "<no_read>", "<no_canon>"]
+        pretrained_model_name_or_path="google/mt5-small", additional_special_tokens=["<br>", "<no_read>", "<no_canon>"]
     )
     char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
 
     underscore_path: Path = fixture_data_dir / "modules" / "underscore_tokens.txt"
     with open(underscore_path) as f:
-        underscore_tokens: list[str] = [line.strip() for line in f]
+        underscore_tokens: List[str] = [line.strip() for line in f]
 
     test_case_path: Path = fixture_data_dir / "modules" / "permitted_tokens.json"
     with open(test_case_path) as f:
@@ -162,23 +151,21 @@ def test_get_batch_banned_token_ids(
             char2tokens=char2tokens,
             char2underscore_tokens=char2underscore_tokens,
         )
-        input_ids: torch.LongTensor = torch.LongTensor(
-            [tokenizer.convert_tokens_to_ids(test_case["input_tokens"])]
-        )
-        orig_scores: torch.FloatTensor = torch.full((1, tokenizer.vocab_size), 0.5).float()
-        warped_scores: torch.FloatTensor = surf_logits_processor(
+        input_ids: torch.LongTensor = torch.LongTensor([tokenizer.convert_tokens_to_ids(test_case["input_tokens"])])
+        orig_scores: torch.Tensor = torch.full((1, tokenizer.vocab_size), 0.5).float()
+        warped_scores: torch.Tensor = surf_logits_processor(
             input_ids=input_ids,
             scores=orig_scores,
         )
         assert warped_scores.shape == orig_scores.shape
-        permitted_tokens: list[str] = []
+        permitted_tokens: List[str] = []
         for token_id, score in enumerate(warped_scores.tolist()[0]):
             if score == 0.5:
                 permitted_tokens.append(tokenizer.convert_ids_to_tokens(token_id))
         if len(permitted_tokens) == tokenizer.vocab_size:
             permitted_tokens = []
         if test_case["is_consecutive"] is True:
-            gold_permitted_tokens: list[str] = sorted(list(set(test_case["permitted_tokens"] + underscore_tokens)))
+            gold_permitted_tokens: List[str] = sorted(list(set(test_case["permitted_tokens"] + underscore_tokens)))
         else:
             gold_permitted_tokens = sorted(test_case["permitted_tokens"])
         assert sorted(list(permitted_tokens)) == gold_permitted_tokens

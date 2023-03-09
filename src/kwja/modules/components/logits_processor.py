@@ -146,7 +146,7 @@ class ForcedSurfLogitsProcessor(LogitsProcessor):
 
         return banned_token_ids
 
-    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
+    def __call__(self, input_ids: torch.Tensor, scores: torch.Tensor) -> torch.Tensor:
         num_beams: int = input_ids.shape[0] // len(self.texts)
         input_ids[input_ids == -100] = self.tokenizer.pad_token_id
         batch_banned_token_ids: List[List[int]] = self.get_batch_banned_token_ids(input_ids, num_beams)
