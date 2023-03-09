@@ -133,9 +133,8 @@ def test_get_batch_banned_token_ids(fixture_data_dir: Path, char_tokenizer: PreT
     )
     char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
 
-    underscore_path: Path = fixture_data_dir / "modules" / "underscore_tokens.txt"
-    with open(underscore_path) as f:
-        underscore_tokens: List[str] = [line.strip() for line in f]
+    underscore_tokens: List[str] = [x for x in tokenizer.get_vocab() if x.startswith("▁")]
+    assert len(underscore_tokens) == 56369
 
     test_case_path: Path = fixture_data_dir / "modules" / "permitted_tokens.json"
     with open(test_case_path) as f:
