@@ -53,6 +53,7 @@ aggregating_metrics:
 
 # hyper-parameters to be tuned
 lr: 1e-4
+max_epochs: 20
 warmup_steps: 100
 effective_batch_size: 16
 
