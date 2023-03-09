@@ -4,6 +4,7 @@ from typing import List, Set
 
 import pytest
 import torch
+from rhoknp import Sentence
 from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
@@ -34,35 +35,30 @@ def test_get_char2tokens():
     assert char2underscore_tokens["京"] == {"▁京公网安备": 234066}
 
 
-@pytest.mark.parametrize(
-    "input_text",
-    [
-        "計算機による言語理解を実現する",
-        "また，校区で行われる事業や防犯など校区の情報も記載されています。",
-        "「核の歴史…ヒロシマ、ナガサキを超えて」。",
-    ],
-)
-def test_get_generated_surfs(input_text: str) -> None:
+def test_get_generated_surfs(fixture_data_dir: Path) -> None:
     tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
         pretrained_model_name_or_path="google/mt5-small", additional_special_tokens=["<br>", "<no_read>", "<no_canon>"]
     )
     char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
 
-    processor = ForcedSurfLogitsProcessor(
-        texts=[input_text],
-        tokenizer=tokenizer,
-        char2tokens=char2tokens,
-        char2underscore_tokens=char2underscore_tokens,
-    )
-
-    tgt_encoding: BatchEncoding = tokenizer(
-        get_seq2seq_format(input_text).replace("\n", NEW_LINE_TOKEN),
-        padding=PaddingStrategy.MAX_LENGTH,
-        truncation=False,
-        max_length=512,
-        return_tensors="pt",
-    )
-    assert processor.texts[0] == processor.get_generated_surfs(tgt_encoding.input_ids)[0]
+    test_case_dir: Path = fixture_data_dir / "modules" / "jmn"
+    for path in test_case_dir.glob("*.jmn"):
+        with path.open() as f:
+            sentence: Sentence = Sentence.from_jumanpp(f.read())
+            processor = ForcedSurfLogitsProcessor(
+                texts=[sentence.text],
+                tokenizer=tokenizer,
+                char2tokens=char2tokens,
+                char2underscore_tokens=char2underscore_tokens,
+            )
+            tgt_encoding: BatchEncoding = tokenizer(
+                get_seq2seq_format(sentence).replace("\n", NEW_LINE_TOKEN),
+                padding=PaddingStrategy.MAX_LENGTH,
+                truncation=False,
+                max_length=512,
+                return_tensors="pt",
+            )
+            assert processor.texts[0] == processor.get_generated_surfs(tgt_encoding.input_ids)[0]
 
 
 @pytest.mark.parametrize("input_text, permitted_tokens", [("研究をする", ["研究", "研"])])
