@@ -14,7 +14,7 @@ from kwja.datamodule.examples import Seq2SeqExample, Seq2SeqInferenceExample
 from kwja.utils.constants import NEW_LINE_TOKEN
 
 
-def format_juman(input_text: str) -> Sentence:
+def get_seq2seq_format(input_text: str) -> Sentence:
     lines: List[str] = input_text.split("\n")
     mrph_placeholder: List[str] = ["@", "@", "@", "@", "0", "@", "0", "@", "0", "@", "0", "NIL"]
     formatted: str = ""
@@ -46,8 +46,6 @@ def format_juman(input_text: str) -> Sentence:
             else:
                 formatted += " ".join(mrph_placeholder) + "\n"
     formatted = "# S-ID:1\n" + formatted  # TODO: Use dynamic S-ID
-    if not formatted.endswith("EOS\n"):
-        formatted += "EOS\n"
     return Sentence.from_jumanpp(formatted)
 
 
@@ -68,11 +66,7 @@ class Seq2SeqModuleWriter(BasePredictionWriter):
     @staticmethod
     def _shape(input_text: str) -> str:
         output_lines: List[str] = []
-        if input_text.endswith("</s>"):
-            refined_input_text: str = input_text[: -len("</s>")]
-        else:
-            refined_input_text = input_text
-        for line in refined_input_text.replace(NEW_LINE_TOKEN, "\n").split("\n"):
+        for line in input_text.replace("</s>", "EOS\n").replace(NEW_LINE_TOKEN, "\n").split("\n"):
             output_lines.append(line.lstrip().rstrip())
         return "\n".join(output_lines)
 
@@ -103,7 +97,7 @@ class Seq2SeqModuleWriter(BasePredictionWriter):
             )
             # outputs.append(f"src{dataloader_idx}: {example.src_text}\n")
             outputs.append(self._shape(decoded))
-        output_string: str = format_juman("".join(outputs)).to_jumanpp()
+        output_string: str = get_seq2seq_format("".join(outputs)).to_jumanpp()
         if isinstance(self.destination, Path):
             with self.destination.open(mode="a") as f:
                 f.write(output_string)

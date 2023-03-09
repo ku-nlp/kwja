@@ -31,14 +31,14 @@ def get_seq2seq_format(text: Union[str, Sentence]) -> str:
     output: str = ""
     for mrph in sentence.morphemes:
         canon: str = mrph.canon if mrph.canon is not None else NO_CANON_TOKEN
-        reading: str = mrph.reading
         if mrph.reading == "\u3000":
-            reading = NO_READING_TOKEN
-        if "/" in mrph.reading:
+            reading: str = NO_READING_TOKEN
+        elif "/" in mrph.reading:
             reading = mrph.reading.split("/")[0]
+        else:
+            reading = mrph.reading
         mrph_info: str = f"{mrph.surf} {reading} {mrph.lemma} {canon}\n"
         output += mrph_info
-    output += "EOS\n"
     return output
 
 
