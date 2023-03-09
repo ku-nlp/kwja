@@ -6,7 +6,6 @@ import pytest
 import torch
 from rhoknp import Sentence
 from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizerBase
-from transformers.utils import PaddingStrategy
 
 from kwja.datamodule.datasets.seq2seq import get_seq2seq_format
 from kwja.modules.components.logits_processor import ForcedSurfLogitsProcessor, get_char2tokens
@@ -53,12 +52,11 @@ def test_get_generated_surfs(fixture_data_dir: Path) -> None:
             )
             tgt_encoding: BatchEncoding = tokenizer(
                 get_seq2seq_format(sentence).replace("\n", NEW_LINE_TOKEN),
-                padding=PaddingStrategy.MAX_LENGTH,
                 truncation=False,
                 max_length=512,
                 return_tensors="pt",
             )
-            assert processor.texts[0] == processor.get_generated_surfs(tgt_encoding.input_ids)[0]
+            assert processor.texts[0] == processor.get_generated_surfs(tgt_encoding.input_ids)[0].replace("</s>", "")
 
 
 @pytest.mark.parametrize("input_text, permitted_tokens", [("研究をする", ["研究", "研"])])
