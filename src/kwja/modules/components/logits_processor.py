@@ -131,8 +131,6 @@ class ForcedSurfLogitsProcessor(LogitsProcessor):
                 total_permitted_token_ids |= self.get_permitted_consecutive_token_ids(remaining_surf)
             elif input_ids[-2] == self.new_line_token_id:
                 last_token: str = self.tokenizer.convert_ids_to_tokens(input_ids[-1])
-                if not isinstance(last_token, str):
-                    print(f"{input_ids = }")
                 # 「改行 "_xxx"」の次は，まだ生成していない文字列の先頭からマッチするサブワードを許容．また，全てのアンダースコア始まりのサブワードも許容
                 if last_token.startswith("▁"):
                     total_permitted_token_ids |= self.get_permitted_consecutive_token_ids(remaining_surf)
