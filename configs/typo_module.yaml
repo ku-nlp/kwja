@@ -3,7 +3,7 @@ defaults:
   - callbacks: [early_stopping, model_checkpoint, model_summary, typo_module_writer, progress_bar, lr_monitor]
   - datamodule: typo
   - logger: wandb
-  - encoder: char_roberta_large
+  - encoder: char_deberta_large
   - module: typo
   - optimizer: adamw
   - scheduler: cosine_schedule_with_warmup
@@ -23,6 +23,7 @@ confidence_threshold: 0.9   # valid only for inference
 
 # hyper-parameters to be tuned
 lr: 2e-5
+max_epochs: 20
 warmup_steps: 1000
 effective_batch_size: 176
 

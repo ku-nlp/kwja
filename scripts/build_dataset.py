@@ -210,7 +210,11 @@ def assign_features_and_save(
     jumanpp_augmenter = JumanppAugmenter()
     knp = KNP(options=["-tab", "-dpnd-fast", "-read-feature"])
     for knp_text in track(knp_texts):
-        document = Document.from_knp(knp_text)
+        try:
+            document = Document.from_knp(knp_text)
+        except ValueError:
+            print("ignore broken knp file")
+            continue
         if document.doc_id not in doc_id2split:
             continue
 
@@ -241,7 +245,7 @@ def assign_features_and_save(
 
         doc_id = document.doc_id
         split = doc_id2split[doc_id]
-        output_root.joinpath(f"{split}/{doc_id}.knp").write_text(knp_text)
+        output_root.joinpath(f"{split}/{doc_id}.knp").write_text(document.to_knp())
 
 
 def test_jumanpp_version():

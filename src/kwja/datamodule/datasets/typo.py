@@ -4,11 +4,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List
 
-from torch.utils.data import Dataset
 from transformers import BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
 from kwja.callbacks.utils import get_maps
+from kwja.datamodule.datasets.base import BaseDataset
 from kwja.datamodule.examples import TypoExample
 from kwja.utils.constants import DUMMY_TOKEN, IGNORE_INDEX, RESOURCE_PATH, TYPO_CORR_OP_TAG2TOKEN
 from kwja.utils.progress_bar import track
@@ -23,19 +23,19 @@ class TypoModuleFeatures:
     ins_labels: List[int]
 
 
-class TypoDataset(Dataset[TypoModuleFeatures]):
+class TypoDataset(BaseDataset[TypoExample, TypoModuleFeatures]):
     def __init__(
         self,
         path: str,
         tokenizer: PreTrainedTokenizerBase,
         max_seq_length: int,
     ) -> None:
+        super().__init__(tokenizer, max_seq_length)
+
         self.path = Path(path)
         assert self.path.is_dir()
 
-        self.tokenizer: PreTrainedTokenizerBase = tokenizer
         assert self.tokenizer.unk_token_id is not None
-        self.max_seq_length: int = max_seq_length
 
         self.token2token_id, self.token_id2token = get_maps(
             self.tokenizer,
@@ -45,12 +45,6 @@ class TypoDataset(Dataset[TypoModuleFeatures]):
         self.examples: List[TypoExample] = self._load_examples(self.path)
         self.stash: Dict[int, List[str]] = defaultdict(list)
         assert len(self) > 0
-
-    def __len__(self) -> int:
-        return len(self.examples)
-
-    def __getitem__(self, index: int) -> TypoModuleFeatures:
-        return self.encode(self.examples[index])
 
     @staticmethod
     def _load_examples(example_dir: Path) -> List[TypoExample]:

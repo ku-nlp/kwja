@@ -22,7 +22,8 @@ confidence_threshold: 0.9   # valid only for inference
 
 # hyper-parameters to be tuned
 lr: 5e-5
-warmup_steps: 100
+max_epochs: 2
+warmup_steps: 10
 effective_batch_size: 64
 
 # environment dependent settings

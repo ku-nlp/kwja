@@ -1,15 +1,15 @@
 import logging
 from datetime import datetime
-from typing import List, Optional, Union
+from typing import List, Optional
 from unicodedata import normalize
 
 from omegaconf import ListConfig
-from rhoknp import Document, RegexSenter, Sentence
+from rhoknp import Document, RegexSenter
 from transformers import BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
 import kwja
-from kwja.datamodule.datasets.base import BaseDataset
+from kwja.datamodule.datasets.base import BaseDataset, FullAnnotatedDocumentLoaderMixin
 from kwja.datamodule.datasets.char import CharModuleFeatures
 from kwja.datamodule.examples import CharInferenceExample
 from kwja.utils.constants import TRANSLATION_TABLE
@@ -18,7 +18,7 @@ from kwja.utils.progress_bar import track
 logger = logging.getLogger(__name__)
 
 
-class CharInferenceDataset(BaseDataset[CharModuleFeatures]):
+class CharInferenceDataset(BaseDataset[CharInferenceExample, CharModuleFeatures], FullAnnotatedDocumentLoaderMixin):
     def __init__(
         self,
         texts: ListConfig,
@@ -28,15 +28,10 @@ class CharInferenceDataset(BaseDataset[CharModuleFeatures]):
         doc_id_prefix: Optional[str] = None,
         **_,
     ) -> None:
+        super(CharInferenceDataset, self).__init__(tokenizer, max_seq_length)
         documents = self._build_documents_from_texts(list(texts), doc_id_prefix)
-        super().__init__(documents, tokenizer, max_seq_length, document_split_stride)
+        super(BaseDataset, self).__init__(documents, tokenizer, max_seq_length, document_split_stride)
         self.examples: List[CharInferenceExample] = self._load_examples(self.documents)
-
-    def __len__(self) -> int:
-        return len(self.examples)
-
-    def __getitem__(self, index: int) -> CharModuleFeatures:
-        return self.encode(self.examples[index])
 
     def _load_examples(self, documents: List[Document]) -> List[CharInferenceExample]:
         examples = []
@@ -44,8 +39,8 @@ class CharInferenceDataset(BaseDataset[CharModuleFeatures]):
         for document in track(documents, description="Loading examples"):
             encoding: BatchEncoding = self.tokenizer(
                 document.text,
-                truncation=False,
                 padding=PaddingStrategy.MAX_LENGTH,
+                truncation=False,
                 max_length=self.max_seq_length,
             )
             if len(encoding.input_ids) > self.max_seq_length:
@@ -64,8 +59,7 @@ class CharInferenceDataset(BaseDataset[CharModuleFeatures]):
             logger.error("No examples to process. Make sure any texts are given and they are not too long.")
         return examples
 
-    @staticmethod
-    def encode(example: CharInferenceExample) -> CharModuleFeatures:
+    def encode(self, example: CharInferenceExample) -> CharModuleFeatures:
         return CharModuleFeatures(
             example_ids=example.example_id,
             input_ids=example.encoding.input_ids,
@@ -92,7 +86,7 @@ class CharInferenceDataset(BaseDataset[CharModuleFeatures]):
                 sentence.misc_comment = f"kwja:{kwja.__version__}"
         return documents
 
-    def _normalize_text(self, document):
+    def _postprocess_document(self, document):
         for sentence in document.sentences:
             normalized = normalize("NFKC", sentence.text).translate(TRANSLATION_TABLE)
             if normalized != sentence.text:
@@ -100,6 +94,3 @@ class CharInferenceDataset(BaseDataset[CharModuleFeatures]):
                 sentence.text = normalized
         document.text = "".join(sentence.text for sentence in document.sentences)
         return document
-
-    def _get_tokenized_len(self, document_or_sentence: Union[Document, Sentence]) -> int:
-        return len(self.tokenizer.tokenize(document_or_sentence.text))

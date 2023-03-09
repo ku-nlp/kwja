@@ -10,7 +10,7 @@ from tokenizers import Encoding
 from transformers import PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
-from kwja.datamodule.datasets.base import BaseDataset
+from kwja.datamodule.datasets.base import BaseDataset, FullAnnotatedDocumentLoaderMixin
 from kwja.datamodule.examples import WordExample
 from kwja.utils.cohesion_analysis import BridgingUtils, CohesionBasePhrase, CohesionUtils, CoreferenceUtils, PasUtils
 from kwja.utils.constants import (
@@ -60,7 +60,7 @@ class WordModuleFeatures:
     discourse_labels: List[List[int]]
 
 
-class WordDataset(BaseDataset[WordModuleFeatures]):
+class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDocumentLoaderMixin):
     def __init__(
         self,
         path: str,
@@ -74,12 +74,13 @@ class WordDataset(BaseDataset[WordModuleFeatures]):
         br_cases: ListConfig,
         special_tokens: ListConfig,
     ) -> None:
+        super(WordDataset, self).__init__(tokenizer, max_seq_length)
         self.path = Path(path)
         if tokenizer.name_or_path in SPLIT_INTO_WORDS_MODEL_NAMES:
             self.tokenizer_input_format: Literal["words", "text"] = "words"
         else:
             self.tokenizer_input_format = "text"
-        super().__init__(self.path, tokenizer, max_seq_length, document_split_stride)
+        super(BaseDataset, self).__init__(self.path, tokenizer, max_seq_length, document_split_stride)
         # ---------- seq2seq ----------
         self.from_seq2seq: bool = False
 
@@ -127,12 +128,6 @@ class WordDataset(BaseDataset[WordModuleFeatures]):
 
         self.examples: List[WordExample] = self._load_examples(self.documents)
 
-    def __len__(self) -> int:
-        return len(self.examples)
-
-    def __getitem__(self, index: int) -> WordModuleFeatures:
-        return self.encode(self.examples[index])
-
     def _get_tokenized_len(self, document_or_sentence: Union[Document, Sentence]) -> int:
         tokenizer_input: Union[List[str], str] = [m.text for m in document_or_sentence.morphemes]
         if self.tokenizer_input_format == "text":
@@ -159,8 +154,8 @@ class WordDataset(BaseDataset[WordModuleFeatures]):
             if len(encoding.ids) > self.max_seq_length - self.num_special_tokens:
                 continue
 
-            word_example = WordExample(example_id, encoding)
-            word_example.load_document(document, self.reading_aligner, self.cohesion_task2utils)
+            example = WordExample(example_id, encoding)
+            example.load_document(document, self.reading_aligner, self.cohesion_task2utils)
             discourse_path = self.path / "disc_expert" / f"{document.doc_id}.knp"
             if not discourse_path.exists() and self.path.name == "train":
                 discourse_path = self.path / "disc_crowd" / f"{document.doc_id}.knp"
@@ -168,11 +163,11 @@ class WordDataset(BaseDataset[WordModuleFeatures]):
                 try:
                     discourse_document = Document.from_knp(discourse_path.read_text())
                     if document == discourse_document:
-                        word_example.load_discourse_document(discourse_document)
+                        example.load_discourse_document(discourse_document)
                 except AssertionError:
                     logger.warning(f"{discourse_path} is not a valid KNP file")
 
-            examples.append(word_example)
+            examples.append(example)
             example_id += 1
         if len(examples) == 0:
             logger.error(

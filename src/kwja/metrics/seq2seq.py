@@ -1,5 +1,7 @@
 from typing import Dict
 
+import torch
+
 from kwja.metrics.base import BaseModuleMetric
 from kwja.metrics.utils import unique
 
@@ -12,6 +14,9 @@ class Seq2SeqModuleMetric(BaseModuleMetric):
 
     def __init__(self):
         super().__init__()
+
+        self.example_ids: torch.Tensor
+        self.loss: torch.Tensor
 
     def compute(self) -> Dict[str, float]:
         sorted_indices = unique(self.example_ids)

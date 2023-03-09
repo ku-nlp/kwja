@@ -30,6 +30,7 @@ mode: min
 
 # hyper-parameters to be tuned
 lr: 5e-4
+max_epochs: 100
 warmup_steps: 250
 effective_batch_size: 512
 

@@ -65,6 +65,22 @@ class WordModuleMetric(BaseModuleMetric):
         self.reading_id2reading: Optional[Dict[int, str]] = None
         self.training_tasks: Optional[List[WordTask]] = None
 
+        self.example_ids: torch.Tensor
+        self.reading_predictions: torch.Tensor
+        self.reading_subword_map: torch.Tensor
+        self.pos_logits: torch.Tensor
+        self.subpos_logits: torch.Tensor
+        self.conjtype_logits: torch.Tensor
+        self.conjform_logits: torch.Tensor
+        self.word_feature_probabilities: torch.Tensor
+        self.ne_predictions: torch.Tensor
+        self.base_phrase_feature_probabilities: torch.Tensor
+        self.dependency_predictions: torch.Tensor
+        self.dependency_type_predictions: torch.Tensor
+        self.cohesion_logits: torch.Tensor
+        self.discourse_predictions: torch.Tensor
+        self.discourse_labels: torch.Tensor
+
     def compute(self) -> Dict[str, float]:
         assert self.training_tasks is not None, "training_tasks isn't set"
 
@@ -422,14 +438,14 @@ class WordModuleMetric(BaseModuleMetric):
             form = "".join(m.surf for m in unit.morphemes)
             lemma = "".join(m.lemma for m in unit.morphemes)
             head = unit.parent_index + 1 if unit.parent_index is not None else 0
-            deprel = unit.dep_type.value if unit.dep_type is not None else DepType.DEPENDENCY
+            deprel = unit.dep_type or DepType.DEPENDENCY
         else:
             assert isinstance(unit, Morpheme)
             form = unit.surf
             lemma = unit.lemma
             head = unit.parent.index + 1 if unit.parent is not None else 0
             if unit == unit.base_phrase.head and unit.base_phrase.dep_type is not None:
-                deprel = unit.base_phrase.dep_type.value
+                deprel = unit.base_phrase.dep_type
             else:
                 deprel = DepType.DEPENDENCY
         upos = xpos = feats = deps = misc = "_"

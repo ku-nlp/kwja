@@ -15,16 +15,20 @@ from kwja.utils.sub_document import extract_target_sentences, to_orig_doc_id
 
 
 class CharModuleMetric(BaseModuleMetric):
-    STATE_NAMES = [
+    STATE_NAMES = (
         "example_ids",
         "word_segmentation_predictions",
         "word_norm_op_predictions",
         "word_norm_op_labels",
-    ]
+    )
 
     def __init__(self) -> None:
         super().__init__()
         self.dataset: Optional[CharDataset] = None
+        self.example_ids: torch.Tensor
+        self.word_segmentation_predictions: torch.Tensor
+        self.word_norm_op_predictions: torch.Tensor
+        self.word_norm_op_labels: torch.Tensor
 
     def compute(self) -> Dict[str, float]:
         sorted_indices = unique(self.example_ids)

@@ -10,7 +10,7 @@ from tokenizers import Encoding
 from transformers import PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
-from kwja.datamodule.datasets.base import BaseDataset
+from kwja.datamodule.datasets.base import BaseDataset, FullAnnotatedDocumentLoaderMixin
 from kwja.datamodule.datasets.word import WordModuleFeatures
 from kwja.datamodule.examples import WordInferenceExample
 from kwja.utils.cohesion_analysis import BridgingUtils, CohesionUtils, CoreferenceUtils, PasUtils
@@ -21,7 +21,7 @@ from kwja.utils.sub_document import extract_target_sentences
 logger = logging.getLogger(__name__)
 
 
-class WordInferenceDataset(BaseDataset[WordModuleFeatures]):
+class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures], FullAnnotatedDocumentLoaderMixin):
     def __init__(
         self,
         tokenizer: PreTrainedTokenizerBase,
@@ -36,13 +36,14 @@ class WordInferenceDataset(BaseDataset[WordModuleFeatures]):
         juman_file: Optional[Path] = None,
         knp_file: Optional[Path] = None,
     ) -> None:
+        super(WordInferenceDataset, self).__init__(tokenizer, max_seq_length)
         if juman_file is not None:
-            with juman_file.open(mode="r") as f:
+            with juman_file.open() as f:
                 documents = [
                     Document.from_jumanpp(c) for c in track(chunk_by_document(f), description="Loading documents")
                 ]
         elif knp_file is not None:
-            with knp_file.open(mode="r") as f:
+            with knp_file.open() as f:
                 documents = [Document.from_knp(c) for c in track(chunk_by_document(f), description="Loading documents")]
         else:
             # do_predict_after_train
@@ -53,7 +54,7 @@ class WordInferenceDataset(BaseDataset[WordModuleFeatures]):
         else:
             self.tokenizer_input_format = "text"
 
-        super().__init__(documents, tokenizer, max_seq_length, document_split_stride)
+        super(BaseDataset, self).__init__(documents, tokenizer, max_seq_length, document_split_stride)
         # ---------- seq2seq ----------
         self.from_seq2seq: bool = juman_file is not None and juman_file.suffix == ".seq2seq"
 
@@ -92,12 +93,6 @@ class WordInferenceDataset(BaseDataset[WordModuleFeatures]):
         ).encodings[0]
 
         self.examples: List[WordInferenceExample] = self._load_examples(self.documents)
-
-    def __len__(self) -> int:
-        return len(self.examples)
-
-    def __getitem__(self, index: int) -> WordModuleFeatures:
-        return self.encode(self.examples[index])
 
     def _get_tokenized_len(self, document_or_sentence: Union[Document, Sentence]) -> int:
         tokenizer_input: Union[List[str], str] = [m.text for m in document_or_sentence.morphemes]

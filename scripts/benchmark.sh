@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-DEVICE=[0]
+DEVICE="[0]"
 TYPO_BATCH_SIZE=1
 CHAR_BATCH_SIZE=1
 WORD_BATCH_SIZE=1
