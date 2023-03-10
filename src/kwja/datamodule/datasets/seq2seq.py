@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Union
+from typing import List
 
 from rhoknp import KNP, Document, Jumanpp, Sentence
 from torch.utils.data import Dataset
@@ -18,25 +18,16 @@ jumanpp = Jumanpp()
 knp = KNP()
 
 
-def get_seq2seq_format(text: Union[str, Sentence]) -> str:
-    if isinstance(text, str):
-        sentence: Sentence = Sentence.from_raw_text(text)
-        sentence = jumanpp.apply_to_sentence(sentence)
-        sentence = knp.apply_to_sentence(sentence)
-    elif isinstance(text, Sentence):
-        sentence = text
-    else:
-        raise ValueError("invalid input type")
-
+def get_seq2seq_format(sentence: Sentence) -> str:
     output: str = ""
     for mrph in sentence.morphemes:
-        canon: str = mrph.canon if mrph.canon is not None else NO_CANON_TOKEN
         if mrph.reading == "\u3000":
             reading: str = NO_READING_TOKEN
         elif "/" in mrph.reading:
             reading = mrph.reading.split("/")[0]
         else:
             reading = mrph.reading
+        canon: str = mrph.canon if mrph.canon is not None else NO_CANON_TOKEN
         mrph_info: str = f"{mrph.surf} {reading} {mrph.lemma} {canon}\n"
         output += mrph_info
     return output
