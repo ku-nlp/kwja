@@ -9,6 +9,7 @@ class Seq2SeqExample:
     src_text: str
     src_encoding: BatchEncoding
     tgt_encoding: BatchEncoding
+    sid: str
 
 
 @dataclass(frozen=True)
@@ -16,3 +17,4 @@ class Seq2SeqInferenceExample:
     example_id: int
     src_text: str
     src_encoding: BatchEncoding
+    sid: str

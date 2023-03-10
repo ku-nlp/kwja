@@ -115,6 +115,7 @@ class Seq2SeqDataset(Dataset[Seq2SeqModuleFeatures]):
                         src_text=sentence.text,
                         src_encoding=src_encoding,
                         tgt_encoding=tgt_encoding,
+                        sid=sentence.sid,
                     )
                 )
                 example_id += 1

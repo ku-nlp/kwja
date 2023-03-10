@@ -9,6 +9,7 @@ from pytorch_lightning.callbacks import BasePredictionWriter
 from rhoknp import Sentence
 from transformers import PreTrainedTokenizerBase
 
+import kwja
 from kwja.datamodule.datasets import Seq2SeqDataset, Seq2SeqInferenceDataset
 from kwja.datamodule.examples import Seq2SeqExample, Seq2SeqInferenceExample
 from kwja.utils.constants import NEW_LINE_TOKEN
@@ -45,7 +46,6 @@ def get_sent_from_seq2seq_format(input_text: str) -> Sentence:
                 formatted += " ".join(mrphs) + "\n"
             else:
                 formatted += " ".join(mrph_placeholder) + "\n"
-    formatted = "# S-ID:1\n" + formatted  # TODO: Use dynamic S-ID
     return Sentence.from_jumanpp(formatted)
 
 
@@ -88,6 +88,7 @@ class Seq2SeqModuleWriter(BasePredictionWriter):
             prediction["example_ids"].tolist(), prediction["seq2seq_predictions"].tolist()
         ):
             example: Union[Seq2SeqExample, Seq2SeqInferenceExample] = dataset.examples[example_id]
+            assert example.sid is not None, "sid is not defined."
             seq_len: int = len(example.src_text)
             if seq_len == 0:
                 continue
@@ -96,6 +97,8 @@ class Seq2SeqModuleWriter(BasePredictionWriter):
                 [x for x in seq2seq_predictions if x != self.tokenizer.pad_token_id], skip_special_tokens=False
             )
             seq2seq_format: Sentence = get_sent_from_seq2seq_format(self._shape(decoded))
+            seq2seq_format.sid = example.sid
+            seq2seq_format.misc_comment = f"kwja:{kwja.__version__}"
             outputs.append(seq2seq_format.to_jumanpp())
         output_string: str = "".join(outputs)
         if isinstance(self.destination, Path):

@@ -9,6 +9,7 @@ from omegaconf import ListConfig
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
 
+import kwja
 from kwja.callbacks.seq2seq_module_writer import Seq2SeqModuleWriter
 from kwja.datamodule.datasets import Seq2SeqInferenceDataset
 
@@ -34,12 +35,13 @@ def test_write_on_batch_end(seq2seq_tokenizer: PreTrainedTokenizerBase):
     texts = ["太郎と次郎はよくけんかする", "辛いラーメンが好きなので頼みました"]
     max_src_length = 32
     max_tgt_length = 128
-    doc_id_prefix = "1"
+    doc_id_prefix = "test"
     dataset = Seq2SeqInferenceDataset(
         texts=ListConfig(texts),
         tokenizer=seq2seq_tokenizer,
         max_src_length=max_src_length,
         max_tgt_length=max_tgt_length,
+        doc_id_prefix=doc_id_prefix,
     )
     num_examples = len(dataset)
 
@@ -68,7 +70,7 @@ def test_write_on_batch_end(seq2seq_tokenizer: PreTrainedTokenizerBase):
         assert isinstance(writer.destination, Path), "destination isn't set"
         assert writer.destination.read_text() == dedent(
             f"""\
-            # S-ID:{doc_id_prefix}
+            # S-ID:{doc_id_prefix}-0-0 kwja:{kwja.__version__}
             太郎 たろう 太郎 未定義語 15 その他 1 * 0 * 0 "代表表記:太郎/たろう"
             と と と 未定義語 15 その他 1 * 0 * 0 "代表表記:と/と"
             次郎 じろう 次郎 未定義語 15 その他 1 * 0 * 0 "代表表記:次郎/じろう"
@@ -77,7 +79,7 @@ def test_write_on_batch_end(seq2seq_tokenizer: PreTrainedTokenizerBase):
             けんか けんか けんか 未定義語 15 その他 1 * 0 * 0 "代表表記:喧嘩/けんか"
             する する する 未定義語 15 その他 1 * 0 * 0 "代表表記:する/する"
             EOS
-            # S-ID:{doc_id_prefix}
+            # S-ID:{doc_id_prefix}-1-0 kwja:{kwja.__version__}
             辛い からい 辛い 未定義語 15 その他 1 * 0 * 0 "代表表記:辛い/からい"
             ラーメン らーめん ラーメン 未定義語 15 その他 1 * 0 * 0 "代表表記:ラーメン/らーめん"
             が が が 未定義語 15 その他 1 * 0 * 0 "代表表記:が/が"
