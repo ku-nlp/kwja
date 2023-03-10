@@ -1,0 +1,7 @@
+defaults:
+  - /datamodule/base/senter@
+  - _self_
+
+_target_: kwja.datamodule.datasets.SenterInferenceDataset
+texts: []
+doc_id_prefix: null
