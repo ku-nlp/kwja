@@ -14,7 +14,7 @@ from kwja.datamodule.examples import Seq2SeqExample, Seq2SeqInferenceExample
 from kwja.utils.constants import NEW_LINE_TOKEN
 
 
-def get_seq2seq_format(input_text: str) -> Sentence:
+def get_sent_from_seq2seq_format(input_text: str) -> Sentence:
     lines: List[str] = input_text.split("\n")
     mrph_placeholder: List[str] = ["@", "@", "@", "未定義語", "15", "その他", "1", "*", "0", "*", "0", "NIL"]
     formatted: str = ""
@@ -95,7 +95,7 @@ class Seq2SeqModuleWriter(BasePredictionWriter):
             decoded: str = self.tokenizer.decode(
                 [x for x in seq2seq_predictions if x != self.tokenizer.pad_token_id], skip_special_tokens=False
             )
-            seq2seq_format: Sentence = get_seq2seq_format(self._shape(decoded))
+            seq2seq_format: Sentence = get_sent_from_seq2seq_format(self._shape(decoded))
             outputs.append(seq2seq_format.to_jumanpp())
         output_string: str = "".join(outputs)
         if isinstance(self.destination, Path):
