@@ -1,0 +1,5 @@
+defaults:
+  - /datamodule/base/senter@fuman
+
+fuman:
+  path: ${oc.env:DATA_DIR}/fuman/test

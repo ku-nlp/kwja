@@ -17,7 +17,7 @@ from rhoknp.utils.reader import chunk_by_document
 import kwja
 from kwja.cli.utils import download_checkpoint, prepare_device, suppress_debug_info
 from kwja.datamodule.datamodule import DataModule
-from kwja.modules import CharModule, TypoModule, WordModule
+from kwja.modules import CharModule, Seq2SeqModule, TypoModule, WordModule
 
 suppress_debug_info()
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -101,6 +101,28 @@ class TypoModuleProcessor(BaseModuleProcessor):
         print("\n".join(post_texts))
 
 
+class Seq2SeqModuleProcessor(BaseModuleProcessor):
+    def _load_module(self):
+        typer.echo("Loading seq2seq module", err=True)
+        checkpoint_path: Path = download_checkpoint(task="seq2seq", model_size=self.model_size)
+        return Seq2SeqModule.load_from_checkpoint(checkpoint_path, map_location=self.device)
+
+    def _load_datamodule(self, input_file: Path) -> DataModule:
+        assert self.module is not None
+        self.module.hparams.datamodule.predict.texts = input_file.read_text().splitlines()
+        datamodule = DataModule(cfg=self.module.hparams.datamodule)
+        datamodule.setup(stage=TrainerFn.PREDICTING)
+        return datamodule
+
+    def output_prediction(self) -> None:
+        seq2seq_texts: List[str] = []
+        with self.destination.open() as f:
+            for line in f:
+                if line.strip() != "EOD":
+                    seq2seq_texts.append(line.strip())
+        print("\n".join(seq2seq_texts))
+
+
 class CharModuleProcessor(BaseModuleProcessor):
     def _load_module(self) -> pl.LightningModule:
         typer.echo("Loading char module", err=True)
@@ -167,17 +189,20 @@ class CLIProcessor:
         specified_device: str,
         model_size: str,
         typo_batch_size: int,
+        seq2seq_batch_size: int,
         char_batch_size: int,
         word_batch_size: int,
     ) -> None:
         self.tmp_dir = TemporaryDirectory()
         self.raw_destination = self.tmp_dir.name / Path("raw_text.txt")
         typo_destination = self.tmp_dir.name / Path("typo_prediction.txt")
+        seq2seq_destination = self.tmp_dir.name / Path("seq2seq_prediction.seq2seq")
         char_destination = self.tmp_dir.name / Path("char_prediction.juman")
         word_destination = self.tmp_dir.name / Path("word_prediction.knp")
         word_discourse_destination = self.tmp_dir.name / Path("word_discourse_prediction.knp")
         self.processors: Dict[str, BaseModuleProcessor] = {
             "typo": TypoModuleProcessor(specified_device, model_size, typo_batch_size, typo_destination),
+            "seq2seq": Seq2SeqModuleProcessor(specified_device, model_size, seq2seq_batch_size, seq2seq_destination),
             "char": CharModuleProcessor(specified_device, model_size, char_batch_size, char_destination),
             "word": WordModuleProcessor(specified_device, model_size, word_batch_size, word_destination),
             "word_discourse": WordDiscourseModuleProcessor(
@@ -201,8 +226,8 @@ class CLIProcessor:
             processor = self.processors[specified_task]
             if interactive is False:
                 processor.load()
-            if specified_task == "char" and "typo" in specified_tasks:
-                # char module after typo module
+            if specified_task in {"char", "seq2seq"} and "typo" in specified_tasks:
+                # char and seq2seq module after typo module
                 input_texts = _split_input_texts([input_file.read_text()])
                 input_file.write_text("\n".join(input_texts))  # TODO: consider using pickle
             input_file = processor.apply_module(input_file)
@@ -249,11 +274,17 @@ def tasks_callback(value: str) -> str:
     if len(tasks) == 0:
         raise typer.BadParameter("task must be specified")
     for task in tasks:
-        if task not in ("typo", "char", "word", "word_discourse"):
+        if task not in ("typo", "seq2seq", "char", "word", "word_discourse"):
             raise typer.BadParameter("invalid task name is contained")
     valid_task_combinations: Set[Tuple[str, ...]] = {
         ("typo",),
         ("char",),
+        ("seq2seq",),
+        ("seq2seq", "typo"),
+        ("seq2seq", "word"),
+        ("seq2seq", "typo", "word"),
+        ("seq2seq", "word", "word_discourse"),
+        ("seq2seq", "typo", "word", "word_discourse"),
         ("char", "typo"),
         ("char", "word"),
         ("char", "typo", "word"),
@@ -267,8 +298,14 @@ def tasks_callback(value: str) -> str:
             "Please specify one of "
             "'typo', "
             "'char', "
+            "'seq2seq', "
             "'typo,char', "
+            "'typo,seq2seq', "
+            "'seq2seq,word', "
             "'char,word', "
+            "'typo,seq2seq,word', "
+            "'seq2seq,word,word_discourse', "
+            "'typo,seq2seq,word,word_discourse', "
             "'typo,char,word', "
             "'char,word,word_discourse' "
             "or 'typo,char,word,word_discourse'."
@@ -288,6 +325,7 @@ def main(
         "base", callback=model_size_callback, help="Model size to be used. Please specify 'tiny', 'base', or 'large'."
     ),
     typo_batch_size: int = typer.Option(1, help="Batch size for typo module."),
+    seq2seq_batch_size: int = typer.Option(1, help="Batch size for seq2seq module."),
     char_batch_size: int = typer.Option(1, help="Batch size for char module."),
     word_batch_size: int = typer.Option(1, help="Batch size for word module."),
     tasks: str = typer.Option("typo,char,word,word_discourse", callback=tasks_callback, help="Tasks to be performed."),
@@ -302,15 +340,20 @@ def main(
     elif filename is not None:
         input_text = Path(filename).read_text()
 
+    if model_size == "large" and "seq2seq" in tasks:
+        typer.echo("ERROR: Large model does not support seq2seq module now", err=True)
+        raise typer.Abort()
+
     processor = CLIProcessor(
         specified_device=device.value,
         model_size=model_size,
         typo_batch_size=typo_batch_size,
+        seq2seq_batch_size=seq2seq_batch_size,
         char_batch_size=char_batch_size,
         word_batch_size=word_batch_size,
     )
     specified_tasks: List[str] = [
-        task for task in ["typo", "char", "word", "word_discourse"] if task in tasks.split(",")
+        task for task in ["typo", "seq2seq", "char", "word", "word_discourse"] if task in tasks.split(",")
     ]
 
     if input_text is None:

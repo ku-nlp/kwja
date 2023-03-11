@@ -22,6 +22,7 @@ from kwja.utils.constants import (
     POS_TAG2POS_ID,
     POS_TAG_SUBPOS_TAG2SUBPOS_ID,
     POS_TAGS,
+    SENT_SEGMENTATION_TAGS,
     SUBPOS_TAGS,
     TOKEN2TYPO_CORR_OP_TAG,
     WORD_FEATURES,
@@ -82,6 +83,29 @@ def apply_edit_operations(pre_text: str, kdr_tags: List[str], ins_tags: List[str
     if ins_tags[-1].startswith("I:"):
         post_text += ins_tags[-1][2:]  # remove prefix "I:"
     return post_text
+
+
+# ---------- senter module writer ----------
+def convert_senter_predictions_into_tags(
+    sent_segmentation_predictions: List[int],
+    input_ids: List[int],
+    special_ids: Set[int],
+) -> List[str]:
+    indices = [i for i, input_id in enumerate(input_ids) if input_id not in special_ids]
+    return [SENT_SEGMENTATION_TAGS[sent_segmentation_predictions[i]] for i in indices]
+
+
+def set_sentences(document: Document, sent_segmentation_tags: List[str]) -> None:
+    sentences: List[Sentence] = []
+    surf: str = ""
+    for char, sent_segmentation_tag in zip(document.text, sent_segmentation_tags):
+        if sent_segmentation_tag == "B" and surf:
+            sentences.append(Sentence(surf))
+            surf = ""
+        surf += char
+    if surf:
+        sentences.append(Sentence(surf))
+    document.sentences = sentences
 
 
 # ---------- char module writer ----------

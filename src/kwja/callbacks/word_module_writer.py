@@ -111,14 +111,16 @@ class WordModuleWriter(BasePredictionWriter):
             example: Union[WordExample, WordInferenceExample] = dataset.examples[example_id]
             assert example.doc_id is not None, "doc_id isn't set"
             document = dataset.doc_id2document[example.doc_id]
-
-            word_reading_predictions = get_word_reading_predictions(
-                example.encoding.ids,
-                reading_predictions,
-                self.reading_id2reading,
-                dataset.tokenizer,
-                reading_subword_map,
-            )
+            if dataset.from_seq2seq:
+                word_reading_predictions = [m.reading for m in document.morphemes]
+            else:
+                word_reading_predictions = get_word_reading_predictions(
+                    example.encoding.ids,
+                    reading_predictions,
+                    self.reading_id2reading,
+                    dataset.tokenizer,
+                    reading_subword_map,
+                )
             (
                 pos_predictions,
                 subpos_predictions,
@@ -133,6 +135,7 @@ class WordModuleWriter(BasePredictionWriter):
                 subpos_predictions,
                 conjtype_predictions,
                 conjform_predictions,
+                dataset.from_seq2seq,
             )
             predicted_document = chunk_morphemes(document, morphemes, word_feature_probabilities)
             predicted_document.doc_id = document.doc_id
@@ -184,6 +187,7 @@ class WordModuleWriter(BasePredictionWriter):
         subpos_predictions: List[int],
         conjtype_predictions: List[int],
         conjform_predictions: List[int],
+        from_seq2seq: bool,
     ) -> List[Morpheme]:
         assert len(surfs) == len(norms) == len(reading_predictions)
         morphemes = []
@@ -206,8 +210,13 @@ class WordModuleWriter(BasePredictionWriter):
             conjform_id = CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID[conjtype][conjform]
 
             homograph_ops: List[Dict[str, Any]] = []
-            lemma = self._get_lemma(norm, pos, subpos, conjtype, conjform, homograph_ops)
-            semantics = self._lookup_semantics(reading, norm, pos, subpos, conjtype, homograph_ops)
+            if from_seq2seq:
+                lemma = norm
+            else:
+                lemma = self._get_lemma(norm, pos, subpos, conjtype, conjform, homograph_ops)
+            semantics = self._lookup_semantics(
+                reading, norm, pos, subpos, conjtype, homograph_ops
+            )  # TODO: Look up by repname
             morpheme = Morpheme(
                 surf,
                 reading=reading,

@@ -47,13 +47,7 @@ class CharInferenceDataset(BaseDataset[CharInferenceExample, CharModuleFeatures]
                 logger.warning(f"Length of sub document is too long: {document.text}")
                 continue
 
-            examples.append(
-                CharInferenceExample(
-                    example_id=example_id,
-                    encoding=encoding,
-                    doc_id=document.doc_id,
-                )
-            )
+            examples.append(CharInferenceExample(example_id=example_id, encoding=encoding, doc_id=document.doc_id))
             example_id += 1
         if len(examples) == 0:
             logger.error("No examples to process. Make sure any texts are given and they are not too long.")
