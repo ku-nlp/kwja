@@ -1,4 +1,3 @@
-import copy
 import sys
 from io import TextIOBase
 from pathlib import Path
@@ -13,40 +12,7 @@ import kwja
 from kwja.datamodule.datasets import Seq2SeqDataset, Seq2SeqInferenceDataset
 from kwja.datamodule.examples import Seq2SeqExample, Seq2SeqInferenceExample
 from kwja.utils.constants import NEW_LINE_TOKEN
-
-
-def get_sent_from_seq2seq_format(input_text: str) -> Sentence:
-    lines: List[str] = input_text.split("\n")
-    mrph_placeholder: List[str] = ["@", "@", "@", "未定義語", "15", "その他", "1", "*", "0", "*", "0", "NIL"]
-    formatted: str = ""
-    for line in lines:
-        if not line:
-            continue
-        if line == "EOS" or line.startswith("*") or line.startswith("+"):
-            formatted += line + "\n"
-        else:
-            preds: List[str] = line.split(" ")
-            if len(preds) == 4:
-                mrphs: List[str] = copy.deepcopy(mrph_placeholder)
-                for idx in range(3):
-                    mrphs[idx] = preds[idx]
-                mrphs[-1] = f'"代表表記:{preds[3]}"' if preds[3] is not None else "NIL"
-                formatted += " ".join(mrphs) + "\n"
-            elif line in ["!!!!/!", "????/?", ",,,,/,"]:
-                mrphs = copy.deepcopy(mrph_placeholder)
-                for idx in range(3):
-                    mrphs[idx] = line[idx]
-                mrphs[-1] = f'"代表表記:{line[-1]}/{line[-1]}"'
-                formatted += " ".join(mrphs) + "\n"
-            elif line == "............/...":
-                mrphs = copy.deepcopy(mrph_placeholder)
-                for idx in range(3):
-                    mrphs[idx] = "…"
-                mrphs[-1] = '"代表表記:…/…"'
-                formatted += " ".join(mrphs) + "\n"
-            else:
-                formatted += " ".join(mrph_placeholder) + "\n"
-    return Sentence.from_jumanpp(formatted)
+from kwja.utils.seq2seq_format import get_sent_from_seq2seq_format
 
 
 class Seq2SeqModuleWriter(BasePredictionWriter):
@@ -64,7 +30,7 @@ class Seq2SeqModuleWriter(BasePredictionWriter):
         self.tokenizer: PreTrainedTokenizerBase = tokenizer
 
     @staticmethod
-    def _shape(input_text: str) -> str:
+    def shape(input_text: str) -> str:
         output_lines: List[str] = []
         for line in input_text.replace("</s>", "EOS\n").replace(NEW_LINE_TOKEN, "\n").split("\n"):
             output_lines.append(line.lstrip().rstrip())
@@ -96,7 +62,7 @@ class Seq2SeqModuleWriter(BasePredictionWriter):
             decoded: str = self.tokenizer.decode(
                 [x for x in seq2seq_predictions if x != self.tokenizer.pad_token_id], skip_special_tokens=False
             )
-            seq2seq_format: Sentence = get_sent_from_seq2seq_format(self._shape(decoded))
+            seq2seq_format: Sentence = get_sent_from_seq2seq_format(self.shape(decoded))
             seq2seq_format.sid = example.sid
             seq2seq_format.misc_comment = f"kwja:{kwja.__version__}"
             outputs.append(seq2seq_format.to_jumanpp())

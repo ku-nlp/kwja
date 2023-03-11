@@ -3,34 +3,17 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List
 
-from rhoknp import KNP, Document, Jumanpp, Sentence
+from rhoknp import Document
 from torch.utils.data import Dataset
 from transformers import BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
 from kwja.datamodule.examples import Seq2SeqExample
-from kwja.utils.constants import IGNORE_INDEX, NEW_LINE_TOKEN, NO_CANON_TOKEN, NO_READING_TOKEN
+from kwja.utils.constants import IGNORE_INDEX, NEW_LINE_TOKEN
 from kwja.utils.progress_bar import track
+from kwja.utils.seq2seq_format import get_seq2seq_format
 
 logger = logging.getLogger(__name__)
-
-jumanpp = Jumanpp()
-knp = KNP()
-
-
-def get_seq2seq_format(sentence: Sentence) -> str:
-    output: str = ""
-    for mrph in sentence.morphemes:
-        if mrph.reading == "\u3000":
-            reading: str = NO_READING_TOKEN
-        elif "/" in mrph.reading:
-            reading = mrph.reading.split("/")[0]
-        else:
-            reading = mrph.reading
-        canon: str = mrph.canon if mrph.canon is not None else NO_CANON_TOKEN
-        mrph_info: str = f"{mrph.surf} {reading} {mrph.lemma} {canon}\n"
-        output += mrph_info
-    return output
 
 
 @dataclass(frozen=True)

@@ -40,8 +40,8 @@ def test_get_generated_surfs(fixture_data_dir: Path) -> None:
     )
     char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
 
-    test_case_dir: Path = fixture_data_dir / "modules" / "jmn"
-    for path in test_case_dir.glob("*.jmn"):
+    test_case_dir: Path = fixture_data_dir / "modules" / "juman"
+    for path in test_case_dir.glob("*.juman"):
         with path.open() as f:
             sentence: Sentence = Sentence.from_jumanpp(f.read())
             processor = ForcedSurfLogitsProcessor(
