@@ -28,18 +28,18 @@ _CHECKPOINT_FILE_NAMES = {
         "word_discourse": "disc_deberta-v2-tiny.ckpt",
     },
     "base": {
-        "typo": "typo_roberta-base-wwm.ckpt",
+        "typo": "typo_deberta-v2-base-wwm.ckpt",
         "seq2seq": "seq2seq_mt5-base.ckpt",
-        "char": "char_roberta-base-wwm.ckpt",
-        "word": "word_roberta-base.ckpt",
-        "word_discourse": "disc_roberta-base.ckpt",
+        "char": "char_deberta-v2-base-wwm.ckpt",
+        "word": "word_deberta-v2-base.ckpt",
+        "word_discourse": "disc_deberta-v2-base.ckpt",
     },
     "large": {
-        "typo": "typo_roberta-large-wwm.ckpt",
+        "typo": "typo_deberta-v2-large-wwm.ckpt",
         "seq2seq": "seq2seq_mt5-large.ckpt",
-        "char": "char_roberta-large-wwm.ckpt",
-        "word": "word_roberta-large.ckpt",
-        "word_discourse": "disc_roberta-large.ckpt",
+        "char": "char_deberta-v2-large-wwm.ckpt",
+        "word": "word_deberta-v2-large.ckpt",
+        "word_discourse": "disc_deberta-v2-large.ckpt",
     },
 }
 
@@ -102,7 +102,8 @@ def _get_model_version() -> str:
         ("1", "2"): "v1.0",
         ("1", "3"): "v1.3",
         ("1", "4"): "v1.3",
-        # ("1", "5"): "v1.3",
+        ("2", "0"): "v2.0",
+        # ("2", "1"): "v2.0",
     }
     version_fields = kwja.__version__.split(".")
     return version_map[(version_fields[0], version_fields[1])]
