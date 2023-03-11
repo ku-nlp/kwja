@@ -340,6 +340,10 @@ def main(
     elif filename is not None:
         input_text = Path(filename).read_text()
 
+    if model_size == "large" and "seq2seq" in tasks:
+        typer.echo("ERROR: Large model does not support seq2seq module now", err=True)
+        raise typer.Abort()
+
     processor = CLIProcessor(
         specified_device=device.value,
         model_size=model_size,
