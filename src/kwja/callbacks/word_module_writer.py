@@ -113,6 +113,7 @@ class WordModuleWriter(BasePredictionWriter):
             document = dataset.doc_id2document[example.doc_id]
             if dataset.from_seq2seq:
                 word_reading_predictions = [m.reading for m in document.morphemes]
+                canons = [m.canon for m in document.morphemes]
             else:
                 word_reading_predictions = get_word_reading_predictions(
                     example.encoding.ids,
@@ -121,6 +122,7 @@ class WordModuleWriter(BasePredictionWriter):
                     dataset.tokenizer,
                     reading_subword_map,
                 )
+                canons = ["" for _ in document.morphemes]
             (
                 pos_predictions,
                 subpos_predictions,
@@ -135,6 +137,7 @@ class WordModuleWriter(BasePredictionWriter):
                 subpos_predictions,
                 conjtype_predictions,
                 conjform_predictions,
+                canons,
                 dataset.from_seq2seq,
             )
             predicted_document = chunk_morphemes(document, morphemes, word_feature_probabilities)
@@ -187,11 +190,12 @@ class WordModuleWriter(BasePredictionWriter):
         subpos_predictions: List[int],
         conjtype_predictions: List[int],
         conjform_predictions: List[int],
+        canons: List[Optional[str]],
         from_seq2seq: bool,
     ) -> List[Morpheme]:
         assert len(surfs) == len(norms) == len(reading_predictions)
         morphemes = []
-        for surf, norm, reading, pos_index, subpos_index, conjtype_index, conjform_index in zip(
+        for surf, norm, reading, pos_index, subpos_index, conjtype_index, conjform_index, canon in zip(
             surfs,
             norms,
             reading_predictions,
@@ -199,6 +203,7 @@ class WordModuleWriter(BasePredictionWriter):
             subpos_predictions,
             conjtype_predictions,
             conjform_predictions,
+            canons,
         ):
             pos = POS_TAGS[pos_index]
             pos_id = POS_TAG2POS_ID[pos]
@@ -214,9 +219,7 @@ class WordModuleWriter(BasePredictionWriter):
                 lemma = norm
             else:
                 lemma = self._get_lemma(norm, pos, subpos, conjtype, conjform, homograph_ops)
-            semantics = self._lookup_semantics(
-                reading, norm, pos, subpos, conjtype, homograph_ops
-            )  # TODO: Look up by repname
+            semantics = self._lookup_semantics(reading, norm, pos, subpos, conjtype, canon, homograph_ops)
             morpheme = Morpheme(
                 surf,
                 reading=reading,
@@ -249,7 +252,7 @@ class WordModuleWriter(BasePredictionWriter):
                 # ambiguous: dictionary lookup to identify the lemma
                 matched = [
                     entry
-                    for entry in self.jumandic.lookup(norm)
+                    for entry in self.jumandic.lookup_by_norm(norm)
                     if entry["pos"] == pos and entry["subpos"] == subpos and entry["conjtype"] == conjtype
                 ]
                 if len(matched) > 0:
@@ -271,18 +274,38 @@ class WordModuleWriter(BasePredictionWriter):
         return lemma
 
     def _lookup_semantics(
-        self, reading: str, norm: str, pos: str, subpos: str, conjtype: str, homograph_ops: List[Dict[str, Any]]
+        self,
+        reading: str,
+        norm: str,
+        pos: str,
+        subpos: str,
+        conjtype: str,
+        canon: str,
+        homograph_ops: List[Dict[str, Any]],
     ) -> SemanticsDict:
-        matched = [
-            entry
-            for entry in self.jumandic.lookup(norm)
-            if (
-                entry["reading"] == reading
-                and entry["pos"] == pos
-                and entry["subpos"] == subpos
-                and entry["conjtype"] == conjtype
-            )
-        ]
+        if canon:
+            matched = [
+                entry
+                for entry in self.jumandic.lookup_by_canon(canon)
+                if (
+                    entry["reading"] == reading
+                    and entry["lemma"] == norm
+                    and entry["pos"] == pos
+                    and entry["subpos"] == subpos
+                    and entry["conjtype"] == conjtype
+                )
+            ]
+        else:
+            matched = [
+                entry
+                for entry in self.jumandic.lookup_by_norm(norm)
+                if (
+                    entry["reading"] == reading
+                    and entry["pos"] == pos
+                    and entry["subpos"] == subpos
+                    and entry["conjtype"] == conjtype
+                )
+            ]
         if len(matched) > 0:
             entry = matched[0]
             semantics: SemanticsDict = SemanticsDict.from_sstring('"' + entry["semantics"] + '"')
