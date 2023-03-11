@@ -1,0 +1,5 @@
+defaults:
+  - /datamodule/base/seq2seq@kwdlc
+
+kwdlc:
+  path: ${oc.env:DATA_DIR}/kwdlc/train

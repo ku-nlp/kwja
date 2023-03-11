@@ -1,7 +1,7 @@
 defaults:
   - callbacks: [progress_bar.yaml]
   - logger: null
-  - module: null  # typo, char, or word
+  - module: null  # typo, seq2seq, char, or word
   - _self_
 
 # required settings

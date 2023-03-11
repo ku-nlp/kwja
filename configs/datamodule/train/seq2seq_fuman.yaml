@@ -1,0 +1,5 @@
+defaults:
+  - /datamodule/base/seq2seq@fuman
+
+fuman:
+  path: ${oc.env:DATA_DIR}/fuman/train

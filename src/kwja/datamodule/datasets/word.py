@@ -81,6 +81,8 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         else:
             self.tokenizer_input_format = "text"
         super(BaseDataset, self).__init__(self.path, tokenizer, max_seq_length, document_split_stride)
+        # ---------- seq2seq ----------
+        self.from_seq2seq: bool = False
 
         # ---------- reading prediction ----------
         reading_resource_path = RESOURCE_PATH / "reading_prediction"

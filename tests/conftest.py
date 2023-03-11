@@ -31,6 +31,14 @@ def typo_tokenizer() -> PreTrainedTokenizerBase:
 
 
 @pytest.fixture()
+def seq2seq_tokenizer() -> PreTrainedTokenizerBase:
+    return AutoTokenizer.from_pretrained(
+        "google/mt5-small",
+        additional_special_tokens=["<br>", "<no_read>", "<no_canon>"],
+    )
+
+
+@pytest.fixture()
 def char_tokenizer() -> PreTrainedTokenizerBase:
     return AutoTokenizer.from_pretrained("ku-nlp/deberta-v2-tiny-japanese-char-wwm", do_word_tokenize=False)
 

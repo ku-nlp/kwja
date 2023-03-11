@@ -1,0 +1,46 @@
+defaults:
+  - base
+  - callbacks: [early_stopping, model_checkpoint, model_summary, seq2seq_module_writer, progress_bar]
+  - datamodule: seq2seq
+  - logger: null
+  - encoder: seq2seq_mt5_small
+  - module: seq2seq
+  - optimizer: adamw
+  - scheduler: constant_schedule_with_warmup
+  - trainer: debug
+  - _self_
+
+max_src_length: 256
+max_tgt_length: 1024
+do_predict_after_train: false
+checkpoint_path: ""
+
+# For decoding settings
+use_forced_surf_decoding: true
+decoding:
+  max_length: ${max_tgt_length}
+  min_length: 1
+  return_dict_in_generate: True
+  output_scores: True
+  num_beams: 3
+
+# set monitor and mode for early_stopping and model_checkpoint
+monitor: valid/seq2seq_loss
+mode: min
+
+# hyper-parameters to be tuned
+lr: 5e-4
+max_epochs: 1
+warmup_steps: 250
+effective_batch_size: 512
+
+# environment dependent settings
+devices: ${oc.env:DEVICES,0}
+max_batches_per_device: ${oc.env:MAX_BATCHES_PER_DEVICE,2}
+num_workers: ${oc.env:NUM_WORKERS,0}
+
+ignore_hparams_on_save: false
+
+# constants
+special_tokens: ["<br>", "<no_read>", "<no_canon>"]
+hparams_to_ignore_on_save: []
