@@ -1924,18 +1924,18 @@ use-chardet-on-py3 = ["chardet (>=3.0.2,<6)"]
 
 [[package]]
 name = "rhoknp"
-version = "1.1.2"
+version = "1.2.1"
 description = "Yet another Python binding for Juman++/KNP/KWJA"
 category = "main"
 optional = false
 python-versions = ">=3.7,<3.12"
 files = [
-    {file = "rhoknp-1.1.2-py3-none-any.whl", hash = "sha256:5b1e3254431be069d93ae75e5e35cbd664d5195989fc8afdd7134bd319afd110"},
-    {file = "rhoknp-1.1.2.tar.gz", hash = "sha256:3d31030c75bc6b30d38e6ce3eb6dada4404f7799931a3ae910446ef75addc4f6"},
+    {file = "rhoknp-1.2.1-py3-none-any.whl", hash = "sha256:93ce06a6564cfd00956fdc2e022578025122657abb2a3c069c6a72fdd0be9da9"},
+    {file = "rhoknp-1.2.1.tar.gz", hash = "sha256:5d29f9a865d396e4bb5a589236c789fdb649c05e226794e98c6c565db643ce25"},
 ]
 
 [package.extras]
-cli = ["PyYAML (>=6.0,<7.0)", "fastapi (>=0.89.1,<0.90.0)", "rich (>=12.6,<14)", "typer (>=0.6.1,<0.8)", "uvicorn (>=0.20.0,<0.21.0)"]
+cli = ["PyYAML (>=6.0,<7.0)", "fastapi (>=0.92.0,<0.93.0)", "rich (>=12.6,<14)", "typer (>=0.6.1,<0.8)", "uvicorn (>=0.20.0,<0.21.0)"]
 
 [[package]]
 name = "rich"
@@ -2777,4 +2777,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.11"
-content-hash = "a4746293d7d09b0eb62f74564c419cff2f5ec4ac25d3eb52a4b0faa0eb3551b9"
+content-hash = "6a31bb2d055323362c83d4434285495a8dbb1728efba8ac91bd928053fabea61"
