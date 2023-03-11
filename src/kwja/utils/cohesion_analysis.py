@@ -78,7 +78,6 @@ class PasUtils(CohesionUtils):
         cohesion_base_phrases: List[CohesionBasePhrase] = []
         for base_phrase in base_phrases:
             if is_target_sentence(base_phrase.sentence) and self.is_target(base_phrase):
-                assert base_phrase.pas is not None, "pas isn't set"
                 antecedent_candidates = self.get_antecedent_candidates(base_phrase, base_phrases)
                 cohesion_base_phrases.append(
                     CohesionBasePhrase(
@@ -166,7 +165,6 @@ class BridgingUtils(CohesionUtils):
         cohesion_base_phrases: List[CohesionBasePhrase] = []
         for base_phrase in base_phrases:
             if is_target_sentence(base_phrase.sentence) and self.is_target(base_phrase):
-                assert base_phrase.pas is not None, "pas isn't set"
                 arguments = []
                 for case in self.cases:
                     arguments += base_phrase.pas.get_arguments(case, relax=False)

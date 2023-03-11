@@ -161,7 +161,6 @@ class SubScorer:
         self.predicted_bridging_anaphors: List[Predicate] = []
         self.predicted_mentions: List[BasePhrase] = []
         for base_phrase in predicted_document.base_phrases:
-            assert base_phrase.pas is not None, "pas hasn't been set"
             if is_pas_target(base_phrase, verbal=verbal, nominal=nominal):
                 self.predicted_pas_predicates.append(base_phrase.pas.predicate)
             if (self.bridging is True) and is_bridging_target(base_phrase):
@@ -173,7 +172,6 @@ class SubScorer:
         self.gold_bridging_anaphors: List[Predicate] = []
         self.gold_mentions: List[BasePhrase] = []
         for base_phrase in gold_document.base_phrases:
-            assert base_phrase.pas is not None, "pas hasn't been set"
             if is_pas_target(base_phrase, verbal=verbal, nominal=nominal):
                 self.gold_pas_predicates.append(base_phrase.pas.predicate)
             if (self.bridging is True) and is_bridging_target(base_phrase):
