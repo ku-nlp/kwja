@@ -36,7 +36,7 @@ def get_sent_from_seq2seq_format(input_text: str) -> Sentence:
                 mrphs: List[str] = copy.deepcopy(mrph_placeholder)
                 for idx in range(3):
                     mrphs[idx] = preds[idx]
-                mrphs[-1] = f'"代表表記:{preds[3]}"' if preds[3] is not None else "NIL"
+                mrphs[-1] = "NIL" if preds[3] == NO_CANON_TOKEN else f'"代表表記:{preds[3]}"'
                 formatted += " ".join(mrphs) + "\n"
             elif line in ["!!!!/!", "????/?", ",,,,/,"]:
                 mrphs = copy.deepcopy(mrph_placeholder)
@@ -53,9 +53,3 @@ def get_sent_from_seq2seq_format(input_text: str) -> Sentence:
             else:
                 formatted += " ".join(mrph_placeholder) + "\n"
     return Sentence.from_jumanpp(formatted)
-
-
-if __name__ == "__main__":
-    with open("/Users/kodama/project/lab/kwja/tests/data/modules/juman/004.juman") as f:
-        sent = Sentence.from_jumanpp(f.read())
-    print(get_seq2seq_format(sent))

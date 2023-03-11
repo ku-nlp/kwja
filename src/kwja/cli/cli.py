@@ -226,8 +226,8 @@ class CLIProcessor:
             processor = self.processors[specified_task]
             if interactive is False:
                 processor.load()
-            if specified_task == "char" and "typo" in specified_tasks:
-                # char module after typo module
+            if specified_task in {"char", "seq2seq"} and "typo" in specified_tasks:
+                # char and seq2seq module after typo module
                 input_texts = _split_input_texts([input_file.read_text()])
                 input_file.write_text("\n".join(input_texts))  # TODO: consider using pickle
             input_file = processor.apply_module(input_file)
