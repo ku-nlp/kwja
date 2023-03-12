@@ -1,19 +1,19 @@
 defaults:
   - train:
-#    - senter_kyoto.yaml
+    - senter_kyoto.yaml
     - senter_kwdlc.yaml
-#    - senter_fuman.yaml
-#    - senter_wac.yaml
+    - senter_fuman.yaml
+    - senter_wac.yaml
   - valid:
-#    - senter_kyoto.yaml
+    - senter_kyoto.yaml
     - senter_kwdlc.yaml
-#    - senter_fuman.yaml
-#    - senter_wac.yaml
+    - senter_fuman.yaml
+    - senter_wac.yaml
   - test:
-#    - senter_kyoto.yaml
+    - senter_kyoto.yaml
     - senter_kwdlc.yaml
-#    - senter_fuman.yaml
-#    - senter_wac.yaml
+    - senter_fuman.yaml
+    - senter_wac.yaml
   - predict:
     - senter_inference.yaml
 
