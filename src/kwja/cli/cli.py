@@ -82,7 +82,7 @@ class BaseModuleProcessor(ABC):
 class TypoModuleProcessor(BaseModuleProcessor):
     def _load_module(self) -> pl.LightningModule:
         typer.echo("Loading typo module", err=True)
-        checkpoint_path: Path = download_checkpoint(task="typo", model_size=self.model_size)
+        checkpoint_path: Path = download_checkpoint(module="typo", model_size=self.model_size)
         return TypoModule.load_from_checkpoint(checkpoint_path, map_location=self.device)
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
@@ -104,7 +104,7 @@ class TypoModuleProcessor(BaseModuleProcessor):
 class Seq2SeqModuleProcessor(BaseModuleProcessor):
     def _load_module(self):
         typer.echo("Loading seq2seq module", err=True)
-        checkpoint_path: Path = download_checkpoint(task="seq2seq", model_size=self.model_size)
+        checkpoint_path: Path = download_checkpoint(module="seq2seq", model_size=self.model_size)
         return Seq2SeqModule.load_from_checkpoint(checkpoint_path, map_location=self.device)
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
@@ -126,7 +126,7 @@ class Seq2SeqModuleProcessor(BaseModuleProcessor):
 class CharModuleProcessor(BaseModuleProcessor):
     def _load_module(self) -> pl.LightningModule:
         typer.echo("Loading char module", err=True)
-        checkpoint_path: Path = download_checkpoint(task="char", model_size=self.model_size)
+        checkpoint_path: Path = download_checkpoint(module="char", model_size=self.model_size)
         return CharModule.load_from_checkpoint(checkpoint_path, map_location=self.device)
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
@@ -148,7 +148,7 @@ class CharModuleProcessor(BaseModuleProcessor):
 class WordModuleProcessor(BaseModuleProcessor):
     def _load_module(self) -> pl.LightningModule:
         typer.echo("Loading word module", err=True)
-        checkpoint_path: Path = download_checkpoint(task="word", model_size=self.model_size)
+        checkpoint_path: Path = download_checkpoint(module="word", model_size=self.model_size)
         return WordModule.load_from_checkpoint(checkpoint_path, map_location=self.device)
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
@@ -165,7 +165,7 @@ class WordModuleProcessor(BaseModuleProcessor):
 class WordDiscourseModuleProcessor(BaseModuleProcessor):
     def _load_module(self) -> pl.LightningModule:
         typer.echo("Loading word_discourse module", err=True)
-        checkpoint_path: Path = download_checkpoint(task="word_discourse", model_size=self.model_size)
+        checkpoint_path: Path = download_checkpoint(module="word_discourse", model_size=self.model_size)
         module = WordModule.load_from_checkpoint(checkpoint_path, map_location=self.device)
         module.hparams.callbacks.prediction_writer = {
             "_target_": "kwja.callbacks.word_discourse_module_writer.WordDiscourseModuleWriter"

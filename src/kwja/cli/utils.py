@@ -3,8 +3,7 @@ import os
 import sys
 import warnings
 from pathlib import Path
-from typing import Optional, Tuple, Union
-from urllib.parse import urlparse
+from typing import Dict, Optional, Tuple, Union
 
 import torch
 import transformers.utils.logging as hf_logging
@@ -19,7 +18,7 @@ ENV_XDG_CACHE_HOME = "XDG_CACHE_HOME"
 DEFAULT_CACHE_DIR = Path.home() / ".cache"
 
 _CHECKPOINT_BASE_URL = "https://lotus.kuee.kyoto-u.ac.jp"
-_CHECKPOINT_FILE_NAMES = {
+_CHECKPOINT_FILE_NAMES: Dict[str, Dict[str, str]] = {
     "tiny": {
         "typo": "typo_deberta-v2-tiny-wwm.ckpt",
         "seq2seq": "seq2seq_mt5-small.ckpt",
@@ -54,7 +53,7 @@ def suppress_debug_info() -> None:
 
 
 def download_checkpoint(
-    task: str,
+    module: str,
     model_size: str,
     checkpoint_dir: Optional[Union[str, Path]] = None,
     progress: bool = True,
@@ -63,7 +62,7 @@ def download_checkpoint(
     If the object is already present in `checkpoint_dir`, just return the path to the object.
 
     Args:
-        task: typo, char, word, or word_discourse
+        module: typo, char, word, or word_discourse
         model_size: base or large
         checkpoint_dir: directory in which to save the object
         progress: whether to display a progress bar to stderr
@@ -75,11 +74,9 @@ def download_checkpoint(
         checkpoint_dir = Path(checkpoint_dir)
     checkpoint_dir.mkdir(exist_ok=True, parents=True)
 
-    remote_checkpoint_path = Path("/kwja") / _get_model_version() / _CHECKPOINT_FILE_NAMES[model_size][task]
+    remote_checkpoint_path = Path("/kwja") / _get_model_version() / _CHECKPOINT_FILE_NAMES[model_size][module]
     checkpoint_url = _CHECKPOINT_BASE_URL + str(remote_checkpoint_path)
-    parts = urlparse(checkpoint_url)
-    filename = os.path.basename(parts.path)
-    checkpoint_path = checkpoint_dir / filename
+    checkpoint_path = checkpoint_dir / _CHECKPOINT_FILE_NAMES[model_size][module]
     if checkpoint_path.exists() is False:
         sys.stderr.write(f'Downloading: "{checkpoint_url}" to {checkpoint_path}\n')
         download_url_to_file(checkpoint_url, str(checkpoint_path), None, progress=progress)
