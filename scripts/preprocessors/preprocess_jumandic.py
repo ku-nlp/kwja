@@ -47,7 +47,7 @@ def main():
     with input_path.open() as f:
         dicreader = csv.reader(f)
         rows = list(dicreader)
-    # entries = {}
+
     entries = []
     for row in track(rows):
         surf, _, _, _, pos, subpos, conjform, conjtype, lemma, reading, repname, sem = row
@@ -58,7 +58,7 @@ def main():
             if len(semantics) > 0:
                 semantics += " "
             semantics += sem
-        entries.append([surf, reading, lemma, pos, subpos, conjtype, conjform, semantics])
+        entries.append([surf, reading, lemma, pos, subpos, conjtype, conjform, repname, semantics])
     JumanDic.build(outdir, entries)
 
 
