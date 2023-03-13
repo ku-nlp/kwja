@@ -246,7 +246,7 @@ def _split_input_texts(input_texts: List[str]) -> List[str]:
                 # hydra.utils.instantiateを実行する際に文字列${...}を補間しようとするのを防ぐ
                 normalized = OMEGACONF_VARIABLE_INTERPOLATION.sub(r"$␣\g<variable>", split_text)
                 # "#"で始まる行がコメント行と誤認識されることを防ぐ
-                normalized = normalized.replace("#", "♯")
+                normalized = normalized.replace("#", "♯").replace("＃", "♯")  # TODO: use "＃" instead of "♯"
                 split_texts.append(normalized.rstrip())
                 split_text = ""
             else:
