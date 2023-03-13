@@ -9,46 +9,64 @@ from kwja.utils.progress_bar import track
 
 
 class JumanDic:
-    def __init__(self, dicdir: Path) -> None:
-        self.dic_path = Path(dicdir)
-        with open(str(self.dic_path / "jumandic.db"), "rb") as f:
-            data = f.read()
-        self.jumandic = cdblib.Reader(data)
-        with open(str(self.dic_path / "grammar.json"), "r") as f:
-            data2 = json.loads(f.read())
-        self.id2reading = data2["id2reading"]
-        self.id2lemma = data2["id2lemma"]
-        self.id2pos = data2["id2pos"]
-        self.id2subpos = data2["id2subpos"]
-        self.id2conjtype = data2["id2conjtype"]
-        self.id2conjform = data2["id2conjform"]
-        self.id2semantics = data2["id2semantics"]
+    def __init__(self, dic_dir: Path) -> None:
+        with dic_dir.joinpath("jumandic.db").open(mode="rb") as f:
+            self.jumandic = cdblib.Reader(f.read())
+        with dic_dir.joinpath("jumandic_canon.db").open(mode="rb") as f:
+            self.jumandic_canon = cdblib.Reader(f.read())
 
-    def lookup(self, surf: str) -> List[Dict[str, str]]:
+        with dic_dir.joinpath("grammar.json").open(mode="rt") as f:
+            self.grammar_data = json.loads(f.read())
+
+    def lookup_by_norm(self, surf: str) -> List[Dict[str, str]]:
         buf = self.jumandic.get(surf.encode("utf-8"))
         if buf is None:
             return []
-        matches = []
+        matches: List[Dict[str, str]] = []
         for reading_id, lemma_id, pos_id, subpos_id, conjtype_id, conjform_id, semantics_id in struct.iter_unpack(
             "IIHHHHI", buf
         ):
             matches.append(
                 {
                     "surf": surf,
-                    "reading": self.id2reading[reading_id],
-                    "lemma": self.id2lemma[lemma_id],
-                    "pos": self.id2pos[pos_id],
-                    "subpos": self.id2subpos[subpos_id],
-                    "conjtype": self.id2conjtype[conjtype_id],
-                    "conjform": self.id2conjform[conjform_id],
-                    "semantics": self.id2semantics[semantics_id],
+                    "reading": self.grammar_data["id2reading"][reading_id],
+                    "lemma": self.grammar_data["id2lemma"][lemma_id],
+                    "pos": self.grammar_data["id2pos"][pos_id],
+                    "subpos": self.grammar_data["id2subpos"][subpos_id],
+                    "conjtype": self.grammar_data["id2conjtype"][conjtype_id],
+                    "conjform": self.grammar_data["id2conjform"][conjform_id],
+                    "semantics": self.grammar_data["id2semantics"][semantics_id],
+                }
+            )
+        return matches
+
+    def lookup_by_canon(self, canon: str) -> List[Dict[str, str]]:
+        buf = self.jumandic_canon.get(canon.encode("utf-8"))
+        if buf is None:
+            return []
+        matches: List[Dict[str, str]] = []
+        for reading_id, lemma_id, pos_id, subpos_id, conjtype_id, conjform_id, semantics_id in struct.iter_unpack(
+            "IIHHHHI", buf
+        ):
+            matches.append(
+                {
+                    "canon": canon,
+                    "reading": self.grammar_data["id2reading"][reading_id],
+                    "lemma": self.grammar_data["id2lemma"][lemma_id],
+                    "pos": self.grammar_data["id2pos"][pos_id],
+                    "subpos": self.grammar_data["id2subpos"][subpos_id],
+                    "conjtype": self.grammar_data["id2conjtype"][conjtype_id],
+                    "conjform": self.grammar_data["id2conjform"][conjform_id],
+                    "semantics": self.grammar_data["id2semantics"][semantics_id],
                 }
             )
         return matches
 
     @classmethod
-    def build(cls, outdir: Path, entries: List[List[str]]) -> None:
+    def build(cls, out_dir: Path, entries: List[List[str]]) -> None:
         surf2entries: Dict[str, bytes] = {}
+        canon2entries: Dict[str, bytes] = {}
+
         reading2id: Dict[str, int] = {}
         lemma2id: Dict[str, int] = {}
         pos2id: Dict[str, int] = {}
@@ -57,29 +75,29 @@ class JumanDic:
         conjform2id: Dict[str, int] = {}
         semantics2id: Dict[str, int] = {}
 
-        def _get_counter(d, k) -> int:
-            if k in d:
-                return d[k]
+        def _get_counter(dic: Dict[str, int], key: str) -> int:
+            if key in dic:
+                return dic[key]
             else:
-                rv = len(d)
-                d[k] = rv
+                rv = len(dic)
+                dic[key] = rv
                 return rv
 
-        def _build_reverse_lookup(d) -> List[str]:
-            rv: List[str] = [""] * len(d)
-            for k, v in d.items():
+        def _build_reverse_lookup(dic) -> List[str]:
+            rv: List[str] = [""] * len(dic)
+            for k, v in dic.items():
                 rv[v] = k
             return rv
 
         for entry in track(entries):
-            surf, reading, lemma, pos, subpos, conjtype, conjform, semantics = entry
-            reading_id = _get_counter(reading2id, reading)
-            lemma_id = _get_counter(lemma2id, lemma)
-            pos_id = _get_counter(pos2id, pos)
-            subpos_id = _get_counter(subpos2id, subpos)
-            conjtype_id = _get_counter(conjtype2id, conjtype)
-            conjform_id = _get_counter(conjform2id, conjform)
-            semantics_id = _get_counter(semantics2id, semantics)
+            surf, reading, lemma, pos, subpos, conjtype, conjform, canon, semantics = entry
+            reading_id: int = _get_counter(reading2id, reading)
+            lemma_id: int = _get_counter(lemma2id, lemma)
+            pos_id: int = _get_counter(pos2id, pos)
+            subpos_id: int = _get_counter(subpos2id, subpos)
+            conjtype_id: int = _get_counter(conjtype2id, conjtype)
+            conjform_id: int = _get_counter(conjform2id, conjform)
+            semantics_id: int = _get_counter(semantics2id, semantics)
             v = struct.pack(
                 "IIHHHHI",
                 reading_id,
@@ -90,18 +108,24 @@ class JumanDic:
                 conjform_id,
                 semantics_id,
             )
-            if surf in surf2entries:
-                surf2entries[surf] += v
-            else:
-                surf2entries[surf] = v
-                (outdir / "jumandic.db").unlink(missing_ok=True)
-        with open(str(outdir / "jumandic.db"), "wb") as f:
-            with cdblib.Writer(f) as writer:
-                for k, v in surf2entries.items():
-                    bk = k.encode("utf-8")
-                    writer.put(bk, v)
-        with open(str(outdir / "grammar.json"), "w") as f2:
-            f2.write(
+            surf2entries[surf] = surf2entries.get(surf, b"") + v
+            canon2entries[canon] = canon2entries.get(canon, b"") + v
+
+        out_dir.joinpath("jumandic.db").unlink(missing_ok=True)
+        with out_dir.joinpath("jumandic.db").open(mode="wb") as f1:
+            with cdblib.Writer(f1) as writer1:
+                for key_surf, value_entries in surf2entries.items():
+                    writer1.put(key_surf.encode("utf-8"), value_entries)
+
+        out_dir.joinpath("jumandic_canon.db").unlink(missing_ok=True)
+        with out_dir.joinpath("jumandic_canon.db").open(mode="wb") as f2:
+            with cdblib.Writer(f2) as writer2:
+                for key_canon, value_entries in canon2entries.items():
+                    writer2.put(key_canon.encode("utf-8"), value_entries)
+
+        out_dir.joinpath("grammar.json").unlink(missing_ok=True)
+        with out_dir.joinpath("grammar.json").open(mode="wt") as f3:
+            f3.write(
                 json.dumps(
                     {
                         "id2reading": _build_reverse_lookup(reading2id),

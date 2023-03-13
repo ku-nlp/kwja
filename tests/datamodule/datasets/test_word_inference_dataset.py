@@ -1,44 +1,97 @@
-from omegaconf import ListConfig
+import tempfile
+from pathlib import Path
+from textwrap import dedent
+from typing import Any, Dict
 
-from kwja.datamodule.datasets.word_inference_dataset import WordInferenceDataset
+import numpy as np
+from transformers import PreTrainedTokenizerBase
 
-exophora_referents = ["著者", "読者", "不特定:人", "不特定:物"]
-special_tokens = exophora_referents + ["[NULL]", "[NA]", "[ROOT]"]
-word_dataset_kwargs = dict(
-    pas_cases=ListConfig(["ガ", "ヲ", "ニ", "ガ２"]),
-    bar_rels=ListConfig(["ノ"]),
-    exophora_referents=ListConfig(exophora_referents),
-    cohesion_tasks=ListConfig(["pas_analysis", "bridging", "coreference"]),
-    special_tokens=ListConfig(special_tokens),
-    restrict_cohesion_target=True,
-    document_split_stride=1,
-    tokenizer_kwargs={"additional_special_tokens": special_tokens},
-)
+from kwja.datamodule.datasets import WordInferenceDataset
 
 
-def test_init():
-    _ = WordInferenceDataset(ListConfig(["テスト", "テスト"]), **word_dataset_kwargs)
+def test_init(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
+    _ = WordInferenceDataset(word_tokenizer, max_seq_length=256, document_split_stride=1, **dataset_kwargs)
 
 
-def test_len():
-    dataset = WordInferenceDataset(ListConfig(["テスト", "テスト"]), **word_dataset_kwargs)
+def test_len(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
+    juman_text = dedent(
+        """\
+        # S-ID:test-0-0
+        今日 _ 今日 未定義語 15 その他 1 * 0 * 0
+        は _ は 未定義語 15 その他 1 * 0 * 0
+        晴れ _ 晴れ 未定義語 15 その他 1 * 0 * 0
+        だ _ だ 未定義語 15 その他 1 * 0 * 0
+        EOS
+        """
+    )
+    juman_file = tempfile.NamedTemporaryFile("wt")
+    juman_file.write(juman_text)
+    juman_file.seek(0)
+
+    dataset = WordInferenceDataset(
+        word_tokenizer, max_seq_length=256, document_split_stride=1, juman_file=Path(juman_file.name), **dataset_kwargs
+    )
     assert len(dataset) == 1
 
 
-def test_len_multi_doc():
-    dataset = WordInferenceDataset(ListConfig(["# S-ID:0-0", "テスト", "# S-ID:1-0", "テスト"]), **word_dataset_kwargs)
+def test_len_multi_doc(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
+    juman_text = dedent(
+        """\
+        # S-ID:test-0-0
+        今日 _ 今日 未定義語 15 その他 1 * 0 * 0
+        は _ は 未定義語 15 その他 1 * 0 * 0
+        晴れ _ 晴れ 未定義語 15 その他 1 * 0 * 0
+        だ _ だ 未定義語 15 その他 1 * 0 * 0
+        EOS
+        # S-ID:test-1-0
+        今日 _ 今日 未定義語 15 その他 1 * 0 * 0
+        は _ は 未定義語 15 その他 1 * 0 * 0
+        雨 _ 雨 未定義語 15 その他 1 * 0 * 0
+        だ _ だ 未定義語 15 その他 1 * 0 * 0
+        EOS
+        """
+    )
+    juman_file = tempfile.NamedTemporaryFile("wt")
+    juman_file.write(juman_text)
+    juman_file.seek(0)
+
+    dataset = WordInferenceDataset(
+        word_tokenizer, max_seq_length=256, document_split_stride=1, juman_file=Path(juman_file.name), **dataset_kwargs
+    )
     assert len(dataset) == 2
 
 
-def test_getitem():
-    max_seq_length = 512
-    dataset = WordInferenceDataset(ListConfig(["テスト", "テスト"]), **word_dataset_kwargs)
+def test_getitem(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
+    juman_text = dedent(
+        """\
+        # S-ID:test-0-0
+        今日 _ 今日 未定義語 15 その他 1 * 0 * 0
+        は _ は 未定義語 15 その他 1 * 0 * 0
+        晴れ _ 晴れ 未定義語 15 その他 1 * 0 * 0
+        だ _ だ 未定義語 15 その他 1 * 0 * 0
+        EOS
+        """
+    )
+    juman_file = tempfile.NamedTemporaryFile("wt")
+    juman_file.write(juman_text)
+    juman_file.seek(0)
+
+    max_seq_length = 256
+    dataset = WordInferenceDataset(
+        word_tokenizer,
+        max_seq_length=max_seq_length,
+        document_split_stride=1,
+        juman_file=Path(juman_file.name),
+        **dataset_kwargs,
+    )
+    num_cohesion_rels = len([r for utils in dataset.cohesion_task2utils.values() for r in utils.rels])
     for i in range(len(dataset)):
-        item = dataset[i]
-        assert isinstance(item, dict)
-        assert "input_ids" in item
-        assert "attention_mask" in item
-        assert "target_mask" in item
-        assert item["input_ids"].shape == (max_seq_length,)
-        assert item["attention_mask"].shape == (max_seq_length,)
-        assert item["target_mask"].shape == (max_seq_length,)
+        feature = dataset[i]
+        assert feature.example_ids == i
+        assert len(feature.input_ids) == max_seq_length
+        assert len(feature.attention_mask) == max_seq_length
+        assert len(feature.target_mask) == max_seq_length
+        assert np.array(feature.subword_map).shape == (max_seq_length, max_seq_length)
+        assert np.array(feature.reading_subword_map).shape == (max_seq_length, max_seq_length)
+        assert np.array(feature.dependency_mask).shape == (max_seq_length, max_seq_length)
+        assert np.array(feature.cohesion_mask).shape == (num_cohesion_rels, max_seq_length, max_seq_length)

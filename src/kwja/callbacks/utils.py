@@ -1,0 +1,516 @@
+from logging import getLogger
+from typing import Dict, List, Literal, Optional, Set, Tuple
+
+import numpy as np
+import torch
+from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
+from rhoknp.cohesion import ExophoraReferent, RelTag, RelTagList
+from rhoknp.props import DepType, NamedEntity, NamedEntityCategory
+from transformers import PreTrainedTokenizerBase
+
+from kwja.utils.cohesion_analysis import CohesionUtils
+from kwja.utils.constants import (
+    BASE_PHRASE_FEATURES,
+    CONJFORM_TAGS,
+    CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID,
+    CONJTYPE_TAGS,
+    DEPENDENCY_TYPES,
+    DISCOURSE_RELATIONS,
+    INFLECTABLE,
+    MASKED,
+    NE_TAGS,
+    POS_TAG2POS_ID,
+    POS_TAG_SUBPOS_TAG2SUBPOS_ID,
+    POS_TAGS,
+    SENT_SEGMENTATION_TAGS,
+    SUBPOS_TAGS,
+    TOKEN2TYPO_CORR_OP_TAG,
+    WORD_FEATURES,
+    WORD_NORM_OP_TAGS,
+    WORD_SEGMENTATION_TAGS,
+    CohesionTask,
+)
+from kwja.utils.dependency_parsing import DependencyManager
+from kwja.utils.reading_prediction import get_word_level_readings
+from kwja.utils.word_normalization import get_normalized
+
+logger = getLogger(__name__)
+
+
+# ---------- typo module writer ----------
+def get_maps(tokenizer: PreTrainedTokenizerBase, extended_vocab_path: str) -> Tuple[Dict[str, int], Dict[int, str]]:
+    token2token_id = tokenizer.get_vocab()
+    with open(extended_vocab_path, mode="r") as f:
+        for line in f:
+            if line := line.strip():
+                token2token_id[line] = len(token2token_id.keys())
+    token_id2token = {v: k for k, v in token2token_id.items()}
+    return token2token_id, token_id2token
+
+
+def convert_predictions_into_typo_corr_op_tags(
+    predictions: List[int],
+    probabilities: List[float],
+    prefix: Literal["R", "I"],
+    confidence_threshold: float,
+    token2token_id: Dict[str, int],
+    token_id2token: Dict[int, str],
+) -> List[str]:
+    typo_corr_op_tags: List[str] = []
+    for token_id, probability in zip(predictions, probabilities):
+        # do not edit if the probability (replace, delete, and insert) is less than "confidence_threshold"
+        if probability < confidence_threshold:
+            token_id = token2token_id["<k>"] if prefix == "R" else token2token_id["<_>"]
+        token: str = token_id2token[token_id]
+        typo_corr_op_tag = TOKEN2TYPO_CORR_OP_TAG.get(token, f"{prefix}:{token}")
+        typo_corr_op_tags.append(typo_corr_op_tag)
+    return typo_corr_op_tags
+
+
+def apply_edit_operations(pre_text: str, kdr_tags: List[str], ins_tags: List[str]) -> str:
+    assert len(pre_text) + 1 == len(kdr_tags) + 1 == len(ins_tags)
+    post_text = ""
+    for i, char in enumerate(pre_text):
+        if ins_tags[i].startswith("I:"):
+            post_text += ins_tags[i][2:]  # remove prefix "I:"
+
+        if kdr_tags[i] in {"K", "_"}:  # "_"はinsert用のタグなのでkdr_tags[i] == "_"となることは滅多にない
+            post_text += char
+        elif kdr_tags[i] == "D":
+            pass
+        elif kdr_tags[i].startswith("R:"):
+            post_text += kdr_tags[i][2:]  # remove prefix "R:"
+    if ins_tags[-1].startswith("I:"):
+        post_text += ins_tags[-1][2:]  # remove prefix "I:"
+    return post_text
+
+
+# ---------- senter module writer ----------
+def convert_senter_predictions_into_tags(
+    sent_segmentation_predictions: List[int],
+    input_ids: List[int],
+    special_ids: Set[int],
+) -> List[str]:
+    indices = [i for i, input_id in enumerate(input_ids) if input_id not in special_ids]
+    return [SENT_SEGMENTATION_TAGS[sent_segmentation_predictions[i]] for i in indices]
+
+
+def set_sentences(document: Document, sent_segmentation_tags: List[str]) -> None:
+    sentences: List[Sentence] = []
+    surf: str = ""
+    for char, sent_segmentation_tag in zip(document.text, sent_segmentation_tags):
+        if sent_segmentation_tag == "B" and surf:
+            sentences.append(Sentence(surf))
+            surf = ""
+        surf += char
+    if surf:
+        sentences.append(Sentence(surf))
+    document.sentences = sentences
+
+
+# ---------- char module writer ----------
+def convert_predictions_into_tags(
+    word_segmentation_predictions: List[int],
+    word_norm_op_predictions: List[int],
+    input_ids: List[int],
+    special_ids: Set[int],
+) -> Tuple[List[str], List[str]]:
+    indices = [i for i, input_id in enumerate(input_ids) if input_id not in special_ids]
+    word_segmentation_tags = [WORD_SEGMENTATION_TAGS[word_segmentation_predictions[i]] for i in indices]
+    word_norm_op_tags = [WORD_NORM_OP_TAGS[word_norm_op_predictions[i]] for i in indices]
+    return word_segmentation_tags, word_norm_op_tags
+
+
+def set_morphemes(document: Document, word_segmentation_tags: List[str], word_norm_op_tags: List[str]) -> None:
+    char_index = 0
+    for sentence in document.sentences:
+        Morpheme.count = 0
+        morphemes: List[Morpheme] = []
+        surf: str = ""
+        ops: List[str] = []
+        for char in sentence.text:
+            if word_segmentation_tags[char_index] == "B" and surf:
+                norm = get_normalized(surf, ops, strict=False)
+                morphemes.append(_build_morpheme(surf, norm))
+                surf = ""
+                ops = []
+            surf += char
+            ops.append(word_norm_op_tags[char_index])
+            char_index += 1
+        if surf:
+            norm = get_normalized(surf, ops, strict=False)
+            morphemes.append(_build_morpheme(surf, norm))
+        sentence.morphemes = morphemes
+
+
+def _build_morpheme(surf: str, norm: str) -> Morpheme:
+    return Morpheme(
+        surf,
+        reading="_",
+        lemma=norm or surf,
+        pos="未定義語",
+        pos_id=15,
+        subpos="その他",
+        subpos_id=1,
+        conjtype="*",
+        conjtype_id=0,
+        conjform="*",
+        conjform_id=0,
+    )
+
+
+# ---------- word module writer ----------
+def get_word_reading_predictions(
+    input_ids: torch.Tensor,
+    reading_predictions: List[int],
+    reading_id2reading: Dict[int, str],
+    tokenizer: PreTrainedTokenizerBase,
+    reading_subword_map: List[List[bool]],
+) -> List[str]:
+    readings: List[str] = [reading_id2reading[reading_id] for reading_id in reading_predictions]
+    tokens: List[str] = [tokenizer.decode(input_id) for input_id in input_ids]
+    word_reading_predictions: List[str] = get_word_level_readings(readings, tokens, reading_subword_map)
+    return word_reading_predictions
+
+
+def get_morpheme_attribute_predictions(
+    pos_logits: torch.Tensor,
+    subpos_logits: torch.Tensor,
+    conjtype_logits: torch.Tensor,
+    conjform_logits: torch.Tensor,
+) -> Tuple[List[int], List[int], List[int], List[int]]:
+    pos_predictions: List[int] = pos_logits.argmax(dim=1).tolist()
+    subpos_predictions: List[int] = []
+    for pos_index, subpos_logit_list in zip(pos_predictions, subpos_logits.tolist()):
+        subpos_tag2subpos_id = POS_TAG_SUBPOS_TAG2SUBPOS_ID[POS_TAGS[pos_index]]
+        possible_subpos_indices: Set[int] = {
+            SUBPOS_TAGS.index(subpos_tag) for subpos_tag in subpos_tag2subpos_id.keys()
+        }
+        max_subpos_logit = MASKED
+        subpos_prediction: int = 0
+        for subpos_index, subpos_logit in enumerate(subpos_logit_list):
+            if subpos_index in possible_subpos_indices and subpos_logit > max_subpos_logit:
+                max_subpos_logit = subpos_logit
+                subpos_prediction = subpos_index
+        subpos_predictions.append(subpos_prediction)
+
+    conjtype_predictions: List[int] = conjtype_logits.argmax(dim=1).tolist()
+    conjform_predictions: List[int] = []
+    for i, (pos_index, subpos_index, conjtype_index, conjform_logit_list) in enumerate(
+        zip(pos_predictions, subpos_predictions, conjtype_predictions, conjform_logits.tolist())
+    ):
+        pos_tag: str = POS_TAGS[pos_index]
+        subpos_tag: str = SUBPOS_TAGS[subpos_index]
+        if (pos_tag, subpos_tag) in INFLECTABLE:
+            conjform_tag2conjform_id = CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID[CONJTYPE_TAGS[conjtype_index]]
+            possible_conjform_indices: Set[int] = {
+                CONJFORM_TAGS.index(conjform_tag) for conjform_tag in conjform_tag2conjform_id.keys()
+            }
+            max_conjform_logit = MASKED
+            conjform_prediction: int = 0
+            for conjform_index, conjform_logit in enumerate(conjform_logit_list):
+                if conjform_index in possible_conjform_indices and conjform_logit > max_conjform_logit:
+                    max_conjform_logit = conjform_logit
+                    conjform_prediction = conjform_index
+        else:
+            conjtype_predictions[i] = CONJTYPE_TAGS.index("*")
+            conjform_prediction = CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID["*"]["*"]
+        conjform_predictions.append(conjform_prediction)
+
+    return pos_predictions, subpos_predictions, conjtype_predictions, conjform_predictions
+
+
+def build_morphemes(
+    surfs: List[str],
+    lemmas: List[str],
+    reading_predictions: List[str],
+    pos_predictions: List[int],
+    subpos_predictions: List[int],
+    conjtype_predictions: List[int],
+    conjform_predictions: List[int],
+) -> List[Morpheme]:
+    morphemes = []
+    for surf, lemma, reading, pos_index, subpos_index, conjtype_index, conjform_index in zip(
+        surfs,
+        lemmas,
+        reading_predictions,
+        pos_predictions,
+        subpos_predictions,
+        conjtype_predictions,
+        conjform_predictions,
+    ):
+        pos = POS_TAGS[pos_index]
+        pos_id = POS_TAG2POS_ID[pos]
+        subpos = SUBPOS_TAGS[subpos_index]
+        subpos_id = POS_TAG_SUBPOS_TAG2SUBPOS_ID[pos][subpos]
+        conjtype = CONJTYPE_TAGS[conjtype_index]
+        conjtype_id = conjtype_index
+        conjform = CONJFORM_TAGS[conjform_index]
+        conjform_id = CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID[conjtype][conjform]
+        morphemes.append(
+            Morpheme(
+                surf,
+                reading=reading,
+                lemma=lemma,
+                pos=pos,
+                pos_id=pos_id,
+                subpos=subpos,
+                subpos_id=subpos_id,
+                conjtype=conjtype,
+                conjtype_id=conjtype_id,
+                conjform=conjform,
+                conjform_id=conjform_id,
+            )
+        )
+    return morphemes
+
+
+def chunk_morphemes(
+    document: Document, morphemes: List[Morpheme], word_feature_probabilities: List[List[float]]
+) -> Document:
+    predicted_sentences = []
+    for sentence in document.sentences:
+        morpheme_buffer = []
+        base_phrase_buffer = []
+        phrase_buffer = []
+        for i in [m.global_index for m in sentence.morphemes]:
+            morpheme = morphemes[i]
+
+            base_phrase_head_probability = word_feature_probabilities[i][WORD_FEATURES.index("基本句-主辞")]
+            inflectable_word_surf_head_probability = word_feature_probabilities[i][WORD_FEATURES.index("用言表記先頭")]
+            inflectable_word_surf_end_probability = word_feature_probabilities[i][WORD_FEATURES.index("用言表記末尾")]
+            if base_phrase_head_probability >= 0.5:
+                morpheme.features["基本句-主辞"] = True
+            if inflectable_word_surf_head_probability >= 0.5:
+                morpheme.features["用言表記先頭"] = True
+            if inflectable_word_surf_end_probability >= 0.5:
+                morpheme.features["用言表記末尾"] = True
+            morpheme_buffer.append(morpheme)
+
+            base_phrase_end_probability = word_feature_probabilities[i][WORD_FEATURES.index("基本句-区切")]
+            phrase_end_probability = word_feature_probabilities[i][WORD_FEATURES.index("文節-区切")]
+            # even if base_phrase_end_prob is low, if phrase_end_prob is high enough, create chunk here
+            if base_phrase_end_probability >= 0.5 or base_phrase_end_probability + phrase_end_probability >= 1.0:
+                base_phrase = BasePhrase(parent_index=None, dep_type=None)
+                base_phrase.morphemes = morpheme_buffer
+                morpheme_buffer = []
+                base_phrase_buffer.append(base_phrase)
+            # even if phrase_end_prob is high, if base_phrase_end_prob is not high enough, do not create chunk here
+            if phrase_end_probability >= 0.5 and base_phrase_end_probability + phrase_end_probability >= 1.0:
+                phrase = Phrase(parent_index=None, dep_type=None)
+                phrase.base_phrases = base_phrase_buffer
+                base_phrase_buffer = []
+                phrase_buffer.append(phrase)
+
+        # clear buffers
+        if morpheme_buffer:
+            base_phrase = BasePhrase(parent_index=None, dep_type=None)
+            base_phrase.morphemes = morpheme_buffer
+            base_phrase_buffer.append(base_phrase)
+        if base_phrase_buffer:
+            phrase = Phrase(parent_index=None, dep_type=None)
+            phrase.base_phrases = base_phrase_buffer
+            phrase_buffer.append(phrase)
+
+        predicted_sentence = Sentence()
+        predicted_sentence.comment = sentence.comment
+        predicted_sentence.phrases = phrase_buffer
+        predicted_sentences.append(predicted_sentence)
+    return Document.from_sentences(predicted_sentences)
+
+
+def add_named_entities(sentence: Sentence, ne_predictions: List[int]) -> None:
+    category = ""
+    morpheme_buffer: List[Morpheme] = []
+    for morpheme in sentence.morphemes:
+        ne_index = ne_predictions[morpheme.global_index]
+        ne_tag: str = NE_TAGS[ne_index]
+        if ne_tag.startswith("B-"):
+            _clear_morpheme_buffer(morpheme_buffer, category)
+            category = ne_tag[2:]
+            morpheme_buffer.append(morpheme)
+        elif ne_tag.startswith("I-") and ne_tag[2:] == category:
+            morpheme_buffer.append(morpheme)
+        else:
+            _clear_morpheme_buffer(morpheme_buffer, category)
+            category = ""
+    else:
+        _clear_morpheme_buffer(morpheme_buffer, category)
+
+
+def _clear_morpheme_buffer(morpheme_buffer: List[Morpheme], category: str) -> None:
+    if morpheme_buffer:
+        named_entity = NamedEntity(category=NamedEntityCategory(category), morphemes=morpheme_buffer)
+        morpheme_buffer[-1].base_phrase.features["NE"] = f"{named_entity.category.value}:{named_entity.text}"
+    morpheme_buffer.clear()
+
+
+def add_base_phrase_features(sentence: Sentence, base_phrase_feature_probabilities: List[List[float]]) -> None:
+    phrases = sentence.phrases
+    clause_boundary_feature, clause_start_index = None, 0
+    for phrase in phrases:
+        for base_phrase in phrase.base_phrases:
+            for base_phrase_feature, base_phrase_probability in zip(
+                BASE_PHRASE_FEATURES, base_phrase_feature_probabilities[base_phrase.head.global_index]
+            ):
+                if base_phrase_feature.startswith("節-区切") and base_phrase_probability >= 0.5:
+                    clause_boundary_feature = base_phrase_feature
+                elif base_phrase_feature != "節-主辞" and base_phrase_probability >= 0.5:
+                    k, *vs = base_phrase_feature.split(":")
+                    base_phrase.features[k] = ":".join(vs) or True
+        if phrase == phrases[-1] and clause_boundary_feature is None:
+            clause_boundary_feature = "節-区切"
+
+        if clause_boundary_feature is not None:
+            k, *vs = clause_boundary_feature.split(":")
+            phrase.base_phrases[-1].features[k] = ":".join(vs) or True
+            base_phrases = [bp for p in phrases[clause_start_index : phrase.index + 1] for bp in p.base_phrases]
+            clause_head_probabilities = [
+                base_phrase_feature_probabilities[bp.head.global_index][BASE_PHRASE_FEATURES.index("節-主辞")]
+                for bp in base_phrases
+            ]
+            clause_head = base_phrases[clause_head_probabilities.index(max(clause_head_probabilities))]
+            clause_head.features["節-主辞"] = True
+            clause_boundary_feature, clause_start_index = None, phrase.index + 1
+
+
+def add_dependency(
+    sentence: Sentence,
+    dependency_predictions: List[List[int]],
+    dependency_type_predictions: List[List[int]],
+    special_token2index: Dict[str, int],
+) -> None:
+    base_phrases = sentence.base_phrases
+    morpheme_global_index2base_phrase_index = {m.global_index: bp.index for bp in base_phrases for m in bp.morphemes}
+    morpheme_global_index2base_phrase_index[special_token2index["[ROOT]"]] = -1
+    dependency_manager = DependencyManager()
+    for base_phrase in base_phrases:
+        for parent_morpheme_global_index, dependency_type_index in zip(
+            dependency_predictions[base_phrase.head.global_index],
+            dependency_type_predictions[base_phrase.head.global_index],
+        ):
+            parent_index = morpheme_global_index2base_phrase_index[parent_morpheme_global_index]
+            dependency_manager.add_edge(base_phrase.index, parent_index)
+            if dependency_manager.has_cycle() or (parent_index == -1 and dependency_manager.root):
+                dependency_manager.remove_edge(base_phrase.index, parent_index)
+            else:
+                base_phrase.parent_index = parent_index
+                base_phrase.dep_type = DEPENDENCY_TYPES[dependency_type_index]
+                break
+        else:
+            if base_phrase == base_phrases[-1] and not dependency_manager.root:
+                base_phrase.parent_index = -1
+                base_phrase.dep_type = DepType.DEPENDENCY
+            else:
+                _resolve_dependency(base_phrase, dependency_manager)
+
+        assert base_phrase.parent_index is not None
+        if base_phrase.parent_index == -1:
+            base_phrase.phrase.parent_index = -1
+            base_phrase.phrase.dep_type = DepType.DEPENDENCY
+            dependency_manager.root = True
+        elif base_phrase.phrase != base_phrases[base_phrase.parent_index].phrase:
+            base_phrase.phrase.parent_index = base_phrases[base_phrase.parent_index].phrase.index
+            base_phrase.phrase.dep_type = base_phrase.dep_type
+
+
+def _resolve_dependency(base_phrase: BasePhrase, dependency_manager: DependencyManager) -> None:
+    source = base_phrase.index
+    num_base_phrases = len(base_phrase.sentence.base_phrases)
+    # 日本語は左から右に係るので、まず右方向に係り先を探す
+    for target in range(source + 1, num_base_phrases):
+        dependency_manager.add_edge(source, target)
+        if dependency_manager.has_cycle():
+            dependency_manager.remove_edge(source, target)
+        else:
+            base_phrase.parent_index = target
+            base_phrase.dep_type = DepType.DEPENDENCY
+            return
+
+    for target in range(source - 1, -1, -1):
+        dependency_manager.add_edge(source, target)
+        if dependency_manager.has_cycle():
+            dependency_manager.remove_edge(source, target)
+        else:
+            base_phrase.parent_index = target
+            base_phrase.dep_type = DepType.DEPENDENCY
+            return
+
+    raise RuntimeError("couldn't resolve dependency")
+
+
+def add_cohesion(
+    document: Document,
+    cohesion_logits: List[List[List[float]]],  # (rel, seq, seq)
+    cohesion_task2utils: Dict[CohesionTask, CohesionUtils],
+    index2special_token: Dict[int, str],
+) -> None:
+    flatten_rels = [r for cohesion_utils in cohesion_task2utils.values() for r in cohesion_utils.rels]
+    base_phrases = document.base_phrases
+    for base_phrase in base_phrases:
+        rel_tags = RelTagList()
+        for cohesion_utils in cohesion_task2utils.values():
+            if cohesion_utils.is_target(base_phrase):
+                for rel in cohesion_utils.rels:
+                    rel_tag = _to_rel_tag(
+                        rel,
+                        cohesion_logits[flatten_rels.index(rel)][base_phrase.head.global_index],  # (seq, )
+                        base_phrases,
+                        index2special_token,
+                        cohesion_utils.exophora_referents,
+                    )
+                    if rel_tag is not None:
+                        rel_tags.append(rel_tag)
+        base_phrase.rel_tags = rel_tags
+
+
+def _to_rel_tag(
+    rel: str,
+    rel_logits: List[float],  # (seq, )
+    base_phrases: List[BasePhrase],
+    index2special_token: Dict[int, str],
+    exophora_referents: List[ExophoraReferent],
+) -> Optional[RelTag]:
+    logits = [rel_logits[bp.head.global_index] for bp in base_phrases] + [rel_logits[i] for i in index2special_token]
+    predicted_antecedent_index: int = np.argmax(logits).item()
+    if 0 <= predicted_antecedent_index < len(base_phrases):
+        # endophora
+        predicted_antecedent = base_phrases[predicted_antecedent_index]
+        return RelTag(
+            type=rel,
+            target=predicted_antecedent.head.text,
+            sid=predicted_antecedent.sentence.sid,
+            base_phrase_index=predicted_antecedent.index,
+            mode=None,
+        )
+    else:
+        # exophora
+        special_token = list(index2special_token.values())[predicted_antecedent_index - len(base_phrases)]
+        if special_token in [str(e) for e in exophora_referents]:  # exclude [NULL], [NA], and [ROOT]
+            return RelTag(
+                type=rel,
+                target=special_token,
+                sid=None,
+                base_phrase_index=None,
+                mode=None,
+            )
+        else:
+            return None
+
+
+def add_discourse(document: Document, discourse_predictions: List[List[int]]) -> None:
+    if document.need_clause_tag:
+        logger.warning("failed to output clause boundaries")
+        return
+
+    for modifier in document.clauses:
+        modifier_morpheme_global_index = modifier.end.morphemes[0].global_index
+        relation_buffer = []
+        for head in document.clauses:
+            head_morpheme_global_index = head.end.morphemes[0].global_index
+            discourse_index = discourse_predictions[modifier_morpheme_global_index][head_morpheme_global_index]
+            discourse_relation = DISCOURSE_RELATIONS[discourse_index]
+            if discourse_relation != "談話関係なし":
+                relation_buffer.append(f"{head.sentence.sid}/{head.end.index}/{discourse_relation}")
+        if relation_buffer:
+            modifier.end.features["談話関係"] = ";".join(relation_buffer)

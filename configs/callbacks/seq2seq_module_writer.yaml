@@ -1,0 +1,8 @@
+prediction_writer:
+  _target_: kwja.callbacks.seq2seq_module_writer.Seq2SeqModuleWriter
+  destination: ${run_dir}/seq2seq_prediction.txt
+  tokenizer:
+    _target_: transformers.AutoTokenizer.from_pretrained
+    pretrained_model_name_or_path: ${encoder.pretrained_model_name_or_path}
+    additional_special_tokens: ${special_tokens}
+    _convert_: all

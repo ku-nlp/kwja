@@ -1,4 +1,3 @@
 prediction_writer:
   _target_: kwja.callbacks.char_module_writer.CharModuleWriter
-  output_dir: ${run_dir}
-  pred_filename: "predict"
+  destination: ${run_dir}/char_prediction.juman

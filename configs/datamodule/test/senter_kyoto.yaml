@@ -1,0 +1,5 @@
+defaults:
+  - /datamodule/base/senter@kyoto
+
+kyoto:
+  path: ${oc.env:DATA_DIR}/kyoto/test

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "kwja"
-version = "1.4.2"
+version = "2.0.0"
 description = "A unified language analyzer for Japanese"
 authors = [
     "Hirokazu Kiyomaru <kiyomaru@i.kyoto-u.ac.jp>",
@@ -43,27 +43,26 @@ include = [
 
 [tool.poetry.dependencies]
 python = ">=3.8,<3.11"
-torch = ">=1.11,<1.13"
+torch = "^1.11"
 transformers = {version = "~4.25.1", extras = ["sentencepiece"]}
 tokenizers = "^0.13.2"
 pytorch-lightning = "~1.9.0"
-torchmetrics = "^0.10.2"
+torchmetrics = "^0.11.3"
 omegaconf = "^2.1"
 hydra-core = "^1.2"
-rhoknp = "~1.1.0"
+rhoknp = "^1.1.0"
 typer = ">=0.6.1,<0.8.0"
 seqeval = "^1.2"
-python-dotenv = "^0.21.0"
+python-dotenv = "^1.0.0"
 pandas = "^1.4"
 jinf = "^1.0.4"
 importlib-resources = "^5.10"
 jaconv = "^0.3"
 pure-cdb = "^4.0"
 rich = ">=12.4"
+Levenshtein = "^0.20.8"
 
 [tool.poetry.group.dev.dependencies]
-dartsclone = "^0.10.2"
-Levenshtein = "^0.20.8"
 ipdb = "^0.13.9"
 types-attrs = "^19.1.0"
 wandb = "^0.13.3"
@@ -75,10 +74,6 @@ pytest-profiling = "^1.7"
 
 [tool.poetry.scripts]
 kwja = "kwja.cli.cli:app"
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
 
 [tool.black]
 line-length = 120
@@ -92,3 +87,14 @@ src_paths = ["src"]
 
 [tool.mypy]
 python_version = 3.8
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = [
+    # note the use of single quote below to denote "raw" strings in TOML
+    'ignore::UserWarning',
+]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

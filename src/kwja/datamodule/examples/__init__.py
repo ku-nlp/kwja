@@ -1,16 +1,18 @@
-from .base_phrase_feature import BasePhraseFeatureExample
-from .cohesion import CohesionExample, CohesionTask
-from .dependency import DependencyExample
-from .discourse import DiscourseExample
-from .reading import ReadingExample
-from .word_feature import WordFeatureExample
+from .char import CharExample, CharInferenceExample
+from .senter import SenterExample, SenterInferenceExample
+from .seq2seq import Seq2SeqExample, Seq2SeqInferenceExample
+from .typo import TypoExample, TypoInferenceExample
+from .word import WordExample, WordInferenceExample
 
 __all__ = [
-    "WordFeatureExample",
-    "BasePhraseFeatureExample",
-    "DependencyExample",
-    "CohesionExample",
-    "DiscourseExample",
-    "ReadingExample",
-    "CohesionTask",
+    "TypoExample",
+    "TypoInferenceExample",
+    "Seq2SeqExample",
+    "Seq2SeqInferenceExample",
+    "CharExample",
+    "CharInferenceExample",
+    "WordExample",
+    "WordInferenceExample",
+    "SenterExample",
+    "SenterInferenceExample",
 ]

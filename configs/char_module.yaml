@@ -1,38 +1,44 @@
 defaults:
   - base
-  - callbacks: [early_stopping, model_checkpoint, model_summary, char_module_writer, progress_bar]
+  - callbacks: [early_stopping, model_checkpoint, model_summary, char_module_writer, progress_bar, lr_monitor]
   - datamodule: char
-  - dataset: char
   - logger: wandb
-  - encoder: char_roberta_large
+  - encoder: char_deberta_large
   - module: char
   - optimizer: adamw
-  - scheduler: constant_schedule_with_warmup
+  - scheduler: cosine_schedule_with_warmup
   - trainer: default
   - _self_
 
 max_seq_length: 512
 do_predict_after_train: true
 checkpoint_path: ""
-document_split_stride: 1
+document_split_stride: -1
 
 # For word normalization
-denormalize_prob: 0.0
+denormalize_probability: 0.5
 
 # set monitor and mode for early_stopping and model_checkpoint
-monitor: valid/f1
+monitor: valid/aggregated_char_metrics
 mode: max
+aggregating_metrics:
+  - word_segmentation_f1
+#  - word_normalization_f1  # exclude because this metric is unstable
 
 # hyper-parameters to be tuned
-warmup_steps: 100
-effective_batch_size: 16
+lr: 2e-5
+max_epochs: 20
+warmup_steps: 2000
+effective_batch_size: 32
 
 # environment dependent settings
-devices: ${oc.env:GPUS,0}
-max_batches_per_device: 2
-num_workers: 0
+devices: ${oc.env:DEVICES,0}
+max_batches_per_device: ${oc.env:MAX_BATCHES_PER_DEVICE,2}
+num_workers: ${oc.env:NUM_WORKERS,4}
 
 ignore_hparams_on_save: false
+
+# constants
 hparams_to_ignore_on_save:
   - project
   - work_dir
@@ -47,7 +53,7 @@ hparams_to_ignore_on_save:
     - model_checkpoint
     - model_summary
     - prediction_writer:
-        - output_dir
+        - destination
   - datamodule:
     - train
     - valid

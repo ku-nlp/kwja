@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 from typing import List
@@ -13,6 +14,7 @@ from kwja.cli.utils import suppress_debug_info
 from kwja.datamodule.datamodule import DataModule
 
 suppress_debug_info()
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 OmegaConf.register_new_resolver("concat", lambda x, y: x + y)
 
 
@@ -35,9 +37,7 @@ def main(eval_cfg: DictConfig):
 
     callbacks: List[Callback] = []
     for k, v in cfg.get("callbacks", {}).items():
-        if k == "prediction_writer":
-            callbacks.append(hydra.utils.instantiate(v, use_stdout=True))
-        elif k == "progress_bar":
+        if k in {"prediction_writer", "progress_bar"}:
             callbacks.append(hydra.utils.instantiate(v))
 
     num_devices: int = len(cfg.devices) if isinstance(cfg.devices, (list, ListConfig)) else cfg.devices

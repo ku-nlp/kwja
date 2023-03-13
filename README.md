@@ -2,6 +2,7 @@
 
 [![test](https://github.com/ku-nlp/kwja/actions/workflows/test.yml/badge.svg)](https://github.com/ku-nlp/kwja/actions/workflows/test.yml)
 [![codecov](https://codecov.io/gh/ku-nlp/kwja/branch/main/graph/badge.svg?token=A9FWWPLITO)](https://codecov.io/gh/ku-nlp/kwja)
+[![CodeFactor Grade](https://img.shields.io/codefactor/grade/github/ku-nlp/kwja)](https://www.codefactor.io/repository/github/ku-nlp/kwja)
 [![PyPI](https://img.shields.io/pypi/v/kwja)](https://pypi.org/project/kwja/)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/kwja)
 
@@ -11,11 +12,12 @@
 KWJA is a Japanese language analyzer based on pre-trained language models.
 KWJA performs many language analysis tasks, including:
 - Typo correction
-- Tokenization
+- Word segmentation
 - Word normalization
 - Morphological analysis
-- Named entity recognition
 - Word feature tagging
+- NER (Named Entity Recognition)
+- Base phrase feature tagging
 - Dependency parsing
 - PAS analysis
 - Bridging reference resolution

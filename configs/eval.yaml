@@ -1,7 +1,7 @@
 defaults:
   - callbacks: [progress_bar.yaml]
   - logger: null
-  - module: null  # typo, char, or word
+  - module: null  # typo, seq2seq, char, or word
   - _self_
 
 # required settings
@@ -16,7 +16,7 @@ document_split_stride: 1
 confidence_threshold: 0.9
 
 # for word normalization
-denormalize_prob: 0.0
+denormalize_probability: 0.0
 
 # for dependency parsing
 dependency_topk: 4
@@ -26,5 +26,5 @@ discourse_parsing_threshold: 0.0
 
 # environment dependent settings
 num_workers: -1
-devices: ${oc.env:GPUS,1}
+devices: ${oc.env:DEVICES,1}
 max_batches_per_device: 4

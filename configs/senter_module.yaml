@@ -1,0 +1,58 @@
+defaults:
+  - base
+  - callbacks: [early_stopping, model_checkpoint, model_summary, senter_module_writer, progress_bar, lr_monitor]
+  - datamodule: senter
+  - logger: wandb
+  - encoder: char_deberta_base
+  - module: senter
+  - optimizer: adamw
+  - scheduler: constant_schedule_with_warmup
+  - trainer: default
+  - _self_
+
+max_seq_length: 512
+do_predict_after_train: true
+checkpoint_path: ""
+document_split_stride: -1
+
+# set monitor and mode for early_stopping and model_checkpoint
+monitor: valid/aggregated_senter_metrics
+mode: max
+aggregating_metrics:
+  - sent_segmentation_f1
+
+# hyper-parameters to be tuned
+lr: 2e-5
+max_epochs: 20
+warmup_steps: 2000
+effective_batch_size: 32
+
+# environment dependent settings
+devices: ${oc.env:DEVICES,0}
+max_batches_per_device: ${oc.env:MAX_BATCHES_PER_DEVICE,2}
+num_workers: ${oc.env:NUM_WORKERS,4}
+
+ignore_hparams_on_save: false
+
+# constants
+hparams_to_ignore_on_save:
+  - project
+  - work_dir
+  - seed
+  - name
+  - exp_dir
+  - run_id
+  - run_dir
+  - config_name
+  - callbacks:
+    - early_stopping
+    - model_checkpoint
+    - model_summary
+    - prediction_writer:
+        - destination
+  - datamodule:
+    - train
+    - valid
+    - test
+  - logger
+  - hparams_to_ignore_on_save

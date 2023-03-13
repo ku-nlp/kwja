@@ -15,8 +15,6 @@ from rhoknp.utils.reader import chunk_by_document, chunk_by_sentence
 from kwja.utils.constants import BASE_PHRASE_FEATURES, IGNORE_VALUE_FEATURE_PAT, SUB_WORD_FEATURES
 from kwja.utils.progress_bar import track
 
-NE_OPTIONAL_PAT = re.compile(r"(?P<optional><NE:OPTIONAL:[^>]+>)")
-
 
 class JumanppAugmenter:
     def __init__(self):
@@ -169,8 +167,12 @@ def refresh(document: Document) -> None:
     keys = [feature.split(":")[0] for feature in BASE_PHRASE_FEATURES]
     for base_phrase in document.base_phrases:
         feature_dict = FeatureDict()
-        if "NE" in base_phrase.features:
-            feature_dict["NE"] = base_phrase.features["NE"]
+        if (
+            (feature := base_phrase.features.get("NE"))
+            and type(feature) == str
+            and feature.startswith("OPTIONAL") is False
+        ):
+            feature_dict["NE"] = feature
         feature_dict.update(
             {
                 key: base_phrase.features[key]
@@ -208,7 +210,11 @@ def assign_features_and_save(
     jumanpp_augmenter = JumanppAugmenter()
     knp = KNP(options=["-tab", "-dpnd-fast", "-read-feature"])
     for knp_text in track(knp_texts):
-        document = Document.from_knp(knp_text)
+        try:
+            document = Document.from_knp(knp_text)
+        except ValueError:
+            print("ignore broken knp file")
+            continue
         if document.doc_id not in doc_id2split:
             continue
 
@@ -236,13 +242,10 @@ def assign_features_and_save(
             set_named_entities(document, sid2tagged_sentence)
 
         refresh(document)
-        knp_text = document.to_knp()
-        for mo in NE_OPTIONAL_PAT.finditer(knp_text):
-            knp_text = knp_text.replace(mo.group("optional"), "")
 
         doc_id = document.doc_id
         split = doc_id2split[doc_id]
-        output_root.joinpath(f"{split}/{doc_id}.knp").write_text(knp_text)
+        output_root.joinpath(f"{split}/{doc_id}.knp").write_text(document.to_knp())
 
 
 def test_jumanpp_version():
