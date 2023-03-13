@@ -26,7 +26,7 @@ KWJA performs many language analysis tasks, including:
 
 ## Requirements
 
-- Python: 3.8+
+- Python: 3.8, 3.9, 3.10
 - Dependencies: See [pyproject.toml](./pyproject.toml).
 
 ## Getting Started
@@ -78,13 +78,16 @@ Here are some other options for `kwja` command:
 
 `--typo-batch-size`: Batch size for typo module.
 
+`--seq2seq-batch-size`: Batch size for seq2seq module.
+
 `--char-batch-size`: Batch size for char module.
 
 `--word-batch-size`: Batch size for word module.
 
 `--tasks`: Tasks to be performed. Please specify 'typo', 'char', 'typo,char', 'char,word', 'typo,char,word', 'char,word,word_discourse' or 'typo,char,word,word_discourse'.
   - `typo`: Typo correction
-  - `char`: Tokenization and Word normalization
+  - `seq2seq`: Word segmentation, Word normalization, Reading prediction, lemmatization, and Canonicalization.
+  - `char`: Word segmentation and Word normalization
   - `word`: Morphological analysis, Named entity recognition, Word feature tagging, Dependency parsing, PAS analysis, Bridging reference resolution, and Coreference resolution
   - `word_discourse`: Discourse relation analysis
     - If you need the results of discourse relation analysis, please specify this in addition to `word`.
@@ -133,6 +136,16 @@ analyzed_document = kwja.apply(
   booktitle = {第253回自然言語処理研究会},
   year      = {2022},
   address   = {京都},
+}
+```
+
+```bibtex
+@InProceedings{児玉2023,
+  author    = {児玉 貴志 and 植田 暢大 and 大村 和正 and 清丸 寛一 and 村脇 有吾 and 河原 大輔 and 黒橋 禎夫},
+  title     = {テキスト生成モデルによる日本語形態素解析},
+  booktitle = {言語処理学会 第29回年次大会},
+  year      = {2023},
+  address   = {沖縄},
 }
 ```
 
