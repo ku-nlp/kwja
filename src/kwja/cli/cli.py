@@ -240,10 +240,7 @@ def _split_input_texts(input_texts: List[str]) -> List[str]:
     split_texts: List[str] = []
     split_text: str = ""
     for input_text in input_texts:
-        stripped_input_text: str = input_text.strip()
-        if stripped_input_text.endswith("EOD"):
-            stripped_input_text = stripped_input_text[:-3]
-        input_text_with_eod: str = stripped_input_text + "\nEOD"
+        input_text_with_eod: str = input_text.strip() + "\nEOD"
         for text in input_text_with_eod.split("\n"):
             if text == "EOD":
                 # hydra.utils.instantiateを実行する際に文字列${...}を補間しようとするのを防ぐ
