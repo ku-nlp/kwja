@@ -84,7 +84,7 @@ Here are some other options for `kwja` command:
 
 `--word-batch-size`: Batch size for word module.
 
-`--tasks`: Tasks to be performed. Please specify 'typo', 'char', 'typo,char', 'char,word', 'typo,char,word', 'char,word,word_discourse' or 'typo,char,word,word_discourse'.
+`--tasks`: Tasks to be performed. Please specify 'typo', 'char', 'seq2seq', 'typo,char', 'typo,seq2seq', 'seq2seq,word', 'char,word', 'typo,char,word',  'typo,seq2seq,word', 'char,word,word_discourse', 'seq2seq,word,word_discourse', 'typo,char,word,word_discourse' or 'typo,char,word,word_discourse'.
   - `typo`: Typo correction
   - `seq2seq`: Word segmentation, Word normalization, Reading prediction, lemmatization, and Canonicalization.
   - `char`: Word segmentation and Word normalization
