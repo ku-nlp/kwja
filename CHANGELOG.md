@@ -11,7 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Introduce the seq2seq module for more accurate reading prediction and canonicalization.
-- Introduce learning-based sentence splitter.
 
 ### Changed
 - Replace RoBERTa-based models with DeBERTaV2-based models.
