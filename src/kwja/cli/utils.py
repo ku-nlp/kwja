@@ -28,6 +28,7 @@ _CHECKPOINT_FILE_NAMES: Dict[str, Dict[str, str]] = {
     },
     "base": {
         "typo": "typo_deberta-v2-base-wwm.ckpt",
+        "senter": "senter_deberta-v2-base-wwm.ckpt",
         "seq2seq": "seq2seq_mt5-base.ckpt",
         "char": "char_deberta-v2-base-wwm.ckpt",
         "word": "word_deberta-v2-base.ckpt",
@@ -35,6 +36,7 @@ _CHECKPOINT_FILE_NAMES: Dict[str, Dict[str, str]] = {
     },
     "large": {
         "typo": "typo_deberta-v2-large-wwm.ckpt",
+        "senter": "senter_deberta-v2-base-wwm.ckpt",  # We won't release the large model for now.
         "seq2seq": "seq2seq_mt5-large.ckpt",
         "char": "char_deberta-v2-large-wwm.ckpt",
         "word": "word_deberta-v2-large.ckpt",

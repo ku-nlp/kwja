@@ -6,6 +6,7 @@ from typing import Any, Optional, Sequence, TextIO, Union
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import BasePredictionWriter
 
+import kwja
 from kwja.callbacks.utils import convert_senter_predictions_into_tags
 from kwja.datamodule.datasets.senter import SenterDataset
 from kwja.datamodule.datasets.senter_inference import SenterInferenceDataset, SenterInferenceExample
@@ -63,9 +64,9 @@ class SenterModuleWriter(BasePredictionWriter):
                 self.prev_did = current_did
                 self.prev_sid = 0
             for char, sent_segmentation_tag in zip(document.text, sent_segmentation_tags):
-                if is_new_doc or sent_segmentation_tag == "B":
+                if sent_segmentation_tag == "B":
                     output_string += "\n"
-                    output_string += f"# S-ID:{current_did}-{self.prev_sid + 1}"
+                    output_string += f"# S-ID:{current_did}-{self.prev_sid + 1} kwja:{kwja.__version__}"
                     output_string += "\n"
                     self.prev_sid += 1
                 output_string += char

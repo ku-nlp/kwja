@@ -18,7 +18,7 @@ from rhoknp.utils.reader import chunk_by_document
 import kwja
 from kwja.cli.utils import download_checkpoint, prepare_device, suppress_debug_info
 from kwja.datamodule.datamodule import DataModule
-from kwja.modules import CharModule, Seq2SeqModule, TypoModule, WordModule
+from kwja.modules import CharModule, SenterModule, Seq2SeqModule, TypoModule, WordModule
 from kwja.utils.reader import chunk_by_sentence_for_line_by_line_text
 
 suppress_debug_info()
@@ -113,15 +113,29 @@ class SenterModuleProcessor(BaseModuleProcessor):
     doc_idx = 0
 
     def load(self):
-        pass
+        if self.model_size != "tiny":
+            super().load()
 
-    def _load_module(self) -> pl.LightningModule:  # type: ignore
-        pass  # type: ignore
+    def _load_module(self) -> pl.LightningModule:
+        if self.model_size != "tiny":
+            typer.echo("Loading senter module", err=True)
+            checkpoint_path: Path = download_checkpoint(module="senter", model_size=self.model_size)
+            return SenterModule.load_from_checkpoint(checkpoint_path, map_location=self.device)
+        return  # type: ignore
 
-    def _load_datamodule(self, input_file: Path) -> DataModule:  # type: ignore
-        pass  # type: ignore
+    def _load_datamodule(self, input_file: Path) -> DataModule:
+        if self.model_size != "tiny":
+            assert self.module is not None
+            self.module.hparams.datamodule.predict.texts = input_file.read_text().splitlines()
+            datamodule = DataModule(cfg=self.module.hparams.datamodule)
+            datamodule.setup(stage=TrainerFn.PREDICTING)
+            return datamodule
+        return  # type: ignore
 
     def apply_module(self, input_file: Path) -> Path:
+        if self.model_size != "tiny":
+            return super().apply_module(input_file)
+
         senter = RegexSenter()
         document = senter.apply_to_document(input_file.read_text())
 
