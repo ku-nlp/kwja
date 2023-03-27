@@ -1,3 +1,4 @@
+import tempfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from textwrap import dedent
@@ -5,7 +6,6 @@ from typing import List, Optional, Union
 
 import pytest
 import torch
-from omegaconf import ListConfig
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
 
@@ -32,16 +32,26 @@ def test_init(destination: Optional[Union[str, Path]], seq2seq_tokenizer: PreTra
 
 
 def test_write_on_batch_end(seq2seq_tokenizer: PreTrainedTokenizerBase):
-    texts = ["太郎と次郎はよくけんかする", "辛いラーメンが好きなので頼みました"]
     max_src_length = 32
     max_tgt_length = 128
     doc_id_prefix = "test"
+    senter_text = dedent(
+        f"""\
+            # S-ID:{doc_id_prefix}-0-0 kwja:{kwja.__version__}
+            太郎と次郎はよくけんかする
+            # S-ID:{doc_id_prefix}-1-0 kwja:{kwja.__version__}
+            辛いラーメンが好きなので頼みました
+            """
+    )
+    senter_file = tempfile.NamedTemporaryFile("wt")
+    senter_file.write(senter_text)
+    senter_file.seek(0)
+
     dataset = Seq2SeqInferenceDataset(
-        texts=ListConfig(texts),
         tokenizer=seq2seq_tokenizer,
         max_src_length=max_src_length,
         max_tgt_length=max_tgt_length,
-        doc_id_prefix=doc_id_prefix,
+        senter_file=Path(senter_file.name),
     )
     num_examples = len(dataset)
 
