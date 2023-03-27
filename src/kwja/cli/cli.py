@@ -1,6 +1,7 @@
 import os
 import re
 from abc import ABC
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -11,13 +12,14 @@ import pytorch_lightning as pl
 import typer
 from omegaconf import OmegaConf
 from pytorch_lightning.trainer.states import TrainerFn
-from rhoknp import Document
+from rhoknp import Document, RegexSenter, Sentence
 from rhoknp.utils.reader import chunk_by_document
 
 import kwja
 from kwja.cli.utils import download_checkpoint, prepare_device, suppress_debug_info
 from kwja.datamodule.datamodule import DataModule
 from kwja.modules import CharModule, Seq2SeqModule, TypoModule, WordModule
+from kwja.utils.reader import chunk_by_sentence_for_line_by_line_text
 
 suppress_debug_info()
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -107,6 +109,39 @@ class TypoModuleProcessor(BaseModuleProcessor):
         print("\n".join(post_texts))
 
 
+class SenterModuleProcessor(BaseModuleProcessor):
+    doc_idx = 0
+
+    def load(self):
+        pass
+
+    def _load_module(self) -> pl.LightningModule:  # type: ignore
+        pass  # type: ignore
+
+    def _load_datamodule(self, input_file: Path) -> DataModule:  # type: ignore
+        pass  # type: ignore
+
+    def apply_module(self, input_file: Path) -> Path:
+        senter = RegexSenter()
+        document = senter.apply_to_document(input_file.read_text())
+
+        doc_id_prefix = datetime.now().strftime("%Y%m%d%H%M")
+        document.doc_id = f"{doc_id_prefix}-{self.doc_idx}"
+        self.doc_idx += 1
+        for sent_idx, sentence in enumerate(document.sentences):
+            sentence.sid = f"{document.doc_id}-{sent_idx}"
+            sentence.misc_comment = f"kwja:{kwja.__version__}"
+        with self.destination.open("wt") as f:
+            f.write(document.to_raw_text())
+        return self.destination
+
+    def output_prediction(self) -> None:
+        with self.destination.open() as f:
+            for sentence_text in chunk_by_sentence_for_line_by_line_text(f):
+                sentence = Sentence.from_raw_text(sentence_text)
+                print(sentence.text)
+
+
 class Seq2SeqModuleProcessor(BaseModuleProcessor):
     def _load_module(self):
         typer.echo("Loading seq2seq module", err=True)
@@ -115,7 +150,7 @@ class Seq2SeqModuleProcessor(BaseModuleProcessor):
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
-        self.module.hparams.datamodule.predict.texts = input_file.read_text().splitlines()
+        self.module.hparams.datamodule.predict.senter_file = input_file
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
         datamodule.setup(stage=TrainerFn.PREDICTING)
         return datamodule
@@ -137,7 +172,7 @@ class CharModuleProcessor(BaseModuleProcessor):
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
-        self.module.hparams.datamodule.predict.texts = input_file.read_text().splitlines()
+        self.module.hparams.datamodule.predict.senter_file = input_file
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
         datamodule.setup(stage=TrainerFn.PREDICTING)
         return datamodule
@@ -202,12 +237,14 @@ class CLIProcessor:
         self.tmp_dir = TemporaryDirectory()
         self.raw_destination = self.tmp_dir.name / Path("raw_text.txt")
         typo_destination = self.tmp_dir.name / Path("typo_prediction.txt")
+        senter_destination = self.tmp_dir.name / Path("senter_prediction.txt")
         seq2seq_destination = self.tmp_dir.name / Path("seq2seq_prediction.seq2seq")
         char_destination = self.tmp_dir.name / Path("char_prediction.juman")
         word_destination = self.tmp_dir.name / Path("word_prediction.knp")
         word_discourse_destination = self.tmp_dir.name / Path("word_discourse_prediction.knp")
         self.processors: Dict[str, BaseModuleProcessor] = {
             "typo": TypoModuleProcessor(specified_device, model_size, typo_batch_size, typo_destination),
+            "senter": SenterModuleProcessor(specified_device, model_size, typo_batch_size, senter_destination),
             "seq2seq": Seq2SeqModuleProcessor(specified_device, model_size, seq2seq_batch_size, seq2seq_destination),
             "char": CharModuleProcessor(specified_device, model_size, char_batch_size, char_destination),
             "word": WordModuleProcessor(specified_device, model_size, word_batch_size, word_destination),
@@ -344,7 +381,7 @@ def main(
         word_batch_size=word_batch_size,
     )
     specified_tasks: List[str] = [
-        task for task in ["typo", "seq2seq", "char", "word", "word_discourse"] if task in tasks.split(",")
+        task for task in ["typo", "senter", "seq2seq", "char", "word", "word_discourse"] if task in tasks.split(",")
     ]
 
     if input_text is None:

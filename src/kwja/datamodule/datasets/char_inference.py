@@ -24,6 +24,7 @@ class CharInferenceDataset(BaseDataset[CharInferenceExample, CharModuleFeatures]
         max_seq_length: int,
         document_split_stride: int = -1,
         senter_file: Optional[Path] = None,
+        **_,
     ) -> None:
         super(CharInferenceDataset, self).__init__(tokenizer, max_seq_length)
         if senter_file is not None:

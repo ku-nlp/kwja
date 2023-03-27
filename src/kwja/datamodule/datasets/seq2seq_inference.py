@@ -25,6 +25,7 @@ class Seq2SeqInferenceDataset(Dataset[Seq2SeqModuleFeatures]):
         max_src_length: int,
         max_tgt_length: int,
         senter_file: Optional[Path] = None,
+        **_,
     ) -> None:
         self.tokenizer: PreTrainedTokenizerBase = tokenizer
         self.max_src_length: int = max_src_length
