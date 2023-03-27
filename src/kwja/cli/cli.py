@@ -271,41 +271,34 @@ def tasks_callback(value: str) -> str:
     if len(tasks) == 0:
         raise typer.BadParameter("task must be specified")
     for task in tasks:
-        if task not in ("typo", "seq2seq", "char", "word", "word_discourse"):
+        if task not in ("typo", "senter", "seq2seq", "char", "word", "word_discourse"):
             raise typer.BadParameter("invalid task name is contained")
     valid_task_combinations: Set[Tuple[str, ...]] = {
         ("typo",),
-        ("char",),
-        ("seq2seq",),
-        ("seq2seq", "typo"),
-        ("seq2seq", "word"),
-        ("seq2seq", "typo", "word"),
-        ("seq2seq", "word", "word_discourse"),
-        ("seq2seq", "typo", "word", "word_discourse"),
-        ("char", "typo"),
-        ("char", "word"),
-        ("char", "typo", "word"),
-        ("char", "word", "word_discourse"),
-        ("char", "typo", "word", "word_discourse"),
+        ("senter",),
+        ("senter", "typo"),
+        ("char", "senter"),
+        ("char", "senter", "typo"),
+        ("char", "senter", "word"),
+        ("char", "senter", "typo", "word"),
+        ("char", "senter", "word", "word_discourse"),
+        ("char", "senter", "typo", "word", "word_discourse"),
+        ("senter", "seq2seq"),
+        ("senter", "seq2seq", "typo"),
+        ("senter", "seq2seq", "word"),
+        ("senter", "seq2seq", "typo", "word"),
+        ("senter", "seq2seq", "word", "word_discourse"),
+        ("senter", "seq2seq", "typo", "word", "word_discourse"),
     }
+
+    def task_to_string(task: Tuple[str, ...]) -> str:
+        return "'" + ",".join(task) + "'"
+
     sorted_task: Tuple[str, ...] = tuple(sorted(tasks))
     if sorted_task not in valid_task_combinations:
         raise typer.BadParameter(
             "task combination is invalid. "
-            "Please specify one of "
-            "'typo', "
-            "'char', "
-            "'seq2seq', "
-            "'typo,char', "
-            "'typo,seq2seq', "
-            "'seq2seq,word', "
-            "'char,word', "
-            "'typo,seq2seq,word', "
-            "'seq2seq,word,word_discourse', "
-            "'typo,seq2seq,word,word_discourse', "
-            "'typo,char,word', "
-            "'char,word,word_discourse' "
-            "or 'typo,char,word,word_discourse'."
+            f"Please specify one of {', '.join(task_to_string(task) for task in valid_task_combinations)}."
         )
     return value
 
