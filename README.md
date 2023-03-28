@@ -28,6 +28,7 @@ KWJA performs many language analysis tasks, including:
 
 - Python: 3.8+
 - Dependencies: See [pyproject.toml](./pyproject.toml).
+- GPUs with CUDA 11.7 (optional)
 
 ## Getting Started
 
