@@ -35,9 +35,10 @@ def test_run(fixture_data_dir: Path) -> None:
     typo_tokenizer = hydra.utils.instantiate(cfg.datamodule.train.jwtd.tokenizer)
     dataset = TypoDataset(str(path), typo_tokenizer, cfg.max_seq_length)
     data_loader = DataLoader(dataset, batch_size=len(dataset), collate_fn=dataclass_data_collator)
+    val_dataloaders = {"jwtd": data_loader}
 
     module = TypoModule(cfg)
 
-    trainer.fit(model=module, train_dataloaders=data_loader, val_dataloaders=[data_loader])
-    trainer.test(model=module, dataloaders=[data_loader])
-    trainer.predict(model=module, dataloaders=[data_loader])
+    trainer.fit(model=module, train_dataloaders=data_loader, val_dataloaders=val_dataloaders)
+    trainer.test(model=module, dataloaders=val_dataloaders)
+    trainer.predict(model=module, dataloaders=val_dataloaders)

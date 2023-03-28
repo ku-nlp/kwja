@@ -61,11 +61,11 @@ class DataModule(pl.LightningDataModule):
         assert self.train_dataset is not None
         return self._get_dataloader(dataset=self.train_dataset, shuffle=True)
 
-    def val_dataloader(self) -> List[DataLoader]:
-        return [self._get_dataloader(dataset, shuffle=False) for dataset in self.valid_datasets.values()]
+    def val_dataloader(self) -> Dict[str, DataLoader]:
+        return {corpus: self._get_dataloader(dataset, shuffle=False) for corpus, dataset in self.valid_datasets.items()}
 
-    def test_dataloader(self) -> List[DataLoader]:
-        return [self._get_dataloader(dataset, shuffle=False) for dataset in self.test_datasets.values()]
+    def test_dataloader(self) -> Dict[str, DataLoader]:
+        return {corpus: self._get_dataloader(dataset, shuffle=False) for corpus, dataset in self.test_datasets.items()}
 
     def predict_dataloader(self) -> DataLoader:
         assert isinstance(self.predict_dataset, Dataset)

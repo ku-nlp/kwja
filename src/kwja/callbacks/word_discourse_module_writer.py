@@ -38,6 +38,8 @@ class WordDiscourseModuleWriter(BasePredictionWriter):
         dataloader_idx: int,
     ) -> None:
         dataloaders = trainer.predict_dataloaders
+        if isinstance(trainer.predict_dataloaders, dict):
+            dataloaders = list(trainer.predict_dataloaders.values())
         dataset: Union[WordDataset, WordInferenceDataset] = dataloaders[dataloader_idx].dataset
 
         for example_id, discourse_predictions in zip(

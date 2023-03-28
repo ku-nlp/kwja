@@ -231,7 +231,7 @@ class WordModule(BaseModule):
     def on_validation_epoch_end(self) -> None:
         metrics_log: Dict[str, Dict[str, float]] = {corpus: {} for corpus in self.valid_corpora}
         for corpus, word_module_metric in self.valid_corpus2word_module_metric.items():
-            dataset = self.trainer.val_dataloaders[self.valid_corpora.index(corpus)].dataset
+            dataset = self.trainer.val_dataloaders[corpus].dataset
             word_module_metric.set_properties(
                 {
                     "dataset": dataset,
@@ -261,7 +261,7 @@ class WordModule(BaseModule):
     def on_test_epoch_end(self) -> None:
         metrics_log: Dict[str, Dict[str, float]] = {corpus: {} for corpus in self.test_corpora}
         for corpus, word_module_metric in self.test_corpus2word_module_metric.items():
-            dataset = self.trainer.test_dataloaders[self.test_corpora.index(corpus)].dataset
+            dataset = self.trainer.test_dataloaders[corpus].dataset
             word_module_metric.set_properties(
                 {
                     "dataset": dataset,

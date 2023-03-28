@@ -69,7 +69,7 @@ class BaseModuleProcessor(ABC):
     def apply_module(self, input_file: Path) -> Path:
         datamodule = self._load_datamodule(input_file)
         assert self.trainer is not None
-        self.trainer.predict(model=self.module, dataloaders=datamodule.predict_dataloader(), return_predictions=False)
+        self.trainer.predict(model=self.module, dataloaders=[datamodule.predict_dataloader()], return_predictions=False)
         return self.destination
 
     def _load_datamodule(self, input_file: Path) -> DataModule:

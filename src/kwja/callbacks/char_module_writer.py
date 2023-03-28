@@ -35,6 +35,8 @@ class CharModuleWriter(BasePredictionWriter):
         dataloader_idx: int,
     ) -> None:
         dataloaders = trainer.predict_dataloaders
+        if isinstance(trainer.predict_dataloaders, dict):
+            dataloaders = list(trainer.predict_dataloaders.values())
         dataset: Union[CharDataset, CharInferenceDataset] = dataloaders[dataloader_idx].dataset
 
         special_ids = set(dataset.tokenizer.all_special_ids) - {dataset.tokenizer.unk_token_id}

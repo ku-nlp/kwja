@@ -47,6 +47,8 @@ class Seq2SeqModuleWriter(BasePredictionWriter):
         dataloader_idx: int,
     ) -> None:
         dataloaders = trainer.predict_dataloaders
+        if isinstance(trainer.predict_dataloaders, dict):
+            dataloaders = list(trainer.predict_dataloaders.values())
         dataset: Union[Seq2SeqDataset, Seq2SeqInferenceDataset] = dataloaders[dataloader_idx].dataset
 
         outputs: List[str] = []

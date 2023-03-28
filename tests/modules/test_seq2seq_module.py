@@ -39,11 +39,12 @@ def test_steps(fixture_data_dir: Path) -> None:
     seq2seq_tokenizer = hydra.utils.instantiate(cfg.datamodule.train.kyoto.tokenizer)
     dataset = Seq2SeqDataset(str(path), seq2seq_tokenizer, cfg.max_src_length, cfg.max_tgt_length)
     data_loader = DataLoader(dataset, batch_size=len(dataset), collate_fn=dataclass_data_collator)
+    val_dataloaders = {"dummy": data_loader}
 
     cfg.datamodule.valid = {"dummy": ""}
     cfg.datamodule.test = {"dummy": ""}
     module = Seq2SeqModule(cfg)
 
-    trainer.fit(model=module, train_dataloaders=data_loader, val_dataloaders=[data_loader])
-    trainer.test(model=module, dataloaders=[data_loader])
-    trainer.predict(model=module, dataloaders=[data_loader])
+    trainer.fit(model=module, train_dataloaders=data_loader, val_dataloaders=val_dataloaders)
+    trainer.test(model=module, dataloaders=val_dataloaders)
+    trainer.predict(model=module, dataloaders=val_dataloaders)

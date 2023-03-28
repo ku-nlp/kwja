@@ -62,7 +62,7 @@ def main(eval_cfg: DictConfig):
 
     if getattr(cfg, "load_only", False):
         sys.exit(0)
-    trainer.predict(model=model, dataloaders=datamodule.predict_dataloader(), return_predictions=False)
+    trainer.predict(model=model, dataloaders=[datamodule.predict_dataloader()], return_predictions=False)
 
 
 if __name__ == "__main__":
