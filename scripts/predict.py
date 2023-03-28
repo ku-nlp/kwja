@@ -52,7 +52,7 @@ def main(eval_cfg: DictConfig):
 
     trainer: pl.Trainer = hydra.utils.instantiate(
         cfg.trainer,
-        logger=None,
+        logger=False,
         callbacks=callbacks,
         devices=cfg.devices,
     )

@@ -1,6 +1,6 @@
 _target_: pytorch_lightning.Trainer
 gradient_clip_val: 0.5
-accumulate_grad_batches: null
+accumulate_grad_batches: 1
 max_epochs: ${max_epochs}
 min_epochs: 1
 accelerator: "cpu"

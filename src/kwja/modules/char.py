@@ -85,7 +85,7 @@ class CharModule(BaseModule):
         corpus = self.valid_corpora[dataloader_idx or 0]
         self.valid_corpus2char_module_metric[corpus].update(kwargs)
 
-    def validation_epoch_end(self, validation_step_outputs) -> None:
+    def on_validation_epoch_end(self) -> None:
         metrics_log: Dict[str, Dict[str, float]] = {corpus: {} for corpus in self.valid_corpora}
         for corpus, char_module_metric in self.valid_corpus2char_module_metric.items():
             dataset = self.trainer.val_dataloaders[self.valid_corpora.index(corpus)].dataset
@@ -109,7 +109,7 @@ class CharModule(BaseModule):
         corpus = self.test_corpora[dataloader_idx or 0]
         self.test_corpus2char_module_metric[corpus].update(kwargs)
 
-    def test_epoch_end(self, test_step_outputs) -> None:
+    def on_test_epoch_end(self) -> None:
         metrics_log: Dict[str, Dict[str, float]] = {corpus: {} for corpus in self.test_corpora}
         for corpus, char_module_metric in self.test_corpus2char_module_metric.items():
             dataset = self.trainer.test_dataloaders[self.test_corpora.index(corpus)].dataset

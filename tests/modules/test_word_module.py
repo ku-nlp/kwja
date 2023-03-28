@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import hydra
+import pytorch_lightning as pl
 from hydra import compose, initialize
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import ListConfig, OmegaConf
@@ -23,9 +24,9 @@ def test_init() -> None:
 
 
 def test_steps(fixture_data_dir: Path) -> None:
-    trainer = hydra.utils.instantiate(
+    trainer: pl.Trainer = hydra.utils.instantiate(
         cfg.trainer,
-        logger=None,
+        logger=False,
         enable_checkpointing=False,
         devices=1,
         accelerator="cpu",
@@ -51,6 +52,6 @@ def test_steps(fixture_data_dir: Path) -> None:
     cfg.datamodule.test = {"dummy": ""}
     module = WordModule(cfg)
 
-    trainer.fit(model=module, train_dataloaders=data_loader, val_dataloaders=data_loader)
-    trainer.test(model=module, dataloaders=data_loader)
-    trainer.predict(model=module, dataloaders=data_loader)
+    trainer.fit(model=module, train_dataloaders=data_loader, val_dataloaders=[data_loader])
+    trainer.test(model=module, dataloaders=[data_loader])
+    trainer.predict(model=module, dataloaders=[data_loader])

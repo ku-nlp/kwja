@@ -1,6 +1,6 @@
 import logging
 import warnings
-from typing import List, Optional
+from typing import List, Union
 
 import hydra
 import pytorch_lightning as pl
@@ -42,7 +42,7 @@ def main(eval_cfg: DictConfig):
     cfg = OmegaConf.merge(train_cfg, eval_cfg)
     assert isinstance(cfg, DictConfig)
 
-    logger: Optional[Logger] = cfg.get("logger") and hydra.utils.instantiate(cfg.get("logger"))
+    logger: Union[Logger, bool] = cfg.get("logger", False) and hydra.utils.instantiate(cfg.get("logger"))
     callbacks: List[Callback] = list(map(hydra.utils.instantiate, cfg.get("callbacks", {}).values()))
 
     num_devices: int = len(cfg.devices) if isinstance(cfg.devices, (list, ListConfig)) else cfg.devices
