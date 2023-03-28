@@ -22,10 +22,9 @@ OmegaConf.register_new_resolver("concat", lambda x, y: x + y)
 def main(eval_cfg: DictConfig):
     load_dotenv()
     if isinstance(eval_cfg.devices, str):
-        try:
-            eval_cfg.devices = [int(x) for x in eval_cfg.devices.split(",")]
-        except ValueError:
-            eval_cfg.devices = None
+        eval_cfg.devices = (
+            list(map(int, eval_cfg.devices.split(","))) if "," in eval_cfg.devices else int(eval_cfg.devices)
+        )
 
     # Load saved model and config
     model: pl.LightningModule = hydra.utils.call(eval_cfg.module.load_from_checkpoint, _recursive_=False)

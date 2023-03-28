@@ -30,10 +30,7 @@ OmegaConf.register_new_resolver("concat", lambda x, y: x + y)
 def main(cfg: DictConfig):
     load_dotenv()
     if isinstance(cfg.devices, str):
-        try:
-            cfg.devices = [int(x) for x in cfg.devices.split(",")]
-        except ValueError:
-            cfg.devices = None
+        cfg.devices = list(map(int, cfg.devices.split(","))) if "," in cfg.devices else int(cfg.devices)
     if isinstance(cfg.max_batches_per_device, str):
         cfg.max_batches_per_device = int(cfg.max_batches_per_device)
     if isinstance(cfg.num_workers, str):

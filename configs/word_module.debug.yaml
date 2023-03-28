@@ -58,7 +58,7 @@ warmup_steps: 10
 effective_batch_size: 16
 
 # environment dependent settings
-devices: ${oc.env:DEVICES,0}
+devices: ${oc.env:DEVICES,1}
 max_batches_per_device: ${oc.env:MAX_BATCHES_PER_DEVICE,2}
 num_workers: ${oc.env:NUM_WORKERS,0}
 
