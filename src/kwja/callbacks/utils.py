@@ -174,14 +174,14 @@ def get_word_reading_predictions(
 
 
 def get_morpheme_attribute_predictions(
-    pos_logits: torch.Tensor,
-    subpos_logits: torch.Tensor,
-    conjtype_logits: torch.Tensor,
-    conjform_logits: torch.Tensor,
+    pos_logits: List[List[float]],
+    subpos_logits: List[List[float]],
+    conjtype_logits: List[List[float]],
+    conjform_logits: List[List[float]],
 ) -> Tuple[List[int], List[int], List[int], List[int]]:
-    pos_predictions: List[int] = pos_logits.argmax(dim=1).tolist()
+    pos_predictions: List[int] = np.array(pos_logits).argmax(axis=1).tolist()
     subpos_predictions: List[int] = []
-    for pos_index, subpos_logit_list in zip(pos_predictions, subpos_logits.tolist()):
+    for pos_index, subpos_logit_list in zip(pos_predictions, subpos_logits):
         subpos_tag2subpos_id = POS_TAG_SUBPOS_TAG2SUBPOS_ID[POS_TAGS[pos_index]]
         possible_subpos_indices: Set[int] = {
             SUBPOS_TAGS.index(subpos_tag) for subpos_tag in subpos_tag2subpos_id.keys()
@@ -194,10 +194,10 @@ def get_morpheme_attribute_predictions(
                 subpos_prediction = subpos_index
         subpos_predictions.append(subpos_prediction)
 
-    conjtype_predictions: List[int] = conjtype_logits.argmax(dim=1).tolist()
+    conjtype_predictions: List[int] = np.array(conjtype_logits).argmax(axis=1).tolist()
     conjform_predictions: List[int] = []
     for i, (pos_index, subpos_index, conjtype_index, conjform_logit_list) in enumerate(
-        zip(pos_predictions, subpos_predictions, conjtype_predictions, conjform_logits.tolist())
+        zip(pos_predictions, subpos_predictions, conjtype_predictions, conjform_logits)
     ):
         pos_tag: str = POS_TAGS[pos_index]
         subpos_tag: str = SUBPOS_TAGS[subpos_index]

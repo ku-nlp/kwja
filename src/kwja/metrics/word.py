@@ -136,21 +136,9 @@ class WordModuleMetric(BaseModuleMetric):
             dependency_predictions,
             dependency_type_predictions,
             cohesion_logits,
-        ) in zip(
-            self.example_ids.tolist(),
-            self.reading_predictions.tolist(),
-            self.reading_subword_map.tolist(),
-            self.pos_logits,
-            self.subpos_logits,
-            self.conjtype_logits,
-            self.conjform_logits,
-            self.word_feature_probabilities.tolist(),
-            self.ne_predictions.tolist(),
-            self.base_phrase_feature_probabilities.tolist(),
-            self.dependency_predictions.tolist(),
-            self.dependency_type_predictions.tolist(),
-            self.cohesion_logits.tolist(),
-        ):
+            _,  # discourse_predictions
+            _,  # discourse_labels
+        ) in zip(*[getattr(self, state_name).tolist() for state_name in self.STATE_NAMES]):
             example = self.dataset.examples[example_id]
             gold_document = self.dataset.doc_id2document[example.doc_id]
             orig_doc_id = to_orig_doc_id(gold_document.doc_id)
