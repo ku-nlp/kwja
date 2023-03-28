@@ -145,7 +145,7 @@ class WordModuleMetric(BaseModuleMetric):
             self.conjtype_logits,
             self.conjform_logits,
             self.word_feature_probabilities.tolist(),
-            self.ne_predictions,
+            self.ne_predictions.tolist(),
             self.base_phrase_feature_probabilities.tolist(),
             self.dependency_predictions.tolist(),
             self.dependency_type_predictions.tolist(),
@@ -260,25 +260,25 @@ class WordModuleMetric(BaseModuleMetric):
         # m.pos not in POS_TAGS ... 未定義語、その他など
         pos_labels = [[f"B-{m.pos}" if m.pos in POS_TAGS else "B-" for m in d.morphemes] for d in gold_documents]
         pos_predictions = [[f"B-{m.pos}" for m in d.morphemes] for d in predicted_documents]
-        metrics["pos_f1"] = f1_score(y_true=pos_labels, y_pred=pos_predictions)
+        metrics["pos_f1"] = f1_score(y_true=pos_labels, y_pred=pos_predictions).item()
 
         subpos_labels = [
             [f"B-{m.subpos}" if m.subpos in SUBPOS_TAGS else "B-" for m in d.morphemes] for d in gold_documents
         ]
         subpos_predictions = [[f"B-{m.subpos}" for m in d.morphemes] for d in predicted_documents]
-        metrics["subpos_f1"] = f1_score(y_true=subpos_labels, y_pred=subpos_predictions)
+        metrics["subpos_f1"] = f1_score(y_true=subpos_labels, y_pred=subpos_predictions).item()
 
         conjtype_labels = [
             [f"B-{m.conjtype}" if m.conjtype in CONJTYPE_TAGS else "B-" for m in d.morphemes] for d in gold_documents
         ]
         conjtype_predictions = [[f"B-{m.conjtype}" for m in d.morphemes] for d in predicted_documents]
-        metrics["conjtype_f1"] = f1_score(y_true=conjtype_labels, y_pred=conjtype_predictions)
+        metrics["conjtype_f1"] = f1_score(y_true=conjtype_labels, y_pred=conjtype_predictions).item()
 
         conjform_labels = [
             [f"B-{m.conjform}" if m.conjform in CONJFORM_TAGS else "B-" for m in d.morphemes] for d in gold_documents
         ]
         conjform_predictions = [[f"B-{m.conjform}" for m in d.morphemes] for d in predicted_documents]
-        metrics["conjform_f1"] = f1_score(y_true=conjform_labels, y_pred=conjform_predictions)
+        metrics["conjform_f1"] = f1_score(y_true=conjform_labels, y_pred=conjform_predictions).item()
 
         metrics["morphological_analysis_f1"] = mean(metrics.values())
         return metrics
@@ -306,20 +306,14 @@ class WordModuleMetric(BaseModuleMetric):
                     for d in predicted_documents
                 ]
             metrics[f"{word_feature}_f1"] = f1_score(
-                y_true=labels,
-                y_pred=predictions,
-                mode="strict",
-                scheme=IOB2,
-            )
+                y_true=labels, y_pred=predictions, mode="strict", scheme=IOB2
+            ).item()
             concatenated_labels += labels
             concatenated_predictions += predictions
         metrics["macro_word_feature_tagging_f1"] = mean(metrics.values())
         metrics["micro_word_feature_tagging_f1"] = f1_score(
-            y_true=concatenated_labels,
-            y_pred=concatenated_predictions,
-            mode="strict",
-            scheme=IOB2,
-        )
+            y_true=concatenated_labels, y_pred=concatenated_predictions, mode="strict", scheme=IOB2
+        ).item()
         return metrics
 
     @staticmethod
@@ -335,18 +329,12 @@ class WordModuleMetric(BaseModuleMetric):
                     morpheme.features["NE"] = f"{bi}-{named_entity.category.value}"
         labels = [[m.features.get("NE") or "O" for m in d.morphemes] for d in gold_documents]
         predictions = [[m.features.get("NE") or "O" for m in d.morphemes] for d in predicted_documents]
-        return {
-            # default: micro平均
-            "ner_f1": f1_score(
-                y_true=labels,
-                y_pred=predictions,
-                mode="strict",
-                scheme=IOB2,
-            )
-        }
+        # `f1_score` function calculates micro average by default
+        return {"ner_f1": f1_score(y_true=labels, y_pred=predictions, mode="strict", scheme=IOB2).item()}
 
+    @staticmethod
     def compute_base_phrase_feature_tagging_metrics(
-        self, partly_gold_documents1: List[Document], gold_documents: List[Document]
+        partly_gold_documents1: List[Document], gold_documents: List[Document]
     ) -> Dict[str, float]:
         metrics: Dict[str, float] = {}
         concatenated_labels = []
@@ -354,7 +342,7 @@ class WordModuleMetric(BaseModuleMetric):
         for base_phrase_feature in BASE_PHRASE_FEATURES:
             labels = [
                 [
-                    self._convert_feature_to_bo_tag(m.base_phrase.features.get(base_phrase_feature))
+                    WordModuleMetric._convert_feature_to_bo_tag(m.base_phrase.features.get(base_phrase_feature))
                     for m in d.morphemes
                     if m == m.base_phrase.head
                 ]
@@ -362,7 +350,7 @@ class WordModuleMetric(BaseModuleMetric):
             ]
             predictions = [
                 [
-                    self._convert_feature_to_bo_tag(m.base_phrase.features.get(base_phrase_feature))
+                    WordModuleMetric._convert_feature_to_bo_tag(m.base_phrase.features.get(base_phrase_feature))
                     for m in d.morphemes
                     if m == m.base_phrase.head
                 ]
@@ -372,35 +360,30 @@ class WordModuleMetric(BaseModuleMetric):
             if "B" not in set(chain.from_iterable(labels)):
                 continue
             metrics[f"{base_phrase_feature}_f1"] = f1_score(
-                y_true=labels,
-                y_pred=predictions,
-                mode="strict",
-                scheme=IOB2,
-            )
+                y_true=labels, y_pred=predictions, mode="strict", scheme=IOB2
+            ).item()
             concatenated_labels += labels
             concatenated_predictions += predictions
         metrics["macro_base_phrase_feature_tagging_f1"] = mean(metrics.values())
         metrics["micro_base_phrase_feature_tagging_f1"] = f1_score(
-            y_true=concatenated_labels,
-            y_pred=concatenated_predictions,
-            mode="strict",
-            scheme=IOB2,
-        )
+            y_true=concatenated_labels, y_pred=concatenated_predictions, mode="strict", scheme=IOB2
+        ).item()
         return metrics
 
     @staticmethod
     def _convert_feature_to_bo_tag(feature: Optional[Union[bool, str]]) -> str:
         return "B" if feature is not None else "O"
 
+    @staticmethod
     def compute_dependency_parsing_metrics(
-        self, partly_gold_documents1: List[Document], gold_documents: List[Document]
+        partly_gold_documents1: List[Document], gold_documents: List[Document]
     ) -> Dict[str, float]:
         metrics: Dict[str, float] = {}
         metrics.update(
             {
                 f"base_phrase_{k}": v
                 for k, v in conll18_ud_eval(
-                    *self._to_conll_lines(partly_gold_documents1, gold_documents, "base_phrase")
+                    *WordModuleMetric._to_conll_lines(partly_gold_documents1, gold_documents, "base_phrase")
                 ).items()
             }
         )
@@ -408,14 +391,14 @@ class WordModuleMetric(BaseModuleMetric):
             {
                 f"morpheme_{k}": v
                 for k, v in conll18_ud_eval(
-                    *self._to_conll_lines(partly_gold_documents1, gold_documents, "morpheme")
+                    *WordModuleMetric._to_conll_lines(partly_gold_documents1, gold_documents, "morpheme")
                 ).items()
             }
         )
         return metrics
 
+    @staticmethod
     def _to_conll_lines(
-        self,
         partly_gold_documents1: List[Document],
         gold_documents: List[Document],
         unit: Literal["base_phrase", "morpheme"],
@@ -424,10 +407,10 @@ class WordModuleMetric(BaseModuleMetric):
         system_lines = []
         for gold_document, partly_gold_document1 in zip(gold_documents, partly_gold_documents1):
             for sentence in gold_document.sentences:
-                gold_lines += [self._to_conll_line(u) for u in getattr(sentence, f"{unit}s")]
+                gold_lines += [WordModuleMetric._to_conll_line(u) for u in getattr(sentence, f"{unit}s")]
                 gold_lines.append("\n")
             for sentence in partly_gold_document1.sentences:
-                system_lines += [self._to_conll_line(u) for u in getattr(sentence, f"{unit}s")]
+                system_lines += [WordModuleMetric._to_conll_line(u) for u in getattr(sentence, f"{unit}s")]
                 system_lines.append("\n")
         return gold_lines, system_lines
 

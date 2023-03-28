@@ -75,12 +75,7 @@ class SenterModuleMetric(BaseModuleMetric):
         predictions = [self._convert_document_into_segmentation_tags(d) for d in predicted_documents]
         return {
             "sent_segmentation_accuracy": accuracy_score(y_true=labels, y_pred=predictions),
-            "sent_segmentation_f1": f1_score(
-                y_true=labels,
-                y_pred=predictions,
-                mode="strict",
-                scheme=IOB2,
-            ),
+            "sent_segmentation_f1": f1_score(y_true=labels, y_pred=predictions, mode="strict", scheme=IOB2).item(),
         }
 
     @staticmethod
