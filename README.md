@@ -26,7 +26,7 @@ KWJA performs many language analysis tasks, including:
 
 ## Requirements
 
-- Python: 3.8, 3.9, 3.10
+- Python: 3.8+
 - Dependencies: See [pyproject.toml](./pyproject.toml).
 
 ## Getting Started
