@@ -5,4 +5,3 @@ defaults:
 limit_train_batches: 10
 limit_val_batches: 10
 limit_test_batches: 10
-accelerator: auto
