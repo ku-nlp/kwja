@@ -88,12 +88,7 @@ class CharModuleMetric(BaseModuleMetric):
         predictions = [self._convert_document_into_segmentation_tags(d) for d in predicted_documents]
         return {
             "word_segmentation_accuracy": accuracy_score(y_true=labels, y_pred=predictions),
-            "word_segmentation_f1": f1_score(
-                y_true=labels,
-                y_pred=predictions,
-                mode="strict",
-                scheme=IOB2,
-            ),
+            "word_segmentation_f1": f1_score(y_true=labels, y_pred=predictions, mode="strict", scheme=IOB2).item(),
         }
 
     @staticmethod
