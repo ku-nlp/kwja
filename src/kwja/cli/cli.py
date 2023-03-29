@@ -364,8 +364,8 @@ def tasks_callback(value: str) -> str:
 def main(
     text: Optional[str] = typer.Option(None, help="Text to be analyzed."),
     filename: Optional[Path] = typer.Option(None, help="File to be analyzed."),
-    device: Device = typer.Option(Device.auto, help="Device to be used."),
     model_size: ModelSize = typer.Option(ModelSize.base, help="Model size to be used."),
+    device: Device = typer.Option(Device.auto, help="Device to be used."),
     typo_batch_size: int = typer.Option(1, help="Batch size for typo module."),
     seq2seq_batch_size: int = typer.Option(1, help="Batch size for seq2seq module."),
     char_batch_size: int = typer.Option(1, help="Batch size for char module."),
