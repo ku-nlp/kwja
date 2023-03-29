@@ -45,7 +45,7 @@ Perform language analysis with the `kwja` command (the result is in the KNP form
 $ kwja --text "KWJAは日本語の統合解析ツールです。汎用言語モデルを利用し、様々な言語解析を統一的な方法で解いています。"
 
 # Analyze a text file and write the result to a file
-$ kwja --file path/to/file.txt > path/to/analyzed.knp
+$ kwja --filename path/to/file.txt > path/to/analyzed.knp
 
 # Analyze texts interactively
 $ kwja
@@ -77,7 +77,7 @@ Here are some other options for `kwja` command:
 
 `--device`: Device to be used. Please specify 'cpu' or 'gpu'.
 
-`--typo-batch-size`: Batch size for typo module.
+`--typo-batch-size`: Batch size for typo module. This batch size is also used for the senter module.
 
 `--seq2seq-batch-size`: Batch size for seq2seq module.
 
@@ -85,8 +85,9 @@ Here are some other options for `kwja` command:
 
 `--word-batch-size`: Batch size for word module.
 
-`--tasks`: Tasks to be performed. Please specify 'typo', 'char', 'seq2seq', 'typo,char', 'typo,seq2seq', 'seq2seq,word', 'char,word', 'typo,char,word',  'typo,seq2seq,word', 'char,word,word_discourse', 'seq2seq,word,word_discourse', 'typo,char,word,word_discourse' or 'typo,char,word,word_discourse'.
+`--tasks`: Tasks to be performed.
   - `typo`: Typo correction
+  - `senter`: Sentence segmentation
   - `seq2seq`: Word segmentation, Word normalization, Reading prediction, lemmatization, and Canonicalization.
   - `char`: Word segmentation and Word normalization
   - `word`: Morphological analysis, Named entity recognition, Word feature tagging, Dependency parsing, PAS analysis, Bridging reference resolution, and Coreference resolution

@@ -1,17 +1,16 @@
 import logging
-from datetime import datetime
+from pathlib import Path
 from typing import List, Optional
 
-from omegaconf import ListConfig
-from rhoknp import KNP, Document, Jumanpp, RegexSenter
+from rhoknp import KNP, Document, Jumanpp
 from torch.utils.data import Dataset
 from transformers import BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
-import kwja
 from kwja.datamodule.datasets.seq2seq import Seq2SeqModuleFeatures
 from kwja.datamodule.examples import Seq2SeqInferenceExample
 from kwja.utils.progress_bar import track
+from kwja.utils.reader import chunk_by_document_for_line_by_line_text
 
 logger = logging.getLogger(__name__)
 
@@ -22,17 +21,24 @@ knp = KNP()
 class Seq2SeqInferenceDataset(Dataset[Seq2SeqModuleFeatures]):
     def __init__(
         self,
-        texts: ListConfig,
         tokenizer: PreTrainedTokenizerBase,
         max_src_length: int,
         max_tgt_length: int,
-        doc_id_prefix: Optional[str] = None,
+        senter_file: Optional[Path] = None,
+        **_,
     ) -> None:
         self.tokenizer: PreTrainedTokenizerBase = tokenizer
         self.max_src_length: int = max_src_length
         self.max_tgt_length: int = max_tgt_length
 
-        documents: List[Document] = self._build_documents_from_texts(list(texts), doc_id_prefix)
+        if senter_file is not None:
+            with senter_file.open() as f:
+                documents = [
+                    Document.from_line_by_line_text(c)
+                    for c in track(chunk_by_document_for_line_by_line_text(f), description="Loading documents")
+                ]
+        else:
+            documents = []
         self.examples: List[Seq2SeqInferenceExample] = self._load_example(documents)
 
     def __len__(self) -> int:
@@ -74,21 +80,3 @@ class Seq2SeqInferenceDataset(Dataset[Seq2SeqModuleFeatures]):
             attention_mask=example.src_encoding.attention_mask,
             seq2seq_labels=[],
         )
-
-    @staticmethod
-    def _build_documents_from_texts(texts: List[str], doc_id_prefix: Optional[str]) -> List[Document]:
-        senter = RegexSenter()
-        # split text into sentences
-        documents: List[Document] = [
-            senter.apply_to_document(text) for text in track(texts, description="Loading documents")
-        ]
-        if doc_id_prefix is None:
-            doc_id_prefix = datetime.now().strftime("%Y%m%d%H%M")
-        doc_id_width = len(str(len(documents)))
-        sent_id_width = max((len(str(len(doc.sentences))) for doc in documents), default=0)
-        for document_index, document in enumerate(documents):
-            document.doc_id = f"{doc_id_prefix}-{document_index:0{doc_id_width}}"
-            for sentence_index, sentence in enumerate(document.sentences):
-                sentence.sid = f"{document.doc_id}-{sentence_index:0{sent_id_width}}"
-                sentence.misc_comment = f"kwja:{kwja.__version__}"
-        return documents

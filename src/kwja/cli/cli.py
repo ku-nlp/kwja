@@ -1,6 +1,7 @@
 import os
 import re
 from abc import ABC
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -11,13 +12,14 @@ import pytorch_lightning as pl
 import typer
 from omegaconf import OmegaConf
 from pytorch_lightning.trainer.states import TrainerFn
-from rhoknp import Document
+from rhoknp import Document, RegexSenter, Sentence
 from rhoknp.utils.reader import chunk_by_document
 
 import kwja
 from kwja.cli.utils import download_checkpoint, prepare_device, suppress_debug_info
 from kwja.datamodule.datamodule import DataModule
-from kwja.modules import CharModule, Seq2SeqModule, TypoModule, WordModule
+from kwja.modules import CharModule, SenterModule, Seq2SeqModule, TypoModule, WordModule
+from kwja.utils.reader import chunk_by_sentence_for_line_by_line_text
 
 suppress_debug_info()
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -31,6 +33,12 @@ class Device(str, Enum):
     auto = "auto"
     cpu = "cpu"
     gpu = "gpu"
+
+
+class ModelSize(str, Enum):
+    tiny = "tiny"
+    base = "base"
+    large = "large"
 
 
 class BaseModuleProcessor(ABC):
@@ -101,6 +109,53 @@ class TypoModuleProcessor(BaseModuleProcessor):
         print("\n".join(post_texts))
 
 
+class SenterModuleProcessor(BaseModuleProcessor):
+    doc_idx = 0
+
+    def load(self):
+        if self.model_size != "tiny":
+            super().load()
+
+    def _load_module(self) -> pl.LightningModule:
+        if self.model_size != "tiny":
+            typer.echo("Loading senter module", err=True)
+            checkpoint_path: Path = download_checkpoint(module="senter", model_size=self.model_size)
+            return SenterModule.load_from_checkpoint(checkpoint_path, map_location=self.device)
+        return  # type: ignore
+
+    def _load_datamodule(self, input_file: Path) -> DataModule:
+        if self.model_size != "tiny":
+            assert self.module is not None
+            self.module.hparams.datamodule.predict.texts = input_file.read_text().splitlines()
+            datamodule = DataModule(cfg=self.module.hparams.datamodule)
+            datamodule.setup(stage=TrainerFn.PREDICTING)
+            return datamodule
+        return  # type: ignore
+
+    def apply_module(self, input_file: Path) -> Path:
+        if self.model_size != "tiny":
+            return super().apply_module(input_file)
+
+        senter = RegexSenter()
+        document = senter.apply_to_document(input_file.read_text())
+
+        doc_id_prefix = datetime.now().strftime("%Y%m%d%H%M")
+        document.doc_id = f"{doc_id_prefix}-{self.doc_idx}"
+        self.doc_idx += 1
+        for sent_idx, sentence in enumerate(document.sentences):
+            sentence.sid = f"{document.doc_id}-{sent_idx}"
+            sentence.misc_comment = f"kwja:{kwja.__version__}"
+        with self.destination.open("wt") as f:
+            f.write(document.to_raw_text())
+        return self.destination
+
+    def output_prediction(self) -> None:
+        with self.destination.open() as f:
+            for sentence_text in chunk_by_sentence_for_line_by_line_text(f):
+                sentence = Sentence.from_raw_text(sentence_text)
+                print(sentence.text)
+
+
 class Seq2SeqModuleProcessor(BaseModuleProcessor):
     def _load_module(self):
         typer.echo("Loading seq2seq module", err=True)
@@ -109,7 +164,7 @@ class Seq2SeqModuleProcessor(BaseModuleProcessor):
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
-        self.module.hparams.datamodule.predict.texts = input_file.read_text().splitlines()
+        self.module.hparams.datamodule.predict.senter_file = input_file
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
         datamodule.setup(stage=TrainerFn.PREDICTING)
         return datamodule
@@ -131,7 +186,7 @@ class CharModuleProcessor(BaseModuleProcessor):
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
-        self.module.hparams.datamodule.predict.texts = input_file.read_text().splitlines()
+        self.module.hparams.datamodule.predict.senter_file = input_file
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
         datamodule.setup(stage=TrainerFn.PREDICTING)
         return datamodule
@@ -196,12 +251,14 @@ class CLIProcessor:
         self.tmp_dir = TemporaryDirectory()
         self.raw_destination = self.tmp_dir.name / Path("raw_text.txt")
         typo_destination = self.tmp_dir.name / Path("typo_prediction.txt")
+        senter_destination = self.tmp_dir.name / Path("senter_prediction.txt")
         seq2seq_destination = self.tmp_dir.name / Path("seq2seq_prediction.seq2seq")
         char_destination = self.tmp_dir.name / Path("char_prediction.juman")
         word_destination = self.tmp_dir.name / Path("word_prediction.knp")
         word_discourse_destination = self.tmp_dir.name / Path("word_discourse_prediction.knp")
         self.processors: Dict[str, BaseModuleProcessor] = {
             "typo": TypoModuleProcessor(specified_device, model_size, typo_batch_size, typo_destination),
+            "senter": SenterModuleProcessor(specified_device, model_size, typo_batch_size, senter_destination),
             "seq2seq": Seq2SeqModuleProcessor(specified_device, model_size, seq2seq_batch_size, seq2seq_destination),
             "char": CharModuleProcessor(specified_device, model_size, char_batch_size, char_destination),
             "word": WordModuleProcessor(specified_device, model_size, word_batch_size, word_destination),
@@ -271,41 +328,34 @@ def tasks_callback(value: str) -> str:
     if len(tasks) == 0:
         raise typer.BadParameter("task must be specified")
     for task in tasks:
-        if task not in ("typo", "seq2seq", "char", "word", "word_discourse"):
+        if task not in ("typo", "senter", "seq2seq", "char", "word", "word_discourse"):
             raise typer.BadParameter("invalid task name is contained")
     valid_task_combinations: Set[Tuple[str, ...]] = {
         ("typo",),
-        ("char",),
-        ("seq2seq",),
-        ("seq2seq", "typo"),
-        ("seq2seq", "word"),
-        ("seq2seq", "typo", "word"),
-        ("seq2seq", "word", "word_discourse"),
-        ("seq2seq", "typo", "word", "word_discourse"),
-        ("char", "typo"),
-        ("char", "word"),
-        ("char", "typo", "word"),
-        ("char", "word", "word_discourse"),
-        ("char", "typo", "word", "word_discourse"),
+        ("senter",),
+        ("senter", "typo"),
+        ("char", "senter"),
+        ("char", "senter", "typo"),
+        ("char", "senter", "word"),
+        ("char", "senter", "typo", "word"),
+        ("char", "senter", "word", "word_discourse"),
+        ("char", "senter", "typo", "word", "word_discourse"),
+        ("senter", "seq2seq"),
+        ("senter", "seq2seq", "typo"),
+        ("senter", "seq2seq", "word"),
+        ("senter", "seq2seq", "typo", "word"),
+        ("senter", "seq2seq", "word", "word_discourse"),
+        ("senter", "seq2seq", "typo", "word", "word_discourse"),
     }
+
+    def task_to_string(task: Tuple[str, ...]) -> str:
+        return "'" + ",".join(task) + "'"
+
     sorted_task: Tuple[str, ...] = tuple(sorted(tasks))
     if sorted_task not in valid_task_combinations:
         raise typer.BadParameter(
             "task combination is invalid. "
-            "Please specify one of "
-            "'typo', "
-            "'char', "
-            "'seq2seq', "
-            "'typo,char', "
-            "'typo,seq2seq', "
-            "'seq2seq,word', "
-            "'char,word', "
-            "'typo,seq2seq,word', "
-            "'seq2seq,word,word_discourse', "
-            "'typo,seq2seq,word,word_discourse', "
-            "'typo,char,word', "
-            "'char,word,word_discourse' "
-            "or 'typo,char,word,word_discourse'."
+            f"Please specify one of {', '.join(task_to_string(task) for task in valid_task_combinations)}."
         )
     return value
 
@@ -314,13 +364,8 @@ def tasks_callback(value: str) -> str:
 def main(
     text: Optional[str] = typer.Option(None, help="Text to be analyzed."),
     filename: Optional[Path] = typer.Option(None, help="File to be analyzed."),
-    device: Device = typer.Option(
-        Device.auto,
-        help="Device to be used. Please specify 'auto', 'cpu' or 'gpu'.",
-    ),
-    model_size: str = typer.Option(
-        "base", callback=model_size_callback, help="Model size to be used. Please specify 'tiny', 'base', or 'large'."
-    ),
+    model_size: ModelSize = typer.Option(ModelSize.base, help="Model size to be used."),
+    device: Device = typer.Option(Device.auto, help="Device to be used."),
     typo_batch_size: int = typer.Option(1, help="Batch size for typo module."),
     seq2seq_batch_size: int = typer.Option(1, help="Batch size for seq2seq module."),
     char_batch_size: int = typer.Option(1, help="Batch size for char module."),
@@ -337,20 +382,20 @@ def main(
     elif filename is not None:
         input_text = Path(filename).read_text()
 
-    if model_size == "large" and "seq2seq" in tasks:
+    if model_size == ModelSize.large and "seq2seq" in tasks:
         typer.echo("ERROR: Large model does not support seq2seq module now", err=True)
         raise typer.Abort()
 
     processor = CLIProcessor(
         specified_device=device.value,
-        model_size=model_size,
+        model_size=model_size.value,
         typo_batch_size=typo_batch_size,
         seq2seq_batch_size=seq2seq_batch_size,
         char_batch_size=char_batch_size,
         word_batch_size=word_batch_size,
     )
     specified_tasks: List[str] = [
-        task for task in ["typo", "seq2seq", "char", "word", "word_discourse"] if task in tasks.split(",")
+        task for task in ["typo", "senter", "seq2seq", "char", "word", "word_discourse"] if task in tasks.split(",")
     ]
 
     if input_text is None:
