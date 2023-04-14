@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import hydra
 import torch
 from omegaconf import DictConfig
-from transformers import PretrainedConfig, PreTrainedModel
+from transformers import PreTrainedModel
 
 from kwja.metrics import CharModuleMetric
 from kwja.modules.base import BaseModule
@@ -28,14 +28,10 @@ class CharModule(BaseModule):
                 corpus: CharModuleMetric() for corpus in self.test_corpora
             }
 
-        self.char_encoder: PreTrainedModel = hydra.utils.call(hparams.encoder)
-        pretrained_model_config: PretrainedConfig = self.char_encoder.config
+        self.encoder: PreTrainedModel = hydra.utils.call(hparams.encoder)
         if hasattr(hparams, "special_tokens"):
-            self.char_encoder.resize_token_embeddings(pretrained_model_config.vocab_size + len(hparams.special_tokens))
-        head_args: Tuple[int, float] = (
-            pretrained_model_config.hidden_size,
-            pretrained_model_config.hidden_dropout_prob,
-        )
+            self.encoder.resize_token_embeddings(self.encoder.config.vocab_size + len(hparams.special_tokens))
+        head_args: Tuple[int, float] = (self.encoder.config.hidden_size, self.encoder.config.hidden_dropout_prob)
 
         # ---------- word segmentation ----------
         self.word_segmentation_tagger = SequenceLabelingHead(len(WORD_SEGMENTATION_TAGS), *head_args)
@@ -45,11 +41,11 @@ class CharModule(BaseModule):
 
     def setup(self, stage: str) -> None:
         if stage == "fit":
-            self.char_encoder.from_pretrained(self.hparams.encoder.config.pretrained_model_name_or_path)
+            self.encoder.from_pretrained(self.hparams.encoder.config.pretrained_model_name_or_path)
 
     def forward(self, batch: Any) -> Dict[str, torch.Tensor]:
         truncation_length = self._truncate(batch)
-        encoded = self.char_encoder(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"])
+        encoded = self.encoder(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"])
         word_segmentation_logits = self.word_segmentation_tagger(encoded.last_hidden_state)
         word_norm_op_logits = self.word_norm_op_tagger(encoded.last_hidden_state)
         if truncation_length > 0:
