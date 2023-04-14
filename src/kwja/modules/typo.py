@@ -41,6 +41,10 @@ class TypoModule(BaseModule):
         extended_vocab_size = sum(1 for _ in RESOURCE_PATH.joinpath("typo_correction", "multi_char_vocab.txt").open())
         self.ins_tagger = SequenceLabelingHead(pretrained_model_config.vocab_size + extended_vocab_size, *head_args)
 
+    def setup(self, stage: str) -> None:
+        if stage == "fit":
+            self.char_encoder.from_pretrained(self.hparams.encoder.config.pretrained_model_name_or_path)
+
     def forward(self, batch: Any) -> Dict[str, torch.Tensor]:
         truncation_length = self._truncate(batch)
         encoded = self.char_encoder(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"])

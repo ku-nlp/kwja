@@ -1,3 +1,5 @@
-_target_: transformers.AutoModel.from_pretrained
-pretrained_model_name_or_path: ku-nlp/roberta-large-japanese-char-wwm
+_target_: transformers.AutoModel.from_config
+config:
+  _target_: transformers.AutoConfig.from_pretrained
+  pretrained_model_name_or_path: ku-nlp/roberta-large-japanese-char-wwm
 add_pooling_layer: false

@@ -38,6 +38,10 @@ class Seq2SeqModule(BaseModule):
         self.char2tokens, self.char2underscore_tokens = get_char2tokens(self.tokenizer)
         self.use_forced_surf_decoding: bool = getattr(hparams, "use_forced_surf_decoding", False)
 
+    def setup(self, stage: str) -> None:
+        if stage == "fit":
+            self.seq2seq_model.from_pretrained(self.hparams.encoder.config.pretrained_model_name_or_path)
+
     def forward(self, batch: Any) -> Dict[str, torch.Tensor]:
         self._truncate(batch)
         output = self.seq2seq_model(

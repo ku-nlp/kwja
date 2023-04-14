@@ -113,6 +113,10 @@ class WordModule(BaseModule):
                 num_cohesion_rels += len(coreference_utils.rels)
         return num_cohesion_rels
 
+    def setup(self, stage: str) -> None:
+        if stage == "fit":
+            self.word_encoder.from_pretrained(self.hparams.encoder.config.pretrained_model_name_or_path)
+
     def forward(self, batch: Any) -> Dict[str, torch.Tensor]:
         # (b, seq, hid)
         encoded = self.word_encoder(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"])

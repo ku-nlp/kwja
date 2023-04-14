@@ -38,6 +38,10 @@ class SenterModule(BaseModule):
             hidden_dropout_prob=pretrained_model_config.hidden_dropout_prob,
         )
 
+    def setup(self, stage: str) -> None:
+        if stage == "fit":
+            self.char_encoder.from_pretrained(self.hparams.encoder.config.pretrained_model_name_or_path)
+
     def forward(self, batch: Any) -> Dict[str, Dict[str, torch.Tensor]]:
         encoded = self.char_encoder(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"])
         sent_segmentation_logits = self.sent_segmentation_tagger(encoded.last_hidden_state)

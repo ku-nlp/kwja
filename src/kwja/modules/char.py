@@ -43,6 +43,10 @@ class CharModule(BaseModule):
         # ---------- word normalization ----------
         self.word_norm_op_tagger = SequenceLabelingHead(len(WORD_NORM_OP_TAGS), *head_args)
 
+    def setup(self, stage: str) -> None:
+        if stage == "fit":
+            self.char_encoder.from_pretrained(self.hparams.encoder.config.pretrained_model_name_or_path)
+
     def forward(self, batch: Any) -> Dict[str, torch.Tensor]:
         truncation_length = self._truncate(batch)
         encoded = self.char_encoder(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"])
