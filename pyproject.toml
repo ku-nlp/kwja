@@ -45,7 +45,7 @@ include = [
 [tool.poetry.dependencies]
 python = "^3.8"
 torch = ">=1.11"
-transformers = {version = "~4.27.3", extras = ["sentencepiece"]}
+transformers = {version = "~4.28.1", extras = ["sentencepiece"]}
 tokenizers = "^0.13.2"
 pytorch-lightning = "~2.0.0"  # As "lightning" comes with many extra dependencies, we stay with "pytorch-lightning"
 torchmetrics = "^0.11.3"
@@ -55,7 +55,7 @@ rhoknp = "^1.1.0"
 typer = ">=0.6.1,<0.8.0"
 seqeval = "^1.2"
 python-dotenv = "^1.0.0"
-pandas = "^1.4"
+pandas = "^2.0"
 jinf = "^1.0.4"
 importlib-resources = "^5.10"
 jaconv = "^0.3"
