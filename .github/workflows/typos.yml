@@ -14,5 +14,5 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-      - name: typos-action
-        uses: crate-ci/typos@v1
+      - name: Check spelling
+        uses: crate-ci/typos@master
