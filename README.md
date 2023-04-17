@@ -130,7 +130,7 @@ analyzed_document = kwja.apply(
 ## Performance Table
 
 - The performance on each task except typo correction and discourse relation analysis is the mean over all the corpora (KC, KWDLC, Fuman, and WAC) and over three runs with different random seeds.
-- We set the learning rate of RoBERTa<sub>LARGE</sub> (word) to 2e-5 because we failed to fine-tune it with a higher learning rate.  
+- We set the learning rate of RoBERTa<sub>LARGE</sub> (word) to 2e-5 because we failed to fine-tune it with a higher learning rate.
   Other hyperparameters are the same described in configs, which are tuned for DeBERTa<sub>BASE</sub>.
 
 <table>
