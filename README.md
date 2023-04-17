@@ -131,7 +131,7 @@ analyzed_document = kwja.apply(
 
 - The performance on each task except typo correction and discourse relation analysis is the mean over all the corpora (KC, KWDLC, Fuman, and WAC) and over three runs with different random seeds.
 - We set the learning rate of RoBERTa<sub>LARGE</sub> (word) to 2e-5 because we failed to fine-tune it with a higher learning rate.  
-  Other hyperparameters are the same described in configs, which is tuned for DeBERTa<sub>BASE</sub>.
+  Other hyperparameters are the same described in configs, which are tuned for DeBERTa<sub>BASE</sub>.
 
 <table>
   <tr>
@@ -168,117 +168,117 @@ analyzed_document = kwja.apply(
         )
     </th>
   </tr>
-  <tr style="text-align: right">
-    <th colspan="2" style="text-align: center">Typo Correction</th>
+  <tr style="text-align: right;">
+    <th colspan="2" style="text-align: center;">Typo Correction</th>
     <td>TBU</td>
     <td>TBU</td>
     <td>TBU</td>
     <td>TBU</td>
   </tr>
-  <tr style="text-align: right">
-    <th colspan="2" style="text-align: center">Word Segmentation</th>
+  <tr style="text-align: right;">
+    <th colspan="2" style="text-align: center;">Word Segmentation</th>
     <td>98.5</td>
     <td>98.6</td>
     <td>98.7</td>
-    <td style="font-weight: bold">98.9/td>
+    <td style="font-weight: bold;">98.9</td>
   </tr>
-  <tr style="text-align: right">
-    <th colspan="2" style="text-align: center">Word Normalization</th>
+  <tr style="text-align: right;">
+    <th colspan="2" style="text-align: center;">Word Normalization</th>
     <td>44.0</td>
     <td>39.2</td>
     <td>39.8</td>
-    <td>46.0</td>
+    <td style="font-weight: bold;">46.0</td>
   </tr>
-  <tr style="text-align: right">
-    <th rowspan="5" style="text-align: center">Morphological<br>Analysis</th>
-    <th style="text-align: left">POS</th>
+  <tr style="text-align: right;">
+    <th rowspan="5" style="text-align: center;">Morphological<br>Analysis</th>
+    <th style="text-align: left;">POS</th>
     <td>99.3</td>
-    <td style="font-weight: bold">99.4</td>
+    <td style="font-weight: bold;">99.4</td>
     <td>99.3</td>
-    <td style="font-weight: bold">99.4</td>
+    <td style="font-weight: bold;">99.4</td>
   </tr>
-  <tr style="text-align: right">
-    <th style="text-align: left">sub-POS</th>
+  <tr style="text-align: right;">
+    <th style="text-align: left;">sub-POS</th>
     <td>98.1</td>
-    <td style="font-weight: bold">98.4</td>
+    <td style="font-weight: bold;">98.4</td>
     <td>98.2</td>
-    <td style="font-weight: bold">98.4</td>
+    <td style="font-weight: bold;">98.4</td>
   </tr>
-  <tr style="text-align: right">
-    <th style="text-align: left">conjugation type</th>
+  <tr style="text-align: right;">
+    <th style="text-align: left;">conjugation type</th>
     <td>99.4</td>
-    <td style="font-weight: bold">99.5</td>
+    <td style="font-weight: bold;">99.5</td>
     <td>99.2</td>
     <td>99.4</td>
   </tr>
-  <tr style="text-align: right">
-    <th style="text-align: left">conjugation form</th>
+  <tr style="text-align: right;">
+    <th style="text-align: left;">conjugation form</th>
     <td>99.5</td>
-    <td style="font-weight: bold">99.6</td>
+    <td style="font-weight: bold;">99.6</td>
     <td>99.4</td>
-    <td style="font-weight: bold">99.6</td>
+    <td style="font-weight: bold;">99.6</td>
   </tr>
-  <tr style="text-align: right">
-    <th style="text-align: left">reading</th>
-    <td style="font-weight: bold">95.5</td>
+  <tr style="text-align: right;">
+    <th style="text-align: left;">reading</th>
+    <td style="font-weight: bold;">95.5</td>
     <td>95.2</td>
     <td>90.8</td>
     <td>95.1</td>
   </tr>
-  <tr style="text-align: right">
-    <th colspan="2" style="text-align: center">Named Entity Recognition</th>
+  <tr style="text-align: right;">
+    <th colspan="2" style="text-align: center;">Named Entity Recognition</th>
     <td>83.0</td>
     <td>83.8</td>
     <td>82.1</td>
-    <td style="font-weight: bold">84.6</td>
+    <td style="font-weight: bold;">84.6</td>
   </tr>
-  <tr style="text-align: right">
-    <th rowspan="2" style="text-align: center">Linguistic<br>Feature<br>Tagging</th>
-    <th style="text-align: left">word</th>
+  <tr style="text-align: right;">
+    <th rowspan="2" style="text-align: center;">Linguistic<br>Feature<br>Tagging</th>
+    <th style="text-align: left;">word</th>
     <td>98.3</td>
-    <td style="font-weight: bold">98.5</td>
-    <td style="font-weight: bold">98.5</td>
+    <td style="font-weight: bold;">98.5</td>
+    <td style="font-weight: bold;">98.5</td>
     <td>98.4</td>
   </tr>
-  <tr style="text-align: right">
-    <th style="text-align: left">base phrase</th>
+  <tr style="text-align: right;">
+    <th style="text-align: left;">base phrase</th>
     <td>86.6</td>
-    <td style="font-weight: bold">89.5</td>
+    <td style="font-weight: bold;">89.5</td>
     <td>86.4</td>
     <td>89.3</td>
   </tr>
-  <tr style="text-align: right">
-    <th colspan="2" style="text-align: center">Dependency Parsing</th>
+  <tr style="text-align: right;">
+    <th colspan="2" style="text-align: center;">Dependency Parsing</th>
     <td>92.9</td>
     <td>93.4</td>
-    <td style="font-weight: bold">93.8</td>
+    <td style="font-weight: bold;">93.8</td>
     <td>93.3</td>
   </tr>
-  <tr style="text-align: right">
-    <th colspan="2" style="text-align: center">Pas Analysis</th>
+  <tr style="text-align: right;">
+    <th colspan="2" style="text-align: center;">Pas Analysis</th>
     <td>74.2</td>
     <td>76.7</td>
     <td>75.3</td>
-    <td style="font-weight: bold">76.9</td>
+    <td style="font-weight: bold;">76.9</td>
   </tr>
-  <tr style="text-align: right">
-    <th colspan="2" style="text-align: center">Bridging Reference Resolution</th>
+  <tr style="text-align: right;">
+    <th colspan="2" style="text-align: center;">Bridging Reference Resolution</th>
     <td>66.5</td>
-    <td style="font-weight: bold">67.3</td>
+    <td style="font-weight: bold;">67.3</td>
     <td>65.2</td>
     <td>67.0</td>
   </tr>
-  <tr style="text-align: right">
-    <th colspan="2" style="text-align: center">Coreference Resolution</th>
+  <tr style="text-align: right;">
+    <th colspan="2" style="text-align: center;">Coreference Resolution</th>
     <td>74.9</td>
-    <td style="font-weight: bold">78.4</td>
+    <td style="font-weight: bold;">78.4</td>
     <td>75.9</td>
     <td>78.0</td>
   </tr>
-  <tr style="text-align: right">
-    <th colspan="2" style="text-align: center">Discourse Relation Analysis</th>
+  <tr style="text-align: right;">
+    <th colspan="2" style="text-align: center;">Discourse Relation Analysis</th>
     <td>42.2</td>
-    <td style="font-weight: bold">44.8</td>
+    <td style="font-weight: bold;">44.8</td>
     <td>41.3</td>
     <td>41.0</td>
   </tr>
