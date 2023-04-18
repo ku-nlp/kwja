@@ -370,7 +370,7 @@ def main(
     seq2seq_batch_size: int = typer.Option(1, help="Batch size for seq2seq module."),
     char_batch_size: int = typer.Option(1, help="Batch size for char module."),
     word_batch_size: int = typer.Option(1, help="Batch size for word module."),
-    tasks: str = typer.Option("typo,char,word,word_discourse", callback=tasks_callback, help="Tasks to be performed."),
+    tasks: str = typer.Option("char,word,word_discourse", callback=tasks_callback, help="Tasks to be performed."),
     _: Optional[bool] = typer.Option(None, "--version", callback=version_callback, is_eager=True),
 ) -> None:
     input_text: Optional[str] = None
