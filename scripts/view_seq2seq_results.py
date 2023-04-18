@@ -18,13 +18,11 @@ OUTPUT_DIR: str = "./outputs"
 
 @dataclass(frozen=True)
 class DiffType:
-    # equal, surf, {reading, lemma, pos, subpos}は排他的．
+    # equal, surf, {reading, lemma, canon}は排他的．
     equal: bool = False
     surf: bool = False
     reading: bool = False
     lemma: bool = False
-    pos: bool = False
-    subpos: bool = False
     canon: bool = False
 
 
@@ -35,12 +33,12 @@ class DiffPart(object):
         self.diff_part = self._separate_parts(diff_text)
 
     def __repr__(self):
-        return f"{self.surf}_{self.reading}_{self.lemma}_{self.pos}_{self.subpos}_{self.canon}"
+        return f"{self.surf}_{self.reading}_{self.lemma}_{self.canon}"
 
-    def _separate_parts(self, text: str) -> Tuple[str, str, str, str, str, str]:
+    def _separate_parts(self, text: str) -> Tuple[str, str, str, str]:
         if text.startswith("! ") or text.startswith("+ ") or text.startswith("- "):
             self.has_diff = True
-        return cast(Tuple[str, str, str, str, str, str], tuple(text[2:].split("_")))
+        return cast(Tuple[str, str, str, str], tuple(text[2:].split("_")))
 
     @property
     def surf(self) -> str:
@@ -55,16 +53,8 @@ class DiffPart(object):
         return self.diff_part[2]
 
     @property
-    def pos(self) -> str:
-        return self.diff_part[3]
-
-    @property
-    def subpos(self) -> str:
-        return self.diff_part[4]
-
-    @property
     def canon(self) -> str:
-        return self.diff_part[5]
+        return self.diff_part[3]
 
 
 class Diff(object):
@@ -92,9 +82,9 @@ class Diff(object):
 
 class MorphologicalAnalysisScorer:
     def __init__(self, sys_sentences: List[Sentence], gold_sentences: List[Sentence]) -> None:
-        self.tp: Dict[str, int] = dict(surf=0, reading=0, lemma=0, pos=0, subpos=0, canon=0)
-        self.fp: Dict[str, int] = dict(surf=0, reading=0, lemma=0, pos=0, subpos=0, canon=0)
-        self.fn: Dict[str, int] = dict(surf=0, reading=0, lemma=0, pos=0, subpos=0, canon=0)
+        self.tp: Dict[str, int] = dict(surf=0, reading=0, lemma=0, canon=0)
+        self.fp: Dict[str, int] = dict(surf=0, reading=0, lemma=0, canon=0)
+        self.fn: Dict[str, int] = dict(surf=0, reading=0, lemma=0, canon=0)
 
         self.num_same_texts: int = 0
         self.diffs: List[Diff] = self._search_diffs(sys_sentences, gold_sentences)
@@ -106,13 +96,11 @@ class MorphologicalAnalysisScorer:
             surf: str = jaconv.h2z(mrph.surf.replace("<unk>", "$"), ascii=True, digit=True)
             reading: str = jaconv.h2z(mrph.reading.replace("<unk>", "$"), ascii=True, digit=True)
             lemma: str = jaconv.h2z(mrph.lemma.replace("<unk>", "$"), ascii=True, digit=True)
-            pos: str = jaconv.h2z(mrph.pos.replace("<unk>", "$"), ascii=True, digit=True)
-            subpos: str = jaconv.h2z(mrph.subpos.replace("<unk>", "$"), ascii=True, digit=True)
             if mrph.canon is None or mrph.canon == "None":
                 canon: str = f"{lemma}／{reading}"
             else:
                 canon = jaconv.h2z(mrph.canon.replace("<unk>", "$"), ascii=True, digit=True)
-            converteds.append(f"{surf}_{reading}_{lemma}_{pos}_{subpos}_{canon}")
+            converteds.append(f"{surf}_{reading}_{lemma}_{canon}")
         return converteds
 
     def _search_diff(self, pred: List[str], gold: List[str]) -> Diff:
@@ -183,8 +171,6 @@ class MorphologicalAnalysisScorer:
                             "surf": False,
                             "reading": False,
                             "lemma": False,
-                            "pos": False,
-                            "subpos": False,
                             "canon": False,
                         }
                         if pred_diff_part.reading != gold_diff_part.reading:
@@ -194,12 +180,6 @@ class MorphologicalAnalysisScorer:
                         if pred_diff_part.canon != gold_diff_part.canon:
                             diff_types["canon"] = True
 
-                        if pred_diff_part.pos == "未定義語" and gold_diff_part.pos == "名詞":
-                            diff_types["subpos"] = True
-                        elif pred_diff_part.pos != gold_diff_part.pos:
-                            diff_types["pos"] = True
-                        elif pred_diff_part.subpos != gold_diff_part.subpos:
-                            diff_types["subpos"] = True
                         pred_diff_idx += 1
                         gold_diff_idx += 1
                         diff.append(DiffType(**diff_types), [pred_diff_part], [gold_diff_part])
@@ -256,11 +236,11 @@ class MorphologicalAnalysisScorer:
         for diff in self.diffs:
             for p in diff:
                 if p["diff_type"].equal:
-                    true_keys: List[str] = ["surf", "pos", "subpos", "reading", "lemma", "canon"]
+                    true_keys: List[str] = ["surf", "reading", "lemma", "canon"]
                     false_keys: List[str] = []
                 elif p["diff_type"].surf:
                     true_keys = []
-                    false_keys = ["surf", "pos", "subpos", "reading", "lemma", "canon"]
+                    false_keys = ["surf", "reading", "lemma", "canon"]
                 else:
                     true_keys = ["surf"]
                     false_keys = []
@@ -276,16 +256,7 @@ class MorphologicalAnalysisScorer:
                         false_keys.append("canon")
                     else:
                         true_keys.append("canon")
-                    if p["diff_type"].pos:
-                        false_keys.append("pos")
-                        false_keys.append("subpos")
-                    elif p["diff_type"].subpos:
-                        true_keys.append("pos")
-                        false_keys.append("subpos")
-                    else:
-                        true_keys.append("pos")
-                        true_keys.append("subpos")
-                    assert len(true_keys) + len(false_keys) == 6
+                    assert len(true_keys) + len(false_keys) == 4
                 for key in true_keys:
                     self.tp[key] += len(p["sys_parts"])
                 for key in false_keys:
@@ -379,31 +350,36 @@ def main():
         )
 
         jumans: List[Sentence] = []
+        kwjas: List[Sentence] = []
         seq2seqs: List[Sentence] = []
         golds: List[Sentence] = []
         for sid, gold_sent in sid_to_gold_sent.items():
-            if sid not in sid_to_juman_sent or sid not in sid_to_seq2seq_sent:
+            if sid not in sid_to_juman_sent:
+                continue
+            if sid not in sid_to_kwja_sent:
+                continue
+            if sid not in sid_to_seq2seq_sent:
                 continue
             jumans.append(sid_to_juman_sent[sid])
+            kwjas.append(sid_to_kwja_sent[sid])
             seq2seqs.append(sid_to_seq2seq_sent[sid])
             golds.append(gold_sent)
-            assert len(jumans) == len(seq2seqs) == len(golds)
+            assert len(jumans) == len(kwjas) == len(seq2seqs) == len(golds)
 
         print("  jumanpp")
         juman_scorer = MorphologicalAnalysisScorer(jumans, golds)
         juman_scorer.compute_score()
 
-        # if args.compare_kwja:
-        #     print("  kwja")
-        #     kwja_scorer = MorphologicalAnalysisScorer(kwjas, golds)
-        #     kwja_scorer.compute_score()
+        print("  kwja")
+        kwja_scorer = MorphologicalAnalysisScorer(kwjas, golds)
+        kwja_scorer.compute_score()
 
         print("  seq2seq")
         system_scorer = MorphologicalAnalysisScorer(seq2seqs, golds)
         system_scorer.compute_score()
 
-        # print(f"# of same texts for seq2seq: {system_scorer.num_same_texts}")
-        # print(f"Ratio of same texts for seq2seq = {system_scorer.num_same_texts / len(generators) * 100:.2f}\n")
+        print(f"# of same texts for seq2seq: {system_scorer.num_same_texts}")
+        print(f"Ratio of same texts for seq2seq = {system_scorer.num_same_texts / len(kwjas) * 100:.2f}\n")
 
 
 if __name__ == "__main__":
