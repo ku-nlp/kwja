@@ -1,4 +1,3 @@
-import copy
 import difflib
 import logging
 import re
@@ -8,7 +7,8 @@ from pathlib import Path
 from typing import Dict, List, Tuple, cast
 
 import jaconv
-from rhoknp import Document, Sentence
+from rhoknp import KWJA, Document, Jumanpp, Sentence
+from tqdm.rich import tqdm
 
 logging.getLogger("rhoknp").setLevel(logging.ERROR)
 
@@ -307,154 +307,103 @@ class MorphologicalAnalysisScorer:
         print("    " + " = ".join(outputs))
 
 
-def format_juman(input_text: str) -> Tuple[str, bool]:
-    lines: List[str] = input_text.split("\n")
-    mrph_placeholder: List[str] = ["@", "@", "@", "未定義語", "15", "その他", "1", "*", "0", "*", "0", "NIL"]
-    output_text: str = ""
-    contain_dummy: bool = False
-    for line in lines:
-        if not line:
-            continue
-        if line == "EOS" or line.startswith("*") or line.startswith("+"):
-            output_text += line + "\n"
-        else:
-            preds: List[str] = line.split(" ")
-            if len(preds) == 4:
-                mrphs: List[str] = copy.deepcopy(mrph_placeholder)
-                for idx in range(3):
-                    mrphs[idx] = preds[idx]
-                mrphs[-1] = f'"代表表記:{preds[3]}"' if preds[3] is not None else "NIL"
-                output_text += " ".join(mrphs) + "\n"
-            elif line in ["!!!!/!", "????/?", ",,,,/,"]:
-                mrphs = copy.deepcopy(mrph_placeholder)
-                for idx in range(3):
-                    mrphs[idx] = line[idx]
-                mrphs[-1] = f'"代表表記:{line[-1]}/{line[-1]}"'
-                output_text += " ".join(mrphs) + "\n"
-            elif line == "............/...":
-                mrphs = copy.deepcopy(mrph_placeholder)
-                for idx in range(3):
-                    mrphs[idx] = "…"
-                mrphs[-1] = '"代表表記:…/…"'
-                output_text += " ".join(mrphs) + "\n"
-            else:
-                contain_dummy = True
-                output_text += " ".join(mrph_placeholder) + "\n"
-    if "*" not in output_text:
-        output_text = "*\n+\n" + output_text
-    if not output_text.endswith("EOS\n"):
-        output_text += "EOS\n"
-    return output_text, contain_dummy
-
-
 def main():
     parser = ArgumentParser()
-    parser.add_argument("-d", "--dataset-dir", type=str, required=True)
-    parser.add_argument("-i", "--input-file", type=str, required=True)
-    parser.add_argument("-ck", "--compare-kwja", action="store_true")
+    parser.add_argument("--dataset-dir", type=str, required=True)
+    parser.add_argument("--seq2seq-file", type=str, required=True)
+    parser.add_argument("--model-size", type=str, required=True)
+    parser.add_argument("--device", type=str, default="cpu")
+    parser.add_argument("--typo-batch-size", type=int, default=1)
+    parser.add_argument("--char-batch-size", type=int, default=1)
+    parser.add_argument("--word-batch-size", type=int, default=1)
+    parser.add_argument("--output-dir", type=str, default="./outputs")
     args = parser.parse_args()
 
-    pred_dicts: Dict[str, List[Dict]] = dict()
-    corpusid2text = {"0": "kyoto", "1": "kwdlc", "2": "fuman"}
-    input_text: str = ""
-    generated_text: str = ""
-    corpus: str = ""
-    with Path(args.input_file).open() as f:
-        for line in f:
-            if line[:3] == "src":
-                corpus: str = corpusid2text[line[3]]
-                input_text: str = line.strip()[6:]
-            elif line == "EOS\n":
-                generated_text += line
-                if corpus not in pred_dicts:
-                    pred_dicts[corpus] = []
-                pred_dicts[corpus].append({"text": input_text, "generated": generated_text})
-                input_text = ""
-                generated_text = ""
-            else:
-                generated_text += line
+    jumanpp = Jumanpp()
+    kwja = KWJA(
+        options=[
+            f"--model-size={args.model_size}",
+            f"--device={args.device}",
+            f"--typo-batch-size={args.typo_batch_size}",
+            f"--char-batch-size={args.char_batch_size}",
+            f"--word-batch-size={args.word_batch_size}",
+            "--tasks=senter,char,word",
+        ]
+    )
 
-    kwja_results: Dict[str, Dict[str, Sentence]] = dict()
-    if args.compare_kwja:
-        for corpus in ["kyoto", "kwdlc", "fuman"]:
-            kwja_results[corpus] = dict()
-            with Path(f"{OUTPUT_DIR}/predict_kwja/{corpus}_test.knp").open() as f:
-                lines = [line for line in f]
-            buffer: str = ""
-            for line in lines:
-                buffer += line
-                if line == "EOS\n":
-                    kwja_sentence: Sentence = Sentence.from_knp(buffer)
-                    if kwja_sentence.text not in kwja_results[corpus]:
-                        kwja_results[corpus][kwja_sentence.text] = kwja_sentence
-                    buffer = ""
+    sid_to_seq2seq_sent: Dict[str, Sentence] = dict()
+    with Path(args.seq2seq_file).open() as f:
+        seq2seq_document: Document = Document.from_jumanpp(f.read())
+        for sentence in seq2seq_document.sentences:
+            sid_to_seq2seq_sent[sentence.sid] = sentence
 
+    output_dir: Path = Path(args.output_dir)
     for corpus in ["kyoto", "kwdlc", "fuman"]:
-        print(f"{corpus}: (# of sentences = {len(pred_dicts[corpus])})")
-        src_text2gold_sent: Dict[str, Sentence] = dict()
-        for path in Path(f"{args.dataset_dir}/{corpus}/test").glob("*.knp"):
-            with path.open() as f:
-                document: Document = Document.from_knp(f.read())
-            for gold_sent in document.sentences:
-                src_text2gold_sent[gold_sent.text] = gold_sent
-        print(f"    # of sentences in gold: {len(src_text2gold_sent)}")
+        sid_to_gold_sent: Dict[str, Sentence] = dict()
+        sid_to_juman_sent: Dict[str, Sentence] = dict()
+        sid_to_kwja_sent: Dict[str, Sentence] = dict()
+        juman_dir: Path = output_dir / "juman" / corpus
+        juman_dir.mkdir(parents=True, exist_ok=True)
+        kwja_dir: Path = output_dir / "kwja" / corpus
+        kwja_dir.mkdir(parents=True, exist_ok=True)
 
-        src_text2juman_sent: Dict[str, Sentence] = dict()
-        for path in Path(f"{OUTPUT_DIR}/predict_juman_knp/{corpus}").glob("*.knp"):
-            with path.open() as f:
-                document: Document = Document.from_knp(f.read())
-            for juman_sent in document.sentences:
-                src_text2juman_sent[juman_sent.text] = juman_sent
-        print(f"    # of sentences in juman: {len(src_text2juman_sent)}")
+        gold_paths: List[Path] = list(Path(f"{args.dataset_dir}/{corpus}/test").glob("*.knp"))
+        for gold_path in tqdm(gold_paths):
+            with gold_path.open() as f:
+                gold_document: Document = Document.from_knp(f.read())
+                for sentence in gold_document.sentences:
+                    sid_to_gold_sent[sentence.sid] = sentence
+
+            juman_path: Path = juman_dir / f"{gold_path.stem}.jumanpp"
+            if not juman_path.exists():
+                juman_document: Document = jumanpp.apply_to_document(gold_document)
+                with juman_path.open("w") as f:
+                    f.write(juman_document.to_jumanpp())
+            with juman_path.open() as f:
+                juman_document = Document.from_jumanpp(f.read())
+                for sentence in juman_document.sentences:
+                    sid_to_juman_sent[sentence.sid] = sentence
+
+            kwja_path: Path = kwja_dir / f"{gold_path.stem}.jumanpp"
+            if not kwja_path.exists():
+                kwja_document: Document = kwja.apply_to_document(gold_document)
+                with kwja_path.open("w") as f:
+                    f.write(kwja_document.to_jumanpp())
+            with kwja_path.open() as f:
+                kwja_document = Document.from_jumanpp(f.read())
+                for sentence in kwja_document.sentences:
+                    sid_to_kwja_sent[sentence.sid] = sentence
+
+        print(
+            f"{corpus} (# of sents in juman/kwja/gold = {len(sid_to_juman_sent)}/{len(sid_to_kwja_sent)}/{len(sid_to_gold_sent)})"
+        )
 
         jumans: List[Sentence] = []
-        generators: List[Sentence] = []
-        kwjas: List[Sentence] = []
+        seq2seqs: List[Sentence] = []
         golds: List[Sentence] = []
-        num_dummies: int = 0
-        processed_generateds: set[str] = set()
-        if args.compare_kwja:
-            for pred in pred_dicts[corpus]:
-                if pred["text"] not in kwja_results[corpus]:
-                    continue
-                if pred["generated"] in processed_generateds:
-                    continue
-                formatted, contain_dummy = format_juman(pred["generated"])
-                num_dummies += 1 if contain_dummy else 0
-                kwjas.append(kwja_results[corpus][pred["text"]])
-                generators.append(Sentence.from_knp(formatted))
-                jumans.append(src_text2juman_sent[pred["text"]])
-                golds.append(src_text2gold_sent[pred["text"]])
-                processed_generateds.add(pred["generated"])
-            print(f"    # of sentences in kwja: {len(kwjas)}")
-            assert len(jumans) == len(generators) == len(kwjas) == len(golds)
-        else:
-            for pred in pred_dicts[corpus]:
-                if pred["generated"] in processed_generateds:
-                    continue
-                formatted, contain_dummy = format_juman(pred["generated"])
-                num_dummies += 1 if contain_dummy else 0
-                generators.append(Sentence.from_knp(formatted))
-                jumans.append(src_text2juman_sent[pred["text"]])
-                golds.append(src_text2gold_sent[pred["text"]])
-                processed_generateds.add(pred["generated"])
-            assert len(jumans) == len(generators) == len(golds)
+        for sid, gold_sent in sid_to_gold_sent.items():
+            if sid not in sid_to_juman_sent or sid not in sid_to_seq2seq_sent:
+                continue
+            jumans.append(sid_to_juman_sent[sid])
+            seq2seqs.append(sid_to_seq2seq_sent[sid])
+            golds.append(gold_sent)
+            assert len(jumans) == len(seq2seqs) == len(golds)
 
         print("  jumanpp")
         juman_scorer = MorphologicalAnalysisScorer(jumans, golds)
         juman_scorer.compute_score()
 
-        if args.compare_kwja:
-            print("  kwja")
-            kwja_scorer = MorphologicalAnalysisScorer(kwjas, golds)
-            kwja_scorer.compute_score()
+        # if args.compare_kwja:
+        #     print("  kwja")
+        #     kwja_scorer = MorphologicalAnalysisScorer(kwjas, golds)
+        #     kwja_scorer.compute_score()
 
         print("  seq2seq")
-        system_scorer = MorphologicalAnalysisScorer(generators, golds)
+        system_scorer = MorphologicalAnalysisScorer(seq2seqs, golds)
         system_scorer.compute_score()
 
-        print(f"# of same texts for seq2seq: {system_scorer.num_same_texts}")
-        print(f"Ratio of same texts for seq2seq = {system_scorer.num_same_texts / len(generators) * 100:.2f}\n")
+        # print(f"# of same texts for seq2seq: {system_scorer.num_same_texts}")
+        # print(f"Ratio of same texts for seq2seq = {system_scorer.num_same_texts / len(generators) * 100:.2f}\n")
 
 
 if __name__ == "__main__":

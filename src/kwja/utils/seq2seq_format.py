@@ -28,28 +28,27 @@ def get_sent_from_seq2seq_format(input_text: str) -> Sentence:
     for line in lines:
         if not line:
             continue
-        if line == "EOS" or line.startswith("*") or line.startswith("+"):
+        if line == "EOS":
             formatted += line + "\n"
         else:
-            preds: List[str] = line.split(" ")
+            preds: List[str] = line.split(" ")  # surf reading lemma canon
+            mrphs: List[str] = copy.deepcopy(mrph_placeholder)
             if len(preds) == 4:
-                mrphs: List[str] = copy.deepcopy(mrph_placeholder)
-                for idx in range(3):
-                    mrphs[idx] = preds[idx]
+                mrphs[0] = preds[0]
+                mrphs[1] = "\u3000" if preds[1] == NO_READING_TOKEN else preds[1]
+                mrphs[2] = preds[2]
                 mrphs[-1] = "NIL" if preds[3] == NO_CANON_TOKEN else f'"代表表記:{preds[3]}"'
-                formatted += " ".join(mrphs) + "\n"
+            elif line == f"{NO_READING_TOKEN} S/*":
+                for idx in range(3):
+                    mrphs[idx] = "\u3000"
+                mrphs[-1] = '"代表表記:S/*"'
             elif line in ["!!!!/!", "????/?", ",,,,/,"]:
-                mrphs = copy.deepcopy(mrph_placeholder)
                 for idx in range(3):
                     mrphs[idx] = line[idx]
-                mrphs[-1] = f'"代表表記:{line[-1]}/{line[-1]}"'
-                formatted += " ".join(mrphs) + "\n"
+                mrphs[-1] = f'"代表表記:{line[0]}/{line[0]}"'
             elif line == "............/...":
-                mrphs = copy.deepcopy(mrph_placeholder)
                 for idx in range(3):
                     mrphs[idx] = "…"
                 mrphs[-1] = '"代表表記:…/…"'
-                formatted += " ".join(mrphs) + "\n"
-            else:
-                formatted += " ".join(mrph_placeholder) + "\n"
+            formatted += " ".join(mrphs) + "\n"
     return Sentence.from_jumanpp(formatted)
