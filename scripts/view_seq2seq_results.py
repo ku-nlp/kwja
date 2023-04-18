@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Dict, List, Tuple, cast
 
 import jaconv
-from rhoknp import KWJA, Document, Jumanpp, Sentence
+from rhoknp import Document, Jumanpp, Sentence
 from tqdm.rich import tqdm
 
 logging.getLogger("rhoknp").setLevel(logging.ERROR)
@@ -291,16 +291,16 @@ def main():
     args = parser.parse_args()
 
     jumanpp = Jumanpp()
-    kwja = KWJA(
-        options=[
-            f"--model-size={args.model_size}",
-            f"--device={args.device}",
-            f"--typo-batch-size={args.typo_batch_size}",
-            f"--char-batch-size={args.char_batch_size}",
-            f"--word-batch-size={args.word_batch_size}",
-            "--tasks=senter,char,word",
-        ]
-    )
+    # kwja = KWJA(
+    #     options=[
+    #         f"--model-size={args.model_size}",
+    #         f"--device={args.device}",
+    #         f"--typo-batch-size={args.typo_batch_size}",
+    #         f"--char-batch-size={args.char_batch_size}",
+    #         f"--word-batch-size={args.word_batch_size}",
+    #         "--tasks=senter,char,word",
+    #     ]
+    # )
 
     sid_to_seq2seq_sent: Dict[str, Sentence] = dict()
     with Path(args.seq2seq_file).open() as f:
@@ -322,64 +322,58 @@ def main():
         for gold_path in tqdm(gold_paths):
             with gold_path.open() as f:
                 gold_document: Document = Document.from_knp(f.read())
-                for sentence in gold_document.sentences:
-                    sid_to_gold_sent[sentence.sid] = sentence
+            for gold_sentence in gold_document.sentences:
+                sid_to_gold_sent[gold_sentence.sid] = gold_sentence
 
-            juman_path: Path = juman_dir / f"{gold_path.stem}.jumanpp"
-            if not juman_path.exists():
-                juman_document: Document = jumanpp.apply_to_document(gold_document)
-                with juman_path.open("w") as f:
-                    f.write(juman_document.to_jumanpp())
-            with juman_path.open() as f:
-                juman_document = Document.from_jumanpp(f.read())
-                for sentence in juman_document.sentences:
-                    sid_to_juman_sent[sentence.sid] = sentence
+                juman_path: Path = juman_dir / f"{gold_path.stem}_{gold_sentence.sid}.jumanpp"
+                if not juman_path.exists():
+                    juman_sentence: Sentence = jumanpp.apply_to_sentence(gold_sentence)
+                    with juman_path.open("w") as f:
+                        f.write(juman_sentence.to_jumanpp())
+                with juman_path.open() as f:
+                    juman_sentence = Sentence.from_jumanpp(f.read())
+                    sid_to_juman_sent[gold_sentence.sid] = juman_sentence
 
-            kwja_path: Path = kwja_dir / f"{gold_path.stem}.jumanpp"
-            if not kwja_path.exists():
-                kwja_document: Document = kwja.apply_to_document(gold_document)
-                with kwja_path.open("w") as f:
-                    f.write(kwja_document.to_jumanpp())
-            with kwja_path.open() as f:
-                kwja_document = Document.from_jumanpp(f.read())
-                for sentence in kwja_document.sentences:
-                    sid_to_kwja_sent[sentence.sid] = sentence
+                # kwja_path: Path = kwja_dir / f"{gold_path.stem}_{gold_sentence.sid}.jumanpp"
+                # if not kwja_path.exists():
+                #     kwja_sentence: Sentence = kwja.apply_to_sentence(gold_sentence)
+                #     with kwja_path.open("w") as f:
+                #         f.write(kwja_sentence.to_jumanpp())
+                # with kwja_path.open() as f:
+                #     kwja_sentence = Sentence.from_knp(f.read())
+                #     sid_to_kwja_sent[gold_sentence.sid] = kwja_sentence
 
         print(
             f"{corpus} (# of sents in juman/kwja/gold = {len(sid_to_juman_sent)}/{len(sid_to_kwja_sent)}/{len(sid_to_gold_sent)})"
         )
 
         jumans: List[Sentence] = []
-        kwjas: List[Sentence] = []
+        # kwjas: List[Sentence] = []
         seq2seqs: List[Sentence] = []
         golds: List[Sentence] = []
         for sid, gold_sent in sid_to_gold_sent.items():
-            if sid not in sid_to_juman_sent:
-                continue
-            if sid not in sid_to_kwja_sent:
-                continue
-            if sid not in sid_to_seq2seq_sent:
+            if sid not in sid_to_juman_sent or sid not in sid_to_seq2seq_sent:
                 continue
             jumans.append(sid_to_juman_sent[sid])
-            kwjas.append(sid_to_kwja_sent[sid])
+            # kwjas.append(sid_to_kwja_sent[sid])
             seq2seqs.append(sid_to_seq2seq_sent[sid])
             golds.append(gold_sent)
-            assert len(jumans) == len(kwjas) == len(seq2seqs) == len(golds)
+            assert len(jumans) == len(seq2seqs) == len(golds)
 
         print("  jumanpp")
         juman_scorer = MorphologicalAnalysisScorer(jumans, golds)
         juman_scorer.compute_score()
 
-        print("  kwja")
-        kwja_scorer = MorphologicalAnalysisScorer(kwjas, golds)
-        kwja_scorer.compute_score()
+        # print("  kwja")
+        # kwja_scorer = MorphologicalAnalysisScorer(kwjas, golds)
+        # kwja_scorer.compute_score()
 
         print("  seq2seq")
         system_scorer = MorphologicalAnalysisScorer(seq2seqs, golds)
         system_scorer.compute_score()
 
         print(f"# of same texts for seq2seq: {system_scorer.num_same_texts}")
-        print(f"Ratio of same texts for seq2seq = {system_scorer.num_same_texts / len(kwjas) * 100:.2f}\n")
+        print(f"Ratio of same texts for seq2seq = {system_scorer.num_same_texts / len(seq2seqs) * 100:.2f}\n")
 
 
 if __name__ == "__main__":
