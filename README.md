@@ -176,6 +176,13 @@ analyzed_document = kwja.apply(
     <td>TBU</td>
   </tr>
   <tr style="text-align: right;">
+    <th colspan="2" style="text-align: center;">Sentence Segmentation</th>
+    <td>TBU</td>
+    <td>TBU</td>
+    <td>TBU</td>
+    <td>TBU</td>
+  </tr>
+  <tr style="text-align: right;">
     <th colspan="2" style="text-align: center;">Word Segmentation</th>
     <td>98.5</td>
     <td>98.6</td>
