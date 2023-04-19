@@ -1,4 +1,6 @@
-# KWJA: Kyoto-Waseda Japanese Analyzer
+# KWJA: Kyoto-Waseda Japanese Analyzer[^1]
+
+[^1]: Pronunciation: [/kuʒa/](http://ipa-reader.xyz/?text=%20ku%CA%92a)
 
 [![test](https://github.com/ku-nlp/kwja/actions/workflows/test.yml/badge.svg)](https://github.com/ku-nlp/kwja/actions/workflows/test.yml)
 [![codecov](https://codecov.io/gh/ku-nlp/kwja/branch/main/graph/badge.svg?token=A9FWWPLITO)](https://codecov.io/gh/ku-nlp/kwja)
