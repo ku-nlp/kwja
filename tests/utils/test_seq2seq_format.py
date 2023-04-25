@@ -163,10 +163,8 @@ def test_get_sent_from_seq2seq_format(fixture_data_dir: Path, seq2seq_tokenizer:
         actual_sent = get_sent_from_seq2seq_format(shaped_output)
         assert len(actual_sent.morphemes) == len(expected_sent.morphemes)
         for actual_morpheme, expected_morpheme in zip(actual_sent.morphemes, expected_sent.morphemes):
-            if expected_morpheme.reading == "\u3000":
-                expected_reading: str = NO_READING_TOKEN
-            elif "/" in expected_morpheme.reading:
-                expected_reading = expected_morpheme.reading.split("/")[0]
+            if "/" in expected_morpheme.reading:
+                expected_reading: str = expected_morpheme.reading.split("/")[0]
             else:
                 expected_reading = expected_morpheme.reading
 
