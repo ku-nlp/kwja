@@ -92,6 +92,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         )
 
         # ---------- cohesion analysis ----------
+        self.skip_cohesion = "kyoto_ed" in path  # cohesion tags are not annotated in editorial articles
         self.cohesion_tasks: List[CohesionTask] = [CohesionTask(t) for t in cohesion_tasks]
         self.exophora_referents = [ExophoraReferent(s) for s in exophora_referents]
         self.restrict_cohesion_target = restrict_cohesion_target
@@ -330,6 +331,8 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         rel: str,
     ) -> List[List[int]]:
         rel_labels: List[List[int]] = [[0] * self.max_seq_length for _ in range(self.max_seq_length)]
+        if self.skip_cohesion is True:
+            return rel_labels
         for cohesion_base_phrase in cohesion_base_phrases:
             if cohesion_base_phrase.is_target is False:
                 continue
