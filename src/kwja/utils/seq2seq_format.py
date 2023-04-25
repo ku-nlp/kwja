@@ -3,20 +3,23 @@ from typing import List
 
 from rhoknp import Sentence
 
-from kwja.utils.constants import NO_CANON_TOKEN, NO_READING_TOKEN
+from kwja.utils.constants import FULL_SPACE_TOKEN, NO_CANON_TOKEN
 
 
 def get_seq2seq_format(sentence: Sentence) -> str:
     output: str = ""
     for mrph in sentence.morphemes:
-        if mrph.reading == "\u3000":
-            reading: str = NO_READING_TOKEN
-        elif "/" in mrph.reading:
-            reading = mrph.reading.split("/")[0]
+        if mrph.surf == "\u3000":
+            mrph_info: str = f"{FULL_SPACE_TOKEN} {FULL_SPACE_TOKEN} {FULL_SPACE_TOKEN} {NO_CANON_TOKEN}\n"
         else:
-            reading = mrph.reading
-        canon: str = mrph.canon if mrph.canon is not None else NO_CANON_TOKEN
-        mrph_info: str = f"{mrph.surf} {reading} {mrph.lemma} {canon}\n"
+            if mrph.reading == "\u3000":
+                reading: str = FULL_SPACE_TOKEN
+            elif "/" in mrph.reading:
+                reading = mrph.reading.split("/")[0]
+            else:
+                reading = mrph.reading
+            canon: str = mrph.canon if mrph.canon is not None else NO_CANON_TOKEN
+            mrph_info = f"{mrph.surf} {reading} {mrph.lemma} {canon}\n"
         output += mrph_info
     return output
 
@@ -28,28 +31,27 @@ def get_sent_from_seq2seq_format(input_text: str) -> Sentence:
     for line in lines:
         if not line:
             continue
-        if line == "EOS" or line.startswith("*") or line.startswith("+"):
+        if line == "EOS":
             formatted += line + "\n"
         else:
-            preds: List[str] = line.split(" ")
+            preds: List[str] = line.split(" ")  # surf reading lemma canon
+            mrphs: List[str] = copy.deepcopy(mrph_placeholder)
             if len(preds) == 4:
-                mrphs: List[str] = copy.deepcopy(mrph_placeholder)
-                for idx in range(3):
-                    mrphs[idx] = preds[idx]
+                mrphs[0] = "\u3000" if preds[0] == FULL_SPACE_TOKEN else preds[0]
+                mrphs[1] = "\u3000" if preds[1] == FULL_SPACE_TOKEN else preds[1]
+                mrphs[2] = "\u3000" if preds[2] == FULL_SPACE_TOKEN else preds[2]
                 mrphs[-1] = "NIL" if preds[3] == NO_CANON_TOKEN else f'"代表表記:{preds[3]}"'
-                formatted += " ".join(mrphs) + "\n"
+            elif line == f"{FULL_SPACE_TOKEN} S/*":
+                for idx in range(3):
+                    mrphs[idx] = "\u3000"
+                mrphs[-1] = '"代表表記:S/*"'
             elif line in ["!!!!/!", "????/?", ",,,,/,"]:
-                mrphs = copy.deepcopy(mrph_placeholder)
                 for idx in range(3):
                     mrphs[idx] = line[idx]
-                mrphs[-1] = f'"代表表記:{line[-1]}/{line[-1]}"'
-                formatted += " ".join(mrphs) + "\n"
+                mrphs[-1] = f'"代表表記:{line[0]}/{line[0]}"'
             elif line == "............/...":
-                mrphs = copy.deepcopy(mrph_placeholder)
                 for idx in range(3):
                     mrphs[idx] = "…"
                 mrphs[-1] = '"代表表記:…/…"'
-                formatted += " ".join(mrphs) + "\n"
-            else:
-                formatted += " ".join(mrph_placeholder) + "\n"
+            formatted += " ".join(mrphs) + "\n"
     return Sentence.from_jumanpp(formatted)
