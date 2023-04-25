@@ -8,7 +8,6 @@ from typing import Dict, List, Set, Tuple, cast
 
 import jaconv
 from rhoknp import Document, Jumanpp, Morpheme, Sentence
-from tqdm.rich import tqdm
 
 logging.getLogger("rhoknp").setLevel(logging.ERROR)
 
@@ -31,9 +30,6 @@ class DiffPart(object):
         self.diff_text = diff_text
         self.has_diff: bool = False
         self.diff_part = self._separate_parts(diff_text)
-
-    def __str__(self):
-        return f"{self.surf}_{self.reading}_{self.lemma}_{self.canon}"
 
     def __repr__(self):
         return f"{self.surf}_{self.reading}_{self.lemma}_{self.canon}"
@@ -84,26 +80,24 @@ class Diff(object):
 
 
 class MorphologicalAnalysisScorer:
-    def __init__(
-        self,
-        sys_sentences: List[Sentence],
-        gold_sentences: List[Sentence],
-        has_target_mopheme: bool = False,
-    ) -> None:
-        self.has_target_mopheme: bool = has_target_mopheme
+    def __init__(self, sys_sentences: List[Sentence], gold_sentences: List[Sentence], eval_norm: bool = False) -> None:
+        self.eval_norm: bool = eval_norm
         self.tp: Dict[str, int] = dict(surf=0, reading=0, lemma=0, canon=0)
         self.fp: Dict[str, int] = dict(surf=0, reading=0, lemma=0, canon=0)
         self.fn: Dict[str, int] = dict(surf=0, reading=0, lemma=0, canon=0)
+        self.sys_sentences: List[Sentence] = sys_sentences
+        self.gold_sentences: List[Sentence] = gold_sentences
 
         self.num_diff_texts: int = 0
+        self.norm_types: Set[str] = set()
         self.diffs: List[Diff] = self._search_diffs(sys_sentences, gold_sentences)
 
-    def _convert(self, sentence: Sentence, target_morphemes: List[Morpheme]) -> List[str]:
+    def _convert(self, sentence: Sentence, norm_morphemes: List[Morpheme]) -> List[str]:
         converteds: List[str] = []
-        target_surfs: Set[str] = set(mrph.surf for mrph in target_morphemes)
+        norm_surfs: Set[str] = set(mrph.surf for mrph in norm_morphemes)
         for mrph in sentence.morphemes:
             surf: str = jaconv.h2z(mrph.surf.replace("<unk>", "$"), ascii=True, digit=True)
-            if self.has_target_mopheme and surf not in target_surfs:
+            if self.eval_norm and surf not in norm_surfs:
                 continue
             reading: str = jaconv.h2z(mrph.reading.replace("<unk>", "$"), ascii=True, digit=True)
             lemma: str = jaconv.h2z(mrph.lemma.replace("<unk>", "$"), ascii=True, digit=True)
@@ -247,13 +241,13 @@ class MorphologicalAnalysisScorer:
     def _search_diffs(self, sys_sentences: List[Sentence], gold_sentences: List[Sentence]) -> List[Diff]:
         diffs = []
         for sys_sentence, gold_sentence in zip(sys_sentences, gold_sentences):
-            target_morphemes: List[Morpheme] = []
-            if self.has_target_mopheme:
+            norm_morphemes: List[Morpheme] = []
+            if self.eval_norm:
                 for gold_morpheme in gold_sentence.morphemes:
                     if "非標準表記" in gold_morpheme.semantics:
-                        target_morphemes.append(gold_morpheme)
-            sys_converted: List[str] = self._convert(sys_sentence, target_morphemes)
-            gold_converted: List[str] = self._convert(gold_sentence, target_morphemes)
+                        norm_morphemes.append(gold_morpheme)
+            sys_converted: List[str] = self._convert(sys_sentence, norm_morphemes)
+            gold_converted: List[str] = self._convert(gold_sentence, norm_morphemes)
             diff: Diff = self._search_diff(sys_converted, gold_converted)
             diffs.append(diff)
         return diffs
@@ -261,33 +255,24 @@ class MorphologicalAnalysisScorer:
     def compute_score(self, is_simple_output: bool = True) -> None:
         for diff in self.diffs:
             for p in diff:
+                correct_keys: Set[str] = set()
                 if p["diff_type"].equal:
-                    true_keys: List[str] = ["surf", "reading", "lemma", "canon"]
-                    false_keys: List[str] = []
-                elif p["diff_type"].surf:
-                    true_keys = []
-                    false_keys = ["surf", "reading", "lemma", "canon"]
-                else:
-                    true_keys = ["surf"]
-                    false_keys = []
-                    if p["diff_type"].reading:
-                        false_keys.append("reading")
+                    correct_keys.update({"surf", "reading", "lemma", "canon"})
+                elif not p["diff_type"].surf:
+                    correct_keys.add("surf")
+                    if not p["diff_type"].reading:
+                        correct_keys.add("reading")
+                    if not p["diff_type"].lemma:
+                        correct_keys.add("lemma")
+                    if not p["diff_type"].canon:
+                        correct_keys.add("canon")
+
+                for key in ["surf", "reading", "lemma", "canon"]:
+                    if key in correct_keys:
+                        self.tp[key] += len(p["sys_parts"])
                     else:
-                        true_keys.append("reading")
-                    if p["diff_type"].lemma:
-                        false_keys.append("lemma")
-                    else:
-                        true_keys.append("lemma")
-                    if p["diff_type"].canon:
-                        false_keys.append("canon")
-                    else:
-                        true_keys.append("canon")
-                    assert len(true_keys) + len(false_keys) == 4
-                for key in true_keys:
-                    self.tp[key] += len(p["sys_parts"])
-                for key in false_keys:
-                    self.fp[key] += len(p["sys_parts"])
-                    self.fn[key] += len(p["gold_parts"])
+                        self.fp[key] += len(p["sys_parts"])
+                        self.fn[key] += len(p["gold_parts"])
 
         keys: List[str] = ["surf", "reading", "lemma", "canon"]
         outputs: List[str] = [" / ".join(keys)]
@@ -308,25 +293,10 @@ def main():
     parser = ArgumentParser()
     parser.add_argument("--dataset-dir", type=str, required=True)
     parser.add_argument("--seq2seq-file", type=str, required=True)
-    # parser.add_argument("--model-size", type=str, required=True)
-    # parser.add_argument("--device", type=str, default="cpu")
-    # parser.add_argument("--typo-batch-size", type=int, default=1)
-    # parser.add_argument("--char-batch-size", type=int, default=1)
-    # parser.add_argument("--word-batch-size", type=int, default=1)
     parser.add_argument("--output-dir", type=str, default="./outputs")
     args = parser.parse_args()
 
     jumanpp = Jumanpp()
-    # kwja = KWJA(
-    #     options=[
-    #         f"--model-size={args.model_size}",
-    #         f"--device={args.device}",
-    #         f"--typo-batch-size={args.typo_batch_size}",
-    #         f"--char-batch-size={args.char_batch_size}",
-    #         f"--word-batch-size={args.word_batch_size}",
-    #         "--tasks=senter,char,word",
-    #     ]
-    # )
 
     sid_to_seq2seq_sent: Dict[str, Sentence] = dict()
     with Path(args.seq2seq_file).open() as f:
@@ -335,17 +305,14 @@ def main():
             sid_to_seq2seq_sent[sentence.sid] = sentence
 
     output_dir: Path = Path(args.output_dir)
-    for corpus in ["kyoto", "kwdlc", "fuman", "norm"]:
+    for corpus in ["kyoto", "kwdlc", "fuman", "wac", "norm"]:
         sid_to_gold_sent: Dict[str, Sentence] = dict()
         sid_to_juman_sent: Dict[str, Sentence] = dict()
-        # sid_to_kwja_sent: Dict[str, Sentence] = dict()
         juman_dir: Path = output_dir / "juman" / corpus
         juman_dir.mkdir(parents=True, exist_ok=True)
-        # kwja_dir: Path = output_dir / "kwja" / corpus
-        # kwja_dir.mkdir(parents=True, exist_ok=True)
 
         gold_paths: List[Path] = list(Path(f"{args.dataset_dir}/{corpus}/test").glob("*.knp"))
-        for gold_path in tqdm(gold_paths):
+        for gold_path in gold_paths:
             with gold_path.open() as f:
                 gold_document: Document = Document.from_knp(f.read())
             for gold_sentence in gold_document.sentences:
@@ -360,26 +327,15 @@ def main():
                     juman_sentence = Sentence.from_jumanpp(f.read())
                     sid_to_juman_sent[gold_sentence.sid] = juman_sentence
 
-                # kwja_path: Path = kwja_dir / f"{gold_path.stem}_{gold_sentence.sid}.jumanpp"
-                # if not kwja_path.exists():
-                #     kwja_sentence: Sentence = kwja.apply_to_sentence(gold_sentence)
-                #     with kwja_path.open("w") as f:
-                #         f.write(kwja_sentence.to_jumanpp())
-                # with kwja_path.open() as f:
-                #     kwja_sentence = Sentence.from_knp(f.read())
-                #     sid_to_kwja_sent[gold_sentence.sid] = kwja_sentence
-
         print(f"{corpus} (# of sents in juman/gold = {len(sid_to_juman_sent)}/{len(sid_to_gold_sent)})")
 
         jumans: List[Sentence] = []
-        # kwjas: List[Sentence] = []
         seq2seqs: List[Sentence] = []
         golds: List[Sentence] = []
         for sid, gold_sent in sid_to_gold_sent.items():
             if sid not in sid_to_juman_sent or sid not in sid_to_seq2seq_sent:
                 continue
             jumans.append(sid_to_juman_sent[sid])
-            # kwjas.append(sid_to_kwja_sent[sid])
             seq2seqs.append(sid_to_seq2seq_sent[sid])
             golds.append(gold_sent)
             assert len(jumans) == len(seq2seqs) == len(golds)
@@ -388,10 +344,6 @@ def main():
             print("  jumanpp")
             juman_scorer = MorphologicalAnalysisScorer(jumans, golds)
             juman_scorer.compute_score()
-
-            # print("  kwja")
-            # kwja_scorer = MorphologicalAnalysisScorer(kwjas, golds)
-            # kwja_scorer.compute_score()
 
             print("  seq2seq")
             system_scorer = MorphologicalAnalysisScorer(seq2seqs, golds)
@@ -409,7 +361,7 @@ def main():
                 f"  Ratio of same texts for seq2seq = {(len(seq2seqs) - system_scorer.num_diff_texts) / len(seq2seqs) * 100:.2f}"
             )
             print("  seq2seq (only target morpheme)")
-            system_scorer = MorphologicalAnalysisScorer(seq2seqs, golds, has_target_mopheme=True)
+            system_scorer = MorphologicalAnalysisScorer(seq2seqs, golds, eval_norm=True)
             system_scorer.compute_score()
 
 
