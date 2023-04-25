@@ -332,24 +332,24 @@ def tasks_callback(value: str) -> str:
             raise typer.BadParameter("invalid task name is contained")
     valid_task_combinations: Set[Tuple[str, ...]] = {
         ("typo",),
+        ("typo", "senter"),
+        ("typo", "senter", "char"),
+        ("typo", "senter", "char", "word"),
+        ("typo", "senter", "char", "word", "word_discourse"),
+        ("typo", "senter", "seq2seq"),
+        ("typo", "senter", "seq2seq", "word"),
+        ("typo", "senter", "seq2seq", "word", "word_discourse"),
         ("senter",),
-        ("senter", "typo"),
-        ("char", "senter"),
-        ("char", "senter", "typo"),
-        ("char", "senter", "word"),
-        ("char", "senter", "typo", "word"),
-        ("char", "senter", "word", "word_discourse"),
-        ("char", "senter", "typo", "word", "word_discourse"),
+        ("senter", "char"),
+        ("senter", "char", "word"),
+        ("senter", "char", "word", "word_discourse"),
         ("senter", "seq2seq"),
-        ("senter", "seq2seq", "typo"),
         ("senter", "seq2seq", "word"),
-        ("senter", "seq2seq", "typo", "word"),
         ("senter", "seq2seq", "word", "word_discourse"),
-        ("senter", "seq2seq", "typo", "word", "word_discourse"),
     }
 
-    def task_to_string(task: Tuple[str, ...]) -> str:
-        return "'" + ",".join(task) + "'"
+    def task_to_string(_task: Tuple[str, ...]) -> str:
+        return "'" + ",".join(_task) + "'"
 
     sorted_task: Tuple[str, ...] = tuple(sorted(tasks))
     if sorted_task not in valid_task_combinations:
@@ -370,7 +370,7 @@ def main(
     seq2seq_batch_size: int = typer.Option(1, help="Batch size for seq2seq module."),
     char_batch_size: int = typer.Option(1, help="Batch size for char module."),
     word_batch_size: int = typer.Option(1, help="Batch size for word module."),
-    tasks: str = typer.Option("typo,char,word,word_discourse", callback=tasks_callback, help="Tasks to be performed."),
+    tasks: str = typer.Option("char,word,word_discourse", callback=tasks_callback, help="Tasks to be performed."),
     _: Optional[bool] = typer.Option(None, "--version", callback=version_callback, is_eager=True),
 ) -> None:
     input_text: Optional[str] = None

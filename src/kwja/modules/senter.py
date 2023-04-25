@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 import hydra
 import torch
 from omegaconf import DictConfig
-from transformers import PretrainedConfig, PreTrainedModel
+from transformers import PreTrainedModel
 
 from kwja.metrics import SenterModuleMetric
 from kwja.modules.base import BaseModule
@@ -28,18 +28,21 @@ class SenterModule(BaseModule):
                 corpus: SenterModuleMetric() for corpus in self.test_corpora
             }
 
-        self.char_encoder: PreTrainedModel = hydra.utils.call(hparams.encoder)
-        pretrained_model_config: PretrainedConfig = self.char_encoder.config
+        self.encoder: PreTrainedModel = hydra.utils.call(hparams.encoder)
         if hasattr(hparams, "special_tokens"):
-            self.char_encoder.resize_token_embeddings(pretrained_model_config.vocab_size + len(hparams.special_tokens))
+            self.encoder.resize_token_embeddings(self.encoder.config.vocab_size + len(hparams.special_tokens))
         self.sent_segmentation_tagger = SequenceLabelingHead(
             num_labels=len(SENT_SEGMENTATION_TAGS),
-            hidden_size=pretrained_model_config.hidden_size,
-            hidden_dropout_prob=pretrained_model_config.hidden_dropout_prob,
+            hidden_size=self.encoder.config.hidden_size,
+            hidden_dropout_prob=self.encoder.config.hidden_dropout_prob,
         )
 
+    def setup(self, stage: str) -> None:
+        if stage == "fit":
+            self.encoder.from_pretrained(self.hparams.encoder.config.pretrained_model_name_or_path)
+
     def forward(self, batch: Any) -> Dict[str, Dict[str, torch.Tensor]]:
-        encoded = self.char_encoder(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"])
+        encoded = self.encoder(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"])
         sent_segmentation_logits = self.sent_segmentation_tagger(encoded.last_hidden_state)
         return {"sent_segmentation_logits": sent_segmentation_logits}
 

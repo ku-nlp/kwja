@@ -28,3 +28,4 @@ discourse_parsing_threshold: 0.0
 num_workers: -1
 devices: ${oc.env:DEVICES,1}
 max_batches_per_device: 4
+compile: false

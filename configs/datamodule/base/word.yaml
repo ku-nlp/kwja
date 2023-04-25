@@ -9,6 +9,6 @@ br_cases: ${br_cases}
 special_tokens: ${special_tokens}
 tokenizer:
   _target_: transformers.AutoTokenizer.from_pretrained
-  pretrained_model_name_or_path: ${encoder.pretrained_model_name_or_path}
+  pretrained_model_name_or_path: ${encoder.config.pretrained_model_name_or_path}
   additional_special_tokens: ${special_tokens}
   _convert_: all

@@ -30,17 +30,21 @@ class Seq2SeqModule(BaseModule):
 
         self.tokenizer: PreTrainedTokenizerBase = hydra.utils.call(hparams.module.tokenizer)
 
-        self.seq2seq_model: PreTrainedModel = hydra.utils.call(hparams.encoder)
+        self.encoder_decoder: PreTrainedModel = hydra.utils.call(hparams.encoder)
         if hasattr(hparams, "special_tokens"):
             # https://github.com/huggingface/transformers/issues/4875
-            self.seq2seq_model.resize_token_embeddings(len(self.tokenizer.get_vocab()))
+            self.encoder_decoder.resize_token_embeddings(len(self.tokenizer.get_vocab()))
 
         self.char2tokens, self.char2underscore_tokens = get_char2tokens(self.tokenizer)
         self.use_forced_surf_decoding: bool = getattr(hparams, "use_forced_surf_decoding", False)
 
+    def setup(self, stage: str) -> None:
+        if stage == "fit":
+            self.encoder_decoder.from_pretrained(self.hparams.encoder.config.pretrained_model_name_or_path)
+
     def forward(self, batch: Any) -> Dict[str, torch.Tensor]:
         self._truncate(batch)
-        output = self.seq2seq_model(
+        output = self.encoder_decoder(
             input_ids=batch["input_ids"], attention_mask=batch["attention_mask"], labels=batch["seq2seq_labels"]
         )
         return {"loss": output.loss, "logits": output.logits}
@@ -96,7 +100,7 @@ class Seq2SeqModule(BaseModule):
             self.log(f"test/{key}", mean_score)
 
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Any:
-        generateds = self.seq2seq_model.generate(
+        generateds = self.encoder_decoder.generate(
             input_ids=batch["input_ids"],
             attention_mask=batch["attention_mask"],
             logits_processor=LogitsProcessorList(

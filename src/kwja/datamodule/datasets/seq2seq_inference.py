@@ -2,7 +2,7 @@ import logging
 from pathlib import Path
 from typing import List, Optional
 
-from rhoknp import KNP, Document, Jumanpp
+from rhoknp import Document
 from torch.utils.data import Dataset
 from transformers import BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
@@ -13,9 +13,6 @@ from kwja.utils.progress_bar import track
 from kwja.utils.reader import chunk_by_document_for_line_by_line_text
 
 logger = logging.getLogger(__name__)
-
-jumanpp = Jumanpp()
-knp = KNP()
 
 
 class Seq2SeqInferenceDataset(Dataset[Seq2SeqModuleFeatures]):

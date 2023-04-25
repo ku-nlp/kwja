@@ -5,6 +5,7 @@ from typing import List
 
 import hydra
 import pytorch_lightning as pl
+import torch
 from dotenv import load_dotenv
 from omegaconf import DictConfig, ListConfig, OmegaConf
 from pytorch_lightning.callbacks import Callback
@@ -28,6 +29,8 @@ def main(eval_cfg: DictConfig):
 
     # Load saved model and config
     model: pl.LightningModule = hydra.utils.call(eval_cfg.module.load_from_checkpoint, _recursive_=False)
+    if eval_cfg.compile is True:
+        model = torch.compile(model)
 
     train_cfg: DictConfig = model.hparams
     OmegaConf.set_struct(train_cfg, False)  # enable to add new key-value pairs

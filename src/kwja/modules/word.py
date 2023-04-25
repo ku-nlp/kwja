@@ -48,14 +48,11 @@ class WordModule(BaseModule):
                 corpus: WordModuleMetric() for corpus in self.test_corpora
             }
 
-        self.word_encoder: PreTrainedModel = hydra.utils.call(hparams.encoder)
-        pretrained_model_config: PretrainedConfig = self.word_encoder.config
+        self.encoder: PreTrainedModel = hydra.utils.call(hparams.encoder)
+        pretrained_model_config: PretrainedConfig = self.encoder.config
         if hasattr(hparams, "special_tokens"):
-            self.word_encoder.resize_token_embeddings(pretrained_model_config.vocab_size + len(hparams.special_tokens))
-        head_args: Tuple[int, float] = (
-            pretrained_model_config.hidden_size,
-            pretrained_model_config.hidden_dropout_prob,
-        )
+            self.encoder.resize_token_embeddings(pretrained_model_config.vocab_size + len(hparams.special_tokens))
+        head_args: Tuple[int, float] = (self.encoder.config.hidden_size, self.encoder.config.hidden_dropout_prob)
 
         # ---------- reading prediction ----------
         reading2reading_id: Dict[str, int] = get_reading2reading_id(RESOURCE_PATH / "reading_prediction" / "vocab.txt")
@@ -113,9 +110,13 @@ class WordModule(BaseModule):
                 num_cohesion_rels += len(coreference_utils.rels)
         return num_cohesion_rels
 
+    def setup(self, stage: str) -> None:
+        if stage == "fit":
+            self.encoder.from_pretrained(self.hparams.encoder.config.pretrained_model_name_or_path)
+
     def forward(self, batch: Any) -> Dict[str, torch.Tensor]:
         # (b, seq, hid)
-        encoded = self.word_encoder(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"])
+        encoded = self.encoder(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"])
         pooled = pool_subwords(encoded.last_hidden_state, batch["subword_map"], PoolingStrategy.FIRST)
 
         dependency_logits = self.dependency_parser(pooled)

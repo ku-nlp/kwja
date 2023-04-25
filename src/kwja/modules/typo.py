@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import hydra
 import torch
 from omegaconf import DictConfig
-from transformers import PretrainedConfig, PreTrainedModel
+from transformers import PreTrainedModel
 
 from kwja.metrics import TypoModuleMetric
 from kwja.modules.base import BaseModule
@@ -28,22 +28,23 @@ class TypoModule(BaseModule):
                 corpus: TypoModuleMetric() for corpus in self.test_corpora
             }
 
-        self.char_encoder: PreTrainedModel = hydra.utils.call(hparams.encoder)
-        pretrained_model_config: PretrainedConfig = self.char_encoder.config
+        self.encoder: PreTrainedModel = hydra.utils.call(hparams.encoder)
+        # pretrained_model_config: PretrainedConfig = self.encoder.config
         if hasattr(hparams, "special_tokens"):
-            self.char_encoder.resize_token_embeddings(pretrained_model_config.vocab_size + len(hparams.special_tokens))
-        head_args: Tuple[int, float] = (
-            pretrained_model_config.hidden_size,
-            pretrained_model_config.hidden_dropout_prob,
-        )
+            self.encoder.resize_token_embeddings(self.encoder.config.vocab_size + len(hparams.special_tokens))
+        head_args: Tuple[int, float] = (self.encoder.config.hidden_size, self.encoder.config.hidden_dropout_prob)
 
-        self.kdr_tagger = SequenceLabelingHead(pretrained_model_config.vocab_size, *head_args)
+        self.kdr_tagger = SequenceLabelingHead(self.encoder.config.vocab_size, *head_args)
         extended_vocab_size = sum(1 for _ in RESOURCE_PATH.joinpath("typo_correction", "multi_char_vocab.txt").open())
-        self.ins_tagger = SequenceLabelingHead(pretrained_model_config.vocab_size + extended_vocab_size, *head_args)
+        self.ins_tagger = SequenceLabelingHead(self.encoder.config.vocab_size + extended_vocab_size, *head_args)
+
+    def setup(self, stage: str) -> None:
+        if stage == "fit":
+            self.encoder.from_pretrained(self.hparams.encoder.config.pretrained_model_name_or_path)
 
     def forward(self, batch: Any) -> Dict[str, torch.Tensor]:
         truncation_length = self._truncate(batch)
-        encoded = self.char_encoder(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"])
+        encoded = self.encoder(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"])
         kdr_logits = self.kdr_tagger(encoded.last_hidden_state)
         ins_logits = self.ins_tagger(encoded.last_hidden_state)
         if truncation_length > 0:

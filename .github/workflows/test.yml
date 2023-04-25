@@ -20,11 +20,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install Poetry
         run: |
-          python3 -m pip install --user pipx
-          python3 -m pipx ensurepath
-          python3 -m pipx install poetry
-      - name: Add path for Python packages
-        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+            pipx install poetry
+            echo "$HOME/.local/bin" >> $GITHUB_PATH
       - name: Install dependencies
         run: |
           poetry config virtualenvs.create false
