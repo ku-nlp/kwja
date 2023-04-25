@@ -1,11 +1,17 @@
 import random
+import re
 import shutil
 from argparse import ArgumentParser
 from pathlib import Path
 from typing import Dict, List
 
+from jinf import Jinf
 from rhoknp import KNP, Document, Sentence
 from tqdm import tqdm
+
+
+def is_hiragana(value):
+    return re.match(r"^[\u3040-\u309F]+$", value) is not None
 
 
 def main():
@@ -15,6 +21,7 @@ def main():
     args = parser.parse_args()
 
     knp = KNP()
+    jinf = Jinf()
 
     sid2knp_str: Dict[str, str] = {}
     num_errors: int = 0
@@ -24,7 +31,14 @@ def main():
         for sentence in tqdm(document.sentences):
             for morpheme in sentence.morphemes:
                 if "代表表記" not in morpheme.semantics:
-                    morpheme.semantics["代表表記"] = f"{morpheme.lemma}/{morpheme.reading}"
+                    if morpheme.conjtype == "*":
+                        canon: str = f"{morpheme.lemma}/{morpheme.reading}"
+                    elif is_hiragana(morpheme.lemma):
+                        canon = f"{morpheme.lemma}/{morpheme.lemma}"
+                    else:
+                        canon_right: str = jinf(morpheme.reading, morpheme.conjtype, morpheme.conjform, "基本形")
+                        canon = f"{morpheme.lemma}/{canon_right}"
+                    morpheme.semantics["代表表記"] = canon
             try:
                 knp_applied_sentence: Sentence = knp.apply_to_sentence(sentence)
             except ValueError:
