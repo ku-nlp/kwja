@@ -60,10 +60,12 @@ class BaseModuleProcessor(ABC):
         self.module = self._load_module()
         self.module.hparams.datamodule.batch_size = self.batch_size
 
-        writer = hydra.utils.instantiate(self.module.hparams.callbacks.prediction_writer, destination=self.destination)
         self.trainer = pl.Trainer(
             logger=False,
-            callbacks=[writer, hydra.utils.instantiate(self.module.hparams.callbacks.progress_bar)],
+            callbacks=[
+                hydra.utils.instantiate(self.module.hparams.callbacks.prediction_writer, destination=self.destination),
+                hydra.utils.instantiate(self.module.hparams.callbacks.progress_bar),
+            ],
             accelerator=self.device_name,
             devices=1,
         )
