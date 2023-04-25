@@ -6,7 +6,7 @@ from rhoknp import Sentence
 from transformers import PreTrainedTokenizerBase
 
 from kwja.callbacks.seq2seq_module_writer import Seq2SeqModuleWriter
-from kwja.utils.constants import NEW_LINE_TOKEN, NO_CANON_TOKEN, NO_READING_TOKEN
+from kwja.utils.constants import FULL_SPACE_TOKEN, NEW_LINE_TOKEN, NO_CANON_TOKEN
 from kwja.utils.seq2seq_format import get_sent_from_seq2seq_format, get_seq2seq_format
 
 input_seq2seq_formats = [
@@ -67,10 +67,17 @@ input_seq2seq_formats = [
         f"""\
         後 あと 後 後/あと
         一 ついたち 一 一/いち
-        日 {NO_READING_TOKEN} 日 日/にち
+        日 {FULL_SPACE_TOKEN} 日 日/にち
         まで まで まで まで/まで
         ！ ！ ！ ！/！
         ？ ？ ？ ？/？
+        """
+    ),
+    dedent(
+        f"""\
+        ＪＵＭＰ ＪＵＭＰ ＪＵＭＰ ＪＵＭＰ/ＪＵＭＰ
+        {FULL_SPACE_TOKEN} {FULL_SPACE_TOKEN} {FULL_SPACE_TOKEN} {NO_CANON_TOKEN}
+        ＣＯＭＩＣＳ ＣＯＭＩＣＳ ＣＯＭＩＣＳ ＣＯＭＩＣＳ/ＣＯＭＩＣＳ
         """
     ),
 ]
@@ -133,10 +140,17 @@ output_seq2seq_formats = [
         f"""\
         後 あと 後 後/あと
         一 ついたち 一 一/いち
-        日 {NO_READING_TOKEN} 日 日/にち
+        日 {FULL_SPACE_TOKEN} 日 日/にち
         まで まで まで まで/まで
         ! ! ! !/!
         ? ? ? ?/?
+        """
+    ),
+    dedent(
+        f"""\
+        ＪＵＭＰ ＪＵＭＰ ＪＵＭＰ ＪＵＭＰ/ＪＵＭＰ
+        {FULL_SPACE_TOKEN} {FULL_SPACE_TOKEN} {FULL_SPACE_TOKEN} {NO_CANON_TOKEN}
+        ＣＯＭＩＣＳ ＣＯＭＩＣＳ ＣＯＭＩＣＳ ＣＯＭＩＣＳ/ＣＯＭＩＣＳ
         """
     ),
 ]
