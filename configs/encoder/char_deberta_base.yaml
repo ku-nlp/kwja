@@ -1,4 +1,5 @@
-_target_: transformers.AutoModel.from_config
-config:
-  _target_: transformers.AutoConfig.from_pretrained
-  pretrained_model_name_or_path: ku-nlp/deberta-v2-base-japanese-char-wwm
+defaults:
+  - base
+  - _self_
+
+pretrained_model_name_or_path: ku-nlp/deberta-v2-base-japanese-char-wwm

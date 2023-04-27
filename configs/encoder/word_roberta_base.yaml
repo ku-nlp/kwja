@@ -1,5 +1,9 @@
-_target_: transformers.AutoModel.from_config
-config:
-  _target_: transformers.AutoConfig.from_pretrained
-  pretrained_model_name_or_path: nlp-waseda/roberta-base-japanese
-add_pooling_layer: false
+defaults:
+  - base
+  - _self_
+
+pretrained_model_name_or_path: nlp-waseda/roberta-base-japanese
+from_config:
+  add_pooling_layer: false
+from_pretrained:
+  add_pooling_layer: false
