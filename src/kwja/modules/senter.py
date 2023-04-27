@@ -51,16 +51,16 @@ class SenterModule(BaseModule[SenterModuleMetric]):
         self.valid_corpus2metric[corpus].update(kwargs)
 
     def on_validation_epoch_end(self) -> None:
-        metrics_log: Dict[str, Dict[str, float]] = {corpus: {} for corpus in self.valid_corpora}
-        for corpus, senter_module_metric in self.valid_corpus2metric.items():
+        metrics_log: Dict[str, Dict[str, float]] = {}
+        for corpus, metric in self.valid_corpus2metric.items():
             dataset = self.trainer.val_dataloaders[corpus].dataset
-            senter_module_metric.set_properties({"dataset": dataset})
-            metrics = senter_module_metric.compute()
+            metric.set_properties({"dataset": dataset})
+            metrics = metric.compute()
             metrics["aggregated_senter_metrics"] = mean(
                 metrics[key] for key in self.hparams.aggregating_metrics if key in metrics
             )
             metrics_log[corpus] = metrics
-            senter_module_metric.reset()
+            metric.reset()
 
         for corpus, metrics in metrics_log.items():
             self.log_dict({f"valid_{corpus}/{key}": value for key, value in metrics.items()})
@@ -74,16 +74,16 @@ class SenterModule(BaseModule[SenterModuleMetric]):
         self.test_corpus2metric[corpus].update(kwargs)
 
     def on_test_epoch_end(self) -> None:
-        metrics_log: Dict[str, Dict[str, float]] = {corpus: {} for corpus in self.test_corpora}
-        for corpus, senter_module_metric in self.test_corpus2metric.items():
+        metrics_log: Dict[str, Dict[str, float]] = {}
+        for corpus, metric in self.test_corpus2metric.items():
             dataset = self.trainer.test_dataloaders[corpus].dataset
-            senter_module_metric.set_properties({"dataset": dataset})
-            metrics = senter_module_metric.compute()
+            metric.set_properties({"dataset": dataset})
+            metrics = metric.compute()
             metrics["aggregated_senter_metrics"] = mean(
                 metrics[key] for key in self.hparams.aggregating_metrics if key in metrics
             )
             metrics_log[corpus] = metrics
-            senter_module_metric.reset()
+            metric.reset()
 
         for corpus, metrics in metrics_log.items():
             self.log_dict({f"test_{corpus}/{key}": value for key, value in metrics.items()})

@@ -62,10 +62,10 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
         self.valid_corpus2metric[corpus].update(kwargs)
 
     def on_validation_epoch_end(self) -> None:
-        metrics_log: Dict[str, Dict[str, float]] = {corpus: {} for corpus in self.valid_corpora}
-        for corpus, seq2seq_module_metric in self.valid_corpus2metric.items():
-            metrics_log[corpus] = seq2seq_module_metric.compute()
-            seq2seq_module_metric.reset()
+        metrics_log: Dict[str, Dict[str, float]] = {}
+        for corpus, metric in self.valid_corpus2metric.items():
+            metrics_log[corpus] = metric.compute()
+            metric.reset()
 
         for corpus, metrics in metrics_log.items():
             self.log_dict({f"valid_{corpus}/{key}": value for key, value in metrics.items()})
@@ -80,10 +80,10 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
         self.test_corpus2metric[corpus].update(kwargs)
 
     def on_test_epoch_end(self) -> None:
-        metrics_log: Dict[str, Dict[str, float]] = {corpus: {} for corpus in self.test_corpora}
-        for corpus, seq2seq_module_metric in self.test_corpus2metric.items():
-            metrics_log[corpus] = seq2seq_module_metric.compute()
-            seq2seq_module_metric.reset()
+        metrics_log: Dict[str, Dict[str, float]] = {}
+        for corpus, metric in self.test_corpus2metric.items():
+            metrics_log[corpus] = metric.compute()
+            metric.reset()
 
         for corpus, metrics in metrics_log.items():
             self.log_dict({f"test_{corpus}/{key}": value for key, value in metrics.items()})
