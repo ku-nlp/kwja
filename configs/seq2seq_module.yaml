@@ -40,7 +40,7 @@ max_batches_per_device: ${oc.env:MAX_BATCHES_PER_DEVICE,2}
 num_workers: ${oc.env:NUM_WORKERS,4}
 compile: ${oc.env:COMPILE,false}
 
-special_tokens: ["<br>", "<no_read>", "<no_canon>"]
+special_tokens: ["<br>", "<full_space>", "<no_canon>"]
 ignore_hparams_on_save: false
 
 # constants

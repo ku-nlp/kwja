@@ -1,5 +1,5 @@
 from statistics import mean
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import hydra
 import torch
@@ -63,10 +63,10 @@ class Seq2SeqModule(BaseModule):
         self.log("train/loss", ret["loss"])
         return ret["loss"]
 
-    def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> None:
+    def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
         kwargs = self(batch)
         kwargs.update({"example_ids": batch["example_ids"], "loss": kwargs["loss"]})
-        corpus = self.valid_corpora[dataloader_idx or 0]
+        corpus = self.valid_corpora[dataloader_idx]
         self.valid_corpus2seq2seq_module_metric[corpus].update(kwargs)
 
     def on_validation_epoch_end(self) -> None:
@@ -81,10 +81,10 @@ class Seq2SeqModule(BaseModule):
             mean_score = mean(metrics_log[corpus][key] for corpus in self.valid_corpora if key in metrics_log[corpus])
             self.log(f"valid/{key}", mean_score)
 
-    def test_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> None:
+    def test_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
         kwargs = self(batch)
         kwargs.update({"example_ids": batch["example_ids"], "loss": kwargs["loss"]})
-        corpus = self.test_corpora[dataloader_idx or 0]
+        corpus = self.test_corpora[dataloader_idx]
         self.test_corpus2seq2seq_module_metric[corpus].update(kwargs)
 
     def on_test_epoch_end(self) -> None:
@@ -99,7 +99,7 @@ class Seq2SeqModule(BaseModule):
             mean_score = mean(metrics_log[corpus][key] for corpus in self.test_corpora if key in metrics_log[corpus])
             self.log(f"test/{key}", mean_score)
 
-    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Any:
+    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Any:
         generateds = self.encoder_decoder.generate(
             input_ids=batch["input_ids"],
             attention_mask=batch["attention_mask"],

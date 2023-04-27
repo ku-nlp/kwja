@@ -43,5 +43,5 @@ compile: ${oc.env:COMPILE,false}
 ignore_hparams_on_save: false
 
 # constants
-special_tokens: ["<br>", "<no_read>", "<no_canon>"]
+special_tokens: ["<br>", "<full_space>", "<no_canon>"]
 hparams_to_ignore_on_save: []

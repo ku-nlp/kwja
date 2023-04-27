@@ -1,5 +1,5 @@
 from statistics import mean
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import hydra
 import torch
@@ -73,10 +73,10 @@ class TypoModule(BaseModule):
         self.log("train/ins_loss", ins_loss)
         return kdr_loss + ins_loss
 
-    def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> None:
+    def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
         kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
         kwargs.update({"kdr_labels": batch["kdr_labels"], "ins_labels": batch["ins_labels"]})
-        corpus = self.valid_corpora[dataloader_idx or 0]
+        corpus = self.valid_corpora[dataloader_idx]
         self.valid_corpus2typo_module_metric[corpus].update(kwargs)
 
     def on_validation_epoch_end(self) -> None:
@@ -94,10 +94,10 @@ class TypoModule(BaseModule):
             mean_score = mean(metrics_log[corpus][key] for corpus in self.valid_corpora if key in metrics_log[corpus])
             self.log(f"valid/{key}", mean_score)
 
-    def test_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> None:
+    def test_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
         kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
         kwargs.update({"kdr_labels": batch["kdr_labels"], "ins_labels": batch["ins_labels"]})
-        corpus = self.test_corpora[dataloader_idx or 0]
+        corpus = self.test_corpora[dataloader_idx]
         self.test_corpus2typo_module_metric[corpus].update(kwargs)
 
     def on_test_epoch_end(self) -> None:
@@ -115,7 +115,7 @@ class TypoModule(BaseModule):
             mean_score = mean(metrics_log[corpus][key] for corpus in self.test_corpora if key in metrics_log[corpus])
             self.log(f"test/{key}", mean_score)
 
-    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Dict[str, torch.Tensor]:
+    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Dict[str, torch.Tensor]:
         ret: Dict[str, torch.Tensor] = self(batch)
         kdr_probabilities = ret["kdr_logits"].softmax(dim=2)
         kdr_max_probabilities, kdr_predictions = kdr_probabilities.max(dim=2)

@@ -125,6 +125,8 @@ class WordModuleWriter(BasePredictionWriter):
                     reading_subword_map,
                 )
                 canons = ["" for _ in document.morphemes]
+            pos_logits = pos_logits.detach().cpu().tolist().copy()
+            conjtype_logits = conjtype_logits.detach().cpu().tolist().copy()
             (
                 pos_predictions,
                 subpos_predictions,
