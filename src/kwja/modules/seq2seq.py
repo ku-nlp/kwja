@@ -30,7 +30,7 @@ class Seq2SeqModule(BaseModule):
 
         self.tokenizer: PreTrainedTokenizerBase = hydra.utils.call(hparams.module.tokenizer)
 
-        self.encoder_decoder: PreTrainedModel = hydra.utils.call(hparams.encoder)
+        self.encoder_decoder: PreTrainedModel = hydra.utils.call(hparams.encoder.from_config)
         if hasattr(hparams, "special_tokens"):
             # https://github.com/huggingface/transformers/issues/4875
             self.encoder_decoder.resize_token_embeddings(len(self.tokenizer.get_vocab()))
@@ -40,7 +40,10 @@ class Seq2SeqModule(BaseModule):
 
     def setup(self, stage: str) -> None:
         if stage == "fit":
-            self.encoder_decoder.from_pretrained(self.hparams.encoder.config.pretrained_model_name_or_path)
+            self.encoder_decoder = hydra.utils.call(self.hparams.encoder.from_pretrained)
+        if hasattr(self.hparams, "special_tokens"):
+            # https://github.com/huggingface/transformers/issues/4875
+            self.encoder_decoder.resize_token_embeddings(len(self.tokenizer.get_vocab()))
 
     def forward(self, batch: Any) -> Dict[str, torch.Tensor]:
         self._truncate(batch)

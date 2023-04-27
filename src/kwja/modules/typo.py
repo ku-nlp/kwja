@@ -28,7 +28,7 @@ class TypoModule(BaseModule):
                 corpus: TypoModuleMetric() for corpus in self.test_corpora
             }
 
-        self.encoder: PreTrainedModel = hydra.utils.call(hparams.encoder)
+        self.encoder: PreTrainedModel = hydra.utils.call(hparams.encoder.from_config)
         # pretrained_model_config: PretrainedConfig = self.encoder.config
         if hasattr(hparams, "special_tokens"):
             self.encoder.resize_token_embeddings(self.encoder.config.vocab_size + len(hparams.special_tokens))
@@ -40,7 +40,9 @@ class TypoModule(BaseModule):
 
     def setup(self, stage: str) -> None:
         if stage == "fit":
-            self.encoder.from_pretrained(self.hparams.encoder.config.pretrained_model_name_or_path)
+            self.encoder = hydra.utils.call(self.hparams.encoder.from_pretrained)
+            if hasattr(self.hparams, "special_tokens"):
+                self.encoder.resize_token_embeddings(self.encoder.config.vocab_size + len(self.hparams.special_tokens))
 
     def forward(self, batch: Any) -> Dict[str, torch.Tensor]:
         truncation_length = self._truncate(batch)
