@@ -1,5 +1,5 @@
 from statistics import mean
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import hydra
 import torch
@@ -79,10 +79,10 @@ class CharModule(BaseModule):
         self.log("train/word_normalization_loss", word_normalization_loss)
         return word_segmentation_loss + word_normalization_loss
 
-    def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> None:
+    def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
         kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
         kwargs.update({"word_norm_op_labels": batch["word_norm_op_labels"]})
-        corpus = self.valid_corpora[dataloader_idx or 0]
+        corpus = self.valid_corpora[dataloader_idx]
         self.valid_corpus2char_module_metric[corpus].update(kwargs)
 
     def on_validation_epoch_end(self) -> None:
@@ -103,10 +103,10 @@ class CharModule(BaseModule):
             mean_score = mean(metrics_log[corpus][key] for corpus in self.valid_corpora if key in metrics_log[corpus])
             self.log(f"valid/{key}", mean_score)
 
-    def test_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> None:
+    def test_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
         kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
         kwargs.update({"word_norm_op_labels": batch["word_norm_op_labels"]})
-        corpus = self.test_corpora[dataloader_idx or 0]
+        corpus = self.test_corpora[dataloader_idx]
         self.test_corpus2char_module_metric[corpus].update(kwargs)
 
     def on_test_epoch_end(self) -> None:
@@ -127,7 +127,7 @@ class CharModule(BaseModule):
             mean_score = mean(metrics_log[corpus][key] for corpus in self.test_corpora if key in metrics_log[corpus])
             self.log(f"test/{key}", mean_score)
 
-    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Dict[str, torch.Tensor]:
+    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Dict[str, torch.Tensor]:
         ret: Dict[str, torch.Tensor] = self(batch)
         return {
             "example_ids": batch["example_ids"],

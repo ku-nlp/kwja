@@ -1,5 +1,5 @@
 from statistics import mean
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import hydra
 import torch
@@ -223,10 +223,10 @@ class WordModule(BaseModule):
 
         return loss
 
-    def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> None:
+    def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
         kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
         kwargs.update({"discourse_labels": batch["discourse_labels"]})
-        corpus = self.valid_corpora[dataloader_idx or 0]
+        corpus = self.valid_corpora[dataloader_idx]
         self.valid_corpus2word_module_metric[corpus].update(kwargs)
 
     def on_validation_epoch_end(self) -> None:
@@ -253,10 +253,10 @@ class WordModule(BaseModule):
             mean_score = mean(metrics_log[corpus][key] for corpus in self.valid_corpora if key in metrics_log[corpus])
             self.log(f"valid/{key}", mean_score)
 
-    def test_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> None:
+    def test_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
         kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
         kwargs.update({"discourse_labels": batch["discourse_labels"]})
-        corpus = self.test_corpora[dataloader_idx or 0]
+        corpus = self.test_corpora[dataloader_idx]
         self.test_corpus2word_module_metric[corpus].update(kwargs)
 
     def on_test_epoch_end(self) -> None:
@@ -283,7 +283,7 @@ class WordModule(BaseModule):
             mean_score = mean(metrics_log[corpus][key] for corpus in self.test_corpora if key in metrics_log[corpus])
             self.log(f"test/{key}", mean_score)
 
-    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Dict[str, torch.Tensor]:
+    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Dict[str, torch.Tensor]:
         ret: Dict[str, torch.Tensor] = self(batch)
         ne_predictions = self.crf.viterbi_decode(ret["ne_logits"], batch["target_mask"])
         discourse_probabilities = ret["discourse_logits"].softmax(dim=3)
