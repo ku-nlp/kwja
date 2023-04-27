@@ -1,5 +1,5 @@
 from statistics import mean
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 import hydra
 import torch
@@ -13,20 +13,9 @@ from kwja.modules.functions.loss import compute_token_mean_loss
 from kwja.utils.constants import SENT_SEGMENTATION_TAGS
 
 
-class SenterModule(BaseModule):
+class SenterModule(BaseModule[SenterModuleMetric]):
     def __init__(self, hparams: DictConfig) -> None:
-        super().__init__(hparams)
-
-        if valid_corpora := getattr(hparams.datamodule, "valid", None):
-            self.valid_corpora: List[str] = list(valid_corpora)
-            self.valid_corpus2senter_module_metric: Dict[str, SenterModuleMetric] = {
-                corpus: SenterModuleMetric() for corpus in self.valid_corpora
-            }
-        if test_corpora := getattr(hparams.datamodule, "test", None):
-            self.test_corpora: List[str] = list(test_corpora)
-            self.test_corpus2senter_module_metric: Dict[str, SenterModuleMetric] = {
-                corpus: SenterModuleMetric() for corpus in self.test_corpora
-            }
+        super().__init__(hparams, SenterModuleMetric())
 
         self.encoder: PreTrainedModel = hydra.utils.call(hparams.encoder.from_config)
         if hasattr(hparams, "special_tokens"):
@@ -59,11 +48,11 @@ class SenterModule(BaseModule):
     def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Any:
         kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
         corpus = self.valid_corpora[dataloader_idx]
-        self.valid_corpus2senter_module_metric[corpus].update(kwargs)
+        self.valid_corpus2metric[corpus].update(kwargs)
 
     def on_validation_epoch_end(self) -> None:
         metrics_log: Dict[str, Dict[str, float]] = {corpus: {} for corpus in self.valid_corpora}
-        for corpus, senter_module_metric in self.valid_corpus2senter_module_metric.items():
+        for corpus, senter_module_metric in self.valid_corpus2metric.items():
             dataset = self.trainer.val_dataloaders[corpus].dataset
             senter_module_metric.set_properties({"dataset": dataset})
             metrics = senter_module_metric.compute()
@@ -82,11 +71,11 @@ class SenterModule(BaseModule):
     def test_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Any:
         kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
         corpus = self.test_corpora[dataloader_idx]
-        self.test_corpus2senter_module_metric[corpus].update(kwargs)
+        self.test_corpus2metric[corpus].update(kwargs)
 
     def on_test_epoch_end(self) -> None:
         metrics_log: Dict[str, Dict[str, float]] = {corpus: {} for corpus in self.test_corpora}
-        for corpus, senter_module_metric in self.test_corpus2senter_module_metric.items():
+        for corpus, senter_module_metric in self.test_corpus2metric.items():
             dataset = self.trainer.test_dataloaders[corpus].dataset
             senter_module_metric.set_properties({"dataset": dataset})
             metrics = senter_module_metric.compute()

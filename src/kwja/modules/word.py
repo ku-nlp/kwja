@@ -31,22 +31,11 @@ from kwja.utils.constants import (
 from kwja.utils.reading_prediction import get_reading2reading_id
 
 
-class WordModule(BaseModule):
+class WordModule(BaseModule[WordModuleMetric]):
     def __init__(self, hparams: DictConfig) -> None:
-        super().__init__(hparams)
+        super().__init__(hparams, WordModuleMetric())
 
         self.training_tasks: List[WordTask] = list(map(WordTask, self.hparams.training_tasks))
-
-        if valid_corpora := getattr(hparams.datamodule, "valid", None):
-            self.valid_corpora: List[str] = list(valid_corpora)
-            self.valid_corpus2word_module_metric: Dict[str, WordModuleMetric] = {
-                corpus: WordModuleMetric() for corpus in self.valid_corpora
-            }
-        if test_corpora := getattr(hparams.datamodule, "test", None):
-            self.test_corpora: List[str] = list(test_corpora)
-            self.test_corpus2word_module_metric: Dict[str, WordModuleMetric] = {
-                corpus: WordModuleMetric() for corpus in self.test_corpora
-            }
 
         self.encoder: PreTrainedModel = hydra.utils.call(hparams.encoder.from_config)
         pretrained_model_config: PretrainedConfig = self.encoder.config
@@ -229,11 +218,11 @@ class WordModule(BaseModule):
         kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
         kwargs.update({"discourse_labels": batch["discourse_labels"]})
         corpus = self.valid_corpora[dataloader_idx]
-        self.valid_corpus2word_module_metric[corpus].update(kwargs)
+        self.valid_corpus2metric[corpus].update(kwargs)
 
     def on_validation_epoch_end(self) -> None:
         metrics_log: Dict[str, Dict[str, float]] = {corpus: {} for corpus in self.valid_corpora}
-        for corpus, word_module_metric in self.valid_corpus2word_module_metric.items():
+        for corpus, word_module_metric in self.valid_corpus2metric.items():
             dataset = self.trainer.val_dataloaders[corpus].dataset
             word_module_metric.set_properties(
                 {
@@ -259,11 +248,11 @@ class WordModule(BaseModule):
         kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
         kwargs.update({"discourse_labels": batch["discourse_labels"]})
         corpus = self.test_corpora[dataloader_idx]
-        self.test_corpus2word_module_metric[corpus].update(kwargs)
+        self.test_corpus2metric[corpus].update(kwargs)
 
     def on_test_epoch_end(self) -> None:
         metrics_log: Dict[str, Dict[str, float]] = {corpus: {} for corpus in self.test_corpora}
-        for corpus, word_module_metric in self.test_corpus2word_module_metric.items():
+        for corpus, word_module_metric in self.test_corpus2metric.items():
             dataset = self.trainer.test_dataloaders[corpus].dataset
             word_module_metric.set_properties(
                 {

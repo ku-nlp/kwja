@@ -1,5 +1,5 @@
 from statistics import mean
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, Tuple
 
 import hydra
 import torch
@@ -13,20 +13,9 @@ from kwja.modules.functions.loss import compute_token_mean_loss
 from kwja.utils.constants import WORD_NORM_OP_TAGS, WORD_SEGMENTATION_TAGS
 
 
-class CharModule(BaseModule):
+class CharModule(BaseModule[CharModuleMetric]):
     def __init__(self, hparams: DictConfig) -> None:
-        super().__init__(hparams)
-
-        if valid_corpora := getattr(hparams.datamodule, "valid", None):
-            self.valid_corpora: List[str] = list(valid_corpora)
-            self.valid_corpus2char_module_metric: Dict[str, CharModuleMetric] = {
-                corpus: CharModuleMetric() for corpus in self.valid_corpora
-            }
-        if test_corpora := getattr(hparams.datamodule, "test", None):
-            self.test_corpora: List[str] = list(test_corpora)
-            self.test_corpus2char_module_metric: Dict[str, CharModuleMetric] = {
-                corpus: CharModuleMetric() for corpus in self.test_corpora
-            }
+        super().__init__(hparams, CharModuleMetric())
 
         self.encoder: PreTrainedModel = hydra.utils.call(hparams.encoder.from_config)
         if hasattr(hparams, "special_tokens"):
@@ -85,11 +74,11 @@ class CharModule(BaseModule):
         kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
         kwargs.update({"word_norm_op_labels": batch["word_norm_op_labels"]})
         corpus = self.valid_corpora[dataloader_idx]
-        self.valid_corpus2char_module_metric[corpus].update(kwargs)
+        self.valid_corpus2metric[corpus].update(kwargs)
 
     def on_validation_epoch_end(self) -> None:
         metrics_log: Dict[str, Dict[str, float]] = {corpus: {} for corpus in self.valid_corpora}
-        for corpus, char_module_metric in self.valid_corpus2char_module_metric.items():
+        for corpus, char_module_metric in self.valid_corpus2metric.items():
             dataset = self.trainer.val_dataloaders[corpus].dataset
             char_module_metric.set_properties({"dataset": dataset})
             metrics = char_module_metric.compute()
@@ -109,11 +98,11 @@ class CharModule(BaseModule):
         kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
         kwargs.update({"word_norm_op_labels": batch["word_norm_op_labels"]})
         corpus = self.test_corpora[dataloader_idx]
-        self.test_corpus2char_module_metric[corpus].update(kwargs)
+        self.test_corpus2metric[corpus].update(kwargs)
 
     def on_test_epoch_end(self) -> None:
         metrics_log: Dict[str, Dict[str, float]] = {corpus: {} for corpus in self.test_corpora}
-        for corpus, char_module_metric in self.test_corpus2char_module_metric.items():
+        for corpus, char_module_metric in self.test_corpus2metric.items():
             dataset = self.trainer.test_dataloaders[corpus].dataset
             char_module_metric.set_properties({"dataset": dataset})
             metrics = char_module_metric.compute()
