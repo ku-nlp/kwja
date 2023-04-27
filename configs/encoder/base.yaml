@@ -1,0 +1,9 @@
+pretrained_model_name_or_path: null
+from_config:
+  _target_: transformers.AutoModel.from_config
+  config:
+    _target_: transformers.AutoConfig.from_pretrained
+    pretrained_model_name_or_path: ${encoder.pretrained_model_name_or_path}
+from_pretrained:
+  _target_: transformers.AutoModel.from_pretrained
+  pretrained_model_name_or_path: ${encoder.pretrained_model_name_or_path}
