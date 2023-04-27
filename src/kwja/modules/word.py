@@ -185,8 +185,7 @@ class WordModule(BaseModule):
             self.log("train/word_feature_tagging_loss", word_feature_tagging_loss)
 
         if WordTask.NER in self.training_tasks:
-            ne_labels = torch.where(batch["target_mask"] == 1, batch["ne_labels"], NE_TAGS.index("O"))
-            ner_loss = self.crf(ret["ne_logits"], ne_labels, mask=batch["target_mask"])
+            ner_loss = self.crf(ret["ne_logits"], batch["ne_labels"], mask=batch["ne_mask"])
             loss += ner_loss
             self.log("train/ner_loss", ner_loss)
 
@@ -285,7 +284,7 @@ class WordModule(BaseModule):
 
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Dict[str, torch.Tensor]:
         ret: Dict[str, torch.Tensor] = self(batch)
-        ne_predictions = self.crf.viterbi_decode(ret["ne_logits"], batch["target_mask"])
+        ne_predictions = self.crf.viterbi_decode(ret["ne_logits"], batch["ne_mask"])
         discourse_probabilities = ret["discourse_logits"].softmax(dim=3)
         discourse_max_probabilities, discourse_predictions = discourse_probabilities.max(dim=3)
         discourse_unconfident_indices = discourse_max_probabilities < self.discourse_parsing_threshold

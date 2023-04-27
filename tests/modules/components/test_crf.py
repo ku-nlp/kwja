@@ -70,8 +70,8 @@ def test_viterbi_decode(batch_size: int, seq_length: int, target_span: Tuple[int
     ne_index = [i for i, tag in enumerate(NE_TAGS) if tag.startswith("B-")][0]
     emissions = torch.zeros((batch_size, seq_length, crf.num_tags), dtype=torch.float)
     emissions[:, :, ne_index] = 1.0
-    mask = torch.zeros((batch_size, seq_length), dtype=torch.long)
-    mask[:, torch.arange(*target_span)] = 1
+    mask = torch.full((batch_size, seq_length), False, dtype=torch.bool)
+    mask[:, torch.arange(*target_span)] = True
     decoded = crf.viterbi_decode(emissions, mask)
     assert decoded.shape == (batch_size, seq_length)
     assert (decoded[:, torch.arange(*target_span)] == ne_index).all()

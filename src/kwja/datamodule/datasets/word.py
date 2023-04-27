@@ -41,7 +41,6 @@ class WordModuleFeatures:
     example_ids: int
     input_ids: List[int]
     attention_mask: List[int]
-    target_mask: List[int]
     subword_map: List[List[bool]]
     reading_labels: List[int]
     reading_subword_map: List[List[bool]]
@@ -51,6 +50,7 @@ class WordModuleFeatures:
     conjform_labels: List[int]
     word_feature_labels: List[List[int]]
     ne_labels: List[int]
+    ne_mask: List[bool]
     base_phrase_feature_labels: List[List[int]]
     dependency_labels: List[int]
     dependency_mask: List[List[bool]]  # True/False = keep/mask
@@ -182,10 +182,10 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         assert example.doc_id is not None, "doc_id isn't set"
         document = self.doc_id2document[example.doc_id]
 
-        target_mask = [0 for _ in range(self.max_seq_length)]
+        target_mask = [False] * self.max_seq_length
         for sentence in extract_target_sentences(document):
             for morpheme in sentence.morphemes:
-                target_mask[morpheme.global_index] = 1
+                target_mask[morpheme.global_index] = True
 
         # ---------- reading prediction ----------
         reading_labels = [IGNORE_INDEX] * self.max_seq_length
@@ -196,7 +196,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
                 if token_index not in self.index2special_token and word_id is not None
             ]
             for (token_index, word_id), reading in zip(token_indices, example.readings):
-                if target_mask[word_id] == 1:
+                if target_mask[word_id] is True:
                     decoded_token = self.tokenizer.decode(merged_encoding.ids[token_index])
                     if decoded_token == reading:
                         reading_labels[token_index] = self.reading2reading_id["[ID]"]
@@ -225,17 +225,14 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
                 word_feature_labels[morpheme_global_index][i] = int(word_feature in word_feature_set)
 
         # ---------- ner ----------
-        ne_labels: List[int] = [
-            NE_TAGS.index("O") if target_mask[morpheme_global_index] == 1 else IGNORE_INDEX
-            for morpheme_global_index in range(self.max_seq_length)
-        ]
+        ne_mask = target_mask
+        ne_labels: List[int] = [NE_TAGS.index("O")] * self.max_seq_length
         for named_entity in example.named_entities:
             category = named_entity.category.value
             for i, morpheme in enumerate(named_entity.morphemes):
                 bi = "B" if i == 0 else "I"
                 assert ne_labels[morpheme.global_index] == NE_TAGS.index("O"), f"nested NE found in {example.doc_id}"
-                ne_index = NE_TAGS.index(f"{bi}-{category}")
-                ne_labels[morpheme.global_index] = ne_index
+                ne_labels[morpheme.global_index] = NE_TAGS.index(f"{bi}-{category}")
 
         # ---------- base phrase feature tagging ----------
         base_phrase_feature_labels = [[IGNORE_INDEX] * len(BASE_PHRASE_FEATURES) for _ in range(self.max_seq_length)]
@@ -283,7 +280,6 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             example_ids=example.example_id,
             input_ids=merged_encoding.ids,
             attention_mask=merged_encoding.attention_mask,
-            target_mask=target_mask,
             subword_map=self._get_subword_map(merged_encoding),
             reading_labels=reading_labels,
             reading_subword_map=self._get_subword_map(merged_encoding, include_special_tokens=False),
@@ -293,6 +289,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             conjform_labels=morpheme_attribute_labels[3],
             word_feature_labels=word_feature_labels,
             ne_labels=ne_labels,
+            ne_mask=ne_mask,
             base_phrase_feature_labels=base_phrase_feature_labels,
             dependency_labels=dependency_labels,
             dependency_mask=dependency_mask,
