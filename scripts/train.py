@@ -68,7 +68,7 @@ def main(cfg: DictConfig):
 
     model: pl.LightningModule = hydra.utils.instantiate(cfg.module.cls, hparams=cfg, _recursive_=False)
     if cfg.compile is True:
-        model = torch.compile(model)
+        model = torch.compile(model)  # type: ignore
 
     trainer.fit(model=model, datamodule=datamodule)
     trainer.test(model=model, datamodule=datamodule, ckpt_path="best" if not trainer.fast_dev_run else None)
