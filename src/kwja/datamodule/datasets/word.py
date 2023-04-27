@@ -92,7 +92,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         )
 
         # ---------- cohesion analysis ----------
-        self.skip_cohesion = "kyoto_ed" in path  # cohesion tags are not annotated in editorial articles
+        self.skip_cohesion_ne_discourse = "kyoto_ed" in path  # some tags are not annotated in editorial articles
         self.cohesion_tasks: List[CohesionTask] = [CohesionTask(t) for t in cohesion_tasks]
         self.exophora_referents = [ExophoraReferent(s) for s in exophora_referents]
         self.restrict_cohesion_target = restrict_cohesion_target
@@ -225,7 +225,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
                 word_feature_labels[morpheme_global_index][i] = int(word_feature in word_feature_set)
 
         # ---------- ner ----------
-        ne_mask = target_mask
+        ne_mask = [False] * self.max_seq_length if self.skip_cohesion_ne_discourse is True else target_mask
         ne_labels: List[int] = [NE_TAGS.index("O")] * self.max_seq_length
         for named_entity in example.named_entities:
             category = named_entity.category.value
@@ -268,13 +268,14 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
 
         # ---------- discourse parsing ----------
         discourse_labels = [[IGNORE_INDEX for _ in range(self.max_seq_length)] for _ in range(self.max_seq_length)]
-        for (
-            modifier_morpheme_global_index,
-            head_morpheme_global_index,
-        ), relation in example.morpheme_global_indices2discourse_relation.items():
-            if relation in DISCOURSE_RELATIONS:
-                discourse_index = DISCOURSE_RELATIONS.index(relation)
-                discourse_labels[modifier_morpheme_global_index][head_morpheme_global_index] = discourse_index
+        if self.skip_cohesion_ne_discourse is False:
+            for (
+                modifier_morpheme_global_index,
+                head_morpheme_global_index,
+            ), relation in example.morpheme_global_indices2discourse_relation.items():
+                if relation in DISCOURSE_RELATIONS:
+                    discourse_index = DISCOURSE_RELATIONS.index(relation)
+                    discourse_labels[modifier_morpheme_global_index][head_morpheme_global_index] = discourse_index
 
         return WordModuleFeatures(
             example_ids=example.example_id,
@@ -328,7 +329,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         rel: str,
     ) -> List[List[int]]:
         rel_labels: List[List[int]] = [[0] * self.max_seq_length for _ in range(self.max_seq_length)]
-        if self.skip_cohesion is True:
+        if self.skip_cohesion_ne_discourse is True:
             return rel_labels
         for cohesion_base_phrase in cohesion_base_phrases:
             if cohesion_base_phrase.is_target is False:
