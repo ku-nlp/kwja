@@ -61,12 +61,12 @@ importlib-resources = "^5.10"
 jaconv = "^0.3"
 pure-cdb = "^4.0"
 rich = ">=12.4"
-Levenshtein = "^0.20.8"
+Levenshtein = "^0.21.0"
 
 [tool.poetry.group.dev.dependencies]
 ipdb = "^0.13.9"
 types-attrs = "^19.1.0"
-wandb = "^0.14.0"
+wandb = "^0.15.0"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7.1"

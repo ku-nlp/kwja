@@ -1,15 +1,26 @@
-import copy
-from typing import Any, Dict
+from copy import deepcopy
+from typing import Any, Dict, Generic, List, TypeVar
 
 import hydra
 import pytorch_lightning as pl
 from omegaconf import DictConfig, ListConfig, OmegaConf
 
+from kwja.metrics.base import BaseModuleMetric
 
-class BaseModule(pl.LightningModule):
-    def __init__(self, hparams: DictConfig) -> None:
+MetricType = TypeVar("MetricType", bound=BaseModuleMetric)
+
+
+class BaseModule(pl.LightningModule, Generic[MetricType]):
+    def __init__(self, hparams: DictConfig, metric: MetricType) -> None:
         super().__init__()
         self.save_hyperparameters(hparams)
+
+        if valid_corpora := getattr(hparams.datamodule, "valid"):
+            self.valid_corpora: List[str] = list(valid_corpora)
+            self.valid_corpus2metric: Dict[str, MetricType] = {corpus: deepcopy(metric) for corpus in valid_corpora}
+        if test_corpora := getattr(hparams.datamodule, "test"):
+            self.test_corpora: List[str] = list(test_corpora)
+            self.test_corpus2metric: Dict[str, MetricType] = {corpus: deepcopy(metric) for corpus in test_corpora}
 
     def configure_optimizers(self):
         # Split weights in two groups, one with weight decay and the other not.
@@ -40,7 +51,7 @@ class BaseModule(pl.LightningModule):
         return {"optimizer": optimizer, "lr_scheduler": {"scheduler": lr_scheduler, "interval": "step", "frequency": 1}}
 
     def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
-        hparams: DictConfig = copy.deepcopy(checkpoint["hyper_parameters"])
+        hparams: DictConfig = deepcopy(checkpoint["hyper_parameters"])
         OmegaConf.set_struct(hparams, False)
         if self.hparams.ignore_hparams_on_save:
             hparams = filter_dict_items(hparams, self.hparams.hparams_to_ignore_on_save)
