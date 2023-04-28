@@ -71,7 +71,7 @@ class WordModule(BaseModule[WordModuleMetric]):
         self.base_phrase_feature_tagger = SequenceLabelingHead(len(BASE_PHRASE_FEATURES), *head_args, multi_label=True)
 
         # ---------- dependency parsing ----------
-        self.topk: int = hparams.dependency_topk
+        self.dependency_topk: int = hparams.dependency_topk
         self.dependency_parser = WordSelectionHead(1, *head_args)
         self.dependency_type_parser = SequenceLabelingHead(
             len(DEPENDENCY_TYPES),
@@ -112,27 +112,26 @@ class WordModule(BaseModule[WordModuleMetric]):
                 self.encoder.resize_token_embeddings(self.encoder.config.vocab_size + len(self.hparams.special_tokens))
 
     def forward(self, batch: Any) -> Dict[str, torch.Tensor]:
-        # (b, seq, hid)
-        encoded = self.encoder(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"])
-        pooled = pool_subwords(encoded.last_hidden_state, batch["subword_map"], PoolingStrategy.FIRST)
+        encoded = self.encoder(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"])  # (b, seq, hid)
+        pooled = pool_subwords(encoded.last_hidden_state, batch["subword_map"], PoolingStrategy.FIRST)  # (b, seq, hid)
 
-        dependency_logits = self.dependency_parser(pooled)
+        dependency_logits = self.dependency_parser(pooled)  # (b, seq, seq, 1)
         masked_dependency_logits = mask_logits(dependency_logits.squeeze(3), batch["dependency_mask"])
         if 0 not in batch["dependency_labels"].size():
             dependency_labels = batch["dependency_labels"]
             dependency_labels = (dependency_labels * dependency_labels.ne(IGNORE_INDEX)).unsqueeze(2).unsqueeze(3)
             topk = 1
         else:
-            dependency_labels = masked_dependency_logits.topk(self.topk, dim=2).indices.unsqueeze(3)
-            topk = self.topk
+            dependency_labels = masked_dependency_logits.topk(self.dependency_topk, dim=2).indices.unsqueeze(3)
+            topk = self.dependency_topk
         unsqueezed = pooled.unsqueeze(2)
         batch_size, seq_len, hidden_size = pooled.shape
-        source_shape = (batch_size, seq_len, seq_len, hidden_size)
-        target_shape = (batch_size, seq_len, topk, hidden_size)
+        source_shape: Tuple[int, ...] = (batch_size, seq_len, seq_len, hidden_size)
+        target_shape: Tuple[int, ...] = (batch_size, seq_len, topk, hidden_size)
         # gather は IGNORE_INDEX を渡せない
         head_hidden_states = unsqueezed.expand(source_shape).gather(2, dependency_labels.expand(target_shape))
 
-        cohesion_logits = self.cohesion_analyzer(pooled)
+        cohesion_logits = self.cohesion_analyzer(pooled)  # (b, seq, seq, rel)
         cohesion_logits = cohesion_logits.permute(0, 3, 1, 2).contiguous()  # -> (b, rel, seq, seq)
         masked_cohesion_logits = mask_logits(cohesion_logits, batch["cohesion_mask"])
 
@@ -163,11 +162,13 @@ class WordModule(BaseModule[WordModuleMetric]):
             )
 
         if WordTask.MORPHOLOGICAL_ANALYSIS in self.training_tasks:
-            pos_loss = compute_token_mean_loss(ret["pos_logits"], batch["pos_labels"])
-            subpos_loss = compute_token_mean_loss(ret["subpos_logits"], batch["subpos_labels"])
-            conjtype_loss = compute_token_mean_loss(ret["conjtype_logits"], batch["conjtype_labels"])
-            conjform_loss = compute_token_mean_loss(ret["conjform_logits"], batch["conjform_labels"])
-            loss_log["morphological_analysis_loss"] = (pos_loss + subpos_loss + conjtype_loss + conjform_loss) / 4
+            morphological_analysis_losses = [
+                compute_token_mean_loss(ret["pos_logits"], batch["pos_labels"]),
+                compute_token_mean_loss(ret["subpos_logits"], batch["subpos_labels"]),
+                compute_token_mean_loss(ret["conjtype_logits"], batch["conjtype_labels"]),
+                compute_token_mean_loss(ret["conjform_logits"], batch["conjform_labels"]),
+            ]
+            loss_log["morphological_analysis_loss"] = torch.stack(morphological_analysis_losses).mean()
 
         if WordTask.WORD_FEATURE_TAGGING in self.training_tasks:
             word_feature_mask = batch["word_feature_labels"].ne(IGNORE_INDEX)
@@ -288,7 +289,7 @@ class WordModule(BaseModule[WordModuleMetric]):
             "word_feature_probabilities": ret["word_feature_probabilities"],
             "ne_predictions": ne_predictions,
             "base_phrase_feature_probabilities": ret["base_phrase_feature_probabilities"],
-            "dependency_predictions": ret["dependency_logits"].topk(k=self.topk, dim=2).indices,
+            "dependency_predictions": ret["dependency_logits"].topk(k=self.dependency_topk, dim=2).indices,
             "dependency_type_predictions": ret["dependency_type_logits"].argmax(dim=3),
             "cohesion_logits": ret["cohesion_logits"],
             "discourse_predictions": discourse_predictions,
