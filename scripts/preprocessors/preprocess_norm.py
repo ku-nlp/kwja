@@ -20,12 +20,13 @@ def main():
     parser.add_argument("-o", "--output-dir", type=str, required=True)
     args = parser.parse_args()
 
+    random.seed(42)
+
     knp = KNP()
     jinf = Jinf()
 
     sid2knp_str: Dict[str, str] = {}
     num_errors: int = 0
-    sid: int = 0
     with Path(args.input_path).open() as f:
         document: Document = Document.from_jumanpp(f.read())
         for sentence in tqdm(document.sentences):
@@ -44,8 +45,11 @@ def main():
             except ValueError:
                 num_errors += 1
                 continue
-            sid2knp_str[f"{sid}"] = knp_applied_sentence.to_knp()
-            sid += 1
+            try:
+                sid2knp_str[knp_applied_sentence.sid] = knp_applied_sentence.to_knp()
+            except AttributeError:
+                num_errors += 1
+                continue
 
     sid2knp_str_list: List[tuple[str, str]] = list(sid2knp_str.items())
     random.shuffle(sid2knp_str_list)
