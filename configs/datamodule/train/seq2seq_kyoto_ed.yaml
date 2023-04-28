@@ -2,4 +2,4 @@ defaults:
   - /datamodule/base/seq2seq@kyoto_ed
 
 kyoto_ed:
-  path: ${oc.env:DATA_DIR}/kyoto_ed/train
+  path: ${oc.env:DATA_DIR}/kyoto_ed/all
