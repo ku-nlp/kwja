@@ -1,0 +1,22 @@
+defaults:
+  - train:
+    - senter_kyoto.yaml
+    - senter_kyoto_ed.yaml
+    - senter_kwdlc.yaml
+    - senter_fuman.yaml
+    - senter_wac.yaml
+  - valid:
+    - senter_kyoto.yaml
+    - senter_kwdlc.yaml
+    - senter_fuman.yaml
+    - senter_wac.yaml
+  - test:
+    - senter_kyoto.yaml
+    - senter_kwdlc.yaml
+    - senter_fuman.yaml
+    - senter_wac.yaml
+  - predict:
+    - senter_inference.yaml
+
+batch_size: ${max_batches_per_device}
+num_workers: ${num_workers}

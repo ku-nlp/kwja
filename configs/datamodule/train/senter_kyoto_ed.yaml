@@ -1,0 +1,5 @@
+defaults:
+  - /datamodule/base/senter@kyoto_ed
+
+kyoto:
+  path: ${oc.env:DATA_DIR}/kyoto_ed/train
