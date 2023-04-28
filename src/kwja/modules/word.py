@@ -11,7 +11,12 @@ from kwja.modules.base import BaseModule
 from kwja.modules.components.crf import CRF
 from kwja.modules.components.head import SequenceLabelingHead, WordSelectionHead
 from kwja.modules.components.pooling import PoolingStrategy, pool_subwords
-from kwja.modules.functions.loss import compute_multi_label_token_mean_loss, compute_token_mean_loss, mask_logits
+from kwja.modules.functions.loss import (
+    compute_cohesion_analysis_loss,
+    compute_multi_label_token_mean_loss,
+    compute_token_mean_loss,
+    mask_logits,
+)
 from kwja.utils.cohesion_analysis import BridgingUtils, CoreferenceUtils, PasUtils
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
@@ -44,9 +49,10 @@ class WordModule(BaseModule[WordModuleMetric]):
         head_args: Tuple[int, float] = (self.encoder.config.hidden_size, self.encoder.config.hidden_dropout_prob)
 
         # ---------- reading prediction ----------
-        reading2reading_id: Dict[str, int] = get_reading2reading_id(RESOURCE_PATH / "reading_prediction" / "vocab.txt")
-        self.reading_id2reading: Dict[int, str] = {v: k for k, v in reading2reading_id.items()}
-        self.reading_tagger = SequenceLabelingHead(len(reading2reading_id), *head_args)
+        self.reading_id2reading: Dict[int, str] = {
+            v: k for k, v in get_reading2reading_id(RESOURCE_PATH / "reading_prediction" / "vocab.txt").items()
+        }
+        self.reading_tagger = SequenceLabelingHead(len(self.reading_id2reading), *head_args)
 
         # ---------- morphological analysis ----------
         self.pos_tagger = SequenceLabelingHead(len(POS_TAGS), *head_args)
@@ -149,70 +155,60 @@ class WordModule(BaseModule[WordModuleMetric]):
 
     def training_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
         ret: Dict[str, torch.Tensor] = self(batch)
-        loss = torch.tensor(0.0, device=self.device)
+        loss_log: Dict[str, torch.Tensor] = {}
 
         if WordTask.READING_PREDICTION in self.training_tasks:
-            reading_prediction_loss = compute_token_mean_loss(ret["reading_logits"], batch["reading_labels"])
-            loss += reading_prediction_loss
-            self.log("train/reading_prediction_loss", reading_prediction_loss)
+            loss_log["reading_prediction_loss"] = compute_token_mean_loss(
+                ret["reading_logits"], batch["reading_labels"]
+            )
 
         if WordTask.MORPHOLOGICAL_ANALYSIS in self.training_tasks:
             pos_loss = compute_token_mean_loss(ret["pos_logits"], batch["pos_labels"])
             subpos_loss = compute_token_mean_loss(ret["subpos_logits"], batch["subpos_labels"])
             conjtype_loss = compute_token_mean_loss(ret["conjtype_logits"], batch["conjtype_labels"])
             conjform_loss = compute_token_mean_loss(ret["conjform_logits"], batch["conjform_labels"])
-            morphological_analysis_loss = (pos_loss + subpos_loss + conjtype_loss + conjform_loss) / 4
-            loss += morphological_analysis_loss
-            self.log("train/morphological_analysis_loss", morphological_analysis_loss)
+            loss_log["morphological_analysis_loss"] = (pos_loss + subpos_loss + conjtype_loss + conjform_loss) / 4
 
         if WordTask.WORD_FEATURE_TAGGING in self.training_tasks:
             word_feature_mask = batch["word_feature_labels"].ne(IGNORE_INDEX)
-            word_feature_tagging_loss = compute_multi_label_token_mean_loss(
+            loss_log["word_feature_tagging_loss"] = compute_multi_label_token_mean_loss(
                 ret["word_feature_probabilities"] * word_feature_mask,
                 batch["word_feature_labels"].float() * word_feature_mask,
                 word_feature_mask,
             )
-            loss += word_feature_tagging_loss
-            self.log("train/word_feature_tagging_loss", word_feature_tagging_loss)
 
         if WordTask.NER in self.training_tasks:
             ne_labels = torch.where(batch["target_mask"] == 1, batch["ne_labels"], NE_TAGS.index("O"))
-            ner_loss = self.crf(ret["ne_logits"], ne_labels, mask=batch["target_mask"])
-            loss += ner_loss
-            self.log("train/ner_loss", ner_loss)
+            loss_log["ner_loss"] = self.crf(ret["ne_logits"], ne_labels, mask=batch["target_mask"])
 
         if WordTask.BASE_PHRASE_FEATURE_TAGGING in self.training_tasks:
             base_phrase_feature_mask = batch["base_phrase_feature_labels"].ne(IGNORE_INDEX)
-            base_phrase_feature_tagging_loss = compute_multi_label_token_mean_loss(
+            loss_log["base_phrase_feature_tagging_loss"] = compute_multi_label_token_mean_loss(
                 ret["base_phrase_feature_probabilities"] * base_phrase_feature_mask,
                 batch["base_phrase_feature_labels"].float() * base_phrase_feature_mask,
                 base_phrase_feature_mask,
             )
-            loss += base_phrase_feature_tagging_loss
-            self.log("train/base_phrase_feature_tagging_loss", base_phrase_feature_tagging_loss)
 
         if WordTask.DEPENDENCY_PARSING in self.training_tasks:
-            dependency_parsing_loss = compute_token_mean_loss(ret["dependency_logits"], batch["dependency_labels"])
+            loss_log["dependency_parsing_loss"] = compute_token_mean_loss(
+                ret["dependency_logits"], batch["dependency_labels"]
+            )
             top1 = ret["dependency_type_logits"][:, :, 0, :]
-            dependency_type_parsing_loss = compute_token_mean_loss(top1, batch["dependency_type_labels"])
-            loss += dependency_parsing_loss
-            loss += dependency_type_parsing_loss
-            self.log("train/dependency_parsing_loss", dependency_parsing_loss)
-            self.log("train/dependency_type_parsing_loss", dependency_type_parsing_loss)
+            loss_log["dependency_type_parsing_loss"] = compute_token_mean_loss(top1, batch["dependency_type_labels"])
 
         if WordTask.COHESION_ANALYSIS in self.training_tasks:
-            log_softmax = torch.log_softmax(ret["cohesion_logits"], dim=3)  # (b, rel, seq, seq)
-            denominator = batch["cohesion_labels"].sum() + 1e-6
-            cohesion_analysis_loss = (-log_softmax * batch["cohesion_labels"]).sum().div(denominator)
-            loss += cohesion_analysis_loss
-            self.log("train/cohesion_analysis_loss", cohesion_analysis_loss)
+            loss_log["cohesion_analysis_loss"] = compute_cohesion_analysis_loss(
+                ret["cohesion_logits"], batch["cohesion_labels"]
+            )
 
         if WordTask.DISCOURSE_PARSING in self.training_tasks:
-            discourse_parsing_loss = compute_token_mean_loss(ret["discourse_logits"], batch["discourse_labels"])
-            loss += discourse_parsing_loss
-            self.log("train/discourse_parsing_loss", discourse_parsing_loss)
+            loss_log["discourse_parsing_loss"] = compute_token_mean_loss(
+                ret["discourse_logits"], batch["discourse_labels"]
+            )
 
-        return loss
+        self.log_dict({f"train/{key}": value for key, value in loss_log.items()})
+
+        return torch.stack(list(loss_log.values())).sum()
 
     def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
         kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
