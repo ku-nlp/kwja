@@ -1,6 +1,7 @@
 defaults:
   - train:
     - char_kyoto.yaml
+    - char_kyoto_ed.yaml
     - char_kwdlc.yaml
     - char_fuman.yaml
     - char_wac.yaml

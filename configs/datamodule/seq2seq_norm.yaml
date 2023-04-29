@@ -1,6 +1,7 @@
 defaults:
   - train:
     - seq2seq_kyoto.yaml
+    - seq2seq_kyoto_ed.yaml
     - seq2seq_kwdlc.yaml
     - seq2seq_fuman.yaml
     - seq2seq_wac.yaml
