@@ -22,10 +22,10 @@ aggregating_metrics:
   - sent_segmentation_f1
 
 # hyper-parameters to be tuned
-lr: 2e-5
+lr: 5e-5
 max_epochs: 12
-warmup_steps: 2000
-effective_batch_size: 32
+warmup_steps: 1500
+effective_batch_size: 48
 
 # environment dependent settings
 devices: ${oc.env:DEVICES,0}
