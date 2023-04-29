@@ -428,14 +428,13 @@ def main():
 
     output_root = Path(args.OUTPUT)
     doc_id2split = {}
-    for input_file in Path(args.id).glob("*.id"):
-        if input_file.stem not in {"train", "dev", "test"}:
+    for id_file in Path(args.id).glob("*.id"):
+        if id_file.stem not in {"train", "dev", "test", "all"}:
             continue
-        split = "valid" if input_file.stem == "dev" else input_file.stem
+        split = "valid" if id_file.stem == "dev" else id_file.stem
         output_root.joinpath(split).mkdir(parents=True, exist_ok=True)
-        with input_file.open(mode="r") as f:
-            for line in f:
-                doc_id2split[line.strip()] = split
+        for doc_id in id_file.read_text().splitlines():
+            doc_id2split[doc_id] = split
 
     chunk_size = len(knp_texts) // args.j + int(len(knp_texts) % args.j > 0)
     iterable = [

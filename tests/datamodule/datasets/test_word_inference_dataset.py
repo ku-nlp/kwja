@@ -90,7 +90,7 @@ def test_getitem(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[s
         assert feature.example_ids == i
         assert len(feature.input_ids) == max_seq_length
         assert len(feature.attention_mask) == max_seq_length
-        assert len(feature.target_mask) == max_seq_length
+        assert len(feature.ne_mask) == max_seq_length
         assert np.array(feature.subword_map).shape == (max_seq_length, max_seq_length)
         assert np.array(feature.reading_subword_map).shape == (max_seq_length, max_seq_length)
         assert np.array(feature.dependency_mask).shape == (max_seq_length, max_seq_length)

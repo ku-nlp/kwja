@@ -46,14 +46,14 @@ class CRF(nn.Module):
         reduction: Literal["token_mean", "mean", "sum", "none"] = "token_mean",
     ) -> torch.Tensor:
         if mask is None:
-            mask = torch.ones_like(tags)
+            mask = torch.full_like(tags, True, dtype=torch.bool)
 
         numerator = self._compute_numerator(emissions, tags, mask)  # (b, )
         denominator = self._compute_denominator(emissions, mask)  # (b, )
         llh = denominator - numerator  # (b, )
 
         if reduction == "token_mean":
-            return llh.sum() / mask.sum()
+            return (llh / (mask.sum(dim=1) + 1e-6)).mean()
         elif reduction == "mean":
             return llh.mean()
         elif reduction == "sum":
@@ -67,7 +67,7 @@ class CRF(nn.Module):
         indices = torch.arange(batch_size)
 
         arange = torch.arange(seq_len, device=mask.device)
-        heads = torch.amin(arange * mask + seq_len * (1 - mask), dim=1)
+        heads = torch.amin(torch.where(mask, arange, seq_len - 1), dim=1)
         head_tags = tags[indices, heads]
         min_head = int(heads.min())
         tails = torch.amax(arange * mask, dim=1)
@@ -89,7 +89,7 @@ class CRF(nn.Module):
         indices = torch.arange(batch_size)
 
         arange = torch.arange(seq_len, device=mask.device)
-        heads = torch.amin(arange * mask + seq_len * (1 - mask), dim=1)
+        heads = torch.amin(torch.where(mask, arange, seq_len - 1), dim=1)
         min_head = int(heads.min())
         tails = torch.amax(arange * mask, dim=1)
         max_tail = int(tails.max())
@@ -111,7 +111,7 @@ class CRF(nn.Module):
         indices = torch.arange(batch_size)
 
         arange = torch.arange(seq_len, device=mask.device)
-        heads = torch.amin(arange * mask + seq_len * (1 - mask), dim=1)
+        heads = torch.amin(torch.where(mask, arange, seq_len - 1), dim=1)
         min_head = int(heads.min())
         tails = torch.amax(arange * mask, dim=1)
         max_tail = int(tails.max())

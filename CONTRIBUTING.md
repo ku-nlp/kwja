@@ -64,21 +64,17 @@ Options:
 "build_datasets.sh" performs formatting KWDLC and annotated FKC corpus.
 
 ```shell
-./scripts/build_datasets.sh
-  -a $(poetry run echo $VIRTUAL_ENV)/bin/activate
-  -w /path/to/work_dir
-  -s $(realpath ./scripts)
-  -j 2
-  -o /path/to/output_dir
+./scripts/build_datasets.sh \
+  --work-dir /path/to/work_dir \
+  --jobs 2 \
+  --out-dir /path/to/output_dir
 ```
 
 Options:
 
-- `-a`: path to activator
-- `-w`: path to working directory
-- `-s`: path to scripts
-- `-j`: number of jobs
-- `-o`: path to output directory
+- `--work-dir`: path to working directory
+- `--jobs`: number of jobs
+- `--out-dir`: path to output directory
 
 NOTE:
 To train word module on Kyoto University Text Corpus, you must have access to it and IREX CRL named entity data.
@@ -86,10 +82,10 @@ If you have both access, you can format the corpus with the following commands.
 (You may need preprocessing to format IREX CRL named entity data.)
 
 ```shell
-poetry run python scripts/add_features_to_raw_corpus.py
-  KyotoCorpus/knp
-  kyoto/knp
-  --ne-tags IREX_CRL_NE_data.jmn
+poetry run python scripts/build_dataset.py \
+  ./KyotoCorpus/knp \
+  ./kyoto/knp \
+  --ne-tags ./IREX_CRL_NE_data.jmn \
   -j 2
 poetry run kyoto idsplit \
   --corpus-dir kyoto/knp \
@@ -97,6 +93,11 @@ poetry run kyoto idsplit \
   --train KyotoCorpus/id/full/train.id \
   --valid KyotoCorpus/id/full/dev.id \
   --test KyotoCorpus/id/full/test.id
+poetry run python scripts/build_dataset.py \
+  ./KyotoCorpus/knp \
+  ./kyoto_ed \
+  --id ./KyotoCorpus/id/syntax-only \
+  -j 32
 ```
 
 ## Training and evaluation

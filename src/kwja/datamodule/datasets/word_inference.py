@@ -139,10 +139,10 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
     def encode(self, example: WordInferenceExample) -> WordModuleFeatures:
         document = self.doc_id2document[example.doc_id]
 
-        target_mask = [0 for _ in range(self.max_seq_length)]
+        target_mask = [False] * self.max_seq_length
         for sentence in extract_target_sentences(document):
             for morpheme in sentence.morphemes:
-                target_mask[morpheme.global_index] = 1
+                target_mask[morpheme.global_index] = True
 
         # ---------- dependency parsing ----------
         # True/False = keep/mask
@@ -176,7 +176,6 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
             example_ids=example.example_id,
             input_ids=merged_encoding.ids,
             attention_mask=merged_encoding.attention_mask,
-            target_mask=target_mask,
             subword_map=self._get_subword_map(merged_encoding),
             reading_labels=[],
             reading_subword_map=self._get_subword_map(merged_encoding, include_special_tokens=False),
@@ -186,6 +185,7 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
             conjform_labels=[],
             word_feature_labels=[],
             ne_labels=[],
+            ne_mask=target_mask,
             base_phrase_feature_labels=[],
             dependency_labels=[],
             dependency_mask=dependency_mask,

@@ -179,8 +179,7 @@ class WordModule(BaseModule[WordModuleMetric]):
             )
 
         if WordTask.NER in self.training_tasks:
-            ne_labels = torch.where(batch["target_mask"] == 1, batch["ne_labels"], NE_TAGS.index("O"))
-            loss_log["ner_loss"] = self.crf(ret["ne_logits"], ne_labels, mask=batch["target_mask"])
+            loss_log["ner_loss"] = self.crf(ret["ne_logits"], batch["ne_labels"], mask=batch["ne_mask"])
 
         if WordTask.BASE_PHRASE_FEATURE_TAGGING in self.training_tasks:
             base_phrase_feature_mask = batch["base_phrase_feature_labels"].ne(IGNORE_INDEX)
@@ -273,7 +272,7 @@ class WordModule(BaseModule[WordModuleMetric]):
 
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Dict[str, torch.Tensor]:
         ret: Dict[str, torch.Tensor] = self(batch)
-        ne_predictions = self.crf.viterbi_decode(ret["ne_logits"], batch["target_mask"])
+        ne_predictions = self.crf.viterbi_decode(ret["ne_logits"], batch["ne_mask"])
         discourse_probabilities = ret["discourse_logits"].softmax(dim=3)
         discourse_max_probabilities, discourse_predictions = discourse_probabilities.max(dim=3)
         discourse_unconfident_indices = discourse_max_probabilities < self.discourse_parsing_threshold

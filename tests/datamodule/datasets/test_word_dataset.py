@@ -44,7 +44,6 @@ def test_getitem(fixture_data_dir: Path, word_tokenizer: PreTrainedTokenizerBase
         assert feature.example_ids == i
         assert len(feature.input_ids) == max_seq_length
         assert len(feature.attention_mask) == max_seq_length
-        assert len(feature.target_mask) == max_seq_length
         assert np.array(feature.subword_map).shape == (max_seq_length, max_seq_length)
         assert (np.array(feature.subword_map).sum(axis=1) != 0).sum() == len(
             document.morphemes
@@ -58,6 +57,7 @@ def test_getitem(fixture_data_dir: Path, word_tokenizer: PreTrainedTokenizerBase
         assert len(feature.conjform_labels) == max_seq_length
         assert np.array(feature.word_feature_labels).shape == (max_seq_length, len(WORD_FEATURES))
         assert len(feature.ne_labels) == max_seq_length
+        assert len(feature.ne_mask) == max_seq_length
         assert np.array(feature.base_phrase_feature_labels).shape == (max_seq_length, len(BASE_PHRASE_FEATURES))
         assert len(feature.dependency_labels) == max_seq_length
         assert np.array(feature.dependency_mask).shape == (max_seq_length, max_seq_length)
@@ -227,7 +227,7 @@ def test_encode(fixture_data_dir: Path, word_tokenizer: PreTrainedTokenizerBase,
     assert word_feature_labels[0].tolist() == dataset[0].word_feature_labels
     assert word_feature_labels[1].tolist() == dataset[1].word_feature_labels
 
-    ne_labels = torch.full((num_examples, max_seq_length), IGNORE_INDEX, dtype=torch.long)
+    ne_labels = torch.full((num_examples, max_seq_length), NE_TAGS.index("O"), dtype=torch.long)
     ne_labels[0, 0] = NE_TAGS.index("B-PERSON")  # 太郎
     ne_labels[0, 1] = NE_TAGS.index("O")  # と
     ne_labels[0, 2] = NE_TAGS.index("B-PERSON")  # 次郎
@@ -516,7 +516,7 @@ def test_split_into_words_encode(
     assert word_feature_labels[0].tolist() == dataset[0].word_feature_labels
     assert word_feature_labels[1].tolist() == dataset[1].word_feature_labels
 
-    ne_labels = torch.full((num_examples, max_seq_length), IGNORE_INDEX, dtype=torch.long)
+    ne_labels = torch.full((num_examples, max_seq_length), NE_TAGS.index("O"), dtype=torch.long)
     ne_labels[0, 0] = NE_TAGS.index("B-PERSON")  # 太郎
     ne_labels[0, 1] = NE_TAGS.index("O")  # と
     ne_labels[0, 2] = NE_TAGS.index("B-PERSON")  # 次郎
