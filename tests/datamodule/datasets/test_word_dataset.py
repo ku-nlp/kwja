@@ -333,8 +333,8 @@ def test_encode(fixture_data_dir: Path, word_tokenizer: PreTrainedTokenizerBase,
     cohesion_labels[1, flatten_rels.index("ガ"), 3, 1] = 1  # ラーメン ガ 好き
     cohesion_labels[1, flatten_rels.index("ヲ"), 3, dataset.special_token2index["[NULL]"]] = 1  # φ ヲ 好き
     cohesion_labels[1, flatten_rels.index("ニ"), 3, dataset.special_token2index["[NULL]"]] = 1  # φ ニ 好き
-    cohesion_labels[1, flatten_rels.index("ガ２"), 3, dataset.special_token2index["著者"]] = 1  # 著者 ガ２ 好き
-    cohesion_labels[1, flatten_rels.index("ガ"), 5, dataset.special_token2index["著者"]] = 1  # 著者 ガ 頼み
+    cohesion_labels[1, flatten_rels.index("ガ２"), 3, dataset.special_token2index["[著者]"]] = 1  # 著者 ガ２ 好き
+    cohesion_labels[1, flatten_rels.index("ガ"), 5, dataset.special_token2index["[著者]"]] = 1  # 著者 ガ 頼み
     cohesion_labels[1, flatten_rels.index("ヲ"), 5, 1] = 1  # ラーメン ヲ 頼み
     cohesion_labels[1, flatten_rels.index("ニ"), 5, dataset.special_token2index["[NULL]"]] = 1  # φ ニ 頼み
     cohesion_labels[1, flatten_rels.index("ガ２"), 5, dataset.special_token2index["[NULL]"]] = 1  # φ ガ２ 頼み
@@ -622,8 +622,8 @@ def test_split_into_words_encode(
     cohesion_labels[1, flatten_rels.index("ガ"), 3, 1] = 1  # ラーメン ガ 好き
     cohesion_labels[1, flatten_rels.index("ヲ"), 3, dataset.special_token2index["[NULL]"]] = 1  # φ ヲ 好き
     cohesion_labels[1, flatten_rels.index("ニ"), 3, dataset.special_token2index["[NULL]"]] = 1  # φ ニ 好き
-    cohesion_labels[1, flatten_rels.index("ガ２"), 3, dataset.special_token2index["著者"]] = 1  # 著者 ガ２ 好き
-    cohesion_labels[1, flatten_rels.index("ガ"), 5, dataset.special_token2index["著者"]] = 1  # 著者 ガ 頼み
+    cohesion_labels[1, flatten_rels.index("ガ２"), 3, dataset.special_token2index["[著者]"]] = 1  # 著者 ガ２ 好き
+    cohesion_labels[1, flatten_rels.index("ガ"), 5, dataset.special_token2index["[著者]"]] = 1  # 著者 ガ 頼み
     cohesion_labels[1, flatten_rels.index("ヲ"), 5, 1] = 1  # ラーメン ヲ 頼み
     cohesion_labels[1, flatten_rels.index("ニ"), 5, dataset.special_token2index["[NULL]"]] = 1  # φ ニ 頼み
     cohesion_labels[1, flatten_rels.index("ガ２"), 5, dataset.special_token2index["[NULL]"]] = 1  # φ ガ２ 頼み

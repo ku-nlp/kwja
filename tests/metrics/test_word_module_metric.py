@@ -301,8 +301,8 @@ def test_word_module_metric(
     metric.cohesion_logits[0, flatten_rels.index("ガ"), 5, 2] = 2.0  # 次郎 ガ けんか
     metric.cohesion_logits[1, flatten_rels.index("ガ"), 0, 1] = 2.0  # ラーメン ガ 辛い
     metric.cohesion_logits[1, flatten_rels.index("ガ"), 3, 1] = 2.0  # ラーメン ガ 好き
-    metric.cohesion_logits[1, flatten_rels.index("ガ２"), 3, dataset.special_token2index["著者"]] = 2.0  # 著者 ガ２ 好き
-    metric.cohesion_logits[1, flatten_rels.index("ガ"), 5, dataset.special_token2index["著者"]] = 2.0  # 著者 ガ 頼み
+    metric.cohesion_logits[1, flatten_rels.index("ガ２"), 3, dataset.special_token2index["[著者]"]] = 2.0  # 著者 ガ２ 好き
+    metric.cohesion_logits[1, flatten_rels.index("ガ"), 5, dataset.special_token2index["[著者]"]] = 2.0  # 著者 ガ 頼み
     metric.cohesion_logits[1, flatten_rels.index("ヲ"), 5, 1] = 2.0  # ラーメン ヲ 頼み
 
     metric.discourse_predictions = torch.zeros((num_examples, max_seq_length, max_seq_length), dtype=torch.long)
