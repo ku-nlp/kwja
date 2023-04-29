@@ -92,7 +92,8 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         )
 
         # ---------- cohesion analysis ----------
-        self.skip_cohesion_ne_discourse = "kyoto_ed" in path  # some tags are not annotated in editorial articles
+        # some tags are not annotated in editorial articles
+        self.skip_cohesion_ne_discourse = self.path.parts[-2] == "kyoto_ed"
         self.cohesion_tasks: List[CohesionTask] = [CohesionTask(t) for t in cohesion_tasks]
         self.exophora_referents = [ExophoraReferent(s) for s in exophora_referents]
         self.restrict_cohesion_target = restrict_cohesion_target
@@ -241,7 +242,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
                 base_phrase_feature_labels[morpheme_global_index][i] = int(base_phrase_feature in feature_set)
 
         # ---------- dependency parsing ----------
-        dependency_labels: List[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
+        dependency_labels: List[int] = [IGNORE_INDEX] * self.max_seq_length
         root_index = self.special_token2index["[ROOT]"]
         for morpheme_global_index, dependency in example.morpheme_global_index2dependency.items():
             dependency_labels[morpheme_global_index] = dependency if dependency >= 0 else root_index
@@ -250,7 +251,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             for head_candidate in head_candidates:
                 dependency_mask[morpheme_global_index][head_candidate.global_index] = True
             dependency_mask[morpheme_global_index][root_index] = True
-        dependency_type_labels: List[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
+        dependency_type_labels: List[int] = [IGNORE_INDEX] * self.max_seq_length
         for morpheme_global_index, dependency_type in example.morpheme_global_index2dependency_type.items():
             dependency_type_index = DEPENDENCY_TYPES.index(dependency_type)
             dependency_type_labels[morpheme_global_index] = dependency_type_index
@@ -267,7 +268,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             cohesion_mask.extend([rel_mask] * len(cohesion_utils.rels))
 
         # ---------- discourse parsing ----------
-        discourse_labels = [[IGNORE_INDEX for _ in range(self.max_seq_length)] for _ in range(self.max_seq_length)]
+        discourse_labels = [[IGNORE_INDEX] * self.max_seq_length for _ in range(self.max_seq_length)]
         if self.skip_cohesion_ne_discourse is False:
             for (
                 modifier_morpheme_global_index,
