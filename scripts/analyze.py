@@ -16,7 +16,6 @@ from kwja.datamodule.datamodule import DataModule
 
 suppress_debug_info()
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
-OmegaConf.register_new_resolver("concat", lambda x, y: x + y)
 
 
 @hydra.main(version_base=None, config_path="../configs", config_name="eval")

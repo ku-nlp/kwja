@@ -10,7 +10,6 @@ from typing import Dict, List, Optional, Set, Tuple
 import hydra
 import pytorch_lightning as pl
 import typer
-from omegaconf import OmegaConf
 from pytorch_lightning.trainer.states import TrainerFn
 from rhoknp import Document, RegexSenter, Sentence
 from rhoknp.utils.reader import chunk_by_document
@@ -23,7 +22,6 @@ from kwja.utils.reader import chunk_by_sentence_for_line_by_line_text
 
 suppress_debug_info()
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
-OmegaConf.register_new_resolver("concat", lambda x, y: x + y)
 OMEGACONF_VARIABLE_INTERPOLATION = re.compile(r"\$(?P<variable>\{.+?})")
 
 app = typer.Typer(pretty_exceptions_show_locals=False)

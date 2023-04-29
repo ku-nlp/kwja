@@ -15,7 +15,6 @@ with initialize(version_base=None, config_path="../../configs"):
     cfg = compose(config_name="word_module.debug", return_hydra_config=True, overrides=["max_seq_length=32"])
     HydraConfig.instance().set_config(cfg)
     OmegaConf.set_readonly(cfg.hydra, False)
-    OmegaConf.register_new_resolver("concat", lambda x, y: x + y, replace=True)
     OmegaConf.resolve(cfg)
 
 
