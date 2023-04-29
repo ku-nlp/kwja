@@ -212,12 +212,11 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         morpheme_attribute_tags_list = (POS_TAGS, SUBPOS_TAGS, CONJTYPE_TAGS, CONJFORM_TAGS)
         morpheme_attribute_labels = tuple([IGNORE_INDEX] * self.max_seq_length for _ in morpheme_attribute_tags_list)
         for morpheme_global_index, morpheme_attributes in example.morpheme_global_index2morpheme_attributes.items():
-            for i, (morpheme_attribute, morpheme_attribute_tags) in enumerate(
-                zip(morpheme_attributes, morpheme_attribute_tags_list)
+            for morpheme_attribute_label, morpheme_attribute, morpheme_attribute_tags in zip(
+                morpheme_attribute_labels, morpheme_attributes, morpheme_attribute_tags_list
             ):
                 if morpheme_attribute in morpheme_attribute_tags:
-                    morpheme_attribute_index = morpheme_attribute_tags.index(morpheme_attribute)
-                    morpheme_attribute_labels[i][morpheme_global_index] = morpheme_attribute_index
+                    morpheme_attribute_label[morpheme_global_index] = morpheme_attribute_tags.index(morpheme_attribute)
 
         # ---------- word feature tagging ----------
         word_feature_labels = [[IGNORE_INDEX] * len(WORD_FEATURES) for _ in range(self.max_seq_length)]
@@ -253,8 +252,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             dependency_mask[morpheme_global_index][root_index] = True
         dependency_type_labels: List[int] = [IGNORE_INDEX] * self.max_seq_length
         for morpheme_global_index, dependency_type in example.morpheme_global_index2dependency_type.items():
-            dependency_type_index = DEPENDENCY_TYPES.index(dependency_type)
-            dependency_type_labels[morpheme_global_index] = dependency_type_index
+            dependency_type_labels[morpheme_global_index] = DEPENDENCY_TYPES.index(dependency_type)
 
         # ---------- cohesion analysis ----------
         cohesion_labels: List[List[List[int]]] = []  # (rel, seq, seq)
@@ -275,8 +273,9 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
                 head_morpheme_global_index,
             ), relation in example.morpheme_global_indices2discourse_relation.items():
                 if relation in DISCOURSE_RELATIONS:
-                    discourse_index = DISCOURSE_RELATIONS.index(relation)
-                    discourse_labels[modifier_morpheme_global_index][head_morpheme_global_index] = discourse_index
+                    discourse_labels[modifier_morpheme_global_index][
+                        head_morpheme_global_index
+                    ] = DISCOURSE_RELATIONS.index(relation)
 
         return WordModuleFeatures(
             example_ids=example.example_id,
