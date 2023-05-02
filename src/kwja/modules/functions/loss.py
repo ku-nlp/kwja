@@ -21,10 +21,10 @@ def compute_token_mean_loss(
 def compute_multi_label_token_mean_loss(
     input_: torch.Tensor,  # (b, seq, num_features)
     target: torch.Tensor,  # (b, seq, num_features)
-    mask: torch.Tensor,  # (b, seq, num_features)
 ) -> torch.Tensor:  # ()
+    mask: torch.Tensor = target.ne(IGNORE_INDEX)  # (b, seq)
     # binary_cross_entropy は IGNORE_INDEX を渡せない
-    losses = F.binary_cross_entropy(input_, target, reduction="none")  # (b, seq, num_features)
+    losses = F.binary_cross_entropy(input_ * mask, target.float() * mask, reduction="none")  # (b, seq, num_features)
     # batch と sequence の軸は平均を、 label の軸は和をとる
     losses = (losses * mask).sum(dim=2)  # (b, seq)
     return (losses.sum(dim=1) / (mask[:, :, 0].sum(dim=1) + eps)).mean()
