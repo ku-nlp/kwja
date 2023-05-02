@@ -150,7 +150,7 @@ class WordModuleWriter(BasePredictionWriter):
                 add_named_entities(sentence, ne_predictions)
                 add_base_phrase_features(sentence, base_phrase_feature_probabilities)
                 add_dependency(
-                    sentence, dependency_predictions, dependency_type_predictions, dataset.special_token2index
+                    sentence, dependency_predictions, dependency_type_predictions, example.special_token_indexer
                 )
             orig_doc_id = to_orig_doc_id(document.doc_id)
             # 解析済みの文とマージ
@@ -163,7 +163,7 @@ class WordModuleWriter(BasePredictionWriter):
                 predicted_document,
                 cohesion_logits,
                 dataset.cohesion_task2utils,
-                dataset.index2special_token,
+                example.special_token_indexer,
             )
             if WordTask.DISCOURSE_PARSING in pl_module.training_tasks:
                 add_discourse(predicted_document, discourse_predictions)

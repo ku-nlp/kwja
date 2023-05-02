@@ -1,5 +1,6 @@
 import logging
 from dataclasses import dataclass
+from functools import cached_property
 from typing import Dict, List, Optional, Set, Tuple
 
 from rhoknp import BasePhrase, Clause, Document, Morpheme, Phrase
@@ -20,10 +21,34 @@ from kwja.utils.sub_document import extract_target_sentences
 logger = logging.getLogger(__name__)
 
 
+class SpecialTokenIndexer:
+    def __init__(self, special_tokens: List[str], num_tokens: int, num_morphemes: int) -> None:
+        self.special_tokens = special_tokens
+        self.num_tokens = num_tokens
+        self.num_morphemes = num_morphemes
+
+    def get_morpheme_global_index(self, special_token: str) -> int:
+        return self.num_morphemes + self.special_tokens.index(special_token)
+
+    def get_morpheme_global_indices(self, only_cohesion: bool = False) -> List[int]:
+        return [
+            self.get_morpheme_global_index(st) for st in self.special_tokens if not (only_cohesion and st == "[ROOT]")
+        ]
+
+    @cached_property
+    def token_indices(self) -> List[int]:
+        return [self.num_tokens + i for i in range(len(self.special_tokens))]
+
+    @cached_property
+    def indices(self) -> List[Tuple[int, int]]:
+        return [(self.num_tokens + i, self.num_morphemes + i) for i, st in enumerate(self.special_tokens)]
+
+
 class WordExample:
-    def __init__(self, example_id: int, encoding: Encoding) -> None:
+    def __init__(self, example_id: int, encoding: Encoding, special_token_indexer: SpecialTokenIndexer) -> None:
         self.example_id = example_id
         self.encoding = encoding
+        self.special_token_indexer = special_token_indexer
         self.doc_id: Optional[str] = None
 
         # ---------- reading prediction ----------
@@ -158,4 +183,5 @@ class WordExample:
 class WordInferenceExample:
     example_id: int
     encoding: Encoding
+    special_token_indexer: SpecialTokenIndexer
     doc_id: str

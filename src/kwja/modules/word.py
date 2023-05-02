@@ -197,8 +197,9 @@ class WordModule(BaseModule[WordModuleMetric]):
     def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
         kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
         kwargs.update({"discourse_labels": batch["discourse_labels"]})
-        corpus = self.valid_corpora[dataloader_idx]
-        self.valid_corpus2metric[corpus].update(kwargs)
+        metric = self.valid_corpus2metric[self.valid_corpora[dataloader_idx]]
+        metric.pad(kwargs, self.hparams.max_seq_length)
+        metric.update(kwargs)
 
     def on_validation_epoch_end(self) -> None:
         metrics_log: Dict[str, Dict[str, float]] = {}
@@ -227,8 +228,9 @@ class WordModule(BaseModule[WordModuleMetric]):
     def test_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
         kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
         kwargs.update({"discourse_labels": batch["discourse_labels"]})
-        corpus = self.test_corpora[dataloader_idx]
-        self.test_corpus2metric[corpus].update(kwargs)
+        metric = self.test_corpus2metric[self.test_corpora[dataloader_idx]]
+        metric.pad(kwargs, self.hparams.max_seq_length)
+        metric.update(kwargs)
 
     def on_test_epoch_end(self) -> None:
         metrics_log: Dict[str, Dict[str, float]] = {}
