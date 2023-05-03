@@ -20,12 +20,11 @@ def test_compute_token_mean_loss(input_: torch.Tensor, target: torch.Tensor, exp
 
 
 @pytest.mark.parametrize(
-    "input_, target, mask, expected",
+    "input_, target, expected",
     [
         (
             torch.tensor([[[0.5, 0.5], [1.0, 0.5]]], dtype=torch.float),  # (1, 2, 2)
             torch.tensor([[[1.0, 0.0], [1.0, 0.0]]], dtype=torch.float),  # (1, 2, 2)
-            torch.tensor([[[True, True], [True, True]]], dtype=torch.bool),  # (1, 2, 2)
             torch.tensor(1.0397207708399179, dtype=torch.float),
         ),
     ],
@@ -33,10 +32,9 @@ def test_compute_token_mean_loss(input_: torch.Tensor, target: torch.Tensor, exp
 def test_compute_multi_label_token_mean_loss(
     input_: torch.Tensor,
     target: torch.Tensor,
-    mask: torch.Tensor,
     expected: torch.Tensor,
 ) -> None:
-    assert torch.isclose(compute_multi_label_token_mean_loss(input_, target, mask), expected)
+    assert torch.isclose(compute_multi_label_token_mean_loss(input_, target), expected)
 
 
 @pytest.mark.parametrize(

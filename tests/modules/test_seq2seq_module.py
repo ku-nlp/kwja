@@ -7,7 +7,7 @@ from hydra.core.hydra_config import HydraConfig
 from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
 
-from kwja.datamodule.datamodule import dataclass_data_collator
+from kwja.datamodule.datamodule import token_dataclass_data_collator
 from kwja.datamodule.datasets import Seq2SeqDataset
 from kwja.modules import Seq2SeqModule
 
@@ -38,7 +38,7 @@ def test_steps(fixture_data_dir: Path) -> None:
     path = fixture_data_dir / "datasets" / "word_files"
     seq2seq_tokenizer = hydra.utils.instantiate(cfg.datamodule.train.kyoto.tokenizer)
     dataset = Seq2SeqDataset(str(path), seq2seq_tokenizer, cfg.max_src_length, cfg.max_tgt_length)
-    data_loader = DataLoader(dataset, batch_size=len(dataset), collate_fn=dataclass_data_collator)
+    data_loader = DataLoader(dataset, batch_size=len(dataset), collate_fn=token_dataclass_data_collator)
     val_dataloaders = {"dummy": data_loader}
 
     cfg.datamodule.valid = {"dummy": ""}
