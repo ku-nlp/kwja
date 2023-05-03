@@ -44,7 +44,7 @@ class CharDataset(BaseDataset[CharExample, CharModuleFeatures], FullAnnotatedDoc
         super(CharDataset, self).__init__(tokenizer, max_seq_length)
         self.path = Path(path)
         self.denormalizer = SentenceDenormalizer()
-        self.denormalize_probability: float = denormalize_probability
+        self.denormalize_probability: float = denormalize_probability if "train" in self.path.parts else 0.0
         super(BaseDataset, self).__init__(self.path, tokenizer, max_seq_length, document_split_stride)
         self.examples: List[CharExample] = self._load_examples(self.documents)
 
