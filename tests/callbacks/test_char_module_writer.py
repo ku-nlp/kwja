@@ -1,4 +1,5 @@
 import tempfile
+from importlib.metadata import version
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from textwrap import dedent
@@ -9,7 +10,6 @@ import torch
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
 
-import kwja
 from kwja.callbacks.char_module_writer import CharModuleWriter
 from kwja.datamodule.datasets import CharInferenceDataset
 from kwja.utils.constants import WORD_NORM_OP_TAGS, WORD_SEGMENTATION_TAGS
@@ -37,9 +37,9 @@ def test_write_on_batch_end(char_tokenizer: PreTrainedTokenizerBase):
     doc_id_prefix = "test"
     senter_text = dedent(
         f"""\
-        # S-ID:{doc_id_prefix}-0-0 kwja:{kwja.__version__}
+        # S-ID:{doc_id_prefix}-0-0 kwja:{version("kwja")}
         花咲ガニを買ぅ
-        # S-ID:{doc_id_prefix}-1-0 kwja:{kwja.__version__}
+        # S-ID:{doc_id_prefix}-1-0 kwja:{version("kwja")}
         うまそーですね〜〜
         """
     )
@@ -106,13 +106,13 @@ def test_write_on_batch_end(char_tokenizer: PreTrainedTokenizerBase):
         assert isinstance(writer.destination, Path), "destination isn't set"
         assert writer.destination.read_text() == dedent(
             f"""\
-            # S-ID:{doc_id_prefix}-0-0 kwja:{kwja.__version__}
+            # S-ID:{doc_id_prefix}-0-0 kwja:{version("kwja")}
             花咲 _ 花咲 未定義語 15 その他 1 * 0 * 0
             ガニ _ カニ 未定義語 15 その他 1 * 0 * 0
             を _ を 未定義語 15 その他 1 * 0 * 0
             買ぅ _ 買う 未定義語 15 その他 1 * 0 * 0
             EOS
-            # S-ID:{doc_id_prefix}-1-0 kwja:{kwja.__version__}
+            # S-ID:{doc_id_prefix}-1-0 kwja:{version("kwja")}
             うま _ うま 未定義語 15 その他 1 * 0 * 0
             そーです _ そうです 未定義語 15 その他 1 * 0 * 0
             ね〜〜 _ ねえ 未定義語 15 その他 1 * 0 * 0
