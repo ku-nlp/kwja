@@ -1,7 +1,7 @@
 defaults:
   - train:
     - word_kyoto.yaml
-#    - word_kyoto_ed.yaml
+    - word_kyoto_ed.yaml
     - word_kwdlc.yaml
     - word_fuman.yaml
     - word_wac.yaml
