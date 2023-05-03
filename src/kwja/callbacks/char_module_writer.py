@@ -54,9 +54,6 @@ class CharModuleWriter(BasePredictionWriter):
             for predicted_sentence, sentence in zip(predicted_document.sentences, document.sentences):
                 predicted_sentence.comment = sentence.comment
 
-            assert (
-                len(example.encoding.input_ids) == len(word_segmentation_predictions) == len(word_norm_op_predictions)
-            )
             word_segmentation_tags, word_norm_op_tags = convert_predictions_into_tags(
                 word_segmentation_predictions, word_norm_op_predictions, example.encoding.input_ids, special_ids
             )

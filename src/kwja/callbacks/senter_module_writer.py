@@ -55,8 +55,6 @@ class SenterModuleWriter(BasePredictionWriter):
             assert example.doc_id is not None, "doc_id isn't set"
             document = dataset.doc_id2document[example.doc_id]
 
-            assert len(example.encoding.input_ids) == len(sent_segmentation_predictions)
-
             sent_segmentation_tags = convert_senter_predictions_into_tags(
                 sent_segmentation_predictions, example.encoding.input_ids, special_ids
             )
