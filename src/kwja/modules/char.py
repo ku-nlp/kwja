@@ -35,30 +35,11 @@ class CharModule(BaseModule[CharModuleMetric]):
                 self.encoder.resize_token_embeddings(self.encoder.config.vocab_size + len(self.hparams.special_tokens))
 
     def forward(self, batch: Any) -> Dict[str, torch.Tensor]:
-        truncation_length = self._truncate(batch)
         encoded = self.encoder(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"])
-        word_segmentation_logits = self.word_segmentation_tagger(encoded.last_hidden_state)
-        word_norm_op_logits = self.word_norm_op_tagger(encoded.last_hidden_state)
-        if truncation_length > 0:
-            word_segmentation_logits = self._pad(word_segmentation_logits, truncation_length)
-            word_norm_op_logits = self._pad(word_norm_op_logits, truncation_length)
         return {
-            "word_segmentation_logits": word_segmentation_logits,
-            "word_norm_op_logits": word_norm_op_logits,
+            "word_segmentation_logits": self.word_segmentation_tagger(encoded.last_hidden_state),
+            "word_norm_op_logits": self.word_norm_op_tagger(encoded.last_hidden_state),
         }
-
-    def _truncate(self, batch: Any) -> int:
-        max_seq_length = batch["attention_mask"].sum(dim=1).max().item()
-        for key, value in batch.items():
-            if key in {"input_ids", "attention_mask"}:
-                batch[key] = value[:, :max_seq_length].contiguous()
-        return self.hparams.max_seq_length - max_seq_length
-
-    @staticmethod
-    def _pad(tensor: torch.Tensor, padding_length: int) -> torch.Tensor:
-        batch_size, _, num_labels = tensor.shape
-        padding = torch.zeros((batch_size, padding_length, num_labels), dtype=tensor.dtype, device=tensor.device)
-        return torch.cat([tensor, padding], dim=1)
 
     def training_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
         ret: Dict[str, torch.Tensor] = self(batch)
@@ -73,8 +54,9 @@ class CharModule(BaseModule[CharModuleMetric]):
     def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
         kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
         kwargs.update({"word_norm_op_labels": batch["word_norm_op_labels"]})
-        corpus = self.valid_corpora[dataloader_idx]
-        self.valid_corpus2metric[corpus].update(kwargs)
+        metric = self.valid_corpus2metric[self.valid_corpora[dataloader_idx]]
+        metric.pad(kwargs, self.hparams.max_seq_length)
+        metric.update(kwargs)
 
     def on_validation_epoch_end(self) -> None:
         metrics_log: Dict[str, Dict[str, float]] = {}
@@ -97,8 +79,9 @@ class CharModule(BaseModule[CharModuleMetric]):
     def test_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
         kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
         kwargs.update({"word_norm_op_labels": batch["word_norm_op_labels"]})
-        corpus = self.test_corpora[dataloader_idx]
-        self.test_corpus2metric[corpus].update(kwargs)
+        metric = self.test_corpus2metric[self.test_corpora[dataloader_idx]]
+        metric.pad(kwargs, self.hparams.max_seq_length)
+        metric.update(kwargs)
 
     def on_test_epoch_end(self) -> None:
         metrics_log: Dict[str, Dict[str, float]] = {}
