@@ -5,4 +5,4 @@ max_epochs: ${max_epochs}
 min_epochs: 1
 precision: 32
 accelerator: auto
-strategy: ddp
+strategy: ddp_find_unused_parameters_true

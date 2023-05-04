@@ -257,20 +257,23 @@ def test_word_module_metric(
 
     dependency_topk = 2
     metric.dependency_predictions = torch.zeros((num_examples, max_seq_length, dependency_topk), dtype=torch.long)
-    r = dataset.special_token2index["[ROOT]"]
     metric.dependency_predictions[0, 0] = torch.as_tensor([2, 5])  # 太郎 -> 次郎, けんか
     metric.dependency_predictions[0, 1] = torch.as_tensor([0, 5])  # と -> 太郎, けんか
     metric.dependency_predictions[0, 2] = torch.as_tensor([5, 6])  # 次郎 -> けんか, する
     metric.dependency_predictions[0, 3] = torch.as_tensor([2, 5])  # は -> 次郎, けんか
     metric.dependency_predictions[0, 4] = torch.as_tensor([5, 6])  # よく -> けんか, する
-    metric.dependency_predictions[0, 5] = torch.as_tensor([r, 6])  # けんか -> [ROOT], する
+    metric.dependency_predictions[0, 5] = torch.as_tensor(
+        [dataset.examples[0].special_token_indexer.get_morpheme_global_index("[ROOT]"), 6]
+    )  # けんか -> [ROOT], する
     metric.dependency_predictions[0, 6] = torch.as_tensor([5, 4])  # する -> けんか, よく
     metric.dependency_predictions[1, 0] = torch.as_tensor([1, 3])  # 辛い -> ラーメン, 好きな
     metric.dependency_predictions[1, 1] = torch.as_tensor([3, 5])  # ラーメン -> 好きな, 頼み
     metric.dependency_predictions[1, 2] = torch.as_tensor([1, 3])  # が -> ラーメン, 好きな
     metric.dependency_predictions[1, 3] = torch.as_tensor([5, 6])  # 好きな -> 頼み, ました
     metric.dependency_predictions[1, 4] = torch.as_tensor([3, 5])  # ので -> 好きな, 頼み
-    metric.dependency_predictions[1, 5] = torch.as_tensor([r, 6])  # 頼み -> [ROOT], ました
+    metric.dependency_predictions[1, 5] = torch.as_tensor(
+        [dataset.examples[1].special_token_indexer.get_morpheme_global_index("[ROOT]"), 6]
+    )  # 頼み -> [ROOT], ました
     metric.dependency_predictions[1, 6] = torch.as_tensor([5, 3])  # ました -> 頼み, 好きな
 
     metric.dependency_type_predictions = torch.zeros((num_examples, max_seq_length, dependency_topk), dtype=torch.long)
@@ -295,14 +298,22 @@ def test_word_module_metric(
     metric.cohesion_logits = torch.zeros(
         (num_examples, len(flatten_rels), max_seq_length, max_seq_length), dtype=torch.float
     )
-    for i, rel in enumerate(flatten_rels):
-        j = dataset.special_token2index["[NA]"] if rel == "=" else dataset.special_token2index["[NULL]"]
-        metric.cohesion_logits[:, i, :, j] = 1.0
+    for i in range(num_examples):
+        for j, rel in enumerate(flatten_rels):
+            if rel == "=":
+                k = dataset.examples[i].special_token_indexer.get_morpheme_global_index("[NA]")
+            else:
+                k = dataset.examples[i].special_token_indexer.get_morpheme_global_index("[NULL]")
+            metric.cohesion_logits[i, j, :, k] = 1.0
     metric.cohesion_logits[0, flatten_rels.index("ガ"), 5, 2] = 2.0  # 次郎 ガ けんか
     metric.cohesion_logits[1, flatten_rels.index("ガ"), 0, 1] = 2.0  # ラーメン ガ 辛い
     metric.cohesion_logits[1, flatten_rels.index("ガ"), 3, 1] = 2.0  # ラーメン ガ 好き
-    metric.cohesion_logits[1, flatten_rels.index("ガ２"), 3, dataset.special_token2index["著者"]] = 2.0  # 著者 ガ２ 好き
-    metric.cohesion_logits[1, flatten_rels.index("ガ"), 5, dataset.special_token2index["著者"]] = 2.0  # 著者 ガ 頼み
+    metric.cohesion_logits[
+        1, flatten_rels.index("ガ２"), 3, dataset.examples[1].special_token_indexer.get_morpheme_global_index("著者")
+    ] = 2.0  # 著者 ガ２ 好き
+    metric.cohesion_logits[
+        1, flatten_rels.index("ガ"), 5, dataset.examples[1].special_token_indexer.get_morpheme_global_index("著者")
+    ] = 2.0  # 著者 ガ 頼み
     metric.cohesion_logits[1, flatten_rels.index("ヲ"), 5, 1] = 2.0  # ラーメン ヲ 頼み
 
     metric.discourse_predictions = torch.zeros((num_examples, max_seq_length, max_seq_length), dtype=torch.long)

@@ -20,3 +20,4 @@ defaults:
 
 batch_size: ${max_batches_per_device}
 num_workers: ${num_workers}
+dataset_type: word

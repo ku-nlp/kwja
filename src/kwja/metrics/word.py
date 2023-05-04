@@ -31,6 +31,7 @@ from kwja.utils.constants import (
     CONJTYPE_TAGS,
     DISCOURSE_RELATIONS,
     IGNORE_INDEX,
+    MASKED,
     POS_TAGS,
     SUBPOS_TAGS,
     WORD_FEATURES,
@@ -80,6 +81,27 @@ class WordModuleMetric(BaseModuleMetric):
         self.cohesion_logits: torch.Tensor
         self.discourse_predictions: torch.Tensor
         self.discourse_labels: torch.Tensor
+
+    @staticmethod
+    def pad(kwargs: Dict[str, torch.Tensor], max_seq_length: int) -> None:
+        for key, value in kwargs.items():
+            if key in {"example_ids"}:
+                continue
+            elif key in {"reading_subword_map", "cohesion_logits", "discourse_predictions", "discourse_labels"}:
+                dims = [value.ndim - 2, value.ndim - 1]
+            else:
+                dims = [1]
+            for dim in dims:
+                size = [max_seq_length - s if i == dim else s for i, s in enumerate(value.size())]
+                if size[dim] == 0:
+                    continue
+                if key in {"discourse_labels"}:
+                    fill_value: Union[float, int] = IGNORE_INDEX
+                else:
+                    fill_value = MASKED if torch.is_floating_point(value) else 0
+                padding = torch.full(size, fill_value, dtype=value.dtype, device=value.device)
+                value = torch.cat([value, padding], dim=dim)
+            kwargs[key] = value
 
     def compute(self) -> Dict[str, float]:
         assert self.training_tasks is not None, "training_tasks isn't set"
@@ -178,7 +200,7 @@ class WordModuleMetric(BaseModuleMetric):
                 add_named_entities(sentence, ne_predictions)
                 add_base_phrase_features(sentence, base_phrase_feature_probabilities)
                 add_dependency(
-                    sentence, dependency_predictions, dependency_type_predictions, self.dataset.special_token2index
+                    sentence, dependency_predictions, dependency_type_predictions, example.special_token_indexer
                 )
                 doc_id2partly_gold_sentences1[orig_doc_id].append(sentence)
 
@@ -190,7 +212,7 @@ class WordModuleMetric(BaseModuleMetric):
                 partly_gold_document2,
                 cohesion_logits,
                 self.dataset.cohesion_task2utils,
-                self.dataset.index2special_token,
+                example.special_token_indexer,
             )
             for sentence in extract_target_sentences(partly_gold_document2):
                 doc_id2partly_gold_sentences2[orig_doc_id].append(sentence)

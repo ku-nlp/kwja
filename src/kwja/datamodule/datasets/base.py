@@ -1,6 +1,5 @@
 import logging
 from abc import ABC
-from functools import cached_property
 from pathlib import Path
 from typing import Dict, Generic, List, TypeVar, Union
 
@@ -68,10 +67,6 @@ class FullAnnotatedDocumentLoaderMixin:
                     )
                 }
             )
-
-    @cached_property
-    def documents(self) -> List[Document]:
-        return list(self.doc_id2document.values())
 
     @staticmethod
     def _load_documents(document_dir: Path, ext: str) -> List[Document]:

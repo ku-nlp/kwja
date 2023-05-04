@@ -67,16 +67,16 @@ class CRF(nn.Module):
         indices = torch.arange(batch_size)
 
         arange = torch.arange(seq_len, device=mask.device)
-        heads = torch.amin(torch.where(mask, arange, seq_len - 1), dim=1)
-        head_tags = tags[indices, heads]
-        min_head = int(heads.min())
-        tails = torch.amax(arange * mask, dim=1)
-        tail_tags = tags[indices, tails]
-        max_tail = int(tails.max())
+        head_indices = torch.amin(torch.where(mask, arange, seq_len - 1), dim=1)
+        head_tags = tags[indices, head_indices]
+        min_head_index = int(head_indices.min())
+        tail_indices = torch.amax(arange * mask, dim=1)
+        tail_tags = tags[indices, tail_indices]
+        max_tail_index = int(tail_indices.max())
 
-        score = self.start_transitions[head_tags] + emissions[indices, heads, head_tags]
-        for j in range(min_head + 1, max_tail + 1):
-            condition = torch.logical_and(mask[:, j] == 1, heads != j)
+        score = self.start_transitions[head_tags] + emissions[indices, head_indices, head_tags]
+        for j in range(min_head_index + 1, max_tail_index + 1):
+            condition = torch.logical_and(mask[:, j] == 1, head_indices != j)
             next_score = score + self.transitions[tags[:, j - 1], tags[:, j]] + emissions[indices, j, tags[:, j]]
             score = torch.where(condition, next_score, score)
         score += self.end_transitions[tail_tags]
@@ -89,14 +89,14 @@ class CRF(nn.Module):
         indices = torch.arange(batch_size)
 
         arange = torch.arange(seq_len, device=mask.device)
-        heads = torch.amin(torch.where(mask, arange, seq_len - 1), dim=1)
-        min_head = int(heads.min())
-        tails = torch.amax(arange * mask, dim=1)
-        max_tail = int(tails.max())
+        head_indices = torch.amin(torch.where(mask, arange, seq_len - 1), dim=1)
+        min_head_index = int(head_indices.min())
+        tail_indices = torch.amax(arange * mask, dim=1)
+        max_tail_index = int(tail_indices.max())
 
-        score = self.start_transitions + emissions[indices, heads]  # (b, num_tags)
-        for j in range(min_head + 1, max_tail + 1):
-            condition = torch.logical_and(mask[:, j] == 1, heads != j)
+        score = self.start_transitions + emissions[indices, head_indices]  # (b, num_tags)
+        for j in range(min_head_index + 1, max_tail_index + 1):
+            condition = torch.logical_and(mask[:, j] == 1, head_indices != j)
             broadcast_score = score.unsqueeze(2)  # (b, num_tags, 1)
             broadcast_emissions = emissions[:, j].unsqueeze(1)  # (b, 1, num_tags)
             next_score = broadcast_score + self.transitions + broadcast_emissions  # (b, num_tags, num_tags)
@@ -111,15 +111,15 @@ class CRF(nn.Module):
         indices = torch.arange(batch_size)
 
         arange = torch.arange(seq_len, device=mask.device)
-        heads = torch.amin(torch.where(mask, arange, seq_len - 1), dim=1)
-        min_head = int(heads.min())
-        tails = torch.amax(arange * mask, dim=1)
-        max_tail = int(tails.max())
+        head_indices = torch.amin(torch.where(mask, arange, seq_len - 1), dim=1)
+        min_head_index = int(head_indices.min())
+        tail_indices = torch.amax(arange * mask, dim=1)
+        max_tail_index = int(tail_indices.max())
 
-        score = self.start_transitions + emissions[indices, heads]  # (b, num_tags)
+        score = self.start_transitions + emissions[indices, head_indices]  # (b, num_tags)
         history = []
-        for j in range(min_head + 1, max_tail + 1):
-            condition = torch.logical_and(mask[:, j] == 1, heads != j)
+        for j in range(min_head_index + 1, max_tail_index + 1):
+            condition = torch.logical_and(mask[:, j] == 1, head_indices != j)
             broadcast_score = score.unsqueeze(2)  # (b, num_tags, 1)
             broadcast_emissions = emissions[:, j].unsqueeze(1)  # (b, 1, num_tags)
             next_score = broadcast_score + self.transitions + broadcast_emissions  # (b, num_tags, num_tags)
@@ -130,16 +130,15 @@ class CRF(nn.Module):
 
         batch_best_tags = []
         for i in range(batch_size):
-            head, tail = int(heads[i]), int(tails[i])
+            head_index, tail_index = int(head_indices[i]), int(tail_indices[i])
             _, best_tag = score[i].max(dim=0)
             best_tags = [best_tag.item()]
-            span = slice(head - min_head, tail - min_head)
-            for max_indices in history[span][::-1]:
+            for max_indices in history[head_index - min_head_index : tail_index - min_head_index][::-1]:
                 best_tag = max_indices[i][best_tags[-1]]
                 best_tags.append(best_tag.item())
-            best_tags += [self.tags.index("O")] * head
+            best_tags += [self.tags.index("O")] * head_index
             best_tags = best_tags[::-1]
-            best_tags += [self.tags.index("O")] * (seq_len - tail - 1)
+            best_tags += [self.tags.index("O")] * (seq_len - tail_index - 1)
             assert len(best_tags) == seq_len, "the length of decoded sequence is inconsistent with max seq length"
             batch_best_tags.append(best_tags)
 

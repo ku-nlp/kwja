@@ -89,21 +89,15 @@ class WordModule(BaseModule[WordModuleMetric]):
 
     @staticmethod
     def _get_num_cohesion_rels(hparams: DictConfig) -> int:
-        num_cohesion_rels = 0
-        kwargs = {
-            "exophora_referents": hparams.exophora_referents,
-            "restrict_target": hparams.restrict_cohesion_target,
-        }
-        for cohesion_task in [CohesionTask(t) for t in hparams.cohesion_tasks]:
-            if cohesion_task == CohesionTask.PAS_ANALYSIS:
-                pas_utils = PasUtils(hparams.pas_cases, "all", **kwargs)
-                num_cohesion_rels += len(pas_utils.rels)
-            elif cohesion_task == CohesionTask.BRIDGING_REFERENCE_RESOLUTION:
-                bridging_utils = BridgingUtils(hparams.br_cases, **kwargs)
-                num_cohesion_rels += len(bridging_utils.rels)
-            elif cohesion_task == CohesionTask.COREFERENCE_RESOLUTION:
-                coreference_utils = CoreferenceUtils(**kwargs)
-                num_cohesion_rels += len(coreference_utils.rels)
+        cohesion_tasks = [CohesionTask(ct) for ct in hparams.cohesion_tasks]
+        num_cohesion_rels: int = 0
+        cohesion_utils_args = (hparams.exophora_referents, hparams.restrict_cohesion_target)
+        if CohesionTask.PAS_ANALYSIS in cohesion_tasks:
+            num_cohesion_rels += len(PasUtils(hparams.pas_cases, "all", *cohesion_utils_args).rels)
+        if CohesionTask.BRIDGING_REFERENCE_RESOLUTION in cohesion_tasks:
+            num_cohesion_rels += len(BridgingUtils(hparams.br_cases, *cohesion_utils_args).rels)
+        if CohesionTask.COREFERENCE_RESOLUTION in cohesion_tasks:
+            num_cohesion_rels += len(CoreferenceUtils(*cohesion_utils_args).rels)
         return num_cohesion_rels
 
     def setup(self, stage: str) -> None:
@@ -118,19 +112,13 @@ class WordModule(BaseModule[WordModuleMetric]):
 
         dependency_logits = self.dependency_parser(pooled)  # (b, seq, seq, 1)
         masked_dependency_logits = mask_logits(dependency_logits.squeeze(3), batch["dependency_mask"])
-        if 0 not in batch["dependency_labels"].size():
-            dependency_labels = batch["dependency_labels"]
-            dependency_labels = (dependency_labels * dependency_labels.ne(IGNORE_INDEX)).unsqueeze(2).unsqueeze(3)
-            topk = 1
-        else:
+        if batch["dependency_labels"].size(1) == 0:
             dependency_labels = masked_dependency_logits.topk(self.dependency_topk, dim=2).indices.unsqueeze(3)
-            topk = self.dependency_topk
+        else:
+            dependency_labels_mask = batch["dependency_labels"].ne(IGNORE_INDEX)
+            dependency_labels = (batch["dependency_labels"] * dependency_labels_mask).unsqueeze(2).unsqueeze(3)
         unsqueezed = pooled.unsqueeze(2)
-        batch_size, seq_len, hidden_size = pooled.shape
-        source_shape: Tuple[int, ...] = (batch_size, seq_len, seq_len, hidden_size)
-        target_shape: Tuple[int, ...] = (batch_size, seq_len, topk, hidden_size)
-        # gather は IGNORE_INDEX を渡せない
-        head_hidden_states = unsqueezed.expand(source_shape).gather(2, dependency_labels.expand(target_shape))
+        head_hidden_states = torch.take_along_dim(unsqueezed, dependency_labels, dim=1)
 
         cohesion_logits = self.cohesion_analyzer(pooled)  # (b, seq, seq, rel)
         cohesion_logits = cohesion_logits.permute(0, 3, 1, 2).contiguous()  # -> (b, rel, seq, seq)
@@ -147,7 +135,7 @@ class WordModule(BaseModule[WordModuleMetric]):
             "base_phrase_feature_probabilities": self.base_phrase_feature_tagger(pooled),
             "dependency_logits": masked_dependency_logits,
             "dependency_type_logits": self.dependency_type_parser(
-                torch.cat([unsqueezed.expand(target_shape), head_hidden_states], dim=3)
+                torch.cat([unsqueezed.expand(head_hidden_states.shape), head_hidden_states], dim=3)
             ),
             "cohesion_logits": masked_cohesion_logits,
             "discourse_logits": self.discourse_parser(pooled),
@@ -172,29 +160,25 @@ class WordModule(BaseModule[WordModuleMetric]):
             loss_log["morphological_analysis_loss"] = torch.stack(morphological_analysis_losses).mean()
 
         if WordTask.WORD_FEATURE_TAGGING in self.training_tasks:
-            word_feature_mask = batch["word_feature_labels"].ne(IGNORE_INDEX)
             loss_log["word_feature_tagging_loss"] = compute_multi_label_token_mean_loss(
-                ret["word_feature_probabilities"] * word_feature_mask,
-                batch["word_feature_labels"].float() * word_feature_mask,
-                word_feature_mask,
+                ret["word_feature_probabilities"],
+                batch["word_feature_labels"],
             )
 
         if WordTask.NER in self.training_tasks:
             loss_log["ner_loss"] = self.crf(ret["ne_logits"], batch["ne_labels"], mask=batch["ne_mask"])
 
         if WordTask.BASE_PHRASE_FEATURE_TAGGING in self.training_tasks:
-            base_phrase_feature_mask = batch["base_phrase_feature_labels"].ne(IGNORE_INDEX)
             loss_log["base_phrase_feature_tagging_loss"] = compute_multi_label_token_mean_loss(
-                ret["base_phrase_feature_probabilities"] * base_phrase_feature_mask,
-                batch["base_phrase_feature_labels"].float() * base_phrase_feature_mask,
-                base_phrase_feature_mask,
+                ret["base_phrase_feature_probabilities"],
+                batch["base_phrase_feature_labels"],
             )
 
         if WordTask.DEPENDENCY_PARSING in self.training_tasks:
             loss_log["dependency_parsing_loss"] = compute_token_mean_loss(
                 ret["dependency_logits"], batch["dependency_labels"]
             )
-            top1 = ret["dependency_type_logits"][:, :, 0, :]
+            top1 = ret["dependency_type_logits"][:, :, 0]
             loss_log["dependency_type_parsing_loss"] = compute_token_mean_loss(top1, batch["dependency_type_labels"])
 
         if WordTask.COHESION_ANALYSIS in self.training_tasks:
@@ -214,8 +198,9 @@ class WordModule(BaseModule[WordModuleMetric]):
     def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
         kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
         kwargs.update({"discourse_labels": batch["discourse_labels"]})
-        corpus = self.valid_corpora[dataloader_idx]
-        self.valid_corpus2metric[corpus].update(kwargs)
+        metric = self.valid_corpus2metric[self.valid_corpora[dataloader_idx]]
+        metric.pad(kwargs, self.hparams.max_seq_length)
+        metric.update(kwargs)
 
     def on_validation_epoch_end(self) -> None:
         metrics_log: Dict[str, Dict[str, float]] = {}
@@ -247,8 +232,9 @@ class WordModule(BaseModule[WordModuleMetric]):
     def test_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
         kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
         kwargs.update({"discourse_labels": batch["discourse_labels"]})
-        corpus = self.test_corpora[dataloader_idx]
-        self.test_corpus2metric[corpus].update(kwargs)
+        metric = self.test_corpus2metric[self.test_corpora[dataloader_idx]]
+        metric.pad(kwargs, self.hparams.max_seq_length)
+        metric.update(kwargs)
 
     def on_test_epoch_end(self) -> None:
         metrics_log: Dict[str, Dict[str, float]] = {}

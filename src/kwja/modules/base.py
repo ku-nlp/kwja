@@ -15,10 +15,10 @@ class BaseModule(pl.LightningModule, Generic[MetricType]):
         super().__init__()
         self.save_hyperparameters(hparams)
 
-        if valid_corpora := getattr(hparams.datamodule, "valid"):
+        if valid_corpora := getattr(hparams.datamodule, "valid", None):
             self.valid_corpora: List[str] = list(valid_corpora)
             self.valid_corpus2metric: Dict[str, MetricType] = {corpus: deepcopy(metric) for corpus in valid_corpora}
-        if test_corpora := getattr(hparams.datamodule, "test"):
+        if test_corpora := getattr(hparams.datamodule, "test", None):
             self.test_corpora: List[str] = list(test_corpora)
             self.test_corpus2metric: Dict[str, MetricType] = {corpus: deepcopy(metric) for corpus in test_corpora}
 
