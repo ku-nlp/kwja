@@ -2,6 +2,7 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List
+from unicodedata import normalize
 
 from rhoknp import Document
 from transformers import BatchEncoding, PreTrainedTokenizerBase
@@ -9,7 +10,7 @@ from transformers.utils import PaddingStrategy
 
 from kwja.datamodule.datasets.base import BaseDataset, FullAnnotatedDocumentLoaderMixin
 from kwja.datamodule.examples import SenterExample
-from kwja.utils.constants import IGNORE_INDEX, SENT_SEGMENTATION_TAGS
+from kwja.utils.constants import IGNORE_INDEX, SENT_SEGMENTATION_TAGS, TRANSLATION_TABLE
 from kwja.utils.progress_bar import track
 
 logger = logging.getLogger(__name__)
@@ -78,4 +79,10 @@ class SenterDataset(BaseDataset[SenterExample, SenterModuleFeatures], FullAnnota
         for i in reversed(range(len(document.sentences))):
             if "括弧位置" in document.sentences[i].comment:
                 del document.sentences[i]
-        return document
+            else:
+                for morpheme in document.sentences[i].morphemes:
+                    normalized = normalize("NFKC", morpheme.text).translate(TRANSLATION_TABLE)
+                    if normalized != morpheme.text:
+                        logger.warning(f"apply normalization ({morpheme.text} -> {normalized})")
+                        morpheme.text = normalized
+        return document.reparse()
