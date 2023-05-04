@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Set, Tuple
 
 from typer.testing import CliRunner
 
@@ -29,31 +29,40 @@ def test_task_input():
         "",
         "dummy",
         "typo",
-        "char",
-        "word",
-        "word_discourse",
-        "typo,char",
-        "typo,word",
-        "typo,word_discourse",
-        "char,word",
-        "char,word_discourse",
-        "word,word_discourse",
-        "typo,char,word",
-        "typo,char,word_discourse",
-        "typo,word,word_discourse",
-        "char,word,word_discourse",
-        "typo,char,word,word_discourse",
+        "typo,senter",
+        "typo,senter,char",
+        "typo,senter,word",
+        "typo,senter,word_discourse",
+        "typo,senter,seq2seq",
+        "typo,senter,seq2seq,char",
+        "typo,senter,seq2seq,word",
+        "typo,senter,seq2seq,word_discourse",
+        "senter",
+        "senter,char",
+        "senter,char,word",
+        "senter,char,word,word_discourse",
+        "senter,seq2seq",
+        "senter,seq2seq,word",
+        "senter,seq2seq,word,word_discourse",
     ]
-    valid_tasks: List[str] = [
-        "typo",
-        "char",
-        "typo,char",
-        "char,word",
-        "typo,char,word",
-        "char,word,word_discourse",
-        "typo,char,word,word_discourse",
-    ]
+    valid_tasks: Set[Tuple[str, ...]] = {
+        ("typo",),
+        ("typo", "senter"),
+        ("typo", "senter", "char"),
+        ("typo", "senter", "char", "word"),
+        ("typo", "senter", "char", "word", "word_discourse"),
+        ("typo", "senter", "seq2seq"),
+        ("typo", "senter", "seq2seq", "word"),
+        ("typo", "senter", "seq2seq", "word", "word_discourse"),
+        ("senter",),
+        ("senter", "char"),
+        ("senter", "char", "word"),
+        ("senter", "char", "word", "word_discourse"),
+        ("senter", "seq2seq"),
+        ("senter", "seq2seq", "word"),
+        ("senter", "seq2seq", "word", "word_discourse"),
+    }
     for task in tasks:
         ret = runner.invoke(app, args=["--model-size", "tiny", "--text", "おはよう", "--task", task])
-        if task not in valid_tasks:
+        if tuple(task.split(",")) not in valid_tasks:
             assert isinstance(ret.exception, SystemExit)

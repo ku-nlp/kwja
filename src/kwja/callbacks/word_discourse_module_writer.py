@@ -47,16 +47,11 @@ class WordDiscourseModuleWriter(BasePredictionWriter):
         ):
             example: Union[WordExample, WordInferenceExample] = dataset.examples[example_id]
             assert example.doc_id is not None, "doc_id isn't set"
-            document = dataset.doc_id2document[example.doc_id]
-            # メモリリーク対策
-            predicted_document = document.reparse()
-            predicted_document.doc_id = document.doc_id
-            for predicted_sentence, sentence in zip(predicted_document.sentences, document.sentences):
-                predicted_sentence.comment = sentence.comment
+            document = dataset.doc_id2document.pop(example.doc_id)
 
-            add_discourse(predicted_document, discourse_predictions)
+            add_discourse(document, discourse_predictions)
 
-            output_string = "".join(s.to_knp() for s in extract_target_sentences(predicted_document))
+            output_string = "".join(s.to_knp() for s in extract_target_sentences(document))
             if isinstance(self.destination, Path):
                 with self.destination.open(mode="a") as f:
                     f.write(output_string)

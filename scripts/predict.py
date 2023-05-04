@@ -18,8 +18,20 @@ hf_logging.set_verbosity(hf_logging.ERROR)
 logging.getLogger("rhoknp").setLevel(logging.ERROR)
 warnings.filterwarnings(
     "ignore",
-    message=r"It is recommended to use .+ when logging on epoch level in distributed setting to accumulate the metric"
-    r" across devices",
+    message=(
+        r"It is recommended to use .+ when logging on epoch level in distributed setting to accumulate the metric"
+        r" across devices"
+    ),
+    category=PossibleUserWarning,
+)
+warnings.filterwarnings(
+    "ignore",
+    message=(
+        r"Using `DistributedSampler` with the dataloaders. During `trainer..+`, it is recommended to use"
+        r" `Trainer(devices=1, num_nodes=1)` to ensure each sample/batch gets evaluated exactly once. Otherwise,"
+        r" multi-device settings use `DistributedSampler` that replicates some samples to make sure all devices have"
+        r" same batch size in case of uneven inputs."
+    ),
     category=PossibleUserWarning,
 )
 

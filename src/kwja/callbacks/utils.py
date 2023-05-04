@@ -8,6 +8,7 @@ from rhoknp.cohesion import ExophoraReferent, RelTag, RelTagList
 from rhoknp.props import DepType, NamedEntity, NamedEntityCategory
 from transformers import PreTrainedTokenizerBase
 
+from kwja.datamodule.examples import SpecialTokenIndexer
 from kwja.utils.cohesion_analysis import CohesionUtils
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
@@ -378,11 +379,11 @@ def add_dependency(
     sentence: Sentence,
     dependency_predictions: List[List[int]],
     dependency_type_predictions: List[List[int]],
-    special_token2index: Dict[str, int],
+    special_token_indexer: SpecialTokenIndexer,
 ) -> None:
     base_phrases = sentence.base_phrases
     morpheme_global_index2base_phrase_index = {m.global_index: bp.index for bp in base_phrases for m in bp.morphemes}
-    morpheme_global_index2base_phrase_index[special_token2index["[ROOT]"]] = -1
+    morpheme_global_index2base_phrase_index[special_token_indexer.get_morpheme_global_index("[ROOT]")] = -1
     dependency_manager = DependencyManager()
     for base_phrase in base_phrases:
         for parent_morpheme_global_index, dependency_type_index in zip(
@@ -443,7 +444,7 @@ def add_cohesion(
     document: Document,
     cohesion_logits: List[List[List[float]]],  # (rel, seq, seq)
     cohesion_task2utils: Dict[CohesionTask, CohesionUtils],
-    index2special_token: Dict[int, str],
+    special_token_indexer: SpecialTokenIndexer,
 ) -> None:
     flatten_rels = [r for cohesion_utils in cohesion_task2utils.values() for r in cohesion_utils.rels]
     base_phrases = document.base_phrases
@@ -456,7 +457,7 @@ def add_cohesion(
                         rel,
                         cohesion_logits[flatten_rels.index(rel)][base_phrase.head.global_index],  # (seq, )
                         base_phrases,
-                        index2special_token,
+                        special_token_indexer,
                         cohesion_utils.exophora_referents,
                     )
                     if rel_tag is not None:
@@ -468,10 +469,11 @@ def _to_rel_tag(
     rel: str,
     rel_logits: List[float],  # (seq, )
     base_phrases: List[BasePhrase],
-    index2special_token: Dict[int, str],
+    special_token_indexer: SpecialTokenIndexer,
     exophora_referents: List[ExophoraReferent],
 ) -> Optional[RelTag]:
-    logits = [rel_logits[bp.head.global_index] for bp in base_phrases] + [rel_logits[i] for i in index2special_token]
+    logits = [rel_logits[bp.head.global_index] for bp in base_phrases]
+    logits += [rel_logits[i] for i in special_token_indexer.get_morpheme_global_indices()]
     predicted_antecedent_index: int = np.argmax(logits).item()
     if 0 <= predicted_antecedent_index < len(base_phrases):
         # endophora
@@ -485,8 +487,8 @@ def _to_rel_tag(
         )
     else:
         # exophora
-        special_token = list(index2special_token.values())[predicted_antecedent_index - len(base_phrases)]
-        if special_token in [f"[{e}]" for e in exophora_referents]:  # exclude [NULL], [NA], and [ROOT]
+        special_token = list(special_token_indexer.special_tokens)[predicted_antecedent_index - len(base_phrases)]
+        if special_token in [f"[{er}]" for er in exophora_referents]:  # exclude [NULL], [NA], and [ROOT]
             return RelTag(
                 type=rel,
                 target=special_token[1:-1],  # strip '[' and ']'

@@ -66,7 +66,7 @@ class PasUtils(CohesionUtils):
         exophora_referents: List[ExophoraReferent],
         restrict_target: bool,
     ) -> None:
-        super().__init__(exophora_referents, restrict_target=restrict_target)
+        super().__init__(exophora_referents, restrict_target)
         self.cases = cases
         self.target = target
 
@@ -153,7 +153,7 @@ class BridgingUtils(CohesionUtils):
         exophora_referents: List[ExophoraReferent],
         restrict_target: bool,
     ) -> None:
-        super().__init__(exophora_referents, restrict_target=restrict_target)
+        super().__init__(exophora_referents, restrict_target)
         assert "ノ" in cases, '"ノ" case isn\'t found'
         self.cases = cases
 
@@ -235,7 +235,7 @@ class CoreferenceUtils(CohesionUtils):
         exophora_referents: List[ExophoraReferent],
         restrict_target: bool,
     ) -> None:
-        super().__init__(exophora_referents, restrict_target=restrict_target)
+        super().__init__(exophora_referents, restrict_target)
 
     @property
     def rels(self) -> List[str]:

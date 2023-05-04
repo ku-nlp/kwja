@@ -112,7 +112,7 @@ class WordModuleWriter(BasePredictionWriter):
         ):
             example: Union[WordExample, WordInferenceExample] = dataset.examples[example_id]
             assert example.doc_id is not None, "doc_id isn't set"
-            document = dataset.doc_id2document[example.doc_id]
+            document = dataset.doc_id2document.pop(example.doc_id)
             if dataset.from_seq2seq:
                 word_reading_predictions = [m.reading for m in document.morphemes]
                 canons = [m.canon for m in document.morphemes]
@@ -150,7 +150,7 @@ class WordModuleWriter(BasePredictionWriter):
                 add_named_entities(sentence, ne_predictions)
                 add_base_phrase_features(sentence, base_phrase_feature_probabilities)
                 add_dependency(
-                    sentence, dependency_predictions, dependency_type_predictions, dataset.special_token2index
+                    sentence, dependency_predictions, dependency_type_predictions, example.special_token_indexer
                 )
             orig_doc_id = to_orig_doc_id(document.doc_id)
             # 解析済みの文とマージ
@@ -163,7 +163,7 @@ class WordModuleWriter(BasePredictionWriter):
                 predicted_document,
                 cohesion_logits,
                 dataset.cohesion_task2utils,
-                dataset.index2special_token,
+                example.special_token_indexer,
             )
             if WordTask.DISCOURSE_PARSING in pl_module.training_tasks:
                 add_discourse(predicted_document, discourse_predictions)

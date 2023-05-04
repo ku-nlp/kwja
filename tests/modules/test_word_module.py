@@ -7,7 +7,7 @@ from hydra.core.hydra_config import HydraConfig
 from omegaconf import ListConfig, OmegaConf
 from torch.utils.data import DataLoader
 
-from kwja.datamodule.datamodule import dataclass_data_collator
+from kwja.datamodule.datamodule import word_dataclass_data_collator
 from kwja.datamodule.datasets import WordDataset
 from kwja.modules import WordModule
 
@@ -45,7 +45,7 @@ def test_steps(fixture_data_dir: Path) -> None:
         br_cases=ListConfig(cfg.br_cases),
         special_tokens=ListConfig(cfg.special_tokens),
     )
-    data_loader = DataLoader(dataset, batch_size=len(dataset), collate_fn=dataclass_data_collator)
+    data_loader = DataLoader(dataset, batch_size=len(dataset), collate_fn=word_dataclass_data_collator)
     val_dataloaders = {"dummy": data_loader}
 
     cfg.datamodule.valid = {"dummy": ""}

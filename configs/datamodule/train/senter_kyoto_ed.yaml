@@ -1,5 +1,5 @@
 defaults:
   - /datamodule/base/senter@kyoto_ed
 
-kyoto:
+kyoto_ed:
   path: ${oc.env:DATA_DIR}/kyoto_ed/all
