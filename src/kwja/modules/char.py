@@ -1,5 +1,5 @@
 from statistics import mean
-from typing import Any, Dict, Tuple
+from typing import Any, Dict
 
 import hydra
 import torch
@@ -20,13 +20,13 @@ class CharModule(BaseModule[CharModuleMetric]):
         self.encoder: PreTrainedModel = hydra.utils.call(hparams.encoder.from_config)
         if hasattr(hparams, "special_tokens"):
             self.encoder.resize_token_embeddings(self.encoder.config.vocab_size + len(hparams.special_tokens))
-        head_args: Tuple[int, float] = (self.encoder.config.hidden_size, self.encoder.config.hidden_dropout_prob)
+        head_kwargs: Dict[str, Any] = dict(hidden_size=self.encoder.config.hidden_size, hidden_dropout_prob=0.05)
 
         # ---------- word segmentation ----------
-        self.word_segmentation_tagger = SequenceLabelingHead(len(WORD_SEGMENTATION_TAGS), *head_args)
+        self.word_segmentation_tagger = SequenceLabelingHead(len(WORD_SEGMENTATION_TAGS), **head_kwargs)
 
         # ---------- word normalization ----------
-        self.word_norm_op_tagger = SequenceLabelingHead(len(WORD_NORM_OP_TAGS), *head_args)
+        self.word_norm_op_tagger = SequenceLabelingHead(len(WORD_NORM_OP_TAGS), **head_kwargs)
 
     def setup(self, stage: str) -> None:
         if stage == "fit":

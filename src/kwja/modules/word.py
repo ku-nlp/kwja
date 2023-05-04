@@ -1,6 +1,6 @@
 from functools import reduce
 from statistics import mean
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
 import hydra
 import torch
@@ -47,33 +47,35 @@ class WordModule(BaseModule[WordModuleMetric]):
         pretrained_model_config: PretrainedConfig = self.encoder.config
         if hasattr(hparams, "special_tokens"):
             self.encoder.resize_token_embeddings(pretrained_model_config.vocab_size + len(hparams.special_tokens))
-        head_args: Tuple[int, float] = (self.encoder.config.hidden_size, self.encoder.config.hidden_dropout_prob)
+        head_kwargs: Dict[str, Any] = dict(hidden_size=self.encoder.config.hidden_size, hidden_dropout_prob=0.05)
 
         # ---------- reading prediction ----------
         self.reading_id2reading: Dict[int, str] = {
             v: k for k, v in get_reading2reading_id(RESOURCE_PATH / "reading_prediction" / "vocab.txt").items()
         }
-        self.reading_tagger = SequenceLabelingHead(len(self.reading_id2reading), *head_args)
+        self.reading_tagger = SequenceLabelingHead(len(self.reading_id2reading), **head_kwargs)
 
         # ---------- morphological analysis ----------
-        self.pos_tagger = SequenceLabelingHead(len(POS_TAGS), *head_args)
-        self.subpos_tagger = SequenceLabelingHead(len(SUBPOS_TAGS), *head_args)
-        self.conjtype_tagger = SequenceLabelingHead(len(CONJTYPE_TAGS), *head_args)
-        self.conjform_tagger = SequenceLabelingHead(len(CONJFORM_TAGS), *head_args)
+        self.pos_tagger = SequenceLabelingHead(len(POS_TAGS), **head_kwargs)
+        self.subpos_tagger = SequenceLabelingHead(len(SUBPOS_TAGS), **head_kwargs)
+        self.conjtype_tagger = SequenceLabelingHead(len(CONJTYPE_TAGS), **head_kwargs)
+        self.conjform_tagger = SequenceLabelingHead(len(CONJFORM_TAGS), **head_kwargs)
 
         # ---------- word feature tagging ----------
-        self.word_feature_tagger = SequenceLabelingHead(len(WORD_FEATURES), *head_args, multi_label=True)
+        self.word_feature_tagger = SequenceLabelingHead(len(WORD_FEATURES), **head_kwargs, multi_label=True)
 
         # ---------- named entity recognition ----------
-        self.ne_tagger = SequenceLabelingHead(len(NE_TAGS), *head_args)
+        self.ne_tagger = SequenceLabelingHead(len(NE_TAGS), **head_kwargs)
         self.crf = CRF(NE_TAGS)
 
         # ---------- base phrase feature tagging ----------
-        self.base_phrase_feature_tagger = SequenceLabelingHead(len(BASE_PHRASE_FEATURES), *head_args, multi_label=True)
+        self.base_phrase_feature_tagger = SequenceLabelingHead(
+            len(BASE_PHRASE_FEATURES), **head_kwargs, multi_label=True
+        )
 
         # ---------- dependency parsing ----------
         self.dependency_topk: int = hparams.dependency_topk
-        self.dependency_parser = WordSelectionHead(1, *head_args)
+        self.dependency_parser = WordSelectionHead(1, **head_kwargs)
         self.dependency_type_parser = SequenceLabelingHead(
             len(DEPENDENCY_TYPES),
             pretrained_model_config.hidden_size * 2,
@@ -81,11 +83,11 @@ class WordModule(BaseModule[WordModuleMetric]):
         )
 
         # ---------- cohesion analysis ----------
-        self.cohesion_analyzer = WordSelectionHead(self._get_num_cohesion_rels(hparams), *head_args)
+        self.cohesion_analyzer = WordSelectionHead(self._get_num_cohesion_rels(hparams), **head_kwargs)
 
         # ---------- discourse parsing ----------
         self.discourse_parsing_threshold: float = hparams.discourse_parsing_threshold
-        self.discourse_parser = WordSelectionHead(len(DISCOURSE_RELATIONS), *head_args)
+        self.discourse_parser = WordSelectionHead(len(DISCOURSE_RELATIONS), **head_kwargs)
 
     @staticmethod
     def _get_num_cohesion_rels(hparams: DictConfig) -> int:

@@ -1,5 +1,5 @@
 from statistics import mean
-from typing import Any, Dict, Tuple
+from typing import Any, Dict
 
 import hydra
 import torch
@@ -20,11 +20,11 @@ class TypoModule(BaseModule[TypoModuleMetric]):
         self.encoder: PreTrainedModel = hydra.utils.call(hparams.encoder.from_config)
         if hasattr(hparams, "special_tokens"):
             self.encoder.resize_token_embeddings(self.encoder.config.vocab_size + len(hparams.special_tokens))
-        head_args: Tuple[int, float] = (self.encoder.config.hidden_size, self.encoder.config.hidden_dropout_prob)
+        head_kwargs: Dict[str, Any] = dict(hidden_size=self.encoder.config.hidden_size, hidden_dropout_prob=0.05)
 
-        self.kdr_tagger = SequenceLabelingHead(self.encoder.config.vocab_size, *head_args)
+        self.kdr_tagger = SequenceLabelingHead(self.encoder.config.vocab_size, **head_kwargs)
         extended_vocab_size = sum(1 for _ in RESOURCE_PATH.joinpath("typo_correction", "multi_char_vocab.txt").open())
-        self.ins_tagger = SequenceLabelingHead(self.encoder.config.vocab_size + extended_vocab_size, *head_args)
+        self.ins_tagger = SequenceLabelingHead(self.encoder.config.vocab_size + extended_vocab_size, **head_kwargs)
 
     def setup(self, stage: str) -> None:
         if stage == "fit":
