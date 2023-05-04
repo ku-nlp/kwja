@@ -39,7 +39,9 @@ def test_getitem(fixture_data_dir: Path, word_tokenizer: PreTrainedTokenizerBase
     dataset = WordDataset(str(path), word_tokenizer, max_seq_length, document_split_stride=1, **dataset_kwargs)
     num_cohesion_rels = len([r for utils in dataset.cohesion_task2utils.values() for r in utils.rels])
     for i in range(len(dataset)):
-        document = dataset.doc_id2document[dataset.examples[i].doc_id]
+        doc_id = dataset.examples[i].doc_id
+        assert doc_id is not None, "doc_id isn't set"
+        document = dataset.doc_id2document[doc_id]
         feature = dataset[i]
         assert feature.example_ids == i
         assert len(feature.input_ids) == max_seq_length
