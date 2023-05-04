@@ -57,8 +57,10 @@ def main(eval_cfg: DictConfig):
         cfg.datamodule.predict.knp_file = Path(cfg.datamodule.predict.knp_file)
     elif getattr(cfg.datamodule.predict, "juman_file", None):
         cfg.datamodule.predict.juman_file = Path(cfg.datamodule.predict.juman_file)
-    elif not cfg.datamodule.predict.texts:
-        cfg.datamodule.predict.texts = sys.stdin.read().splitlines()
+    elif getattr(cfg.datamodule.predict, "senter_file", None):
+        cfg.datamodule.predict.senter_file = Path(cfg.datamodule.predict.senter_file)
+    elif getattr(cfg.datamodule.predict, "texts", None) is not None:
+        cfg.datamodule.predict.texts = sys.stdin.readlines()
     datamodule = DataModule(cfg=cfg.datamodule)
     datamodule.setup(stage=TrainerFn.PREDICTING)
 
