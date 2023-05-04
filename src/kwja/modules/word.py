@@ -1,3 +1,4 @@
+from functools import reduce
 from statistics import mean
 from typing import Any, Dict, List, Tuple
 
@@ -228,6 +229,9 @@ class WordModule(BaseModule[WordModuleMetric]):
                 }
             )
             metrics = metric.compute()
+            if corpus != "kwdlc":
+                # discourse parsing labels are available only for KWDLC
+                metrics = {key: value for key, value in metrics.items() if not key.startswith("discourse_parsing")}
             metrics["aggregated_word_metrics"] = mean(
                 metrics[key] for key in self.hparams.aggregating_metrics if key in metrics
             )
@@ -236,7 +240,7 @@ class WordModule(BaseModule[WordModuleMetric]):
 
         for corpus, metrics in metrics_log.items():
             self.log_dict({f"valid_{corpus}/{key}": value for key, value in metrics.items()})
-        for key in list(metrics_log.values())[0].keys():
+        for key in reduce(set.union, [set(metrics.keys()) for metrics in metrics_log.values()]):
             mean_score = mean(metrics_log[corpus][key] for corpus in self.valid_corpora if key in metrics_log[corpus])
             self.log(f"valid/{key}", mean_score)
 
@@ -258,6 +262,9 @@ class WordModule(BaseModule[WordModuleMetric]):
                 }
             )
             metrics = metric.compute()
+            if corpus != "kwdlc":
+                # discourse parsing labels are available only for KWDLC
+                metrics = {key: value for key, value in metrics.items() if not key.startswith("discourse_parsing")}
             metrics["aggregated_word_metrics"] = mean(
                 metrics[key] for key in self.hparams.aggregating_metrics if key in metrics
             )
@@ -266,7 +273,7 @@ class WordModule(BaseModule[WordModuleMetric]):
 
         for corpus, metrics in metrics_log.items():
             self.log_dict({f"test_{corpus}/{key}": value for key, value in metrics.items()})
-        for key in list(metrics_log.values())[0].keys():
+        for key in reduce(set.union, [set(metrics.keys()) for metrics in metrics_log.values()]):
             mean_score = mean(metrics_log[corpus][key] for corpus in self.test_corpora if key in metrics_log[corpus])
             self.log(f"test/{key}", mean_score)
 
