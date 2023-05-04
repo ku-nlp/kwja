@@ -1,39 +1,17 @@
-import logging
-import warnings
 from typing import List
 
 import hydra
 import pytorch_lightning as pl
 import torch
-import transformers.utils.logging as hf_logging
 from dotenv import load_dotenv
-from lightning_fabric.utilities.warnings import PossibleUserWarning
 from omegaconf import DictConfig, ListConfig, OmegaConf
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.trainer.states import TrainerFn
 
+from kwja.cli.utils import filter_logs
 from kwja.datamodule.datamodule import DataModule
 
-hf_logging.set_verbosity(hf_logging.ERROR)
-logging.getLogger("rhoknp").setLevel(logging.ERROR)
-warnings.filterwarnings(
-    "ignore",
-    message=(
-        r"It is recommended to use .+ when logging on epoch level in distributed setting to accumulate the metric"
-        r" across devices"
-    ),
-    category=PossibleUserWarning,
-)
-warnings.filterwarnings(
-    "ignore",
-    message=(
-        r"Using `DistributedSampler` with the dataloaders. During `trainer..+`, it is recommended to use"
-        r" `Trainer(devices=1, num_nodes=1)` to ensure each sample/batch gets evaluated exactly once. Otherwise,"
-        r" multi-device settings use `DistributedSampler` that replicates some samples to make sure all devices have"
-        r" same batch size in case of uneven inputs."
-    ),
-    category=PossibleUserWarning,
-)
+filter_logs(environment="development")
 
 
 @hydra.main(version_base=None, config_path="../configs", config_name="eval")

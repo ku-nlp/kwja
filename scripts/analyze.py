@@ -11,10 +11,10 @@ from omegaconf import DictConfig, ListConfig, OmegaConf
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.trainer.states import TrainerFn
 
-from kwja.cli.utils import suppress_debug_info
+from kwja.cli.utils import filter_logs
 from kwja.datamodule.datamodule import DataModule
 
-suppress_debug_info()
+filter_logs(environment="development")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 

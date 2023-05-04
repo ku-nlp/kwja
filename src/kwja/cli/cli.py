@@ -15,12 +15,12 @@ from rhoknp import Document, RegexSenter, Sentence
 from rhoknp.utils.reader import chunk_by_document
 
 import kwja
-from kwja.cli.utils import download_checkpoint, prepare_device, suppress_debug_info
+from kwja.cli.utils import download_checkpoint, filter_logs, prepare_device
 from kwja.datamodule.datamodule import DataModule
 from kwja.modules import CharModule, SenterModule, Seq2SeqModule, TypoModule, WordModule
 from kwja.utils.reader import chunk_by_sentence_for_line_by_line_text
 
-suppress_debug_info()
+filter_logs(environment="production")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 OMEGACONF_VARIABLE_INTERPOLATION = re.compile(r"\$(?P<variable>\{.+?})")
 
