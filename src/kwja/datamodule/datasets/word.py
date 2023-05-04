@@ -112,7 +112,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             is_split_into_words=True,
         ).encodings[0]
 
-        self.examples: List[WordExample] = self._load_examples(self.documents)
+        self.examples: List[WordExample] = self._load_examples(self.doc_id2document)
 
     def _get_tokenized_len(self, document_or_sentence: Union[Document, Sentence]) -> int:
         tokenizer_input: Union[List[str], str] = [m.text for m in document_or_sentence.morphemes]
@@ -120,10 +120,10 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             tokenizer_input = " ".join(tokenizer_input)
         return len(self.tokenizer.tokenize(tokenizer_input, is_split_into_words=self.tokenizer_input_format == "words"))
 
-    def _load_examples(self, documents: List[Document]) -> List[WordExample]:
+    def _load_examples(self, doc_id2document: Dict[str, Document]) -> List[WordExample]:
         examples = []
         example_id = 0
-        for document in track(documents, description="Loading examples"):
+        for document in track(doc_id2document.values(), description="Loading examples"):
             tokenizer_input: Union[List[str], str] = [m.text for m in document.morphemes]
             if self.tokenizer_input_format == "text":
                 tokenizer_input = " ".join(tokenizer_input)

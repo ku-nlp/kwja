@@ -112,7 +112,7 @@ class WordModuleWriter(BasePredictionWriter):
         ):
             example: Union[WordExample, WordInferenceExample] = dataset.examples[example_id]
             assert example.doc_id is not None, "doc_id isn't set"
-            document = dataset.doc_id2document[example.doc_id]
+            document = dataset.doc_id2document.pop(example.doc_id)
             if dataset.from_seq2seq:
                 word_reading_predictions = [m.reading for m in document.morphemes]
                 canons = [m.canon for m in document.morphemes]

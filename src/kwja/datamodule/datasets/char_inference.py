@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 from unicodedata import normalize
 
 from rhoknp import Document
@@ -36,12 +36,12 @@ class CharInferenceDataset(BaseDataset[CharInferenceExample, CharModuleFeatures]
         else:
             documents = []
         super(BaseDataset, self).__init__(documents, tokenizer, max_seq_length, document_split_stride)
-        self.examples: List[CharInferenceExample] = self._load_examples(self.documents)
+        self.examples: List[CharInferenceExample] = self._load_examples(self.doc_id2document)
 
-    def _load_examples(self, documents: List[Document]) -> List[CharInferenceExample]:
+    def _load_examples(self, doc_id2document: Dict[str, Document]) -> List[CharInferenceExample]:
         examples = []
         example_id = 0
-        for document in track(documents, description="Loading examples"):
+        for document in track(doc_id2document.values(), description="Loading examples"):
             encoding: BatchEncoding = self.tokenizer(
                 document.text,
                 padding=PaddingStrategy.MAX_LENGTH,

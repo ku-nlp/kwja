@@ -26,7 +26,7 @@ class SenterModuleWriter(BasePredictionWriter):
             self.destination.parent.mkdir(exist_ok=True, parents=True)
             self.destination.unlink(missing_ok=True)
 
-        self.prev_did: Optional[str] = None
+        self.prev_doc_id: Optional[str] = None
         self.prev_sid: int = 0
 
     def write_on_batch_end(
@@ -53,20 +53,20 @@ class SenterModuleWriter(BasePredictionWriter):
         ):
             example: Union[SenterExample, SenterInferenceExample] = dataset.examples[example_id]
             assert example.doc_id is not None, "doc_id isn't set"
-            document = dataset.doc_id2document[example.doc_id]
+            document = dataset.doc_id2document.pop(example.doc_id)
 
             sent_segmentation_tags = convert_senter_predictions_into_tags(
                 sent_segmentation_predictions, example.encoding.input_ids, special_ids
             )
-            current_did = to_orig_doc_id(document.did)
-            is_new_doc = self.prev_did is None or self.prev_did != current_did
-            if is_new_doc:
-                self.prev_did = current_did
+            orig_doc_id = to_orig_doc_id(document.doc_id)
+            self.prev_doc_id = self.prev_doc_id or orig_doc_id
+            if orig_doc_id != self.prev_doc_id:
+                self.prev_doc_id = orig_doc_id
                 self.prev_sid = 0
             for char, sent_segmentation_tag in zip(document.text, sent_segmentation_tags):
                 if sent_segmentation_tag == "B":
                     output_string += "\n"
-                    output_string += f"# S-ID:{current_did}-{self.prev_sid + 1} kwja:{kwja.__version__}"
+                    output_string += f"# S-ID:{orig_doc_id}-{self.prev_sid + 1} kwja:{kwja.__version__}"
                     output_string += "\n"
                     self.prev_sid += 1
                 output_string += char

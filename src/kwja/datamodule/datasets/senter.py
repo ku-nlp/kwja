@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List
+from typing import Dict, List
 
 from rhoknp import Document
 from transformers import BatchEncoding, PreTrainedTokenizerBase
@@ -34,12 +34,12 @@ class SenterDataset(BaseDataset[SenterExample, SenterModuleFeatures], FullAnnota
         super(SenterDataset, self).__init__(tokenizer, max_seq_length)
         self.path = Path(path)
         super(BaseDataset, self).__init__(self.path, tokenizer, max_seq_length, document_split_stride)
-        self.examples: List[SenterExample] = self._load_examples(self.documents)
+        self.examples: List[SenterExample] = self._load_examples(self.doc_id2document)
 
-    def _load_examples(self, documents: List[Document]) -> List[SenterExample]:
+    def _load_examples(self, doc_id2document: Dict[str, Document]) -> List[SenterExample]:
         examples = []
         example_id = 0
-        for document in track(documents, description="Loading examples"):
+        for document in track(doc_id2document.values(), description="Loading examples"):
             encoding: BatchEncoding = self.tokenizer(
                 document.text,
                 padding=PaddingStrategy.MAX_LENGTH,

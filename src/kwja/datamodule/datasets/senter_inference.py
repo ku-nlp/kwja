@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from typing import List, Optional
+from typing import Dict, List, Optional
 from unicodedata import normalize
 
 from omegaconf import ListConfig
@@ -33,12 +33,12 @@ class SenterInferenceDataset(
         super(SenterInferenceDataset, self).__init__(tokenizer, max_seq_length)
         documents = self._build_documents_from_texts(list(texts), doc_id_prefix)
         super(BaseDataset, self).__init__(documents, tokenizer, max_seq_length, document_split_stride)
-        self.examples: List[SenterInferenceExample] = self._load_examples(self.documents)
+        self.examples: List[SenterInferenceExample] = self._load_examples(self.doc_id2document)
 
-    def _load_examples(self, documents: List[Document]) -> List[SenterInferenceExample]:
+    def _load_examples(self, doc_id2document: Dict[str, Document]) -> List[SenterInferenceExample]:
         examples = []
         example_id = 0
-        for document in track(documents, description="Loading examples"):
+        for document in track(doc_id2document.values(), description="Loading examples"):
             encoding: BatchEncoding = self.tokenizer(
                 document.text,
                 padding=PaddingStrategy.MAX_LENGTH,
