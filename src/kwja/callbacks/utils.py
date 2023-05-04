@@ -488,10 +488,10 @@ def _to_rel_tag(
     else:
         # exophora
         special_token = list(special_token_indexer.special_tokens)[predicted_antecedent_index - len(base_phrases)]
-        if special_token in [str(er) for er in exophora_referents]:  # exclude [NULL], [NA], and [ROOT]
+        if special_token in [f"[{er}]" for er in exophora_referents]:  # exclude [NULL], [NA], and [ROOT]
             return RelTag(
                 type=rel,
-                target=special_token,
+                target=special_token[1:-1],  # strip '[' and ']'
                 sid=None,
                 base_phrase_index=None,
                 mode=None,

@@ -34,7 +34,6 @@ warnings.filterwarnings(
     ),
     category=PossibleUserWarning,
 )
-OmegaConf.register_new_resolver("concat", lambda x, y: x + y)
 
 
 @hydra.main(version_base=None, config_path="../configs", config_name="eval")

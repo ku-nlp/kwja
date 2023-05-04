@@ -352,10 +352,10 @@ def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwa
     cohesion_logits[1, flatten_rels.index("ガ"), 0, 1] = 2.0  # ラーメン ガ 辛い
     cohesion_logits[1, flatten_rels.index("ガ"), 3, 1] = 2.0  # ラーメン ガ 好き
     cohesion_logits[
-        1, flatten_rels.index("ガ２"), 3, dataset.examples[1].special_token_indexer.get_morpheme_global_index("著者")
+        1, flatten_rels.index("ガ２"), 3, dataset.examples[1].special_token_indexer.get_morpheme_global_index("[著者]")
     ] = 2.0  # 著者 ガ２ 好き
     cohesion_logits[
-        1, flatten_rels.index("ガ"), 5, dataset.examples[1].special_token_indexer.get_morpheme_global_index("著者")
+        1, flatten_rels.index("ガ"), 5, dataset.examples[1].special_token_indexer.get_morpheme_global_index("[著者]")
     ] = 2.0  # 著者 ガ 頼み
     cohesion_logits[1, flatten_rels.index("ヲ"), 5, 1] = 2.0  # ラーメン ヲ 頼み
 

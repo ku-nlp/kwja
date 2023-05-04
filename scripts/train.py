@@ -9,7 +9,7 @@ import torch
 import transformers.utils.logging as hf_logging
 import wandb
 from dotenv import load_dotenv
-from omegaconf import DictConfig, ListConfig, OmegaConf
+from omegaconf import DictConfig, ListConfig
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.loggers import Logger
 from pytorch_lightning.utilities.warnings import PossibleUserWarning
@@ -36,7 +36,6 @@ warnings.filterwarnings(
     ),
     category=PossibleUserWarning,
 )
-OmegaConf.register_new_resolver("concat", lambda x, y: x + y)
 
 
 @hydra.main(version_base=None, config_path="../configs")
