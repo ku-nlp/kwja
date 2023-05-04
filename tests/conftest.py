@@ -70,7 +70,7 @@ def br_cases() -> List[str]:
 
 @pytest.fixture()
 def special_tokens(exophora_referents: List[str]) -> List[str]:
-    return exophora_referents + ["[NULL]", "[NA]", "[ROOT]"]
+    return [f"[{e}]" for e in exophora_referents] + ["[NULL]", "[NA]", "[ROOT]"]
 
 
 @pytest.fixture()

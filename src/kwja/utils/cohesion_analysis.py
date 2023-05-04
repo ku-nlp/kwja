@@ -127,7 +127,7 @@ class PasUtils(CohesionUtils):
                 argument_tag = str(target_argument.base_phrase.global_index)
             else:
                 assert isinstance(target_argument, ExophoraArgument)
-                argument_tag = target_argument.exophora_referent.text
+                argument_tag = f"[{target_argument.exophora_referent.text}]"  # 著者 -> [著者]
             argument_tags.append(argument_tag)
         return argument_tags or ["[NULL]"]
 
@@ -212,7 +212,7 @@ class BridgingUtils(CohesionUtils):
                 argument_tag = str(target_argument.base_phrase.global_index)
             else:
                 assert isinstance(target_argument, ExophoraArgument)
-                argument_tag = target_argument.exophora_referent.text
+                argument_tag = f"[{target_argument.exophora_referent.text}]"  # 著者 -> [著者]
             argument_tags.append(argument_tag)
         return argument_tags or ["[NULL]"]
 
@@ -269,7 +269,7 @@ class CoreferenceUtils(CohesionUtils):
         for exophora_referent in [e.exophora_referent for e in mention.entities if e.exophora_referent is not None]:
             exophora_referent.index = None  # 不特定:人１ -> 不特定:人
             if exophora_referent in self.exophora_referents:
-                mention_tags.append(exophora_referent.text)
+                mention_tags.append(f"[{exophora_referent.text}]")  # 著者 -> [著者]
         return mention_tags or ["[NA]"]
 
     def is_target(self, base_phrase: BasePhrase) -> bool:
