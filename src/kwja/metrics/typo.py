@@ -28,6 +28,21 @@ class TypoModuleMetric(BaseModuleMetric):
         self.ins_predictions: torch.Tensor
         self.ins_probabilities: torch.Tensor
 
+    @staticmethod
+    def pad(kwargs: Dict[str, torch.Tensor], max_seq_length: int) -> None:
+        for key, value in kwargs.items():
+            if key in {"example_ids"}:
+                continue
+            else:
+                dims = [1]
+            for dim in dims:
+                size = [max_seq_length - s if i == dim else s for i, s in enumerate(value.size())]
+                if size[dim] == 0:
+                    continue
+                padding = torch.zeros(size, dtype=value.dtype, device=value.device)
+                value = torch.cat([value, padding], dim=dim)
+            kwargs[key] = value
+
     def compute(self) -> Dict[str, float]:
         sorted_indices = unique(self.example_ids)
         for state_name in self.STATE_NAMES:

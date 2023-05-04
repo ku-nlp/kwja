@@ -201,7 +201,7 @@ PROLONGED_MAP_FOR_EROW = {
 # ---------- char module|text normalization ----------
 # 制御文字(\t,\nを含む)は削除
 TRANSLATION_TABLE: Dict[int, Optional[int]] = str.maketrans(
-    ' "▁', "␣”▂", "".join(chr(i) for i in [*range(32), *range(127, 160)])
+    ' "#▁', "␣”＃▂", "".join(chr(i) for i in [*range(32), *range(127, 160)])
 )
 
 

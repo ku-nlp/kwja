@@ -65,13 +65,21 @@ class JumanppAugmenter:
     def _postprocess_sentence(
         original_sentence: Sentence, augmented_sentence: Sentence, update_original: bool = True
     ) -> None:
-        for original_morpheme, augmented_morpheme in zip(original_sentence.morphemes, augmented_sentence.morphemes):
-            # Jumanpp may override reading
-            augmented_morpheme.reading = original_morpheme.reading
-            if update_original and not original_sentence.need_knp:
-                # add Semantics
-                for k, v in augmented_morpheme.semantics.items():
-                    original_morpheme.semantics[k] = v
+        alignment = align_morphemes(original_sentence.morphemes, augmented_sentence.morphemes)
+        if alignment is None:
+            return None
+        keys = []
+        for original_morpheme in original_sentence.morphemes:
+            keys.append(str(original_morpheme.index))
+            if "-".join(keys) in alignment:
+                aligned = alignment["-".join(keys)]
+                if len(keys) == 1 and len(aligned) == 1:
+                    augmented_morpheme = aligned[0]
+                    # Jumanpp may override reading
+                    augmented_morpheme.reading = original_morpheme.reading
+                    if update_original and not original_sentence.need_knp:
+                        original_morpheme.semantics.update(augmented_morpheme.semantics)
+                keys = []
 
 
 def align_morphemes(morphemes1: List[Morpheme], morphemes2: List[Morpheme]) -> Optional[Dict[str, List[Morpheme]]]:
