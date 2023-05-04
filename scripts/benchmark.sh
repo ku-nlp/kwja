@@ -123,8 +123,8 @@ echo "KWJA (senter_module)"
 grep "# S-ID:" "$WORK_DIR/benchmark.kwja.senter" | cut -f -3 -d "-" | uniq | wc -l >> "$WORK_DIR/count.txt"
 
 echo "KWJA (char_module)"
-(poetry run python scripts/analyze.py module=char checkpoint_path="$CHAR_MODULE" devices="$DEVICE" max_batches_per_device="$CHAR_BATCH_SIZE" +datamodule.predict.senter_file="$WORK_DIR/benchmark.kwja.senter" +load_only=true) 2>> "$WORK_DIR/benchmark.stderr"
-(poetry run python scripts/analyze.py module=char checkpoint_path="$CHAR_MODULE" devices="$DEVICE" max_batches_per_device="$CHAR_BATCH_SIZE" +datamodule.predict.senter_file="$WORK_DIR/benchmark.kwja.senter" > "$WORK_DIR/benchmark.kwja.juman") 2>> "$WORK_DIR/benchmark.stderr"
+(time -p poetry run python scripts/analyze.py module=char checkpoint_path="$CHAR_MODULE" devices="$DEVICE" max_batches_per_device="$CHAR_BATCH_SIZE" +datamodule.predict.senter_file="$WORK_DIR/benchmark.kwja.senter" +load_only=true) 2>> "$WORK_DIR/benchmark.stderr"
+(time -p poetry run python scripts/analyze.py module=char checkpoint_path="$CHAR_MODULE" devices="$DEVICE" max_batches_per_device="$CHAR_BATCH_SIZE" +datamodule.predict.senter_file="$WORK_DIR/benchmark.kwja.senter" > "$WORK_DIR/benchmark.kwja.juman") 2>> "$WORK_DIR/benchmark.stderr"
 grep "# S-ID:" "$WORK_DIR/benchmark.kwja.juman" | cut -f -3 -d "-" | uniq | wc -l >> "$WORK_DIR/count.txt"
 
 echo "KWJA (word_module)"
