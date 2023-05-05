@@ -52,7 +52,7 @@ torchmetrics = "^0.11.3"
 omegaconf = "^2.1"
 hydra-core = "^1.2"
 rhoknp = "^1.1.0"
-typer = ">=0.6.1,<0.8.0"
+typer = ">=0.7.0,<0.10.0"
 seqeval = "^1.2"
 python-dotenv = "^1.0.0"
 pandas = "^2.0"
@@ -64,7 +64,11 @@ rich = ">=12.4"
 Levenshtein = "^0.21.0"
 
 [tool.poetry.group.dev.dependencies]
-ipdb = "^0.13.9"
+ipython = [
+    { version = "~8.12.1", python = "<3.9" },
+    { version = "^8.13", python = ">=3.9" },
+]
+ipdb = "^0.13.13"
 types-attrs = "^19.1.0"
 wandb = "^0.15.0"
 
