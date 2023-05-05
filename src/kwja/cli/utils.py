@@ -116,6 +116,8 @@ def _get_kwja_cache_dir() -> Path:
 
 
 def _get_model_version() -> str:
+    if "dev" in kwja.__version__:
+        return "dev"
     version_map = {
         ("1", "0"): "v1.0",
         ("1", "1"): "v1.0",
@@ -123,7 +125,7 @@ def _get_model_version() -> str:
         ("1", "3"): "v1.3",
         ("1", "4"): "v1.3",
         ("2", "0"): "v2.0",
-        # ("2", "1"): "v2.0",
+        ("2", "1"): "v2.1",
     }
     version_fields = kwja.__version__.split(".")
     return version_map[(version_fields[0], version_fields[1])]
