@@ -271,9 +271,9 @@ def chunk_morphemes(
 ) -> Document:
     predicted_sentences = []
     for sentence in document.sentences:
-        morpheme_buffer = []
-        base_phrase_buffer = []
-        phrase_buffer = []
+        morpheme_buffer: List[Morpheme] = []
+        base_phrase_buffer: List[BasePhrase] = []
+        phrase_buffer: List[Phrase] = []
         for i in [m.global_index for m in sentence.morphemes]:
             morpheme = morphemes[i]
 
@@ -446,22 +446,28 @@ def add_cohesion(
     cohesion_task2utils: Dict[CohesionTask, CohesionUtils],
     special_token_indexer: SpecialTokenIndexer,
 ) -> None:
-    flatten_rels = [r for cohesion_utils in cohesion_task2utils.values() for r in cohesion_utils.rels]
+    rel2logits = dict(
+        zip(
+            [r for cohesion_utils in cohesion_task2utils.values() for r in cohesion_utils.rels],
+            cohesion_logits,
+        )
+    )
     base_phrases = document.base_phrases
     for base_phrase in base_phrases:
         rel_tags = RelTagList()
         for cohesion_utils in cohesion_task2utils.values():
-            if cohesion_utils.is_target(base_phrase):
-                for rel in cohesion_utils.rels:
-                    rel_tag = _to_rel_tag(
-                        rel,
-                        cohesion_logits[flatten_rels.index(rel)][base_phrase.head.global_index],  # (seq, )
-                        base_phrases,
-                        special_token_indexer,
-                        cohesion_utils.exophora_referents,
-                    )
-                    if rel_tag is not None:
-                        rel_tags.append(rel_tag)
+            if cohesion_utils.is_target(base_phrase) is False:
+                continue
+            for rel in cohesion_utils.rels:
+                rel_tag = _to_rel_tag(
+                    rel,
+                    rel2logits[rel][base_phrase.head.global_index],  # (seq, )
+                    base_phrases,
+                    special_token_indexer,
+                    cohesion_utils.exophora_referents,
+                )
+                if rel_tag is not None:
+                    rel_tags.append(rel_tag)
         base_phrase.rel_tags = rel_tags
 
 
@@ -474,10 +480,10 @@ def _to_rel_tag(
 ) -> Optional[RelTag]:
     logits = [rel_logits[bp.head.global_index] for bp in base_phrases]
     logits += [rel_logits[i] for i in special_token_indexer.get_morpheme_global_indices()]
-    predicted_antecedent_index: int = np.argmax(logits).item()
-    if 0 <= predicted_antecedent_index < len(base_phrases):
+    predicted_base_phrase_global_index: int = np.argmax(logits).item()
+    if 0 <= predicted_base_phrase_global_index < len(base_phrases):
         # endophora
-        predicted_antecedent = base_phrases[predicted_antecedent_index]
+        predicted_antecedent = base_phrases[predicted_base_phrase_global_index]
         return RelTag(
             type=rel,
             target=predicted_antecedent.head.text,
@@ -487,17 +493,17 @@ def _to_rel_tag(
         )
     else:
         # exophora
-        special_token = list(special_token_indexer.special_tokens)[predicted_antecedent_index - len(base_phrases)]
-        if special_token in [f"[{er}]" for er in exophora_referents]:  # exclude [NULL], [NA], and [ROOT]
+        special_token = special_token_indexer.special_tokens[predicted_base_phrase_global_index - len(base_phrases)]
+        stripped_special_token = special_token[1:-1]  # strip '[' and ']'
+        if stripped_special_token in [str(er) for er in exophora_referents]:  # exclude [NULL], [NA], and [ROOT]
             return RelTag(
                 type=rel,
-                target=special_token[1:-1],  # strip '[' and ']'
+                target=stripped_special_token,
                 sid=None,
                 base_phrase_index=None,
                 mode=None,
             )
-        else:
-            return None
+    return None
 
 
 def add_discourse(document: Document, discourse_predictions: List[List[int]]) -> None:
