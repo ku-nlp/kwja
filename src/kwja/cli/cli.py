@@ -74,16 +74,15 @@ class BaseModuleProcessor(ABC):
     def delete_module_and_trainer(self) -> None:
         del self.module, self.trainer
 
-    def apply_module(self, input_file: Path) -> Path:
+    def apply_module(self, input_file: Path) -> None:
         datamodule = self._load_datamodule(input_file)
         assert self.trainer is not None
         self.trainer.predict(model=self.module, dataloaders=[datamodule.predict_dataloader()], return_predictions=False)
-        return self.destination
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
         raise NotImplementedError
 
-    def output_prediction(self) -> None:
+    def export_prediction(self) -> str:
         raise NotImplementedError
 
 
@@ -100,13 +99,13 @@ class TypoModuleProcessor(BaseModuleProcessor):
         datamodule.setup(stage=TrainerFn.PREDICTING)
         return datamodule
 
-    def output_prediction(self) -> None:
+    def export_prediction(self) -> str:
         post_texts: List[str] = []
         with self.destination.open() as f:
             for line in f:
                 if line.strip() != "EOD":
                     post_texts.append(line.strip())
-        print("\n".join(post_texts))
+        return "\n".join(post_texts) + "\n"
 
 
 class SenterModuleProcessor(BaseModuleProcessor):
@@ -132,9 +131,10 @@ class SenterModuleProcessor(BaseModuleProcessor):
             return datamodule
         return  # type: ignore
 
-    def apply_module(self, input_file: Path) -> Path:
+    def apply_module(self, input_file: Path) -> None:
         if self.model_size != "tiny":
-            return super().apply_module(input_file)
+            super().apply_module(input_file)
+            return
 
         senter = RegexSenter()
         document = senter.apply_to_document(input_file.read_text())
@@ -145,15 +145,15 @@ class SenterModuleProcessor(BaseModuleProcessor):
         for sent_idx, sentence in enumerate(document.sentences):
             sentence.sid = f"{document.doc_id}-{sent_idx}"
             sentence.misc_comment = f"kwja:{kwja.__version__}"
-        with self.destination.open("wt") as f:
-            f.write(document.to_raw_text())
-        return self.destination
+        self.destination.write_text(document.to_raw_text())
 
-    def output_prediction(self) -> None:
+    def export_prediction(self) -> str:
+        export_text: str = ""
         with self.destination.open() as f:
             for sentence_text in chunk_by_sentence_for_line_by_line_text(f):
                 sentence = Sentence.from_raw_text(sentence_text)
-                print(sentence.text)
+                export_text += sentence.text + "\n"
+        return export_text
 
 
 class Seq2SeqModuleProcessor(BaseModuleProcessor):
@@ -169,13 +169,13 @@ class Seq2SeqModuleProcessor(BaseModuleProcessor):
         datamodule.setup(stage=TrainerFn.PREDICTING)
         return datamodule
 
-    def output_prediction(self) -> None:
-        seq2seq_texts: List[str] = []
+    def export_prediction(self) -> str:
+        export_text: str = ""
         with self.destination.open() as f:
             for line in f:
                 if line.strip() != "EOD":
-                    seq2seq_texts.append(line.strip())
-        print("\n".join(seq2seq_texts))
+                    export_text += line.strip() + "\n"
+        return export_text
 
 
 class CharModuleProcessor(BaseModuleProcessor):
@@ -191,13 +191,13 @@ class CharModuleProcessor(BaseModuleProcessor):
         datamodule.setup(stage=TrainerFn.PREDICTING)
         return datamodule
 
-    def output_prediction(self) -> None:
+    def export_prediction(self) -> str:
         word_segmented_texts: List[str] = []
         with self.destination.open() as f:
             for juman_text in chunk_by_document(f):
                 document = Document.from_jumanpp(juman_text)
                 word_segmented_texts.append(" ".join(m.text for m in document.morphemes))
-        print("\n".join(word_segmented_texts))
+        return "\n".join(word_segmented_texts) + "\n"
 
 
 class WordModuleProcessor(BaseModuleProcessor):
@@ -213,8 +213,8 @@ class WordModuleProcessor(BaseModuleProcessor):
         datamodule.setup(stage=TrainerFn.PREDICTING)
         return datamodule
 
-    def output_prediction(self) -> None:
-        print(self.destination.read_text(), end="")
+    def export_prediction(self) -> str:
+        return self.destination.read_text()
 
 
 class WordDiscourseModuleProcessor(BaseModuleProcessor):
@@ -234,8 +234,8 @@ class WordDiscourseModuleProcessor(BaseModuleProcessor):
         datamodule.setup(stage=TrainerFn.PREDICTING)
         return datamodule
 
-    def output_prediction(self) -> None:
-        print(self.destination.read_text(), end="")
+    def export_prediction(self) -> str:
+        return self.destination.read_text()
 
 
 class CLIProcessor:
@@ -287,10 +287,11 @@ class CLIProcessor:
                 # char and seq2seq module after typo module
                 input_texts = _split_input_texts([input_file.read_text()])
                 input_file.write_text("\n".join(input_texts))  # TODO: consider using pickle
-            input_file = processor.apply_module(input_file)
+            processor.apply_module(input_file)
+            input_file = processor.destination
             if interactive is False:
                 processor.delete_module_and_trainer()
-        self.processors[specified_tasks[-1]].output_prediction()
+        print(self.processors[specified_tasks[-1]].export_prediction(), end="")
 
 
 def _split_input_texts(input_texts: List[str]) -> List[str]:
