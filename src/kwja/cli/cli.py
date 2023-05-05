@@ -244,6 +244,7 @@ class CLIProcessor:
         specified_device: str,
         model_size: str,
         typo_batch_size: int,
+        senter_batch_size: int,
         seq2seq_batch_size: int,
         char_batch_size: int,
         word_batch_size: int,
@@ -258,7 +259,7 @@ class CLIProcessor:
         word_discourse_destination = self.tmp_dir.name / Path("word_discourse_prediction.knp")
         self.processors: Dict[str, BaseModuleProcessor] = {
             "typo": TypoModuleProcessor(specified_device, model_size, typo_batch_size, typo_destination),
-            "senter": SenterModuleProcessor(specified_device, model_size, typo_batch_size, senter_destination),
+            "senter": SenterModuleProcessor(specified_device, model_size, senter_batch_size, senter_destination),
             "seq2seq": Seq2SeqModuleProcessor(specified_device, model_size, seq2seq_batch_size, seq2seq_destination),
             "char": CharModuleProcessor(specified_device, model_size, char_batch_size, char_destination),
             "word": WordModuleProcessor(specified_device, model_size, word_batch_size, word_destination),
@@ -275,15 +276,15 @@ class CLIProcessor:
         for processor in self.processors.values():
             processor.destination.unlink(missing_ok=True)
 
-    def run(self, input_text: str, specified_tasks: List[str], interactive: bool = False) -> None:
+    def run(self, input_text: str, tasks: List[str], interactive: bool = False) -> None:
         input_texts = _split_input_texts([input_text])
         self.raw_destination.write_text("\n".join(input_texts))  # TODO: consider using pickle
         input_file = self.raw_destination
-        for specified_task in specified_tasks:
-            processor = self.processors[specified_task]
+        for task in tasks:
+            processor = self.processors[task]
             if interactive is False:
                 processor.load()
-            if specified_task in {"char", "seq2seq"} and "typo" in specified_tasks:
+            if task in ("char", "seq2seq") and "typo" in tasks:
                 # char and seq2seq module after typo module
                 input_texts = _split_input_texts([input_file.read_text()])
                 input_file.write_text("\n".join(input_texts))  # TODO: consider using pickle
@@ -291,7 +292,7 @@ class CLIProcessor:
             input_file = processor.destination
             if interactive is False:
                 processor.delete_module_and_trainer()
-        print(self.processors[specified_tasks[-1]].export_prediction(), end="")
+        print(self.processors[tasks[-1]].export_prediction(), end="")
 
 
 def _split_input_texts(input_texts: List[str]) -> List[str]:
@@ -325,12 +326,19 @@ def model_size_callback(value: str) -> str:
 
 
 def tasks_callback(value: str) -> str:
-    tasks: List[str] = value.split(",")
+    """sort and validate specified tasks"""
+    values: List[str] = [v for v in value.split(",") if v]
+    tasks: List[str] = []
+    for candidate_task in ("typo", "senter", "seq2seq", "char", "word", "word_discourse"):
+        if candidate_task in values:
+            tasks.append(candidate_task)
+            values.remove(candidate_task)
+    if len(values) == 1:
+        raise typer.BadParameter(f"invalid task is specified: {repr(values[0])}")
+    if len(values) > 1:
+        raise typer.BadParameter(f"invalid tasks are specified: {', '.join(repr(v) for v in values)}")
     if len(tasks) == 0:
         raise typer.BadParameter("task must be specified")
-    for task in tasks:
-        if task not in ("typo", "senter", "seq2seq", "char", "word", "word_discourse"):
-            raise typer.BadParameter("invalid task name is contained")
     valid_task_combinations: Set[Tuple[str, ...]] = {
         ("typo",),
         ("typo", "senter"),
@@ -349,16 +357,12 @@ def tasks_callback(value: str) -> str:
         ("senter", "seq2seq", "word", "word_discourse"),
     }
 
-    def task_to_string(_task: Tuple[str, ...]) -> str:
-        return "'" + ",".join(_task) + "'"
-
-    sorted_task: Tuple[str, ...] = tuple(sorted(tasks))
-    if sorted_task not in valid_task_combinations:
+    if tuple(tasks) not in valid_task_combinations:
         raise typer.BadParameter(
             "task combination is invalid. "
-            f"Please specify one of {', '.join(task_to_string(task) for task in valid_task_combinations)}."
+            f"Please specify one of {', '.join(repr(','.join(ts)) for ts in valid_task_combinations)}."
         )
-    return value
+    return ",".join(tasks)
 
 
 @app.command()
@@ -368,10 +372,13 @@ def main(
     model_size: ModelSize = typer.Option(ModelSize.base, help="Model size to be used."),
     device: Device = typer.Option(Device.auto, help="Device to be used."),
     typo_batch_size: int = typer.Option(1, help="Batch size for typo module."),
+    senter_batch_size: int = typer.Option(1, help="Batch size for senter module."),
     seq2seq_batch_size: int = typer.Option(1, help="Batch size for seq2seq module."),
     char_batch_size: int = typer.Option(1, help="Batch size for char module."),
     word_batch_size: int = typer.Option(1, help="Batch size for word module."),
-    tasks: str = typer.Option("char,word,word_discourse", callback=tasks_callback, help="Tasks to be performed."),
+    tasks: str = typer.Option(
+        "senter,char,word,word_discourse", callback=tasks_callback, help="Tasks to be performed."
+    ),
     _: Optional[bool] = typer.Option(None, "--version", callback=version_callback, is_eager=True),
 ) -> None:
     input_text: Optional[str] = None
@@ -383,7 +390,8 @@ def main(
     elif filename is not None:
         input_text = Path(filename).read_text()
 
-    if model_size == ModelSize.large and "seq2seq" in tasks:
+    specified_tasks: List[str] = tasks.split(",")
+    if model_size == ModelSize.large and "seq2seq" in specified_tasks:
         typer.echo("ERROR: Large model does not support seq2seq module now", err=True)
         raise typer.Abort()
 
@@ -391,14 +399,11 @@ def main(
         specified_device=device.value,
         model_size=model_size.value,
         typo_batch_size=typo_batch_size,
+        senter_batch_size=senter_batch_size,
         seq2seq_batch_size=seq2seq_batch_size,
         char_batch_size=char_batch_size,
         word_batch_size=word_batch_size,
     )
-    specified_tasks: List[str] = [
-        task for task in ["typo", "senter", "seq2seq", "char", "word", "word_discourse"] if task in tasks.split(",")
-    ]
-
     if input_text is None:
         processor.load_modules(specified_tasks)
 
