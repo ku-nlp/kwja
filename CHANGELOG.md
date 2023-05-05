@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Support Python 3.11.
+- Support NN-based sentence segmentation.
+  ```shell
+  kwja --tasks senter --text "モーニング娘。は日本のアイドルグループです。"
+  ```
+- Support multiple files as input.
+  ```shell
+  kwja --filename file1.txt --filename file2.txt
+  ```
+### Changed
+- Support CUDA 11.7 by default instead of CUDA 10.x.
 
 ## [2.0.0] - 2023-03-14
 

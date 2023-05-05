@@ -46,8 +46,8 @@ Perform language analysis with the `kwja` command (the result is in the KNP form
 # Analyze a text
 $ kwja --text "KWJAは日本語の統合解析ツールです。汎用言語モデルを利用し、様々な言語解析を統一的な方法で解いています。"
 
-# Analyze a text file and write the result to a file
-$ kwja --filename path/to/file.txt > path/to/analyzed.knp
+# Analyze text files and write the result to a file
+$ kwja --filename path/to/file1.txt --filename path/to/file2.txt > path/to/analyzed.knp
 
 # Analyze texts interactively
 $ kwja
