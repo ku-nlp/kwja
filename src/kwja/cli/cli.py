@@ -368,7 +368,7 @@ def tasks_callback(value: str) -> str:
 @app.command()
 def main(
     text: Optional[str] = typer.Option(None, help="Text to be analyzed."),
-    filename: Optional[List[Path]] = typer.Option(None, dir_okay=False, help="Files to be analyzed."),
+    filename: List[Path] = typer.Option([], dir_okay=False, help="Files to be analyzed."),
     model_size: ModelSize = typer.Option(ModelSize.base, help="Model size to be used."),
     device: Device = typer.Option(Device.auto, help="Device to be used."),
     typo_batch_size: int = typer.Option(1, help="Batch size for typo module."),
@@ -382,13 +382,15 @@ def main(
     _: Optional[bool] = typer.Option(None, "--version", callback=version_callback, is_eager=True),
 ) -> None:
     input_text: Optional[str] = None
-    if text is not None and filename is not None:
+    if text is not None and len(filename) > 0:
         typer.echo("ERROR: Please provide text or filename, not both", err=True)
         raise typer.Abort()
     elif text is not None:
         input_text = text
-    elif filename is not None:
+    elif len(filename) > 0:
         input_text = "\nEOD\n".join(path.read_text() for path in filename)
+    else:
+        pass  # interactive mode
 
     specified_tasks: List[str] = tasks.split(",")
     if model_size == ModelSize.large and "seq2seq" in specified_tasks:
