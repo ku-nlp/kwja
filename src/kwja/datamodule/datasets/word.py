@@ -334,6 +334,8 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         special_token_indexer: SpecialTokenIndexer,
     ) -> List[List[int]]:
         rel_labels = [[0] * self.max_seq_length for _ in range(self.max_seq_length)]
+        if self.skip_cohesion_ne_discourse is True:
+            return rel_labels
         for cohesion_base_phrase in cohesion_base_phrases:
             if cohesion_base_phrase.is_target is False:
                 continue
