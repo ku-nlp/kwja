@@ -19,9 +19,8 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
         self.tokenizer: PreTrainedTokenizerBase = hydra.utils.call(hparams.module.tokenizer)
 
         self.encoder_decoder: PreTrainedModel = hydra.utils.call(hparams.encoder.from_config)
-        if hasattr(hparams, "special_tokens"):
-            # https://github.com/huggingface/transformers/issues/4875
-            self.encoder_decoder.resize_token_embeddings(len(self.tokenizer.get_vocab()))
+        # https://github.com/huggingface/transformers/issues/4875
+        self.encoder_decoder.resize_token_embeddings(len(self.tokenizer.get_vocab()))
 
         self.char2tokens, self.char2underscore_tokens = get_char2tokens(self.tokenizer)
         self.use_forced_surf_decoding: bool = getattr(hparams, "use_forced_surf_decoding", False)
@@ -29,7 +28,6 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
     def setup(self, stage: str) -> None:
         if stage == "fit":
             self.encoder_decoder = hydra.utils.call(self.hparams.encoder.from_pretrained)
-        if hasattr(self.hparams, "special_tokens"):
             # https://github.com/huggingface/transformers/issues/4875
             self.encoder_decoder.resize_token_embeddings(len(self.tokenizer.get_vocab()))
 
