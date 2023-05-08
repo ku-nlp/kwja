@@ -22,10 +22,19 @@ if [[ $# -ne 2 ]]; then
   usage
 fi
 
-for module in typo senter char seq2seq word; do
-  poetry run python scripts/train.py -cn ${module}_module.debug ignore_hparams_on_save=true trainer=cpu.debug do_predict_after_train=false
+for task in word word_discourse; do
+  train_extra_args=("ignore_hparams_on_save=true" "trainer=cpu.debug" "do_predict_after_train=false")
+  if [[ ${task} == "word_discourse" ]]; then
+    module="word"
+    train_extra_args=("${train_extra_args[@]}" "datamodule=word_kwdlc")
+    checkpoint_dir="result/${module}_module.debug-datamodule_word_kwdlc-ignore_hparams_on_save_true-trainer_cpu.debug"
+  else
+    module="${task}"
+    checkpoint_dir="result/${module}_module.debug-ignore_hparams_on_save_true-trainer_cpu.debug"
+  fi
 
-  checkpoint_dir="result/${module}_module.debug-ignore_hparams_on_save_true-trainer_cpu.debug"
+  poetry run python scripts/train.py -cn ${module}_module.debug "${train_extra_args[@]}"
+
   checkpoint_path="$(find_latest_checkpoint "${checkpoint_dir}")"
   if [[ -z "${checkpoint_path}" ]]; then
     echo "Checkpoint not found in ${checkpoint_dir}" >&2
@@ -39,13 +48,15 @@ for module in typo senter char seq2seq word; do
   elif [[ "${module}" == "char" ]]; then
     pretrained_model_name="deberta-v2-tiny-wwm"
   elif [[ "${module}" == "seq2seq" ]]; then
-    pretrained_model_name="mt5-base"
+    pretrained_model_name="mt5-small"
   elif [[ "${module}" == "word" ]]; then
     pretrained_model_name="deberta-v2-tiny"
   else
     echo "Unknown module: ${module}" >&2
     exit 1
   fi
-
-  rsync -ahPmv "${checkpoint_path}" "$1:$2/dev/${module}_${pretrained_model_name}.ckpt"
+  if [[ ${task} == "word_discourse" ]]; then
+    task="disc"
+  fi
+  rsync -ahPmv "${checkpoint_path}" "$1:$2/dev/${task}_${pretrained_model_name}.ckpt"
 done
