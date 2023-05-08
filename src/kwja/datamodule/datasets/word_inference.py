@@ -136,7 +136,7 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
         # ---------- dependency parsing ----------
         # True/False = keep/mask
         dependency_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
-        root_index = example.special_token_indexer.get_morpheme_global_index("[ROOT]")
+        root_index = example.special_token_indexer.get_morpheme_level_index("[ROOT]")
         for sentence in document.sentences:
             morpheme_global_indices = [morpheme.global_index for morpheme in sentence.morphemes]
             start, stop = min(morpheme_global_indices), max(morpheme_global_indices) + 1
@@ -156,7 +156,7 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
                     morpheme, morphemes
                 ):
                     rel_mask[morpheme.global_index][antecedent_candidate_morpheme.global_index] = True
-                for morpheme_global_index in example.special_token_indexer.get_morpheme_global_indices(
+                for morpheme_global_index in example.special_token_indexer.get_morpheme_level_indices(
                     only_cohesion=True
                 ):
                     rel_mask[morpheme.global_index][morpheme_global_index] = True
@@ -195,11 +195,11 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
     ) -> List[List[bool]]:
         subword_map = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
         for token_index, word_id in enumerate(word_ids):
-            if word_id is None or token_index in special_token_indexer.token_indices:
+            if word_id is None or token_index in special_token_indexer.token_level_indices:
                 continue
             subword_map[word_id][token_index] = True
         if include_special_tokens is True:
-            for token_index, morpheme_global_index in special_token_indexer.indices:
+            for token_index, morpheme_global_index in special_token_indexer.token_and_morpheme_level_indices:
                 subword_map[morpheme_global_index][token_index] = True
         return subword_map
 

@@ -287,7 +287,7 @@ def test_encode(fixture_data_dir: Path, word_tokenizer: PreTrainedTokenizerBase,
     dependency_labels[0, 3] = 2  # は -> 次郎
     dependency_labels[0, 4] = 5  # よく -> けんか
     # けんか -> [ROOT]
-    dependency_labels[0, 5] = dataset.examples[0].special_token_indexer.get_morpheme_global_index("[ROOT]")
+    dependency_labels[0, 5] = dataset.examples[0].special_token_indexer.get_morpheme_level_index("[ROOT]")
     dependency_labels[0, 6] = 5  # する -> けんか
     dependency_labels[1, 0] = 1  # 辛い -> ラーメン
     dependency_labels[1, 1] = 3  # ラーメン -> 好きな
@@ -295,7 +295,7 @@ def test_encode(fixture_data_dir: Path, word_tokenizer: PreTrainedTokenizerBase,
     dependency_labels[1, 3] = 5  # 好きな -> 頼み
     dependency_labels[1, 4] = 3  # ので -> 好きな
     # 頼み -> [ROOT]
-    dependency_labels[1, 5] = dataset.examples[1].special_token_indexer.get_morpheme_global_index("[ROOT]")
+    dependency_labels[1, 5] = dataset.examples[1].special_token_indexer.get_morpheme_level_index("[ROOT]")
     dependency_labels[1, 6] = 5  # ました -> 頼み
     assert dependency_labels[0].tolist() == dataset[0].dependency_labels
     assert dependency_labels[1].tolist() == dataset[1].dependency_labels
@@ -320,7 +320,7 @@ def test_encode(fixture_data_dir: Path, word_tokenizer: PreTrainedTokenizerBase,
 
     flatten_rels = [r for cohesion_utils in dataset.cohesion_task2utils.values() for r in cohesion_utils.rels]
     cohesion_labels = torch.zeros((num_examples, len(flatten_rels), max_seq_length, max_seq_length), dtype=torch.long)
-    _alias = dataset.examples[0].special_token_indexer.get_morpheme_global_index
+    _alias = dataset.examples[0].special_token_indexer.get_morpheme_level_index
     cohesion_labels[0, flatten_rels.index("ノ"), 0, _alias("[NULL]")] = 1  # φ ノ 太郎
     cohesion_labels[0, flatten_rels.index("="), 0, _alias("[NA]")] = 1  # 太郎
     cohesion_labels[0, flatten_rels.index("ノ"), 2, _alias("[NULL]")] = 1  # φ ノ 次郎
@@ -329,7 +329,7 @@ def test_encode(fixture_data_dir: Path, word_tokenizer: PreTrainedTokenizerBase,
     cohesion_labels[0, flatten_rels.index("ヲ"), 5, _alias("[NULL]")] = 1  # φ ヲ けんか
     cohesion_labels[0, flatten_rels.index("ニ"), 5, _alias("[NULL]")] = 1  # φ ニ けんか
     cohesion_labels[0, flatten_rels.index("ガ２"), 5, _alias("[NULL]")] = 1  # φ ガ２ けんか
-    _alias = dataset.examples[1].special_token_indexer.get_morpheme_global_index
+    _alias = dataset.examples[1].special_token_indexer.get_morpheme_level_index
     cohesion_labels[1, flatten_rels.index("ガ"), 0, 1] = 1  # ラーメン ガ 辛い
     cohesion_labels[1, flatten_rels.index("ヲ"), 0, _alias("[NULL]")] = 1  # φ ヲ 辛い
     cohesion_labels[1, flatten_rels.index("ニ"), 0, _alias("[NULL]")] = 1  # φ ニ 辛い
@@ -580,7 +580,7 @@ def test_split_into_words_encode(
     dependency_labels[0, 3] = 2  # は -> 次郎
     dependency_labels[0, 4] = 5  # よく -> けんか
     # けんか -> [ROOT]
-    dependency_labels[0, 5] = dataset.examples[0].special_token_indexer.get_morpheme_global_index("[ROOT]")
+    dependency_labels[0, 5] = dataset.examples[0].special_token_indexer.get_morpheme_level_index("[ROOT]")
     dependency_labels[0, 6] = 5  # する -> けんか
     dependency_labels[1, 0] = 1  # 辛い -> ラーメン
     dependency_labels[1, 1] = 3  # ラーメン -> 好きな
@@ -588,7 +588,7 @@ def test_split_into_words_encode(
     dependency_labels[1, 3] = 5  # 好きな -> 頼み
     dependency_labels[1, 4] = 3  # ので -> 好きな
     # 頼み -> [ROOT]
-    dependency_labels[1, 5] = dataset.examples[1].special_token_indexer.get_morpheme_global_index("[ROOT]")
+    dependency_labels[1, 5] = dataset.examples[1].special_token_indexer.get_morpheme_level_index("[ROOT]")
     dependency_labels[1, 6] = 5  # ました -> 頼み
     assert dependency_labels[0].tolist() == dataset[0].dependency_labels
     assert dependency_labels[1].tolist() == dataset[1].dependency_labels
@@ -613,7 +613,7 @@ def test_split_into_words_encode(
 
     flatten_rels = [r for cohesion_utils in dataset.cohesion_task2utils.values() for r in cohesion_utils.rels]
     cohesion_labels = torch.zeros((num_examples, len(flatten_rels), max_seq_length, max_seq_length), dtype=torch.long)
-    _alias = dataset.examples[0].special_token_indexer.get_morpheme_global_index
+    _alias = dataset.examples[0].special_token_indexer.get_morpheme_level_index
     cohesion_labels[0, flatten_rels.index("ノ"), 0, _alias("[NULL]")] = 1  # φ ノ 太郎
     cohesion_labels[0, flatten_rels.index("="), 0, _alias("[NA]")] = 1  # 太郎
     cohesion_labels[0, flatten_rels.index("ノ"), 2, _alias("[NULL]")] = 1  # φ ノ 次郎
@@ -622,7 +622,7 @@ def test_split_into_words_encode(
     cohesion_labels[0, flatten_rels.index("ヲ"), 5, _alias("[NULL]")] = 1  # φ ヲ けんか
     cohesion_labels[0, flatten_rels.index("ニ"), 5, _alias("[NULL]")] = 1  # φ ニ けんか
     cohesion_labels[0, flatten_rels.index("ガ２"), 5, _alias("[NULL]")] = 1  # φ ガ２ けんか
-    _alias = dataset.examples[1].special_token_indexer.get_morpheme_global_index
+    _alias = dataset.examples[1].special_token_indexer.get_morpheme_level_index
     cohesion_labels[1, flatten_rels.index("ガ"), 0, 1] = 1  # ラーメン ガ 辛い
     cohesion_labels[1, flatten_rels.index("ヲ"), 0, _alias("[NULL]")] = 1  # φ ヲ 辛い
     cohesion_labels[1, flatten_rels.index("ニ"), 0, _alias("[NULL]")] = 1  # φ ニ 辛い

@@ -383,7 +383,7 @@ def add_dependency(
 ) -> None:
     base_phrases = sentence.base_phrases
     morpheme_global_index2base_phrase_index = {m.global_index: bp.index for bp in base_phrases for m in bp.morphemes}
-    morpheme_global_index2base_phrase_index[special_token_indexer.get_morpheme_global_index("[ROOT]")] = -1
+    morpheme_global_index2base_phrase_index[special_token_indexer.get_morpheme_level_index("[ROOT]")] = -1
     dependency_manager = DependencyManager()
     for base_phrase in base_phrases:
         for parent_morpheme_global_index, dependency_type_index in zip(
@@ -479,7 +479,7 @@ def _to_rel_tag(
     exophora_referents: List[ExophoraReferent],
 ) -> Optional[RelTag]:
     logits = [rel_logits[bp.head.global_index] for bp in base_phrases]
-    logits += [rel_logits[i] for i in special_token_indexer.get_morpheme_global_indices()]
+    logits += [rel_logits[i] for i in special_token_indexer.get_morpheme_level_indices()]
     predicted_base_phrase_global_index: int = np.argmax(logits).item()
     if 0 <= predicted_base_phrase_global_index < len(base_phrases):
         # endophora

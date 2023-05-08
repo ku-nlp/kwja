@@ -309,7 +309,7 @@ def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwa
     dependency_logits[0, 3, 2] = 1.0  # は -> 次郎
     dependency_logits[0, 4, 5] = 1.0  # よく -> けんか
     # けんか -> [ROOT]
-    dependency_logits[0, 5, dataset.examples[0].special_token_indexer.get_morpheme_global_index("[ROOT]")] = 1.0
+    dependency_logits[0, 5, dataset.examples[0].special_token_indexer.get_morpheme_level_index("[ROOT]")] = 1.0
     dependency_logits[0, 6, 5] = 1.0  # する -> けんか
     dependency_logits[1, 0, 1] = 1.0  # 辛い -> ラーメン
     dependency_logits[1, 1, 3] = 1.0  # ラーメン -> 好きな
@@ -317,7 +317,7 @@ def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwa
     dependency_logits[1, 3, 5] = 1.0  # 好きな -> 頼み
     dependency_logits[1, 4, 3] = 1.0  # ので -> 好きな
     # 頼み -> [ROOT]
-    dependency_logits[1, 5, dataset.examples[1].special_token_indexer.get_morpheme_global_index("[ROOT]")] = 1.0
+    dependency_logits[1, 5, dataset.examples[1].special_token_indexer.get_morpheme_level_index("[ROOT]")] = 1.0
     dependency_logits[1, 6, 5] = 1.0  # ました -> 頼み
 
     dependency_type_logits = torch.zeros(
@@ -344,18 +344,18 @@ def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwa
     for i in range(num_examples):
         for j, rel in enumerate(flatten_rels):
             if rel == "=":
-                k = dataset.examples[i].special_token_indexer.get_morpheme_global_index("[NA]")
+                k = dataset.examples[i].special_token_indexer.get_morpheme_level_index("[NA]")
             else:
-                k = dataset.examples[i].special_token_indexer.get_morpheme_global_index("[NULL]")
+                k = dataset.examples[i].special_token_indexer.get_morpheme_level_index("[NULL]")
             cohesion_logits[i, j, :, k] = 1.0
     cohesion_logits[0, flatten_rels.index("ガ"), 5, 2] = 2.0  # 次郎 ガ けんか
     cohesion_logits[1, flatten_rels.index("ガ"), 0, 1] = 2.0  # ラーメン ガ 辛い
     cohesion_logits[1, flatten_rels.index("ガ"), 3, 1] = 2.0  # ラーメン ガ 好き
     cohesion_logits[
-        1, flatten_rels.index("ガ２"), 3, dataset.examples[1].special_token_indexer.get_morpheme_global_index("[著者]")
+        1, flatten_rels.index("ガ２"), 3, dataset.examples[1].special_token_indexer.get_morpheme_level_index("[著者]")
     ] = 2.0  # 著者 ガ２ 好き
     cohesion_logits[
-        1, flatten_rels.index("ガ"), 5, dataset.examples[1].special_token_indexer.get_morpheme_global_index("[著者]")
+        1, flatten_rels.index("ガ"), 5, dataset.examples[1].special_token_indexer.get_morpheme_level_index("[著者]")
     ] = 2.0  # 著者 ガ 頼み
     cohesion_logits[1, flatten_rels.index("ヲ"), 5, 1] = 2.0  # ラーメン ヲ 頼み
 

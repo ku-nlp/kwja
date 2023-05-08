@@ -175,7 +175,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             token_indices = [
                 (token_index, word_id)
                 for token_index, word_id in enumerate(example.encoding.word_ids)
-                if token_index not in example.special_token_indexer.token_indices and word_id is not None
+                if token_index not in example.special_token_indexer.token_level_indices and word_id is not None
             ]
             for (token_index, word_id), reading in zip(token_indices, example.readings):
                 if target_mask[word_id] is False:
@@ -223,7 +223,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
 
         # ---------- dependency parsing ----------
         dependency_labels: List[int] = [IGNORE_INDEX] * self.max_seq_length
-        root_index = example.special_token_indexer.get_morpheme_global_index("[ROOT]")
+        root_index = example.special_token_indexer.get_morpheme_level_index("[ROOT]")
         for morpheme_global_index, dependency in example.morpheme_global_index2dependency.items():
             dependency_labels[morpheme_global_index] = root_index if dependency == -1 else dependency
         dependency_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
@@ -296,11 +296,11 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
     ) -> List[List[bool]]:
         subword_map = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
         for token_index, word_id in enumerate(word_ids):
-            if word_id is None or token_index in special_token_indexer.token_indices:
+            if word_id is None or token_index in special_token_indexer.token_level_indices:
                 continue
             subword_map[word_id][token_index] = True
         if include_special_tokens is True:
-            for token_index, morpheme_global_index in special_token_indexer.indices:
+            for token_index, morpheme_global_index in special_token_indexer.token_and_morpheme_level_indices:
                 subword_map[morpheme_global_index][token_index] = True
         return subword_map
 
@@ -342,7 +342,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             assert cohesion_base_phrase.rel2tags is not None, "rel2tags isn't set"
             for tag in cohesion_base_phrase.rel2tags[rel]:
                 if tag in self.special_tokens:
-                    target_morpheme_global_index = special_token_indexer.get_morpheme_global_index(tag)
+                    target_morpheme_global_index = special_token_indexer.get_morpheme_level_index(tag)
                 else:
                     # int(tag) is the base phrase global index of an endophora argument
                     target_morpheme_global_index = cohesion_base_phrases[int(tag)].head.global_index
@@ -362,6 +362,6 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             for morpheme in cohesion_base_phrase.morphemes:
                 for antecedent_candidate in cohesion_base_phrase.antecedent_candidates:
                     rel_mask[morpheme.global_index][antecedent_candidate.head.global_index] = True
-                for morpheme_global_index in special_token_indexer.get_morpheme_global_indices(only_cohesion=True):
+                for morpheme_global_index in special_token_indexer.get_morpheme_level_indices(only_cohesion=True):
                     rel_mask[morpheme.global_index][morpheme_global_index] = True
         return rel_mask

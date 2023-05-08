@@ -23,25 +23,31 @@ logger = logging.getLogger(__name__)
 
 class SpecialTokenIndexer:
     def __init__(self, special_tokens: List[str], num_tokens: int, num_morphemes: int) -> None:
-        self.special_tokens = special_tokens
-        self.num_tokens = num_tokens
-        self.num_morphemes = num_morphemes
+        self.special_tokens: List[str] = special_tokens
+        self._special_token2token_level_index: Dict[str, int] = {
+            st: num_tokens + i for i, st in enumerate(special_tokens)
+        }
+        self._special_token2morpheme_level_index: Dict[str, int] = {
+            st: num_morphemes + i for i, st in enumerate(special_tokens)
+        }
 
-    def get_morpheme_global_index(self, special_token: str) -> int:
-        return self.num_morphemes + self.special_tokens.index(special_token)
+    def get_morpheme_level_index(self, special_token: str) -> int:
+        return self._special_token2morpheme_level_index[special_token]
 
-    def get_morpheme_global_indices(self, only_cohesion: bool = False) -> List[int]:
+    def get_morpheme_level_indices(self, only_cohesion: bool = False) -> List[int]:
         return [
-            self.get_morpheme_global_index(st) for st in self.special_tokens if not (only_cohesion and st == "[ROOT]")
+            i for st, i in self._special_token2morpheme_level_index.items() if not (only_cohesion and st == "[ROOT]")
         ]
 
     @cached_property
-    def token_indices(self) -> List[int]:
-        return [self.num_tokens + i for i in range(len(self.special_tokens))]
+    def token_level_indices(self) -> List[int]:
+        return list(self._special_token2token_level_index.values())
 
     @cached_property
-    def indices(self) -> List[Tuple[int, int]]:
-        return [(self.num_tokens + i, self.num_morphemes + i) for i, st in enumerate(self.special_tokens)]
+    def token_and_morpheme_level_indices(self) -> List[Tuple[int, int]]:
+        return list(
+            zip(self._special_token2token_level_index.values(), self._special_token2morpheme_level_index.values())
+        )
 
 
 class WordExample:
