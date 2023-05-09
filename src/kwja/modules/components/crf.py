@@ -53,7 +53,9 @@ class CRF(nn.Module):
         llh = denominator - numerator  # (b, )
 
         if reduction == "token_mean":
-            return (llh / (mask.sum(dim=1) + 1e-6)).mean()
+            labels_in_batch = mask.sum(dim=1)
+            eps = 1e-6
+            return (llh / (labels_in_batch + eps)) / (labels_in_batch.ne(0).sum(0) + eps)
         elif reduction == "mean":
             return llh.mean()
         elif reduction == "sum":
@@ -79,9 +81,9 @@ class CRF(nn.Module):
             condition = torch.logical_and(mask[:, j] == 1, head_indices != j)
             next_score = score + self.transitions[tags[:, j - 1], tags[:, j]] + emissions[indices, j, tags[:, j]]
             score = torch.where(condition, next_score, score)
-        score += self.end_transitions[tail_tags]
+        score = score + self.end_transitions[tail_tags]
 
-        return score  # (b, )
+        return torch.where(mask.sum(dim=1).ne(0), score, torch.zeros_like(score))  # (b, )
 
     # あり得るタグ系列のスコアの和を計算する
     def _compute_denominator(self, emissions: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
@@ -102,9 +104,10 @@ class CRF(nn.Module):
             next_score = broadcast_score + self.transitions + broadcast_emissions  # (b, num_tags, num_tags)
             next_score = torch.logsumexp(next_score, dim=1)  # (b, num_tags)
             score = torch.where(condition.unsqueeze(1), next_score, score)
-        score += self.end_transitions
+        score = score + self.end_transitions
+        score = torch.logsumexp(score, dim=1)  # (b, )
 
-        return torch.logsumexp(score, dim=1)  # (b, )
+        return torch.where(mask.sum(dim=1).ne(0), score, torch.zeros_like(score))  # (b, )
 
     def viterbi_decode(self, emissions: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         batch_size, seq_len = mask.shape
