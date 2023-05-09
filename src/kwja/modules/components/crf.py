@@ -55,7 +55,7 @@ class CRF(nn.Module):
         if reduction == "token_mean":
             labels_in_batch = mask.sum(dim=1)
             eps = 1e-6
-            return (llh / (labels_in_batch + eps)) / (labels_in_batch.ne(0).sum(0) + eps)
+            return (llh / (labels_in_batch + eps)).sum() / (labels_in_batch.ne(0).sum(0) + eps).sum()
         elif reduction == "mean":
             return llh.mean()
         elif reduction == "sum":
