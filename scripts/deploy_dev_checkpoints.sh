@@ -22,7 +22,7 @@ if [[ $# -ne 2 ]]; then
   usage
 fi
 
-for task in word word_discourse; do
+for task in typo senter char seq2seq word word_discourse; do
   train_extra_args=("ignore_hparams_on_save=true" "trainer=cpu.debug" "do_predict_after_train=false")
   if [[ ${task} == "word_discourse" ]]; then
     module="word"
