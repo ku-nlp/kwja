@@ -81,6 +81,9 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         else:
             self.tokenizer_input_format = "text"
         super(BaseDataset, self).__init__(self.path, tokenizer, max_seq_length, document_split_stride)
+        # some tags are not annotated in editorial articles
+        self.skip_cohesion_ne_discourse = self.path.parts[-2] == "kyoto_ed"
+
         # ---------- seq2seq ----------
         self.from_seq2seq: bool = False
 
@@ -92,8 +95,6 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         )
 
         # ---------- cohesion analysis ----------
-        # some tags are not annotated in editorial articles
-        self.skip_cohesion_ne_discourse = self.path.parts[-2] == "kyoto_ed"
         self.cohesion_tasks: List[CohesionTask] = [CohesionTask(ct) for ct in cohesion_tasks]
         self.exophora_referents = [ExophoraReferent(er) for er in exophora_referents]
         self.pas_cases: List[str] = list(pas_cases)
