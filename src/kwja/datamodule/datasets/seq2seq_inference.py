@@ -3,10 +3,10 @@ from pathlib import Path
 from typing import List, Optional
 
 from rhoknp import Document
-from torch.utils.data import Dataset
 from transformers import BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
+from kwja.datamodule.datasets.base import BaseDataset
 from kwja.datamodule.datasets.seq2seq import Seq2SeqModuleFeatures
 from kwja.datamodule.examples import Seq2SeqInferenceExample
 from kwja.utils.progress_bar import track
@@ -15,7 +15,7 @@ from kwja.utils.reader import chunk_by_document_for_line_by_line_text
 logger = logging.getLogger(__name__)
 
 
-class Seq2SeqInferenceDataset(Dataset[Seq2SeqModuleFeatures]):
+class Seq2SeqInferenceDataset(BaseDataset[Seq2SeqInferenceExample, Seq2SeqModuleFeatures]):
     def __init__(
         self,
         tokenizer: PreTrainedTokenizerBase,
@@ -24,7 +24,7 @@ class Seq2SeqInferenceDataset(Dataset[Seq2SeqModuleFeatures]):
         senter_file: Optional[Path] = None,
         **_,
     ) -> None:
-        self.tokenizer: PreTrainedTokenizerBase = tokenizer
+        super().__init__(tokenizer, max_src_length)
         self.max_src_length: int = max_src_length
         self.max_tgt_length: int = max_tgt_length
 
@@ -37,12 +37,6 @@ class Seq2SeqInferenceDataset(Dataset[Seq2SeqModuleFeatures]):
         else:
             documents = []
         self.examples: List[Seq2SeqInferenceExample] = self._load_example(documents)
-
-    def __len__(self) -> int:
-        return len(self.examples)
-
-    def __getitem__(self, index: int) -> Seq2SeqModuleFeatures:
-        return self.encode(self.examples[index])
 
     def _load_example(self, documents: List[Document]) -> List[Seq2SeqInferenceExample]:
         examples = []
@@ -68,8 +62,7 @@ class Seq2SeqInferenceDataset(Dataset[Seq2SeqModuleFeatures]):
             logger.error("No examples to process. Make sure any texts are given and they are not too long.")
         return examples
 
-    @staticmethod
-    def encode(example: Seq2SeqInferenceExample) -> Seq2SeqModuleFeatures:
+    def encode(self, example: Seq2SeqInferenceExample) -> Seq2SeqModuleFeatures:
         return Seq2SeqModuleFeatures(
             example_ids=example.example_id,
             src_text=example.src_text,
