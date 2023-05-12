@@ -36,8 +36,6 @@ class ForcedSurfLogitsProcessor(LogitsProcessor):
         self.new_line_token_id: int = tokenizer.convert_tokens_to_ids(NEW_LINE_TOKEN)
         self.under_score_token_id: int = tokenizer.convert_tokens_to_ids("▁")
         self.pad_token_id: int = self.tokenizer.pad_token_id
-        assert self.new_line_token_id == 250100
-        assert self.under_score_token_id == 259
 
     def get_generated_surfs(self, input_ids: torch.Tensor) -> List[str]:
         generated_surfs: List[str] = []
