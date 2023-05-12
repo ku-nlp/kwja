@@ -65,29 +65,32 @@ def test_get_char2tokens():
 
 
 def test_get_generated_surfs(fixture_data_dir: Path) -> None:
-    tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-        pretrained_model_name_or_path="google/mt5-small",
-        additional_special_tokens=SPECIAL_TOKENS,
-    )
-    char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
+    for pretrained_model_name_or_path in ["google/mt5-small", "retrieva-jp/t5-small-long"]:
+        tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
+            pretrained_model_name_or_path=pretrained_model_name_or_path,
+            additional_special_tokens=SPECIAL_TOKENS,
+        )
+        char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
 
-    test_case_dir: Path = fixture_data_dir / "modules" / "juman"
-    for path in test_case_dir.glob("*.juman"):
-        with path.open() as f:
-            sentence: Sentence = Sentence.from_jumanpp(f.read())
-            processor = ForcedSurfLogitsProcessor(
-                texts=[sentence.text],
-                tokenizer=tokenizer,
-                char2tokens=char2tokens,
-                char2underscore_tokens=char2underscore_tokens,
-            )
-            tgt_encoding: BatchEncoding = tokenizer(
-                get_seq2seq_format(sentence).replace("\n", NEW_LINE_TOKEN),
-                truncation=False,
-                max_length=512,
-                return_tensors="pt",
-            )
-            assert processor.texts[0] == processor.get_generated_surfs(tgt_encoding.input_ids)[0].replace("</s>", "")
+        test_case_dir: Path = fixture_data_dir / "modules" / "juman"
+        for path in test_case_dir.glob("*.juman"):
+            with path.open() as f:
+                sentence: Sentence = Sentence.from_jumanpp(f.read())
+                processor = ForcedSurfLogitsProcessor(
+                    texts=[sentence.text],
+                    tokenizer=tokenizer,
+                    char2tokens=char2tokens,
+                    char2underscore_tokens=char2underscore_tokens,
+                )
+                tgt_encoding: BatchEncoding = tokenizer(
+                    get_seq2seq_format(sentence).replace("\n", NEW_LINE_TOKEN),
+                    truncation=False,
+                    max_length=512,
+                    return_tensors="pt",
+                )
+                assert processor.texts[0] == processor.get_generated_surfs(tgt_encoding.input_ids)[0].replace(
+                    "</s>", ""
+                )
 
 
 @pytest.mark.parametrize("input_text, permitted_tokens", [("研究をする", ["研究", "研"])])
