@@ -15,17 +15,14 @@ SPECIAL_TOKENS: List[str] = [f"<extra_id_{idx}>" for idx in range(100)]
 
 
 def test_get_char2tokens():
-    tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
+    mt5_tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
         pretrained_model_name_or_path="google/mt5-small",
         additional_special_tokens=SPECIAL_TOKENS,
     )
-
-    char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
-
-    assert len(char2tokens) == 19455
-    assert len(char2underscore_tokens) == 1665
-
-    assert char2tokens["京"] == {
+    mt5_char2tokens, mt5_char2underscore_tokens = get_char2tokens(mt5_tokenizer)
+    assert len(mt5_char2tokens) == 19455
+    assert len(mt5_char2underscore_tokens) == 1665
+    assert mt5_char2tokens["京"] == {
         "京东": 165392,
         "京娱乐": 178804,
         "京都府": 166766,
@@ -34,7 +31,37 @@ def test_get_char2tokens():
         "京都": 51389,
         "京区": 208641,
     }
-    assert char2underscore_tokens["京"] == {"▁京公网安备": 234066}
+    assert mt5_char2underscore_tokens["京"] == {"▁京公网安备": 234066}
+
+    t5_tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
+        pretrained_model_name_or_path="retrieva-jp/t5-small-long",
+        additional_special_tokens=SPECIAL_TOKENS,
+    )
+    t5_char2tokens, t5_char2underscore_tokens = get_char2tokens(t5_tokenizer)
+    assert len(t5_char2tokens) == 4289
+    assert len(t5_char2underscore_tokens) == 150
+    assert t5_char2tokens["京"] == {
+        "京都府": 3411,
+        "京都府出身": 26029,
+        "京橋": 22889,
+        "京急": 26569,
+        "京都府京都市": 22480,
+        "京都": 743,
+        "京成": 13372,
+        "京浜": 18564,
+        "京都帝国大学": 20474,
+        "京セラ": 29651,
+        "京都大学": 7089,
+        "京都府立": 27876,
+        "京畿道": 23298,
+        "京王": 14545,
+        "京極": 21867,
+        "京都市": 8841,
+        "京": 1351,
+        "京阪": 14311,
+        "京都市立": 24756,
+    }
+    assert t5_char2underscore_tokens["京"] == {}
 
 
 def test_get_generated_surfs(fixture_data_dir: Path) -> None:
