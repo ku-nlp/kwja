@@ -11,10 +11,13 @@ from kwja.datamodule.datasets.seq2seq import get_seq2seq_format
 from kwja.modules.components.logits_processor import ForcedSurfLogitsProcessor, get_char2tokens
 from kwja.utils.constants import NEW_LINE_TOKEN
 
+SPECIAL_TOKENS: List[str] = [f"<extra_id_{idx}>" for idx in range(100)]
+
 
 def test_get_char2tokens():
     tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-        pretrained_model_name_or_path="google/mt5-small", additional_special_tokens=["<br>", "<no_read>", "<no_canon>"]
+        pretrained_model_name_or_path="google/mt5-small",
+        additional_special_tokens=SPECIAL_TOKENS,
     )
 
     char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
@@ -36,7 +39,8 @@ def test_get_char2tokens():
 
 def test_get_generated_surfs(fixture_data_dir: Path) -> None:
     tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-        pretrained_model_name_or_path="google/mt5-small", additional_special_tokens=["<br>", "<no_read>", "<no_canon>"]
+        pretrained_model_name_or_path="google/mt5-small",
+        additional_special_tokens=SPECIAL_TOKENS,
     )
     char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
 
@@ -62,7 +66,8 @@ def test_get_generated_surfs(fixture_data_dir: Path) -> None:
 @pytest.mark.parametrize("input_text, permitted_tokens", [("研究をする", ["研究", "研"])])
 def test_get_permitted_token_ids(input_text: str, permitted_tokens: List[str]) -> None:
     tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-        pretrained_model_name_or_path="google/mt5-small", additional_special_tokens=["<br>", "<no_read>", "<no_canon>"]
+        pretrained_model_name_or_path="google/mt5-small",
+        additional_special_tokens=SPECIAL_TOKENS,
     )
     char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
 
@@ -81,7 +86,8 @@ def test_get_permitted_token_ids(input_text: str, permitted_tokens: List[str]) -
 @pytest.mark.parametrize("input_text, permitted_underscore_tokens", [("楽天市場", ["▁楽天"])])
 def test_get_permitted_underscore_token_ids(input_text: str, permitted_underscore_tokens: List[str]) -> None:
     tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-        pretrained_model_name_or_path="google/mt5-small", additional_special_tokens=["<br>", "<no_read>", "<no_canon>"]
+        pretrained_model_name_or_path="google/mt5-small",
+        additional_special_tokens=SPECIAL_TOKENS,
     )
     char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
 
@@ -100,7 +106,8 @@ def test_get_permitted_underscore_token_ids(input_text: str, permitted_underscor
 @pytest.mark.parametrize("input_text, permitted_consecutive_tokens", [("研究をする", ["研究", "研"])])
 def test_get_permitted_consecutive_token_ids(input_text: str, permitted_consecutive_tokens: List[str]) -> None:
     tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-        pretrained_model_name_or_path="google/mt5-small", additional_special_tokens=["<br>", "<no_read>", "<no_canon>"]
+        pretrained_model_name_or_path="google/mt5-small",
+        additional_special_tokens=SPECIAL_TOKENS,
     )
     char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
 
@@ -127,7 +134,8 @@ def test_get_permitted_consecutive_token_ids(input_text: str, permitted_consecut
 
 def test_get_batch_banned_token_ids(fixture_data_dir: Path):
     tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-        pretrained_model_name_or_path="google/mt5-small", additional_special_tokens=["<br>", "<no_read>", "<no_canon>"]
+        pretrained_model_name_or_path="google/mt5-small",
+        additional_special_tokens=SPECIAL_TOKENS,
     )
     char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
 

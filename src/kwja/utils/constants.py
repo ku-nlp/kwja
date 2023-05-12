@@ -16,9 +16,9 @@ RESOURCE_PATH = importlib_resources.files(kwja) / "resource"
 SENT_SEGMENTATION_TAGS = ("B", "I")
 
 # ---------- seq2seq module----------
-NEW_LINE_TOKEN: str = "<br>"
-FULL_SPACE_TOKEN: str = "<full_space>"
-NO_CANON_TOKEN: str = "<no_canon>"
+NEW_LINE_TOKEN: str = "<extra_id_0>"  # "<br>"
+FULL_SPACE_TOKEN: str = "<extra_id_1>"  # "<full_space>"
+NO_CANON_TOKEN: str = "<extra_id_2>"  # "<no_canon>"
 
 # ---------- word (inference) dataset ----------
 SPLIT_INTO_WORDS_MODEL_NAMES = [
