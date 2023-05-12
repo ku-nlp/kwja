@@ -114,24 +114,25 @@ def test_get_permitted_token_ids(input_text: str, permitted_tokens: List[str]) -
         assert permitted_tokens == tokenizer.convert_ids_to_tokens(sorted_permitted_token_ids)
 
 
-@pytest.mark.parametrize("input_text, permitted_underscore_tokens", [("楽天市場", ["▁楽天"])])
+@pytest.mark.parametrize("input_text, permitted_underscore_tokens", [("新古品", ["▁新"])])
 def test_get_permitted_underscore_token_ids(input_text: str, permitted_underscore_tokens: List[str]) -> None:
-    tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-        pretrained_model_name_or_path="google/mt5-small",
-        additional_special_tokens=SPECIAL_TOKENS,
-    )
-    char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
+    for pretrained_model_name_or_path in ["google/mt5-small", "retrieva-jp/t5-small-long"]:
+        tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
+            pretrained_model_name_or_path=pretrained_model_name_or_path,
+            additional_special_tokens=SPECIAL_TOKENS,
+        )
+        char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
 
-    processor = ForcedSurfLogitsProcessor(
-        texts=[input_text],
-        tokenizer=tokenizer,
-        char2tokens=char2tokens,
-        char2underscore_tokens=char2underscore_tokens,
-    )
+        processor = ForcedSurfLogitsProcessor(
+            texts=[input_text],
+            tokenizer=tokenizer,
+            char2tokens=char2tokens,
+            char2underscore_tokens=char2underscore_tokens,
+        )
 
-    permitted_underscore_token_ids: Set[int] = processor.get_permitted_underscore_token_ids(input_text)
-    sorted_permitted_underscore_token_ids: List[int] = sorted(list(permitted_underscore_token_ids))
-    assert permitted_underscore_tokens == tokenizer.convert_ids_to_tokens(sorted_permitted_underscore_token_ids)
+        permitted_underscore_token_ids: Set[int] = processor.get_permitted_underscore_token_ids(input_text)
+        sorted_permitted_underscore_token_ids: List[int] = sorted(list(permitted_underscore_token_ids))
+        assert permitted_underscore_tokens == tokenizer.convert_ids_to_tokens(sorted_permitted_underscore_token_ids)
 
 
 @pytest.mark.parametrize("input_text, permitted_consecutive_tokens", [("研究をする", ["研究", "研"])])
