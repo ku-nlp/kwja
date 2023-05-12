@@ -58,8 +58,8 @@ def test_write_on_batch_end(seq2seq_tokenizer: PreTrainedTokenizerBase):
     trainer = MockTrainer([DataLoader(dataset, batch_size=num_examples)])
 
     generated_texts = [
-        "太郎 たろう 太郎 太郎/たろう<br> と と と と/と<br> 次郎 じろう 次郎 次郎/じろう<br> は は は は/は<br> よく よく よい 良い/よい<br> けんか けんか けんか 喧嘩/けんか<br> する する する する/する<br>",
-        "辛い からい 辛い 辛い/からい<br> ラーメン らーめん ラーメン ラーメン/らーめん<br> が が が が/が<br> 好きな すきな 好きだ 好きだ/すきだ<br> ので ので のだ のだ/のだ<br> 頼み たのみ 頼む 頼む/たのむ<br> ました ました ます ます/ます<br>",
+        "太郎 たろう 太郎 太郎/たろう<extra_id_0> と と と と/と<extra_id_0> 次郎 じろう 次郎 次郎/じろう<extra_id_0> は は は は/は<extra_id_0> よく よく よい 良い/よい<extra_id_0> けんか けんか けんか 喧嘩/けんか<extra_id_0> する する する する/する<extra_id_0>",
+        "辛い からい 辛い 辛い/からい<extra_id_0> ラーメン らーめん ラーメン ラーメン/らーめん<extra_id_0> が が が が/が<extra_id_0> 好きな すきな 好きだ 好きだ/すきだ<extra_id_0> ので ので のだ のだ/のだ<extra_id_0> 頼み たのみ 頼む 頼む/たのむ<extra_id_0> ました ました ます ます/ます<extra_id_0>",
     ]
     seq2seq_predictions = torch.zeros((num_examples, max_tgt_length), dtype=torch.long)
     for i, generated_text in enumerate(generated_texts):

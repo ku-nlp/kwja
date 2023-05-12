@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import List, Set
+from typing import Dict, List, Set
 
 import pytest
 import torch
@@ -165,40 +165,53 @@ def test_get_permitted_consecutive_token_ids(input_text: str, permitted_consecut
 
 
 def test_get_batch_banned_token_ids(fixture_data_dir: Path):
-    tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-        pretrained_model_name_or_path="google/mt5-small",
-        additional_special_tokens=SPECIAL_TOKENS,
-    )
-    char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
-
-    underscore_tokens: List[str] = [x for x in tokenizer.get_vocab() if x.startswith("▁")]
-    assert len(underscore_tokens) == 56369
-
-    test_case_path: Path = fixture_data_dir / "modules" / "permitted_tokens.json"
-    with open(test_case_path) as f:
-        test_cases = json.load(f)
-    for test_id, test_case in test_cases.items():
-        surf_logits_processor = ForcedSurfLogitsProcessor(
-            texts=[test_case["text"]],
-            tokenizer=tokenizer,
-            char2tokens=char2tokens,
-            char2underscore_tokens=char2underscore_tokens,
+    model2pretrained_model_name_or_path: Dict[str, str] = {
+        "mt5": "google/mt5-small",
+        "t5": "retrieva-jp/t5-small-long",
+    }
+    for model, pretrained_model_name_or_path in model2pretrained_model_name_or_path.items():
+        tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
+            pretrained_model_name_or_path=pretrained_model_name_or_path,
+            additional_special_tokens=SPECIAL_TOKENS,
         )
-        input_ids: torch.LongTensor = torch.LongTensor([tokenizer.convert_tokens_to_ids(test_case["input_tokens"])])
-        orig_scores: torch.Tensor = torch.full((1, tokenizer.vocab_size), 0.5).float()
-        warped_scores: torch.Tensor = surf_logits_processor(
-            input_ids=input_ids,
-            scores=orig_scores,
-        )
-        assert warped_scores.shape == orig_scores.shape
-        permitted_tokens: List[str] = []
-        for token_id, score in enumerate(warped_scores.tolist()[0]):
-            if score == 0.5:
-                permitted_tokens.append(tokenizer.convert_ids_to_tokens(token_id))
-        if len(permitted_tokens) == tokenizer.vocab_size:
-            permitted_tokens = []
-        if test_case["is_consecutive"] is True:
-            gold_permitted_tokens: List[str] = sorted(list(set(test_case["permitted_tokens"] + underscore_tokens)))
+        char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
+        underscore_tokens: List[str] = [x for x in tokenizer.get_vocab() if x.startswith("▁")]
+        if model == "mt5":
+            assert len(underscore_tokens) == 56369
+        elif model == "t5":
+            assert len(underscore_tokens) == 531
         else:
-            gold_permitted_tokens = sorted(test_case["permitted_tokens"])
-        assert sorted(list(permitted_tokens)) == gold_permitted_tokens
+            raise ValueError(f"model: {model}")
+
+        test_case_path: Path = fixture_data_dir / "modules" / "permitted_tokens.json"
+        with open(test_case_path) as f:
+            test_cases = json.load(f)
+        for test_id, test_case in test_cases.items():
+            surf_logits_processor = ForcedSurfLogitsProcessor(
+                texts=[test_case["text"]],
+                tokenizer=tokenizer,
+                char2tokens=char2tokens,
+                char2underscore_tokens=char2underscore_tokens,
+            )
+            input_ids: torch.LongTensor = torch.LongTensor(
+                [tokenizer.convert_tokens_to_ids(test_case[model]["input_tokens"])]
+            )
+            orig_scores: torch.Tensor = torch.full((1, tokenizer.vocab_size), 0.5).float()
+            warped_scores: torch.Tensor = surf_logits_processor(
+                input_ids=input_ids,
+                scores=orig_scores,
+            )
+            assert warped_scores.shape == orig_scores.shape
+            permitted_tokens: List[str] = []
+            for token_id, score in enumerate(warped_scores.tolist()[0]):
+                if score == 0.5:
+                    permitted_tokens.append(tokenizer.convert_ids_to_tokens(token_id))
+            if len(permitted_tokens) == tokenizer.vocab_size:
+                permitted_tokens = []
+            if test_case["is_consecutive"] is True:
+                gold_permitted_tokens: List[str] = sorted(
+                    list(set(test_case[model]["permitted_tokens"] + underscore_tokens))
+                )
+            else:
+                gold_permitted_tokens = sorted(test_case[model]["permitted_tokens"])
+            assert sorted(list(permitted_tokens)) == gold_permitted_tokens
