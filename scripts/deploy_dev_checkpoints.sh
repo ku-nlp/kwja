@@ -2,7 +2,7 @@
 
 set -euxo pipefail
 
-function usage() {
+usage() {
   cat << _EOT_
 Usage:
   $0 remote_host remote_path
@@ -13,7 +13,7 @@ _EOT_
   exit 1
 }
 
-function find_latest_checkpoint() {
+find_latest_checkpoint() {
   fd --extension ckpt --full-path . "$1" | sort -r | head -n 1
   return 0
 }

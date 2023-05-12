@@ -437,8 +437,12 @@ def main():
     output_root = Path(args.OUTPUT)
     doc_id2split = {}
     for id_file in Path(args.id).glob("*.id"):
-        if id_file.stem not in {"train", "dev", "test", "all"}:
-            continue
+        if output_root.parts[-1] == "kyoto_ed":
+            if id_file.stem != "all":
+                continue
+        else:
+            if id_file.stem not in {"train", "dev", "test"}:
+                continue
         split = "valid" if id_file.stem == "dev" else id_file.stem
         output_root.joinpath(split).mkdir(parents=True, exist_ok=True)
         for doc_id in id_file.read_text().splitlines():

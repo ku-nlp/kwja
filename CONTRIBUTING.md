@@ -65,14 +65,12 @@ Options:
 
 ```shell
 ./scripts/build_datasets.sh \
-  --work-dir /path/to/work_dir \
   --jobs 2 \
   --out-dir /path/to/output_dir
 ```
 
 Options:
 
-- `--work-dir`: path to working directory
 - `--jobs`: number of jobs
 - `--out-dir`: path to output directory
 

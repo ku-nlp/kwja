@@ -3,11 +3,15 @@
 JOBS=1
 
 usage() {
-  echo "Usage: ./scripts/build_dataset.sh --work-dir=\${WORK_DIR} --out-dir=\${OUT_DIR} --jobs=${JOBS}"
-  echo "*** NOTE: specify arguments with \"=\" ***"
-  echo "  --work-dir    path to working directory"
-  echo "  --out-dir     path to output directory"
-  echo "  --jobs        number of jobs (default=1)"
+  cat << _EOT_
+Usage:
+  ./scripts/build_dataset.sh --out-dir=<OUT_DIR> [--jobs=<JOBS>]
+  *** NOTE: specify arguments with "=" ***
+
+Options:
+  --out-dir     path to output directory
+  --jobs        number of jobs (default=1)
+_EOT_
 }
 
 while getopts h-: opt; do
@@ -17,9 +21,6 @@ while getopts h-: opt; do
   fi
 
   case "$opt" in
-  work-dir)
-    WORK_DIR=$OPTARG
-    ;;
   out-dir)
     OUT_DIR=$OPTARG
     ;;
@@ -38,18 +39,22 @@ while getopts h-: opt; do
   esac
 done
 
-if [[ -z "$WORK_DIR" ]] || [[ -z "$OUT_DIR" ]]; then
+if [[ -z "$OUT_DIR" ]]; then
   echo "missing required arguments"
   usage
   exit 1
 fi
 
+WORK_DIR="$(mktemp -d)"
+
 mkdir -p "$WORK_DIR" "$OUT_DIR"/{kwdlc,fuman}
-git clone git@github.com:ku-nlp/KWDLC.git "$WORK_DIR"/KWDLC
-git clone git@github.com:ku-nlp/AnnotatedFKCCorpus.git "$WORK_DIR"/AnnotatedFKCCorpus
+git clone --depth 1 git@github.com:ku-nlp/KWDLC.git "$WORK_DIR"/KWDLC
+git clone --depth 1 git@github.com:ku-nlp/AnnotatedFKCCorpus.git "$WORK_DIR"/AnnotatedFKCCorpus
 poetry run python ./scripts/build_dataset.py "$WORK_DIR"/KWDLC/knp "$OUT_DIR"/kwdlc \
   --id "$WORK_DIR"/KWDLC/id/split_for_pas \
   -j "$JOBS"
 poetry run python ./scripts/build_dataset.py "$WORK_DIR"/AnnotatedFKCCorpus/knp "$OUT_DIR"/fuman \
   --id "$WORK_DIR"/AnnotatedFKCCorpus/id/split_for_pas \
   -j "$JOBS"
+
+rm -rf "$WORK_DIR"
