@@ -137,31 +137,31 @@ def test_get_permitted_underscore_token_ids(input_text: str, permitted_underscor
 
 @pytest.mark.parametrize("input_text, permitted_consecutive_tokens", [("研究をする", ["研究", "研"])])
 def test_get_permitted_consecutive_token_ids(input_text: str, permitted_consecutive_tokens: List[str]) -> None:
-    tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-        pretrained_model_name_or_path="google/mt5-small",
-        additional_special_tokens=SPECIAL_TOKENS,
-    )
-    char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
+    for pretrained_model_name_or_path in ["google/mt5-small", "retrieva-jp/t5-small-long"]:
+        tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
+            pretrained_model_name_or_path=pretrained_model_name_or_path,
+            additional_special_tokens=SPECIAL_TOKENS,
+        )
+        char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
 
-    processor = ForcedSurfLogitsProcessor(
-        texts=[input_text],
-        tokenizer=tokenizer,
-        char2tokens=char2tokens,
-        char2underscore_tokens=char2underscore_tokens,
-    )
+        processor = ForcedSurfLogitsProcessor(
+            texts=[input_text],
+            tokenizer=tokenizer,
+            char2tokens=char2tokens,
+            char2underscore_tokens=char2underscore_tokens,
+        )
 
-    permitted_consecutive_token_ids: Set[int] = processor.get_permitted_consecutive_token_ids(input_text)
-    sorted_permitted_consecutive_token_ids: List[int] = sorted(list(permitted_consecutive_token_ids))
-    permitted_tokens: List[str] = tokenizer.convert_ids_to_tokens(sorted_permitted_consecutive_token_ids)
-    permitted_tokens_with_underscore: List[str] = []
-    permitted_tokens_without_underscore: List[str] = []
-    for token in permitted_tokens:
-        if token.startswith("▁"):
-            permitted_tokens_with_underscore.append(token)
-        else:
-            permitted_tokens_without_underscore.append(token)
-    assert len(permitted_tokens_with_underscore) == 56369
-    assert permitted_tokens_without_underscore == permitted_consecutive_tokens
+        permitted_consecutive_token_ids: Set[int] = processor.get_permitted_consecutive_token_ids(input_text)
+        sorted_permitted_consecutive_token_ids: List[int] = sorted(list(permitted_consecutive_token_ids))
+        permitted_tokens: List[str] = tokenizer.convert_ids_to_tokens(sorted_permitted_consecutive_token_ids)
+        permitted_tokens_with_underscore: List[str] = []
+        permitted_tokens_without_underscore: List[str] = []
+        for token in permitted_tokens:
+            if token.startswith("▁"):
+                permitted_tokens_with_underscore.append(token)
+            else:
+                permitted_tokens_without_underscore.append(token)
+        assert permitted_tokens_without_underscore == permitted_consecutive_tokens
 
 
 def test_get_batch_banned_token_ids(fixture_data_dir: Path):
