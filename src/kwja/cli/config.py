@@ -36,6 +36,7 @@ class CLIConfig:
     model_size: ModelSize
     device: Device
     num_workers: int
+    torch_compile: bool
     typo_batch_size: int
     senter_batch_size: int
     seq2seq_batch_size: int
@@ -48,6 +49,7 @@ class CLIConfig:
             model_size=ModelSize.base,
             device=Device.auto,
             num_workers=0,
+            torch_compile=False,
             typo_batch_size=1,
             senter_batch_size=1,
             seq2seq_batch_size=1,
@@ -62,6 +64,7 @@ class CLIConfig:
             model_size=ModelSize(config["model_size"]),
             device=Device(config["device"]),
             num_workers=config["num_workers"],
+            torch_compile=config["torch_compile"],
             typo_batch_size=config["typo_batch_size"],
             senter_batch_size=config["senter_batch_size"],
             seq2seq_batch_size=config["seq2seq_batch_size"],

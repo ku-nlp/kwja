@@ -8,6 +8,7 @@ from typing import Dict, List, Optional, Set, Tuple
 
 import hydra
 import pytorch_lightning as pl
+import torch
 import typer
 from pytorch_lightning.trainer.states import TrainerFn
 from rhoknp import Document, RegexSenter, Sentence
@@ -39,6 +40,8 @@ class BaseModuleProcessor(ABC):
 
     def load(self):
         self.module = self._load_module()
+        if self.config.torch_compile is True:
+            self.module = torch.compile(self.module)  # type: ignore
         self.module.hparams.datamodule.batch_size = self.batch_size
         self.module.hparams.datamodule.num_workers = self.config.num_workers
 
