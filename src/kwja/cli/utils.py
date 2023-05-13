@@ -11,6 +11,7 @@ from pytorch_lightning.utilities.warnings import PossibleUserWarning
 from torch.hub import download_url_to_file
 
 import kwja
+from kwja.cli.config import ModelSize
 
 logger = logging.getLogger(__name__)
 
@@ -19,15 +20,15 @@ ENV_XDG_CACHE_HOME = "XDG_CACHE_HOME"
 DEFAULT_CACHE_DIR = Path.home() / ".cache"
 
 _CHECKPOINT_BASE_URL = "https://lotus.kuee.kyoto-u.ac.jp"
-_CHECKPOINT_FILE_NAMES: Dict[str, Dict[str, str]] = {
-    "tiny": {
+_CHECKPOINT_FILE_NAMES: Dict[ModelSize, Dict[str, str]] = {
+    ModelSize.tiny: {
         "typo": "typo_deberta-v2-tiny-wwm.ckpt",
         "seq2seq": "seq2seq_mt5-small.ckpt",
         "char": "char_deberta-v2-tiny-wwm.ckpt",
         "word": "word_deberta-v2-tiny.ckpt",
         "word_discourse": "disc_deberta-v2-tiny.ckpt",
     },
-    "base": {
+    ModelSize.base: {
         "typo": "typo_deberta-v2-base-wwm.ckpt",
         "senter": "senter_deberta-v2-base-wwm.ckpt",
         "seq2seq": "seq2seq_mt5-base.ckpt",
@@ -35,7 +36,7 @@ _CHECKPOINT_FILE_NAMES: Dict[str, Dict[str, str]] = {
         "word": "word_deberta-v2-base.ckpt",
         "word_discourse": "disc_deberta-v2-base.ckpt",
     },
-    "large": {
+    ModelSize.large: {
         "typo": "typo_deberta-v2-large-wwm.ckpt",
         "senter": "senter_deberta-v2-base-wwm.ckpt",  # We won't release the large model for now.
         "seq2seq": "seq2seq_mt5-large.ckpt",
@@ -77,7 +78,7 @@ def filter_logs(environment: Literal["development", "production"]) -> None:
 
 def download_checkpoint(
     module: str,
-    model_size: str,
+    model_size: ModelSize,
     checkpoint_dir: Optional[Union[str, Path]] = None,
     progress: bool = True,
 ) -> Path:
@@ -86,7 +87,7 @@ def download_checkpoint(
 
     Args:
         module: typo, char, word, or word_discourse
-        model_size: base or large
+        model_size: tiny, base or large
         checkpoint_dir: directory in which to save the object
         progress: whether to display a progress bar to stderr
     """

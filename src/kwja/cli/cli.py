@@ -2,7 +2,6 @@ import os
 import re
 from abc import ABC
 from datetime import datetime
-from enum import Enum
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Dict, List, Optional, Set, Tuple
@@ -15,6 +14,7 @@ from rhoknp import Document, RegexSenter, Sentence
 from rhoknp.utils.reader import chunk_by_document
 
 import kwja
+from kwja.cli.config import CLIConfig, Device, ModelSize, get_kwja_config_file
 from kwja.cli.utils import download_checkpoint, filter_logs, prepare_device
 from kwja.datamodule.datamodule import DataModule
 from kwja.modules import CharModule, SenterModule, Seq2SeqModule, TypoModule, WordModule
@@ -27,28 +27,11 @@ OMEGACONF_VARIABLE_INTERPOLATION = re.compile(r"\$(?P<variable>\{.+?})")
 app = typer.Typer(pretty_exceptions_show_locals=False)
 
 
-class Device(str, Enum):
-    auto = "auto"
-    cpu = "cpu"
-    gpu = "gpu"
-
-
-class ModelSize(str, Enum):
-    tiny = "tiny"
-    base = "base"
-    large = "large"
-
-
 class BaseModuleProcessor(ABC):
-    def __init__(
-        self,
-        specified_device: str,
-        model_size: str,
-        batch_size: int,
-        destination: Path,
-    ) -> None:
-        self.device_name, self.device = prepare_device(specified_device)
-        self.model_size: str = model_size
+    def __init__(self, config: CLIConfig, batch_size: int, destination: Path) -> None:
+        self.config: CLIConfig = config
+        self.device_name, self.device = prepare_device(config.device.value)
+        self.model_size: ModelSize = config.model_size
         self.batch_size: int = batch_size
         self.destination: Path = destination
         self.module: Optional[pl.LightningModule] = None
@@ -57,6 +40,7 @@ class BaseModuleProcessor(ABC):
     def load(self):
         self.module = self._load_module()
         self.module.hparams.datamodule.batch_size = self.batch_size
+        self.module.hparams.datamodule.num_workers = self.config.num_workers
 
         self.trainer = pl.Trainer(
             logger=False,
@@ -112,18 +96,18 @@ class SenterModuleProcessor(BaseModuleProcessor):
     doc_idx = 0
 
     def load(self):
-        if self.model_size != "tiny":
+        if self.model_size != ModelSize.tiny:
             super().load()
 
     def _load_module(self) -> pl.LightningModule:
-        if self.model_size != "tiny":
+        if self.model_size != ModelSize.tiny:
             typer.echo("Loading senter module", err=True)
             checkpoint_path: Path = download_checkpoint(module="senter", model_size=self.model_size)
             return SenterModule.load_from_checkpoint(checkpoint_path, map_location=self.device)
         return  # type: ignore
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
-        if self.model_size != "tiny":
+        if self.model_size != ModelSize.tiny:
             assert self.module is not None
             self.module.hparams.datamodule.predict.texts = input_file.read_text().splitlines()
             datamodule = DataModule(cfg=self.module.hparams.datamodule)
@@ -132,7 +116,7 @@ class SenterModuleProcessor(BaseModuleProcessor):
         return  # type: ignore
 
     def apply_module(self, input_file: Path) -> None:
-        if self.model_size != "tiny":
+        if self.model_size != ModelSize.tiny:
             super().apply_module(input_file)
             return
 
@@ -239,16 +223,7 @@ class WordDiscourseModuleProcessor(BaseModuleProcessor):
 
 
 class CLIProcessor:
-    def __init__(
-        self,
-        specified_device: str,
-        model_size: str,
-        typo_batch_size: int,
-        senter_batch_size: int,
-        seq2seq_batch_size: int,
-        char_batch_size: int,
-        word_batch_size: int,
-    ) -> None:
+    def __init__(self, config: CLIConfig) -> None:
         self.tmp_dir = TemporaryDirectory()
         self.raw_destination = self.tmp_dir.name / Path("raw_text.txt")
         typo_destination = self.tmp_dir.name / Path("typo_prediction.txt")
@@ -258,14 +233,12 @@ class CLIProcessor:
         word_destination = self.tmp_dir.name / Path("word_prediction.knp")
         word_discourse_destination = self.tmp_dir.name / Path("word_discourse_prediction.knp")
         self.processors: Dict[str, BaseModuleProcessor] = {
-            "typo": TypoModuleProcessor(specified_device, model_size, typo_batch_size, typo_destination),
-            "senter": SenterModuleProcessor(specified_device, model_size, senter_batch_size, senter_destination),
-            "seq2seq": Seq2SeqModuleProcessor(specified_device, model_size, seq2seq_batch_size, seq2seq_destination),
-            "char": CharModuleProcessor(specified_device, model_size, char_batch_size, char_destination),
-            "word": WordModuleProcessor(specified_device, model_size, word_batch_size, word_destination),
-            "word_discourse": WordDiscourseModuleProcessor(
-                specified_device, model_size, word_batch_size, word_discourse_destination
-            ),
+            "typo": TypoModuleProcessor(config, config.typo_batch_size, typo_destination),
+            "senter": SenterModuleProcessor(config, config.senter_batch_size, senter_destination),
+            "seq2seq": Seq2SeqModuleProcessor(config, config.seq2seq_batch_size, seq2seq_destination),
+            "char": CharModuleProcessor(config, config.char_batch_size, char_destination),
+            "word": WordModuleProcessor(config, config.word_batch_size, word_destination),
+            "word_discourse": WordDiscourseModuleProcessor(config, config.word_batch_size, word_discourse_destination),
         }
 
     def load_modules(self, tasks: List[str]) -> None:
@@ -369,17 +342,18 @@ def tasks_callback(value: str) -> str:
 def main(
     text: Optional[str] = typer.Option(None, help="Text to be analyzed."),
     filename: List[Path] = typer.Option([], dir_okay=False, help="Files to be analyzed."),
-    model_size: ModelSize = typer.Option(ModelSize.base, help="Model size to be used."),
-    device: Device = typer.Option(Device.auto, help="Device to be used."),
-    typo_batch_size: int = typer.Option(1, help="Batch size for typo module."),
-    senter_batch_size: int = typer.Option(1, help="Batch size for senter module."),
-    seq2seq_batch_size: int = typer.Option(1, help="Batch size for seq2seq module."),
-    char_batch_size: int = typer.Option(1, help="Batch size for char module."),
-    word_batch_size: int = typer.Option(1, help="Batch size for word module."),
+    model_size: Optional[ModelSize] = typer.Option(None, help="Model size to be used."),
+    device: Optional[Device] = typer.Option(None, help="Device to be used."),
+    typo_batch_size: Optional[int] = typer.Option(None, help="Batch size for typo module."),
+    senter_batch_size: Optional[int] = typer.Option(None, help="Batch size for senter module."),
+    seq2seq_batch_size: Optional[int] = typer.Option(None, help="Batch size for seq2seq module."),
+    char_batch_size: Optional[int] = typer.Option(None, help="Batch size for char module."),
+    word_batch_size: Optional[int] = typer.Option(None, help="Batch size for word module."),
     tasks: str = typer.Option(
         "senter,char,word,word_discourse", callback=tasks_callback, help="Tasks to be performed."
     ),
     _: Optional[bool] = typer.Option(None, "--version", callback=version_callback, is_eager=True),
+    config_file: Optional[Path] = typer.Option(None, help="Path to KWJA config file."),
 ) -> None:
     input_text: Optional[str] = None
     if text is not None and len(filename) > 0:
@@ -397,15 +371,28 @@ def main(
         typer.echo("ERROR: Large model does not support seq2seq module now", err=True)
         raise typer.Abort()
 
-    processor = CLIProcessor(
-        specified_device=device.value,
-        model_size=model_size.value,
-        typo_batch_size=typo_batch_size,
-        senter_batch_size=senter_batch_size,
-        seq2seq_batch_size=seq2seq_batch_size,
-        char_batch_size=char_batch_size,
-        word_batch_size=word_batch_size,
-    )
+    if config_file is None:
+        config_file = get_kwja_config_file()
+    if not config_file.exists():
+        config = CLIConfig.default()
+    else:
+        config = CLIConfig.from_yaml(config_file)
+    if model_size is not None:
+        config.model_size = model_size
+    if device is not None:
+        config.device = device
+    if typo_batch_size is not None:
+        config.typo_batch_size = typo_batch_size
+    if senter_batch_size is not None:
+        config.senter_batch_size = senter_batch_size
+    if seq2seq_batch_size is not None:
+        config.seq2seq_batch_size = seq2seq_batch_size
+    if char_batch_size is not None:
+        config.char_batch_size = char_batch_size
+    if word_batch_size is not None:
+        config.word_batch_size = word_batch_size
+
+    processor = CLIProcessor(config)
     if input_text is None:
         processor.load_modules(specified_tasks)
 

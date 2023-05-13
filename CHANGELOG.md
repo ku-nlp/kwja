@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ```shell
   kwja --filename file1.txt --filename file2.txt
   ```
+- Introduce a config file. You can specify some options in `XDG_CONFIG_HOME/kwja/config.yaml`.
+  ```yaml
+  model_size: base
+  device: cpu
+  num_workers: 0
+  typo_batch_size: 1
+  senter_batch_size: 1
+  seq2seq_batch_size: 1
+  char_batch_size: 1
+  word_batch_size: 1
+  ```
+
 ### Changed
 - Support CUDA 11.7 by default instead of CUDA 10.x.
 
