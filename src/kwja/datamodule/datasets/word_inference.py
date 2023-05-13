@@ -94,9 +94,8 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
                 tokenizer_input = " ".join(tokenizer_input)
             encoding: Encoding = self.tokenizer(
                 tokenizer_input,
-                padding=PaddingStrategy.MAX_LENGTH,
+                padding=PaddingStrategy.DO_NOT_PAD,
                 truncation=False,
-                max_length=self.max_seq_length - len(self.special_tokens),
                 is_split_into_words=self.tokenizer_input_format == "words",
             ).encodings[0]
             if len(encoding.ids) > self.max_seq_length - len(self.special_tokens):
@@ -128,13 +127,14 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
     def encode(self, example: WordInferenceExample) -> WordModuleFeatures:
         document = self.doc_id2document[example.doc_id]
 
-        target_mask = [False] * self.max_seq_length
+        # ---------- ner ----------
+        # True/False = keep/mask
+        ne_mask = [False] * self.max_seq_length
         for sentence in extract_target_sentences(document):
             for morpheme in sentence.morphemes:
-                target_mask[morpheme.global_index] = True
+                ne_mask[morpheme.global_index] = True
 
         # ---------- dependency parsing ----------
-        # True/False = keep/mask
         dependency_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
         root_index = example.special_token_indexer.get_morpheme_level_index("[ROOT]")
         for sentence in document.sentences:
@@ -161,7 +161,6 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
                 ):
                     rel_mask[morpheme.global_index][morpheme_global_index] = True
             cohesion_mask.extend([rel_mask] * len(cohesion_utils.rels))
-
         return WordModuleFeatures(
             example_ids=example.example_id,
             input_ids=example.encoding.ids,
@@ -177,7 +176,7 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
             conjform_labels=[],
             word_feature_labels=[],
             ne_labels=[],
-            ne_mask=target_mask,
+            ne_mask=ne_mask,
             base_phrase_feature_labels=[],
             dependency_labels=[],
             dependency_mask=dependency_mask,
