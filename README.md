@@ -81,6 +81,8 @@ Here are some other options for `kwja` command:
 
 `--typo-batch-size`: Batch size for typo module. This batch size is also used for the senter module.
 
+`--senter-batch-size`: Batch size for senter module.
+
 `--seq2seq-batch-size`: Batch size for seq2seq module.
 
 `--char-batch-size`: Batch size for char module.
@@ -95,6 +97,8 @@ Here are some other options for `kwja` command:
   - `word`: Morphological analysis, Named entity recognition, Word feature tagging, Dependency parsing, PAS analysis, Bridging reference resolution, and Coreference resolution
   - `word_discourse`: Discourse relation analysis
     - If you need the results of discourse relation analysis, please specify this in addition to `word`.
+
+`--config-file`: Path to a custom configuration file.
 
 You can read a KNP format file with [rhoknp](https://github.com/ku-nlp/rhoknp).
 
@@ -129,6 +133,35 @@ kwja = KWJA()
 analyzed_document = kwja.apply(
     "KWJAは日本語の統合解析ツールです。汎用言語モデルを利用し、様々な言語解析を統一的な方法で解いています。"
 )
+```
+
+## Configuration
+
+`kwja` can be configured with a configuration file to set the default options.
+ Check [Config file content](#config-file-example) for details.
+
+### Config file location
+
+On non-Windows systems `kwja` follows the
+[XDG Base Directory Specification](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html)
+convention for the location of the configuration file.
+The configuration dir `kwja` uses is itself named `kwja`.
+In that directory it refers to a file named `config.yaml`.
+For most people it should be enough to put their config file at `~/.config/kwja/config.yaml`.
+You can also provide a configuration file in a non-standard location with: `kwja --config-file <path>`
+
+### Config file example
+
+```yaml
+model_size: base
+device: cpu
+num_workers: 0
+torch_compile: false
+typo_batch_size: 1
+senter_batch_size: 1
+seq2seq_batch_size: 1
+char_batch_size: 1
+word_batch_size: 1
 ```
 
 ## Performance Table
