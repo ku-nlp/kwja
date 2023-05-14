@@ -14,7 +14,7 @@ from pytorch_lightning.trainer.states import TrainerFn
 from kwja.cli.utils import filter_logs
 from kwja.datamodule.datamodule import DataModule
 
-filter_logs(environment="development")
+filter_logs(environment="production")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
@@ -35,6 +35,9 @@ def main(eval_cfg: DictConfig):
     OmegaConf.set_struct(train_cfg, False)  # enable to add new key-value pairs
     cfg = OmegaConf.merge(train_cfg, eval_cfg)
     assert isinstance(cfg, DictConfig)
+
+    if getattr(cfg, "load_model_only", False):
+        sys.exit(0)
 
     callbacks: List[Callback] = []
     for k, v in cfg.get("callbacks", {}).items():
@@ -63,8 +66,6 @@ def main(eval_cfg: DictConfig):
     datamodule = DataModule(cfg=cfg.datamodule)
     datamodule.setup(stage=TrainerFn.PREDICTING)
 
-    if getattr(cfg, "load_only", False):
-        sys.exit(0)
     trainer.predict(model=model, dataloaders=[datamodule.predict_dataloader()], return_predictions=False)
 
 
