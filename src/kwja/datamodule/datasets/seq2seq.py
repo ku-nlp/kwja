@@ -9,7 +9,7 @@ from transformers.utils import PaddingStrategy
 
 from kwja.datamodule.datasets.base import BaseDataset
 from kwja.datamodule.examples import Seq2SeqExample
-from kwja.utils.constants import IGNORE_INDEX, NEW_LINE_TOKEN
+from kwja.utils.constants import FULL_SPACE_TOKEN, IGNORE_INDEX, NEW_LINE_TOKEN
 from kwja.utils.progress_bar import track
 from kwja.utils.seq2seq_format import get_seq2seq_format
 
@@ -80,7 +80,7 @@ class Seq2SeqDataset(BaseDataset[Seq2SeqExample, Seq2SeqModuleFeatures]):
                 examples.append(
                     Seq2SeqExample(
                         example_id=example_id,
-                        src_text=sentence.text,
+                        src_text=sentence.text.strip().replace("\u3000", FULL_SPACE_TOKEN),
                         src_encoding=src_encoding,
                         tgt_encoding=tgt_encoding,
                         sid=sentence.sid,

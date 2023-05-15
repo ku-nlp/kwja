@@ -30,7 +30,11 @@ class ForcedSurfLogitsProcessor(LogitsProcessor):
         char2underscore_tokens: Dict[str, Dict[str, int]],
     ) -> None:
         self.tokenizer = tokenizer
-        self.texts = tokenizer.batch_decode(tokenizer.batch_encode_plus(texts).input_ids, skip_special_tokens=True)
+        self.texts: List[str] = []
+        for text in tokenizer.batch_decode(tokenizer.batch_encode_plus(texts).input_ids):
+            if text.endswith(self.tokenizer.eos_token):
+                text = text[: -len(self.tokenizer.eos_token)]
+            self.texts.append(text)
         self.char2tokens: Dict[str, Dict[str, int]] = char2tokens
         self.char2underscore_tokens: Dict[str, Dict[str, int]] = char2underscore_tokens
         self.new_line_token_id: int = tokenizer.convert_tokens_to_ids(NEW_LINE_TOKEN)
