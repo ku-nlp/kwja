@@ -45,7 +45,7 @@ def get_sent_from_seq2seq_format(input_text: str) -> Sentence:
                 for idx in range(3):
                     mrphs[idx] = "\u3000"
                 mrphs[-1] = '"代表表記:S/*"'
-            elif line in ["!!!!/!", "????/?", ",,,,/,"]:
+            elif line in ["!!!!/!", "????/?", ",,,,/,", "..../."]:
                 for idx in range(3):
                     mrphs[idx] = line[idx]
                 mrphs[-1] = f'"代表表記:{line[0]}/{line[0]}"'
