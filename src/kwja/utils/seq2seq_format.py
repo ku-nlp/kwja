@@ -14,7 +14,7 @@ def get_seq2seq_format(sentence: Sentence) -> str:
         else:
             if mrph.reading == "\u3000":
                 reading: str = FULL_SPACE_TOKEN
-            elif "/" in mrph.reading:
+            elif "/" in mrph.reading and len(mrph.reading) > 1:
                 reading = mrph.reading.split("/")[0]
             else:
                 reading = mrph.reading
@@ -47,10 +47,6 @@ def get_sent_from_seq2seq_format(input_text: str) -> Sentence:
                         mrphs[-1] = "NIL"
                 else:
                     mrphs[-1] = f'"代表表記:{preds[3]}"'
-            elif line == "/ / ///":
-                for idx in range(3):
-                    mrphs[idx] = "/"
-                mrphs[-1] = '"代表表記:///"'
             elif line in ["!!!!/!", "????/?", ",,,,/,", "..../."]:
                 for idx in range(3):
                     mrphs[idx] = line[idx]

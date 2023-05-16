@@ -71,6 +71,8 @@ input_seq2seq_formats = [
         まで まで まで まで/まで
         ！ ！ ！ ！/！
         ？ ？ ？ ？/？
+        . . . ./.
+        / / / ///
         """
     ),
     dedent(
@@ -99,7 +101,7 @@ output_seq2seq_formats = [
     dedent(
         """\
         また また また 又/また
-        , , , ,/,
+        ,,,,/,
         校区 こうく 校区 校区/こうく
         で で で で/で
         行わ おこなわ 行う 行う/おこなう
@@ -126,7 +128,7 @@ output_seq2seq_formats = [
         核 かく 核 核/かく
         の の の の/の
         歴史 れきし 歴史 歴史/れきし
-        … … … …/…
+        ............/...
         ヒロシマ ひろしま ヒロシマ ヒロシマ/ひろしま
         、 、 、 、/、
         ナガサキ ながさき ナガサキ ナガサキ/ながさき
@@ -142,8 +144,10 @@ output_seq2seq_formats = [
         一 ついたち 一 一/いち
         日 {FULL_SPACE_TOKEN} 日 日/にち
         まで まで まで まで/まで
-        ! ! ! !/!
-        ? ? ? ?/?
+        !!!!/!
+        ????/?
+        ..../.
+        / / / ///
         """
     ),
     dedent(
@@ -177,7 +181,7 @@ def test_get_sent_from_seq2seq_format(fixture_data_dir: Path, seq2seq_tokenizer:
         actual_sent = get_sent_from_seq2seq_format(shaped_output)
         assert len(actual_sent.morphemes) == len(expected_sent.morphemes)
         for actual_morpheme, expected_morpheme in zip(actual_sent.morphemes, expected_sent.morphemes):
-            if "/" in expected_morpheme.reading:
+            if "/" in expected_morpheme.reading and len(expected_morpheme.reading) > 1:
                 expected_reading: str = expected_morpheme.reading.split("/")[0]
             else:
                 expected_reading = expected_morpheme.reading
