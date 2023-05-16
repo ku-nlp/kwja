@@ -52,10 +52,10 @@ class ForcedSurfLogitsProcessor(LogitsProcessor):
                 stripped_line: str = line.lstrip().rstrip()
                 if stripped_line in ["", "EOS"]:
                     break
-                if stripped_line[0] in ["!", "?", ","]:
-                    generated_surf += stripped_line[0]
-                elif stripped_line[:3] == "...":
+                if stripped_line == "............/...":
                     generated_surf += "..."
+                elif stripped_line[0] in ["!", "?", ",", "."]:
+                    generated_surf += stripped_line[0]
                 else:
                     split_line: List[str] = stripped_line.split()
                     if len(split_line) > 0:
