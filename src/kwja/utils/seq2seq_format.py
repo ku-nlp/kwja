@@ -40,11 +40,13 @@ def get_sent_from_seq2seq_format(input_text: str) -> Sentence:
                 mrphs[0] = "\u3000" if preds[0] == FULL_SPACE_TOKEN else preds[0]
                 mrphs[1] = "\u3000" if preds[1] == FULL_SPACE_TOKEN else preds[1]
                 mrphs[2] = "\u3000" if preds[2] == FULL_SPACE_TOKEN else preds[2]
-                mrphs[-1] = "NIL" if preds[3] == NO_CANON_TOKEN else f'"代表表記:{preds[3]}"'
-            elif line == f"{FULL_SPACE_TOKEN} S/*":
-                for idx in range(3):
-                    mrphs[idx] = "\u3000"
-                mrphs[-1] = '"代表表記:S/*"'
+                if preds[3] == NO_CANON_TOKEN:
+                    if preds[0] == FULL_SPACE_TOKEN and preds[1] == FULL_SPACE_TOKEN and preds[2] == FULL_SPACE_TOKEN:
+                        mrphs[-1] = '"代表表記:/"'
+                    else:
+                        mrphs[-1] = "NIL"
+                else:
+                    mrphs[-1] = f'"代表表記:{preds[3]}"'
             elif line == "/ / ///":
                 for idx in range(3):
                     mrphs[idx] = "/"
