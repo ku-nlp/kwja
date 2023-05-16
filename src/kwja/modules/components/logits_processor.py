@@ -5,7 +5,7 @@ import torch
 from transformers import PreTrainedTokenizerBase
 from transformers.generation import LogitsProcessor
 
-from kwja.utils.constants import NEW_LINE_TOKEN
+from kwja.utils.constants import FULL_SPACE_TOKEN, NEW_LINE_TOKEN
 
 
 def get_char2tokens(tokenizer: PreTrainedTokenizerBase) -> Tuple[Dict[str, Dict[str, int]], Dict[str, Dict[str, int]]]:
@@ -34,6 +34,8 @@ class ForcedSurfLogitsProcessor(LogitsProcessor):
         for text in tokenizer.batch_decode(tokenizer.batch_encode_plus(texts).input_ids):
             if text.endswith(self.tokenizer.eos_token):
                 text = text[: -len(self.tokenizer.eos_token)]
+            if f"{FULL_SPACE_TOKEN} " in text:
+                text = text.replace(f"{FULL_SPACE_TOKEN} ", FULL_SPACE_TOKEN)
             self.texts.append(text)
         self.char2tokens: Dict[str, Dict[str, int]] = char2tokens
         self.char2underscore_tokens: Dict[str, Dict[str, int]] = char2underscore_tokens

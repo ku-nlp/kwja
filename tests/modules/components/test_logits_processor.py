@@ -9,7 +9,7 @@ from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizerBase
 
 from kwja.datamodule.datasets.seq2seq import get_seq2seq_format
 from kwja.modules.components.logits_processor import ForcedSurfLogitsProcessor, get_char2tokens
-from kwja.utils.constants import NEW_LINE_TOKEN
+from kwja.utils.constants import FULL_SPACE_TOKEN, NEW_LINE_TOKEN
 
 SPECIAL_TOKENS: List[str] = [f"<extra_id_{idx}>" for idx in range(100)]
 
@@ -77,7 +77,7 @@ def test_get_generated_surfs(fixture_data_dir: Path) -> None:
             with path.open() as f:
                 sentence: Sentence = Sentence.from_jumanpp(f.read())
                 processor = ForcedSurfLogitsProcessor(
-                    texts=[sentence.text],
+                    texts=[sentence.text.strip().replace("\u3000", FULL_SPACE_TOKEN)],
                     tokenizer=tokenizer,
                     char2tokens=char2tokens,
                     char2underscore_tokens=char2underscore_tokens,
