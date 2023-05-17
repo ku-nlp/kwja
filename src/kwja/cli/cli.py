@@ -297,12 +297,6 @@ def version_callback(value: bool) -> None:
         raise typer.Exit()
 
 
-def model_size_callback(value: str) -> str:
-    if value not in ("tiny", "base", "large"):
-        raise typer.BadParameter("model size must be one of 'tiny', 'base', or 'large'")
-    return value
-
-
 def tasks_callback(value: str) -> str:
     """sort and validate specified tasks"""
     values: List[str] = [v for v in value.split(",") if v]
