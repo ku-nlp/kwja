@@ -1,9 +1,13 @@
 from copy import deepcopy
-from typing import Any, Dict, Generic, List, TypeVar
+from typing import Any, Callable, Dict, Generic, List, Optional, Sequence, TypeVar
 
 import hydra
 import pytorch_lightning as pl
+import torch
 from omegaconf import DictConfig, ListConfig, OmegaConf
+from torch.overrides import TorchFunctionMode  # type: ignore
+from torch.serialization import FILE_LIKE, MAP_LOCATION  # type: ignore
+from typing_extensions import Self
 
 from kwja.metrics.base import BaseModuleMetric
 
@@ -56,6 +60,53 @@ class BaseModule(pl.LightningModule, Generic[MetricType]):
         if self.hparams.ignore_hparams_on_save:
             hparams = filter_dict_items(hparams, self.hparams.hparams_to_ignore_on_save)
         checkpoint["hyper_parameters"] = hparams
+
+    @classmethod
+    def fast_load_from_checkpoint(
+        cls,
+        checkpoint_path: FILE_LIKE,
+        map_location: MAP_LOCATION = None,
+        strict: bool = True,
+    ) -> Self:
+        checkpoint = torch.load(checkpoint_path, map_location=map_location)
+        print("start initialization")
+        with _EmptyInit():
+            module = cls(hparams=checkpoint[cls.CHECKPOINT_HYPER_PARAMS_KEY])  # type: ignore
+        print("finish initialization")
+        module.load_state_dict(checkpoint["state_dict"], strict=strict)
+        print("finish loading")
+        return module
+
+
+# TODO: use `Fabric.init_module(empty_weights=True)` instead after this PR is merged: https://github.com/Lightning-AI/lightning/pull/17627
+# From https://lernapparat.de/faster-model-init by Thomas Viehmann
+class _EmptyInit(TorchFunctionMode):
+    """Initialize `nn.Module` with empty tensors, i.e., uninitialized memory.
+    Example::
+        with _EmptyInit():
+            model = BigModel()
+        model.load_state_dict(torch.load("checkpoint.pt"))
+    """
+
+    def __init__(self, enabled: bool = True):
+        super().__init__()
+        self.enabled = enabled
+
+    def __torch_function__(
+        self,
+        func: Callable,
+        types: Sequence,
+        args: Sequence[Any] = (),
+        kwargs: Optional[Dict] = None,
+    ):
+        kwargs = kwargs or {}
+        if not self.enabled:
+            return func(*args, **kwargs)
+        if getattr(func, "__module__", None) == "torch.nn.init":
+            if "tensor" in kwargs:
+                return kwargs["tensor"]
+            return args[0]
+        return func(*args, **kwargs)
 
 
 def filter_dict_items(item: DictConfig, keys_to_ignore: ListConfig) -> DictConfig:
