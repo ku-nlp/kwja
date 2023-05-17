@@ -376,10 +376,10 @@ def main(
 
     if config_file is None:
         config_file = get_kwja_config_file()
-    if not config_file.exists():
-        config = CLIConfig()
-    else:
+    if config_file.exists():
         config = CLIConfig.from_yaml(config_file)
+    else:
+        config = CLIConfig()
     if model_size is not None:
         config.model_size = model_size
     if device is not None:
@@ -396,24 +396,26 @@ def main(
         config.word_batch_size = word_batch_size
 
     processor = CLIProcessor(config)
-    if input_text is None:
-        processor.load_modules(specified_tasks)
 
-        typer.echo('Please end your input with a new line and type "EOD"', err=True)
-        input_text = ""
-        while True:
-            input_ = input()
-            if input_ == "EOD":
-                processor.refresh()
-                processor.run(input_text, specified_tasks, interactive=True)
-                print("EOD")  # To indicate the end of the output.
-                input_text = ""
-            else:
-                input_text += input_ + "\n"
-    else:
-        if input_text.strip() == "":
-            raise typer.Exit()
-        processor.run(input_text, specified_tasks)
+    # Batch mode
+    if input_text is not None:
+        if input_text.strip() != "":
+            processor.run(input_text, specified_tasks)
+        raise typer.Exit()
+
+    # Interactive mode
+    processor.load_modules(specified_tasks)
+    typer.echo('Please end your input with a new line and type "EOD"', err=True)
+    input_text = ""
+    while True:
+        input_ = input()
+        if input_ == "EOD":
+            processor.refresh()
+            processor.run(input_text, specified_tasks, interactive=True)
+            print("EOD")  # To indicate the end of the output.
+            input_text = ""
+        else:
+            input_text += input_ + "\n"
 
 
 if __name__ == "__main__":
