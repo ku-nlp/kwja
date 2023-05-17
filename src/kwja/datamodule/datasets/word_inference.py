@@ -138,13 +138,11 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
         dependency_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
         root_index = example.special_token_indexer.get_morpheme_level_index("[ROOT]")
         for sentence in document.sentences:
-            morpheme_global_indices = [morpheme.global_index for morpheme in sentence.morphemes]
-            start, stop = min(morpheme_global_indices), max(morpheme_global_indices) + 1
-            for i in range(start, stop):
-                for j in range(start, stop):
-                    if i != j:
-                        dependency_mask[i][j] = True
-                dependency_mask[i][root_index] = True
+            for morpheme_src in sentence.morphemes:
+                for morpheme_tgt in sentence.morphemes:
+                    if morpheme_src.global_index != morpheme_tgt.global_index:
+                        dependency_mask[morpheme_src.global_index][morpheme_tgt.global_index] = True
+                dependency_mask[morpheme_src.global_index][root_index] = True
 
         # ---------- cohesion analysis ----------
         cohesion_mask: List[List[List[bool]]] = []  # (rel, seq, seq)
