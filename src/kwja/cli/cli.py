@@ -28,12 +28,12 @@ app = typer.Typer(pretty_exceptions_show_locals=False)
 
 
 class BaseModuleProcessor(ABC):
-    def __init__(self, config: CLIConfig, batch_size: int, destination: Path) -> None:
+    def __init__(self, config: CLIConfig, batch_size: int) -> None:
         self.config: CLIConfig = config
         self.device_name, self.device = prepare_device(config.device.value)
         self.model_size: ModelSize = config.model_size
         self.batch_size: int = batch_size
-        self.destination: Path = destination
+        self.destination = Path(NamedTemporaryFile().name)
         self.module: Optional[pl.LightningModule] = None
         self.trainer: Optional[pl.Trainer] = None
 
@@ -214,19 +214,13 @@ class WordDiscourseModuleProcessor(BaseModuleProcessor):
 class CLIProcessor:
     def __init__(self, config: CLIConfig) -> None:
         self.raw_destination = Path(NamedTemporaryFile(suffix=".txt", delete=False).name)
-        typo_destination = Path(NamedTemporaryFile(suffix=".txt", delete=False).name)
-        senter_destination = Path(NamedTemporaryFile(suffix=".txt", delete=False).name)
-        seq2seq_destination = Path(NamedTemporaryFile(suffix=".juman", delete=False).name)
-        char_destination = Path(NamedTemporaryFile(suffix=".juman", delete=False).name)
-        word_destination = Path(NamedTemporaryFile(suffix=".knp", delete=False).name)
-        word_discourse_destination = Path(NamedTemporaryFile(suffix=".knp", delete=False).name)
         self.processors: Dict[str, BaseModuleProcessor] = {
-            "typo": TypoModuleProcessor(config, config.typo_batch_size, typo_destination),
-            "senter": SenterModuleProcessor(config, config.senter_batch_size, senter_destination),
-            "seq2seq": Seq2SeqModuleProcessor(config, config.seq2seq_batch_size, seq2seq_destination),
-            "char": CharModuleProcessor(config, config.char_batch_size, char_destination),
-            "word": WordModuleProcessor(config, config.word_batch_size, word_destination),
-            "word_discourse": WordDiscourseModuleProcessor(config, config.word_batch_size, word_discourse_destination),
+            "typo": TypoModuleProcessor(config, config.typo_batch_size),
+            "senter": SenterModuleProcessor(config, config.senter_batch_size),
+            "seq2seq": Seq2SeqModuleProcessor(config, config.seq2seq_batch_size),
+            "char": CharModuleProcessor(config, config.char_batch_size),
+            "word": WordModuleProcessor(config, config.word_batch_size),
+            "word_discourse": WordDiscourseModuleProcessor(config, config.word_batch_size),
         }
 
     def load_modules(self, tasks: List[str]) -> None:
@@ -234,6 +228,7 @@ class CLIProcessor:
             self.processors[task].load()
 
     def refresh(self) -> None:
+        self.raw_destination.unlink(missing_ok=True)
         for processor in self.processors.values():
             processor.destination.unlink(missing_ok=True)
 
@@ -397,6 +392,7 @@ def main(
     if input_text is not None:
         if input_text.strip() != "":
             processor.run(_split_into_documents(input_text), specified_tasks)
+        processor.refresh()
         raise typer.Exit()
 
     # Interactive mode
