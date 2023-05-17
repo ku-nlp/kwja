@@ -377,7 +377,7 @@ def main(
     if config_file is None:
         config_file = get_kwja_config_file()
     if not config_file.exists():
-        config = CLIConfig.default()
+        config = CLIConfig()
     else:
         config = CLIConfig.from_yaml(config_file)
     if model_size is not None:

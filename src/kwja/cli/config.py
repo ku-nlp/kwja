@@ -33,29 +33,15 @@ class ModelSize(str, Enum):
 
 @dataclass
 class CLIConfig:
-    model_size: ModelSize
-    device: Device
-    num_workers: int
-    torch_compile: bool
-    typo_batch_size: int
-    senter_batch_size: int
-    seq2seq_batch_size: int
-    char_batch_size: int
-    word_batch_size: int
-
-    @classmethod
-    def default(cls) -> "CLIConfig":
-        return cls(
-            model_size=ModelSize.base,
-            device=Device.auto,
-            num_workers=0,
-            torch_compile=False,
-            typo_batch_size=1,
-            senter_batch_size=1,
-            seq2seq_batch_size=1,
-            char_batch_size=1,
-            word_batch_size=1,
-        )
+    model_size: ModelSize = ModelSize.base
+    device: Device = Device.auto
+    num_workers: int = 0
+    torch_compile: bool = False
+    typo_batch_size: int = 1
+    senter_batch_size: int = 1
+    seq2seq_batch_size: int = 1
+    char_batch_size: int = 1
+    word_batch_size: int = 1
 
     @classmethod
     def from_yaml(cls, path: Path) -> "CLIConfig":
