@@ -3,7 +3,7 @@ import re
 from abc import ABC
 from datetime import datetime
 from pathlib import Path
-from tempfile import TemporaryDirectory
+from tempfile import NamedTemporaryFile
 from typing import Dict, List, Optional, Set, Tuple
 
 import hydra
@@ -11,15 +11,14 @@ import pytorch_lightning as pl
 import torch
 import typer
 from pytorch_lightning.trainer.states import TrainerFn
-from rhoknp import Document, RegexSenter, Sentence
-from rhoknp.utils.reader import chunk_by_document
+from rhoknp import RegexSenter, Sentence
+from rhoknp.utils.reader import chunk_by_sentence
 
 import kwja
 from kwja.cli.config import CLIConfig, Device, ModelSize, get_kwja_config_file
 from kwja.cli.utils import download_checkpoint, filter_logs, prepare_device
 from kwja.datamodule.datamodule import DataModule
 from kwja.modules import CharModule, SenterModule, Seq2SeqModule, TypoModule, WordModule
-from kwja.utils.reader import chunk_by_sentence_for_line_by_line_text
 
 filter_logs(environment="production")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -81,18 +80,13 @@ class TypoModuleProcessor(BaseModuleProcessor):
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
-        self.module.hparams.datamodule.predict.texts = input_file.read_text().splitlines()
+        self.module.hparams.datamodule.predict.texts = _split_into_documents(input_file.read_text())
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
         datamodule.setup(stage=TrainerFn.PREDICTING)
         return datamodule
 
     def export_prediction(self) -> str:
-        post_texts: List[str] = []
-        with self.destination.open() as f:
-            for line in f:
-                if line.strip() != "EOD":
-                    post_texts.append(line.strip())
-        return "\n".join(post_texts) + "\n"
+        return self.destination.read_text()
 
 
 class SenterModuleProcessor(BaseModuleProcessor):
@@ -110,13 +104,11 @@ class SenterModuleProcessor(BaseModuleProcessor):
         return  # type: ignore
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
-        if self.model_size != ModelSize.tiny:
-            assert self.module is not None
-            self.module.hparams.datamodule.predict.texts = input_file.read_text().splitlines()
-            datamodule = DataModule(cfg=self.module.hparams.datamodule)
-            datamodule.setup(stage=TrainerFn.PREDICTING)
-            return datamodule
-        return  # type: ignore
+        assert self.module is not None
+        self.module.hparams.datamodule.predict.texts = _split_into_documents(input_file.read_text())
+        datamodule = DataModule(cfg=self.module.hparams.datamodule)
+        datamodule.setup(stage=TrainerFn.PREDICTING)
+        return datamodule
 
     def apply_module(self, input_file: Path) -> None:
         if self.model_size != ModelSize.tiny:
@@ -124,23 +116,20 @@ class SenterModuleProcessor(BaseModuleProcessor):
             return
 
         senter = RegexSenter()
-        document = senter.apply_to_document(input_file.read_text())
-
+        output_string = ""
         doc_id_prefix = datetime.now().strftime("%Y%m%d%H%M")
-        document.doc_id = f"{doc_id_prefix}-{self.doc_idx}"
-        self.doc_idx += 1
-        for sent_idx, sentence in enumerate(document.sentences):
-            sentence.sid = f"{document.doc_id}-{sent_idx}"
-            sentence.misc_comment = f"kwja:{kwja.__version__}"
-        self.destination.write_text(document.to_raw_text())
+        for document_text in _split_into_documents(input_file.read_text()):
+            document = senter.apply_to_document(document_text)
+            document.doc_id = f"{doc_id_prefix}-{self.doc_idx}"
+            self.doc_idx += 1
+            for sent_idx, sentence in enumerate(document.sentences):
+                sentence.sid = f"{document.doc_id}-{sent_idx}"
+                sentence.misc_comment = f"kwja:{kwja.__version__}"
+            output_string += document.to_raw_text()
+        self.destination.write_text(output_string)
 
     def export_prediction(self) -> str:
-        export_text: str = ""
-        with self.destination.open() as f:
-            for sentence_text in chunk_by_sentence_for_line_by_line_text(f):
-                sentence = Sentence.from_raw_text(sentence_text)
-                export_text += sentence.text + "\n"
-        return export_text
+        return self.destination.read_text()
 
 
 class Seq2SeqModuleProcessor(BaseModuleProcessor):
@@ -157,12 +146,7 @@ class Seq2SeqModuleProcessor(BaseModuleProcessor):
         return datamodule
 
     def export_prediction(self) -> str:
-        export_text: str = ""
-        with self.destination.open() as f:
-            for line in f:
-                if line.strip() != "EOD":
-                    export_text += line.strip() + "\n"
-        return export_text
+        return self.destination.read_text()
 
 
 class CharModuleProcessor(BaseModuleProcessor):
@@ -179,12 +163,14 @@ class CharModuleProcessor(BaseModuleProcessor):
         return datamodule
 
     def export_prediction(self) -> str:
-        word_segmented_texts: List[str] = []
+        export_text = ""
         with self.destination.open() as f:
-            for juman_text in chunk_by_document(f):
-                document = Document.from_jumanpp(juman_text)
-                word_segmented_texts.append(" ".join(m.text for m in document.morphemes))
-        return "\n".join(word_segmented_texts) + "\n"
+            for juman_text in chunk_by_sentence(f):
+                sentence = Sentence.from_jumanpp(juman_text)
+                if sentence.comment != "":
+                    export_text += sentence.comment + "\n"
+                export_text += " ".join(m.text for m in sentence.morphemes) + "\n"
+        return export_text
 
 
 class WordModuleProcessor(BaseModuleProcessor):
@@ -227,14 +213,13 @@ class WordDiscourseModuleProcessor(BaseModuleProcessor):
 
 class CLIProcessor:
     def __init__(self, config: CLIConfig) -> None:
-        self.tmp_dir = TemporaryDirectory()
-        self.raw_destination = self.tmp_dir.name / Path("raw_text.txt")
-        typo_destination = self.tmp_dir.name / Path("typo_prediction.txt")
-        senter_destination = self.tmp_dir.name / Path("senter_prediction.txt")
-        seq2seq_destination = self.tmp_dir.name / Path("seq2seq_prediction.seq2seq")
-        char_destination = self.tmp_dir.name / Path("char_prediction.juman")
-        word_destination = self.tmp_dir.name / Path("word_prediction.knp")
-        word_discourse_destination = self.tmp_dir.name / Path("word_discourse_prediction.knp")
+        self.raw_destination = Path(NamedTemporaryFile(suffix=".txt", delete=False).name)
+        typo_destination = Path(NamedTemporaryFile(suffix=".txt", delete=False).name)
+        senter_destination = Path(NamedTemporaryFile(suffix=".txt", delete=False).name)
+        seq2seq_destination = Path(NamedTemporaryFile(suffix=".juman", delete=False).name)
+        char_destination = Path(NamedTemporaryFile(suffix=".juman", delete=False).name)
+        word_destination = Path(NamedTemporaryFile(suffix=".knp", delete=False).name)
+        word_discourse_destination = Path(NamedTemporaryFile(suffix=".knp", delete=False).name)
         self.processors: Dict[str, BaseModuleProcessor] = {
             "typo": TypoModuleProcessor(config, config.typo_batch_size, typo_destination),
             "senter": SenterModuleProcessor(config, config.senter_batch_size, senter_destination),
@@ -252,18 +237,15 @@ class CLIProcessor:
         for processor in self.processors.values():
             processor.destination.unlink(missing_ok=True)
 
-    def run(self, input_text: str, tasks: List[str], interactive: bool = False) -> None:
-        input_texts = _split_input_texts([input_text])
-        self.raw_destination.write_text("\n".join(input_texts))  # TODO: consider using pickle
+    def run(self, input_documents: List[str], tasks: List[str], interactive: bool = False) -> None:
+        self.raw_destination.write_text(
+            "".join(_normalize_text(input_document) + "\nEOD\n" for input_document in input_documents)
+        )
         input_file = self.raw_destination
         for task in tasks:
             processor = self.processors[task]
             if interactive is False:
                 processor.load()
-            if task in ("char", "seq2seq") and "typo" in tasks:
-                # char and seq2seq module after typo module
-                input_texts = _split_input_texts([input_file.read_text()])
-                input_file.write_text("\n".join(input_texts))  # TODO: consider using pickle
             processor.apply_module(input_file)
             input_file = processor.destination
             if interactive is False:
@@ -271,22 +253,42 @@ class CLIProcessor:
         print(self.processors[tasks[-1]].export_prediction(), end="")
 
 
-def _split_input_texts(input_texts: List[str]) -> List[str]:
-    split_texts: List[str] = []
-    split_text: str = ""
-    for input_text in input_texts:
-        input_text_with_eod: str = input_text.strip() + "\nEOD"
-        for text in input_text_with_eod.split("\n"):
-            if text == "EOD":
-                # hydra.utils.instantiateを実行する際に文字列${...}を補間しようとするのを防ぐ
-                normalized = OMEGACONF_VARIABLE_INTERPOLATION.sub(r"$␣\g<variable>", split_text)
-                # "#"で始まる行がコメント行と誤認識されることを防ぐ
-                normalized = normalized.replace("#", "＃")
-                split_texts.append(normalized.rstrip())
-                split_text = ""
-            else:
-                split_text += f"{text}\n"
-    return split_texts
+# def _split_input_texts(input_texts: str) -> List[str]:
+#     split_texts: List[str] = []
+#     split_text: str = ""
+#     for input_text in input_texts:
+#         input_text_with_eod: str = input_text.strip() + "\nEOD"
+#         for text in input_text_with_eod.split("\n"):
+#             if text == "EOD":
+#                 # hydra.utils.instantiateを実行する際に文字列${...}を補間しようとするのを防ぐ
+#                 normalized = OMEGACONF_VARIABLE_INTERPOLATION.sub(r"$␣\g<variable>", split_text)
+#                 # "#"で始まる行がコメント行と誤認識されることを防ぐ
+#                 normalized = normalized.replace("#", "＃")
+#                 split_texts.append(normalized.rstrip())
+#                 split_text = ""
+#             else:
+#                 split_text += f"{text}\n"
+#     return split_texts
+
+
+def _normalize_text(text: str) -> str:
+    # TODO: implement
+    return text
+
+
+def _split_into_documents(input_text: str) -> List[str]:
+    documents: List[str] = []
+    document: str = ""
+    for line in input_text.split("\n"):
+        if line == "EOD":
+            documents.append(document.rstrip())
+            document = ""
+        else:
+            document += f"{line}\n"
+    else:
+        if document.rstrip() != "":
+            documents.append(document.rstrip())
+    return documents
 
 
 def version_callback(value: bool) -> None:
@@ -365,7 +367,7 @@ def main(
     elif text is not None:
         input_text = text
     elif len(filename) > 0:
-        input_text = "\nEOD\n".join(path.read_text() for path in filename)
+        input_text = "".join(path.read_text().rstrip("\n") + "\nEOD\n" for path in filename)
     else:
         pass  # interactive mode
 
@@ -400,7 +402,7 @@ def main(
     # Batch mode
     if input_text is not None:
         if input_text.strip() != "":
-            processor.run(input_text, specified_tasks)
+            processor.run(_split_into_documents(input_text), specified_tasks)
         raise typer.Exit()
 
     # Interactive mode
@@ -411,7 +413,7 @@ def main(
         input_ = input()
         if input_ == "EOD":
             processor.refresh()
-            processor.run(input_text, specified_tasks, interactive=True)
+            processor.run([input_text], specified_tasks, interactive=True)
             print("EOD")  # To indicate the end of the output.
             input_text = ""
         else:
