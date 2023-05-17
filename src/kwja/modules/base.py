@@ -69,12 +69,9 @@ class BaseModule(pl.LightningModule, Generic[MetricType]):
         strict: bool = True,
     ) -> Self:
         checkpoint = torch.load(checkpoint_path, map_location=map_location)
-        print("start initialization")
         with _EmptyInit():
             module = cls(hparams=checkpoint[cls.CHECKPOINT_HYPER_PARAMS_KEY])  # type: ignore
-        print("finish initialization")
         module.load_state_dict(checkpoint["state_dict"], strict=strict)
-        print("finish loading")
         return module
 
 
