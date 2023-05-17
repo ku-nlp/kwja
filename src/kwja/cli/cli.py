@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 from abc import ABC
 from datetime import datetime
 from pathlib import Path
@@ -357,6 +358,8 @@ def main(
         input_text = text
     elif len(filename) > 0:
         input_text = "".join(path.read_text().rstrip("\n") + "\nEOD\n" for path in filename)
+    elif sys.stdin.isatty() is False:
+        input_text = sys.stdin.read()
     else:
         pass  # interactive mode
 
