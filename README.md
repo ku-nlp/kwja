@@ -95,8 +95,6 @@ Here are some other options for `kwja` command:
   - `seq2seq`: Word segmentation, Word normalization, Reading prediction, lemmatization, and Canonicalization.
   - `char`: Word segmentation and Word normalization
   - `word`: Morphological analysis, Named entity recognition, Word feature tagging, Dependency parsing, PAS analysis, Bridging reference resolution, and Coreference resolution
-  - `word_discourse`: Discourse relation analysis
-    - If you need the results of discourse relation analysis, please specify this in addition to `word`.
 
 `--config-file`: Path to a custom configuration file.
 

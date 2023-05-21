@@ -22,16 +22,10 @@ if [[ $# -ne 2 ]]; then
   usage
 fi
 
-for task in typo senter char seq2seq word word_discourse; do
+for task in typo senter char seq2seq word; do
   train_extra_args=("ignore_hparams_on_save=true" "trainer=cpu.debug" "do_predict_after_train=false")
-  if [[ ${task} == "word_discourse" ]]; then
-    module="word"
-    train_extra_args=("${train_extra_args[@]}" "datamodule=word_kwdlc")
-    checkpoint_dir="result/${module}_module.debug-datamodule_word_kwdlc-ignore_hparams_on_save_true-trainer_cpu.debug"
-  else
-    module="${task}"
-    checkpoint_dir="result/${module}_module.debug-ignore_hparams_on_save_true-trainer_cpu.debug"
-  fi
+  module="${task}"
+  checkpoint_dir="result/${module}_module.debug-ignore_hparams_on_save_true-trainer_cpu.debug"
 
   poetry run python scripts/train.py -cn ${module}_module.debug "${train_extra_args[@]}"
 
@@ -54,9 +48,6 @@ for task in typo senter char seq2seq word word_discourse; do
   else
     echo "Unknown module: ${module}" >&2
     exit 1
-  fi
-  if [[ ${task} == "word_discourse" ]]; then
-    task="disc"
   fi
   rsync -ahPmv "${checkpoint_path}" "$1:$2/dev/${task}_${pretrained_model_name}.ckpt"
 done
