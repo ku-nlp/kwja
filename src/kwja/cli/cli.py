@@ -191,27 +191,6 @@ class WordModuleProcessor(BaseModuleProcessor):
         return self.destination.read_text()
 
 
-class WordDiscourseModuleProcessor(BaseModuleProcessor):
-    def _load_module(self) -> pl.LightningModule:
-        typer.echo("Loading word_discourse module", err=True)
-        checkpoint_path: Path = download_checkpoint(module="word_discourse", model_size=self.model_size)
-        module = WordModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
-        module.hparams.callbacks.prediction_writer = {
-            "_target_": "kwja.callbacks.word_discourse_module_writer.WordDiscourseModuleWriter"
-        }
-        return module
-
-    def _load_datamodule(self, input_file: Path) -> DataModule:
-        assert self.module is not None
-        self.module.hparams.datamodule.predict.knp_file = input_file
-        datamodule = DataModule(cfg=self.module.hparams.datamodule)
-        datamodule.setup(stage=TrainerFn.PREDICTING)
-        return datamodule
-
-    def export_prediction(self) -> str:
-        return self.destination.read_text()
-
-
 class CLIProcessor:
     def __init__(self, config: CLIConfig) -> None:
         self.raw_destination = Path(NamedTemporaryFile(suffix=".txt", delete=False).name)
@@ -221,7 +200,6 @@ class CLIProcessor:
             "seq2seq": Seq2SeqModuleProcessor(config, config.seq2seq_batch_size),
             "char": CharModuleProcessor(config, config.char_batch_size),
             "word": WordModuleProcessor(config, config.word_batch_size),
-            "word_discourse": WordDiscourseModuleProcessor(config, config.word_batch_size),
         }
 
     def load_modules(self, tasks: List[str]) -> None:
@@ -297,7 +275,7 @@ def tasks_callback(value: str) -> str:
     """sort and validate specified tasks"""
     values: List[str] = [v for v in value.split(",") if v]
     tasks: List[str] = []
-    for candidate_task in ("typo", "senter", "seq2seq", "char", "word", "word_discourse"):
+    for candidate_task in ("typo", "senter", "seq2seq", "char", "word"):
         if candidate_task in values:
             tasks.append(candidate_task)
             values.remove(candidate_task)
@@ -312,17 +290,13 @@ def tasks_callback(value: str) -> str:
         ("typo", "senter"),
         ("typo", "senter", "char"),
         ("typo", "senter", "char", "word"),
-        ("typo", "senter", "char", "word", "word_discourse"),
         ("typo", "senter", "seq2seq"),
         ("typo", "senter", "seq2seq", "word"),
-        ("typo", "senter", "seq2seq", "word", "word_discourse"),
         ("senter",),
         ("senter", "char"),
         ("senter", "char", "word"),
-        ("senter", "char", "word", "word_discourse"),
         ("senter", "seq2seq"),
         ("senter", "seq2seq", "word"),
-        ("senter", "seq2seq", "word", "word_discourse"),
     }
 
     if tuple(tasks) not in valid_task_combinations:
@@ -344,9 +318,7 @@ def main(
     seq2seq_batch_size: Optional[int] = typer.Option(None, help="Batch size for seq2seq module."),
     char_batch_size: Optional[int] = typer.Option(None, help="Batch size for char module."),
     word_batch_size: Optional[int] = typer.Option(None, help="Batch size for word module."),
-    tasks: str = typer.Option(
-        "senter,char,word,word_discourse", callback=tasks_callback, help="Tasks to be performed."
-    ),
+    tasks: str = typer.Option("senter,char,word", callback=tasks_callback, help="Tasks to be performed."),
     _: Optional[bool] = typer.Option(None, "--version", callback=version_callback, is_eager=True),
     config_file: Optional[Path] = typer.Option(None, help="Path to KWJA config file."),
 ) -> None:

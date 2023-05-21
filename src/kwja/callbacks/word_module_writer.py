@@ -33,7 +33,6 @@ from kwja.utils.constants import (
     POS_TAGS,
     RESOURCE_PATH,
     SUBPOS_TAGS,
-    WordTask,
 )
 from kwja.utils.jumandic import JumanDic
 from kwja.utils.reading_prediction import get_reading2reading_id
@@ -165,8 +164,7 @@ class WordModuleWriter(BasePredictionWriter):
                 dataset.cohesion_task2utils,
                 example.special_token_indexer,
             )
-            if WordTask.DISCOURSE_PARSING in pl_module.training_tasks:
-                add_discourse(predicted_document, discourse_predictions)
+            add_discourse(predicted_document, discourse_predictions)
 
             for predicted_sentence, sentence in zip(
                 extract_target_sentences(predicted_document),

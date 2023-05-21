@@ -26,7 +26,6 @@ _CHECKPOINT_FILE_NAMES: Dict[ModelSize, Dict[str, str]] = {
         "seq2seq": "seq2seq_mt5-small.ckpt",
         "char": "char_deberta-v2-tiny-wwm.ckpt",
         "word": "word_deberta-v2-tiny.ckpt",
-        "word_discourse": "disc_deberta-v2-tiny.ckpt",
     },
     ModelSize.base: {
         "typo": "typo_deberta-v2-base-wwm.ckpt",
@@ -34,7 +33,6 @@ _CHECKPOINT_FILE_NAMES: Dict[ModelSize, Dict[str, str]] = {
         "seq2seq": "seq2seq_mt5-base.ckpt",
         "char": "char_deberta-v2-base-wwm.ckpt",
         "word": "word_deberta-v2-base.ckpt",
-        "word_discourse": "disc_deberta-v2-base.ckpt",
     },
     ModelSize.large: {
         "typo": "typo_deberta-v2-large-wwm.ckpt",
@@ -42,7 +40,6 @@ _CHECKPOINT_FILE_NAMES: Dict[ModelSize, Dict[str, str]] = {
         "seq2seq": "seq2seq_mt5-large.ckpt",
         "char": "char_deberta-v2-large-wwm.ckpt",
         "word": "word_deberta-v2-large.ckpt",
-        "word_discourse": "disc_deberta-v2-large.ckpt",
     },
 }
 
@@ -86,7 +83,7 @@ def download_checkpoint(
     If the object is already present in `checkpoint_dir`, just return the path to the object.
 
     Args:
-        module: typo, char, word, or word_discourse
+        module: typo, char, or word
         model_size: tiny, base or large
         checkpoint_dir: directory in which to save the object
         progress: whether to display a progress bar to stderr
