@@ -1,3 +1,5 @@
 import os
+import sys
 
-os.environ["KWJA_CLI_MODE"] = "1"
+if "pytest" not in sys.modules:
+    os.environ["KWJA_CLI_MODE"] = "1"
