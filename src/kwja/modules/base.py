@@ -1,3 +1,4 @@
+import os
 from copy import deepcopy
 from typing import Any, Callable, Dict, Generic, List, Optional, Sequence, TypeVar
 
@@ -9,7 +10,31 @@ from torch.overrides import TorchFunctionMode  # type: ignore
 from torch.serialization import FILE_LIKE, MAP_LOCATION  # type: ignore
 from typing_extensions import Self
 
-from kwja.metrics.base import BaseModuleMetric
+
+class DummyModuleMetric:
+    def __init__(self) -> None:
+        pass
+
+    def update(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+    def compute(self) -> Dict[str, float]:
+        return {}
+
+    def reset(self) -> None:
+        pass
+
+    def pad(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+    def set_properties(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+
+if os.environ.get("KWJA_CLI_MODE") == "1":
+    BaseModuleMetric = DummyModuleMetric  # dummy class for faster loading
+else:
+    from kwja.metrics.base import BaseModuleMetric  # type: ignore
 
 MetricType = TypeVar("MetricType", bound=BaseModuleMetric)
 

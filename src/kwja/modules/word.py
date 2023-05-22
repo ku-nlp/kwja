@@ -1,3 +1,4 @@
+import os
 from functools import reduce
 from statistics import mean
 from typing import Any, Dict, List
@@ -7,8 +8,7 @@ import torch
 from omegaconf import DictConfig
 from transformers import PretrainedConfig, PreTrainedModel
 
-from kwja.metrics import WordModuleMetric
-from kwja.modules.base import BaseModule
+from kwja.modules.base import BaseModule, DummyModuleMetric
 from kwja.modules.components.crf import CRF
 from kwja.modules.components.head import SequenceLabelingHead, WordSelectionHead
 from kwja.modules.components.pooling import PoolingStrategy, pool_subwords
@@ -35,6 +35,11 @@ from kwja.utils.constants import (
     WordTask,
 )
 from kwja.utils.reading_prediction import get_reading2reading_id
+
+if os.environ.get("KWJA_CLI_MODE") == "1":
+    WordModuleMetric = DummyModuleMetric  # dummy class for faster loading
+else:
+    from kwja.metrics import WordModuleMetric  # type: ignore
 
 
 class WordModule(BaseModule[WordModuleMetric]):

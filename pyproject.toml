@@ -53,26 +53,26 @@ omegaconf = "^2.1"
 hydra-core = "^1.2"
 rhoknp = "^1.1.0"
 typer = ">=0.7.0,<0.10.0"
-seqeval = "^1.2"
 python-dotenv = "^1.0.0"
-pandas = "^2.0"
 jinf = "^1.0.4"
 importlib-resources = "^5.10"
 jaconv = "^0.3"
 pure-cdb = "^4.0"
 rich = ">=12.4"
-Levenshtein = "^0.21.0"
 pyyaml = "^6.0"
 
 [tool.poetry.group.dev.dependencies]
+seqeval = "^1.2"
+Levenshtein = "^0.21.0"
+pandas = "^2.0"
 ipython = [
     { version = "~8.12.1", python = "<3.9" },
     { version = "^8.13", python = ">=3.9" },
 ]
 ipdb = "^0.13.13"
 types-attrs = "^19.1.0"
-wandb = "^0.15.0"
 types-pyyaml = "^6.0.12.9"
+wandb = "^0.15.0"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7.1"
