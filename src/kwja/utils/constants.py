@@ -2,7 +2,10 @@ import re
 from enum import Enum
 from typing import Dict, Optional, Tuple
 
-import importlib_resources
+try:
+    from importlib.resources import files as resource_files  # type: ignore
+except ImportError:
+    from importlib_resources import files as resource_files
 from rhoknp.props import DepType, NamedEntityCategory
 
 import kwja
@@ -10,7 +13,7 @@ import kwja
 # ---------- common ----------
 IGNORE_INDEX = -100
 MASKED = -1024.0
-RESOURCE_PATH = importlib_resources.files(kwja) / "resource"
+RESOURCE_PATH = resource_files(kwja) / "resource"
 
 # ---------- senter module ----------
 SENT_SEGMENTATION_TAGS = ("B", "I")

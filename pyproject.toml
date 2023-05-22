@@ -45,7 +45,7 @@ include = [
 [tool.poetry.dependencies]
 python = "^3.8"
 torch = ">=1.11,!=2.0.1"  # https://github.com/pytorch/pytorch/issues/100974
-transformers = {version = "~4.28.1", extras = ["sentencepiece"]}
+transformers = { version = "~4.28.1", extras = ["sentencepiece"]}
 tokenizers = "^0.13.2"
 pytorch-lightning = "~2.0.0"  # As "lightning" comes with many extra dependencies, we stay with "pytorch-lightning"
 torchmetrics = "^0.11.3"
@@ -54,11 +54,11 @@ hydra-core = "^1.2"
 rhoknp = "^1.1.0"
 typer = ">=0.7.0,<0.10.0"
 jinf = "^1.0.4"
-importlib-resources = "^5.10"
 jaconv = "^0.3"
 pure-cdb = "^4.0"
 rich = ">=12.4"
 pyyaml = "^6.0"
+importlib-resources = { version = "^5.10", python = "<3.9" }
 
 [tool.poetry.group.dev.dependencies]
 seqeval = "^1.2"
