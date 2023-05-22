@@ -70,11 +70,14 @@ ipython = [
     { version = "^8.13", python = ">=3.9" },
 ]
 ipdb = "^0.13.13"
-types-attrs = "^19.1.0"
+types-attrs = "^19.1"
 types-pyyaml = "^6.0.12.9"
 wandb = "^0.15.0"
 
 [tool.poetry.group.test.dependencies]
+seqeval = "^1.2"
+Levenshtein = "^0.21.0"
+pandas = "^2.0"
 pytest = "^7.1"
 pytest-cov = "^4.0"
 pytest-profiling = "^1.7"
