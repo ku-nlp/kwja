@@ -7,13 +7,13 @@ import torch
 from omegaconf import DictConfig
 from transformers import PreTrainedModel
 
-from kwja.modules.base import BaseModule, DummyModuleMetric
+from kwja.modules.base import BaseModule
 from kwja.modules.components.head import SequenceLabelingHead
 from kwja.modules.functions.loss import compute_token_mean_loss
 from kwja.utils.constants import SENT_SEGMENTATION_TAGS
 
 if os.environ.get("KWJA_CLI_MODE") == "1":
-    SenterModuleMetric = DummyModuleMetric  # dummy class for faster loading
+    from kwja.modules.base import DummyModuleMetric as SenterModuleMetric  # dummy class for faster loading
 else:
     from kwja.metrics import SenterModuleMetric  # type: ignore
 

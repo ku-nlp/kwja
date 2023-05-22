@@ -8,11 +8,11 @@ from omegaconf import DictConfig
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from transformers.generation import LogitsProcessorList
 
-from kwja.modules.base import BaseModule, DummyModuleMetric
+from kwja.modules.base import BaseModule
 from kwja.modules.components.logits_processor import ForcedSurfLogitsProcessor, get_char2tokens
 
 if os.environ.get("KWJA_CLI_MODE") == "1":
-    Seq2SeqModuleMetric = DummyModuleMetric  # dummy class for faster loading
+    from kwja.modules.base import DummyModuleMetric as Seq2SeqModuleMetric  # dummy class for faster loading
 else:
     from kwja.metrics import Seq2SeqModuleMetric  # type: ignore
 
