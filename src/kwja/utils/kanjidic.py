@@ -1,7 +1,7 @@
 import unicodedata
 from typing import Any, Dict
 
-import jaconv
+from kwja.utils.constants import KATA2HIRA
 
 
 class KanjiDic:
@@ -324,7 +324,7 @@ class KanjiDic:
                         else:
                             struct["korean"].append(f[1:])
                     elif unicodedata.name(f[0])[0:8] in ("HIRAGANA", "KATAKANA"):
-                        f = jaconv.kata2hira(f)
+                        f = f.translate(KATA2HIRA)
                         if f[-1] == "-":
                             f = f[:-1]
                         if "reading" not in struct:
