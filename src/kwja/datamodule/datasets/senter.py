@@ -11,7 +11,7 @@ from transformers.utils import PaddingStrategy
 from kwja.datamodule.datasets.base import BaseDataset, FullAnnotatedDocumentLoaderMixin
 from kwja.datamodule.examples import SenterExample
 from kwja.utils.constants import IGNORE_INDEX, SENT_SEGMENTATION_TAGS, TRANSLATION_TABLE
-from kwja.utils.progress_bar import track
+from kwja.utils.logging import track
 
 logger = logging.getLogger(__name__)
 

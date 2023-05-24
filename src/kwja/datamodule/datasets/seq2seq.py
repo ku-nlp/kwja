@@ -10,7 +10,7 @@ from transformers.utils import PaddingStrategy
 from kwja.datamodule.datasets.base import BaseDataset
 from kwja.datamodule.examples import Seq2SeqExample
 from kwja.utils.constants import FULL_SPACE_TOKEN, IGNORE_INDEX, NEW_LINE_TOKEN
-from kwja.utils.progress_bar import track
+from kwja.utils.logging import track
 from kwja.utils.seq2seq_format import get_seq2seq_format
 
 logger = logging.getLogger(__name__)

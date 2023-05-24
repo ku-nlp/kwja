@@ -5,7 +5,7 @@ from typing import Dict, List
 
 import cdblib
 
-from kwja.utils.progress_bar import track
+from kwja.utils.logging import track
 
 
 class JumanDic:

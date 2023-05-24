@@ -15,7 +15,7 @@ from kwja.datamodule.datasets.word import WordModuleFeatures
 from kwja.datamodule.examples import SpecialTokenIndexer, WordInferenceExample
 from kwja.utils.cohesion_analysis import BridgingUtils, CohesionUtils, CoreferenceUtils, PasUtils
 from kwja.utils.constants import SPLIT_INTO_WORDS_MODEL_NAMES, CohesionTask
-from kwja.utils.progress_bar import track
+from kwja.utils.logging import track
 from kwja.utils.sub_document import extract_target_sentences
 
 logger = logging.getLogger(__name__)

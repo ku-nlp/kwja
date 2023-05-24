@@ -1,13 +1,10 @@
 import logging
 import os
 import sys
-import warnings
 from pathlib import Path
-from typing import Dict, Literal, Optional, Tuple, Union
+from typing import Dict, Optional, Tuple, Union
 
 import torch
-import transformers.utils.logging as hf_logging
-from pytorch_lightning.utilities.warnings import PossibleUserWarning
 from torch.hub import download_url_to_file
 
 import kwja
@@ -42,35 +39,6 @@ _CHECKPOINT_FILE_NAMES: Dict[ModelSize, Dict[str, str]] = {
         "word": "word_deberta-v2-large.ckpt",
     },
 }
-
-
-def filter_logs(environment: Literal["development", "production"]) -> None:
-    logging.getLogger("rhoknp").setLevel(logging.ERROR)
-    hf_logging.set_verbosity(hf_logging.ERROR)
-    if environment == "production":
-        warnings.filterwarnings("ignore")
-        logging.getLogger("kwja").setLevel(logging.ERROR)
-        logging.getLogger("torch").setLevel(logging.ERROR)
-        logging.getLogger("pytorch_lightning").setLevel(logging.ERROR)
-    elif environment == "development":
-        warnings.filterwarnings(
-            "ignore",
-            message=(
-                r"It is recommended to use .+ when logging on epoch level in distributed setting to accumulate the metric"
-                r" across devices"
-            ),
-            category=PossibleUserWarning,
-        )
-        warnings.filterwarnings(
-            "ignore",
-            message=(
-                r"Using `DistributedSampler` with the dataloaders. During `trainer..+`, it is recommended to use"
-                r" `Trainer(devices=1, num_nodes=1)` to ensure each sample/batch gets evaluated exactly once. Otherwise,"
-                r" multi-device settings use `DistributedSampler` that replicates some samples to make sure all devices have"
-                r" same batch size in case of uneven inputs."
-            ),
-            category=PossibleUserWarning,
-        )
 
 
 def download_checkpoint(

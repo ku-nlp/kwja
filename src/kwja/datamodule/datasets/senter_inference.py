@@ -13,7 +13,7 @@ from kwja.datamodule.datasets.base import BaseDataset, FullAnnotatedDocumentLoad
 from kwja.datamodule.datasets.senter import SenterModuleFeatures
 from kwja.datamodule.examples import SenterInferenceExample
 from kwja.utils.constants import TRANSLATION_TABLE
-from kwja.utils.progress_bar import track
+from kwja.utils.logging import track
 
 logger = logging.getLogger(__name__)
 

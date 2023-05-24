@@ -8,8 +8,8 @@ from omegaconf import DictConfig, ListConfig, OmegaConf
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.trainer.states import TrainerFn
 
-from kwja.cli.utils import filter_logs
 from kwja.datamodule.datamodule import DataModule
+from kwja.utils.logging import filter_logs
 
 filter_logs(environment="development")
 

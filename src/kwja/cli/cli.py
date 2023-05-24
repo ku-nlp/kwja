@@ -17,9 +17,10 @@ from rhoknp.utils.reader import chunk_by_sentence
 
 import kwja
 from kwja.cli.config import CLIConfig, Device, ModelSize, get_kwja_config_file
-from kwja.cli.utils import download_checkpoint, filter_logs, prepare_device
+from kwja.cli.utils import download_checkpoint, prepare_device
 from kwja.datamodule.datamodule import DataModule
 from kwja.modules import CharModule, SenterModule, Seq2SeqModule, TypoModule, WordModule
+from kwja.utils.logging import filter_logs
 
 filter_logs(environment="production")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
