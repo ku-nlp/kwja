@@ -12,7 +12,7 @@ from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.trainer.states import TrainerFn
 
 from kwja.datamodule.datamodule import DataModule
-from kwja.utils.logging import filter_logs
+from kwja.utils.logging_util import filter_logs
 
 filter_logs(environment="production")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"

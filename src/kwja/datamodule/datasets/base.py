@@ -7,7 +7,7 @@ from rhoknp import Document, Sentence
 from torch.utils.data import Dataset
 from transformers import PreTrainedTokenizerBase
 
-from kwja.utils.logging import track
+from kwja.utils.logging_util import track
 from kwja.utils.sub_document import SequenceSplitter, SpanCandidate, to_sub_doc_id
 
 logger = logging.getLogger(__name__)

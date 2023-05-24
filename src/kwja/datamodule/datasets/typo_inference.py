@@ -9,7 +9,7 @@ from kwja.datamodule.datasets.base import BaseDataset
 from kwja.datamodule.datasets.typo import TypoModuleFeatures
 from kwja.datamodule.examples import TypoInferenceExample
 from kwja.utils.constants import DUMMY_TOKEN
-from kwja.utils.logging import track
+from kwja.utils.logging_util import track
 
 
 class TypoInferenceDataset(BaseDataset[TypoInferenceExample, TypoModuleFeatures]):

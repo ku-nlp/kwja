@@ -20,7 +20,7 @@ from kwja.cli.config import CLIConfig, Device, ModelSize, get_kwja_config_file
 from kwja.cli.utils import download_checkpoint, prepare_device
 from kwja.datamodule.datamodule import DataModule
 from kwja.modules import CharModule, SenterModule, Seq2SeqModule, TypoModule, WordModule
-from kwja.utils.logging import filter_logs
+from kwja.utils.logging_util import filter_logs
 
 filter_logs(environment="production")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"

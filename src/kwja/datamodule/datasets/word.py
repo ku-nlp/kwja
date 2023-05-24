@@ -29,7 +29,7 @@ from kwja.utils.constants import (
     CohesionTask,
 )
 from kwja.utils.kanjidic import KanjiDic
-from kwja.utils.logging import track
+from kwja.utils.logging_util import track
 from kwja.utils.reading_prediction import ReadingAligner, get_reading2reading_id
 from kwja.utils.sub_document import extract_target_sentences
 

@@ -11,7 +11,7 @@ from kwja.datamodule.datasets.base import BaseDataset, FullAnnotatedDocumentLoad
 from kwja.datamodule.datasets.char import CharModuleFeatures
 from kwja.datamodule.examples import CharInferenceExample
 from kwja.utils.constants import TRANSLATION_TABLE
-from kwja.utils.logging import track
+from kwja.utils.logging_util import track
 from kwja.utils.reader import chunk_by_document_for_line_by_line_text
 
 logger = logging.getLogger(__name__)

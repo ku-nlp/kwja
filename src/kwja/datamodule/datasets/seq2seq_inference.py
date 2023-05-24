@@ -10,7 +10,7 @@ from kwja.datamodule.datasets.base import BaseDataset
 from kwja.datamodule.datasets.seq2seq import Seq2SeqModuleFeatures
 from kwja.datamodule.examples import Seq2SeqInferenceExample
 from kwja.utils.constants import FULL_SPACE_TOKEN
-from kwja.utils.logging import track
+from kwja.utils.logging_util import track
 from kwja.utils.reader import chunk_by_document_for_line_by_line_text
 
 logger = logging.getLogger(__name__)

@@ -17,7 +17,7 @@ from kwja.utils.constants import (
     WORD_NORM_OP_TAGS,
     WORD_SEGMENTATION_TAGS,
 )
-from kwja.utils.logging import track
+from kwja.utils.logging_util import track
 from kwja.utils.word_normalization import SentenceDenormalizer
 
 logger = logging.getLogger(__name__)

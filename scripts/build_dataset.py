@@ -13,7 +13,7 @@ from rhoknp.props import FeatureDict, NamedEntity, NamedEntityCategory
 from rhoknp.utils.reader import chunk_by_document, chunk_by_sentence
 
 from kwja.utils.constants import BASE_PHRASE_FEATURES, IGNORE_VALUE_FEATURE_PAT, SUB_WORD_FEATURES
-from kwja.utils.logging import track
+from kwja.utils.logging_util import track
 
 
 class JumanppAugmenter:
