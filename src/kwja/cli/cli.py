@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Dict, List, Optional, Set, Tuple
+from unicodedata import normalize
 
 import hydra
 import pytorch_lightning as pl
@@ -21,6 +22,7 @@ from kwja.cli.utils import download_checkpoint, prepare_device
 from kwja.datamodule.datamodule import DataModule
 from kwja.modules import CharModule, SenterModule, Seq2SeqModule, TypoModule, WordModule
 from kwja.utils.logging_util import filter_logs
+from kwja.utils.constants import TRANSLATION_TABLE
 
 filter_logs(environment="production")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -228,26 +230,16 @@ class CLIProcessor:
         print(self.processors[tasks[-1]].export_prediction(), end="")
 
 
-# def _split_input_texts(input_texts: str) -> List[str]:
-#     split_texts: List[str] = []
-#     split_text: str = ""
-#     for input_text in input_texts:
-#         input_text_with_eod: str = input_text.strip() + "\nEOD"
-#         for text in input_text_with_eod.split("\n"):
-#             if text == "EOD":
-#                 # hydra.utils.instantiateを実行する際に文字列${...}を補間しようとするのを防ぐ
-#                 normalized = OMEGACONF_VARIABLE_INTERPOLATION.sub(r"$␣\g<variable>", split_text)
-#                 # "#"で始まる行がコメント行と誤認識されることを防ぐ
-#                 normalized = normalized.replace("#", "＃")
-#                 split_texts.append(normalized.rstrip())
-#                 split_text = ""
-#             else:
-#                 split_text += f"{text}\n"
-#     return split_texts
-
-
 def _normalize_text(text: str) -> str:
-    # TODO: implement
+    # Tokenizers (BertJapaneseTokenizer, DebertaV2Tokenizer, etc.) apply NFKC normalization internally, so
+    # there may be inconsistency in number of characters if not applying NFKC normalization in advance
+    text = normalize("NFKC", text)
+    # escape several symbols and delete control characters
+    text = text.translate(TRANSLATION_TABLE)
+    # prevent hydra.utils.instantiate from interpolating the string "${...}"
+    text = OMEGACONF_VARIABLE_INTERPOLATION.sub(r"$␣\g<variable>", text)
+    # if text != original_text:
+    #     typer.echo(f"apply normalization ({original_text} -> {text})", err=True)
     return text
 
 

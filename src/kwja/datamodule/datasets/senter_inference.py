@@ -1,7 +1,6 @@
 import logging
 from datetime import datetime
 from typing import Dict, List, Optional
-from unicodedata import normalize
 
 from omegaconf import ListConfig
 from rhoknp import Document, RegexSenter
@@ -12,7 +11,6 @@ import kwja
 from kwja.datamodule.datasets.base import BaseDataset, FullAnnotatedDocumentLoaderMixin
 from kwja.datamodule.datasets.senter import SenterModuleFeatures
 from kwja.datamodule.examples import SenterInferenceExample
-from kwja.utils.constants import TRANSLATION_TABLE
 from kwja.utils.logging_util import track
 
 logger = logging.getLogger(__name__)
@@ -81,12 +79,3 @@ class SenterInferenceDataset(
                 sentence.sid = f"{document.doc_id}-{sent_idx:0{sent_id_width}}"
                 sentence.misc_comment = f"kwja:{kwja.__version__}"
         return documents
-
-    def _postprocess_document(self, document: Document) -> Document:
-        for sentence in document.sentences:
-            normalized = normalize("NFKC", sentence.text).translate(TRANSLATION_TABLE)
-            if normalized != sentence.text:
-                logger.warning(f"apply normalization ({sentence.text} -> {normalized})")
-                sentence.text = normalized
-        document.text = "".join(sentence.text for sentence in document.sentences)
-        return document

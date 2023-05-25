@@ -1,7 +1,6 @@
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional
-from unicodedata import normalize
 
 from rhoknp import Document
 from transformers import BatchEncoding, PreTrainedTokenizerBase
@@ -10,7 +9,6 @@ from transformers.utils import PaddingStrategy
 from kwja.datamodule.datasets.base import BaseDataset, FullAnnotatedDocumentLoaderMixin
 from kwja.datamodule.datasets.char import CharModuleFeatures
 from kwja.datamodule.examples import CharInferenceExample
-from kwja.utils.constants import TRANSLATION_TABLE
 from kwja.utils.logging_util import track
 from kwja.utils.reader import chunk_by_document_for_line_by_line_text
 
@@ -66,12 +64,3 @@ class CharInferenceDataset(BaseDataset[CharInferenceExample, CharModuleFeatures]
             word_segmentation_labels=[],
             word_norm_op_labels=[],
         )
-
-    def _postprocess_document(self, document):
-        for sentence in document.sentences:
-            normalized = normalize("NFKC", sentence.text).translate(TRANSLATION_TABLE)
-            if normalized != sentence.text:
-                logger.warning(f"apply normalization ({sentence.text} -> {normalized})")
-                sentence.text = normalized
-        document.text = "".join(sentence.text for sentence in document.sentences)
-        return document
