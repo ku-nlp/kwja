@@ -36,9 +36,6 @@ def main(eval_cfg: DictConfig):
     cfg = OmegaConf.merge(train_cfg, eval_cfg)
     assert isinstance(cfg, DictConfig)
 
-    if getattr(cfg, "load_model_only", False):
-        sys.exit(0)
-
     callbacks: List[Callback] = []
     for k, v in cfg.get("callbacks", {}).items():
         if k in {"prediction_writer", "progress_bar"}:
