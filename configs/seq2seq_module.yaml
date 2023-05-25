@@ -29,7 +29,7 @@ monitor: valid/seq2seq_loss
 mode: min
 
 # hyper-parameters to be tuned
-lr: 5e-4
+lr: 1e-3
 max_epochs: 100
 warmup_steps: 250
 effective_batch_size: 512
