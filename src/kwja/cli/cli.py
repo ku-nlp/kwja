@@ -21,8 +21,8 @@ from kwja.cli.config import CLIConfig, Device, ModelSize, get_kwja_config_file
 from kwja.cli.utils import download_checkpoint, prepare_device
 from kwja.datamodule.datamodule import DataModule
 from kwja.modules import CharModule, SenterModule, Seq2SeqModule, TypoModule, WordModule
-from kwja.utils.logging_util import filter_logs
 from kwja.utils.constants import TRANSLATION_TABLE
+from kwja.utils.logging_util import filter_logs
 
 filter_logs(environment="production")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -233,14 +233,14 @@ class CLIProcessor:
 def _normalize_text(text: str) -> str:
     # Tokenizers (BertJapaneseTokenizer, DebertaV2Tokenizer, etc.) apply NFKC normalization internally, so
     # there may be inconsistency in number of characters if not applying NFKC normalization in advance
-    text = normalize("NFKC", text)
+    normalized = normalize("NFKC", text)
     # escape several symbols and delete control characters
-    text = text.translate(TRANSLATION_TABLE)
+    normalized = normalized.translate(TRANSLATION_TABLE)
     # prevent hydra.utils.instantiate from interpolating the string "${...}"
-    text = OMEGACONF_VARIABLE_INTERPOLATION.sub(r"$␣\g<variable>", text)
-    # if text != original_text:
-    #     typer.echo(f"apply normalization ({original_text} -> {text})", err=True)
-    return text
+    normalized = OMEGACONF_VARIABLE_INTERPOLATION.sub(r"$␣\g<variable>", normalized)
+    # if normalized != text:
+    #     typer.echo(f"apply normalization ({text} -> {normalized})", err=True)
+    return normalized
 
 
 def _split_into_documents(input_text: str) -> List[str]:
