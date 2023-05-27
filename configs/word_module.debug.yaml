@@ -3,7 +3,7 @@ defaults:
   - callbacks: [early_stopping, model_checkpoint, model_summary, word_module_writer, progress_bar, lr_monitor]
   - datamodule: word
   - logger: null
-  - encoder: word_roberta_tiny
+  - encoder: word_deberta_tiny
   - module: word
   - optimizer: adamw
   - scheduler: constant_schedule_with_warmup

@@ -3,7 +3,7 @@ defaults:
   - callbacks: [early_stopping, model_checkpoint, model_summary, char_module_writer, progress_bar, lr_monitor]
   - datamodule: char
   - logger: wandb
-  - encoder: char_roberta_large
+  - encoder: char_deberta_large
   - module: char
   - optimizer: adamw
   - scheduler: cosine_schedule_with_warmup
@@ -52,7 +52,7 @@ hparams_to_ignore_on_save:
     - model_checkpoint
     - model_summary
     - prediction_writer:
-        - output_dir
+      - output_dir
   - datamodule:
     - train
     - valid
