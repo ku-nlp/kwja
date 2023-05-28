@@ -329,9 +329,6 @@ def main(
         pass  # interactive mode
 
     specified_tasks: List[str] = tasks.split(",")
-    if model_size == ModelSize.large and "seq2seq" in specified_tasks:
-        typer.echo("ERROR: Large model does not support seq2seq module now", err=True)
-        raise typer.Abort()
 
     if config_file is None:
         config_file = get_kwja_config_file()
