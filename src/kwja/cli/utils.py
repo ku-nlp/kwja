@@ -20,21 +20,21 @@ _CHECKPOINT_BASE_URL = "https://lotus.kuee.kyoto-u.ac.jp"
 _CHECKPOINT_FILE_NAMES: Dict[ModelSize, Dict[str, str]] = {
     ModelSize.tiny: {
         "typo": "typo_deberta-v2-tiny-wwm.ckpt",
-        "seq2seq": "seq2seq_mt5-small.ckpt",
+        "seq2seq": "seq2seq_t5-small.ckpt",
         "char": "char_deberta-v2-tiny-wwm.ckpt",
         "word": "word_deberta-v2-tiny.ckpt",
     },
     ModelSize.base: {
         "typo": "typo_deberta-v2-base-wwm.ckpt",
         "senter": "senter_deberta-v2-base-wwm.ckpt",
-        "seq2seq": "seq2seq_mt5-base.ckpt",
+        "seq2seq": "seq2seq_t5-base.ckpt",
         "char": "char_deberta-v2-base-wwm.ckpt",
         "word": "word_deberta-v2-base.ckpt",
     },
     ModelSize.large: {
         "typo": "typo_deberta-v2-large-wwm.ckpt",
         "senter": "senter_deberta-v2-base-wwm.ckpt",  # We won't release the large model for now.
-        "seq2seq": "seq2seq_mt5-large.ckpt",
+        "seq2seq": "seq2seq_t5-large.ckpt",
         "char": "char_deberta-v2-large-wwm.ckpt",
         "word": "word_deberta-v2-large.ckpt",
     },
