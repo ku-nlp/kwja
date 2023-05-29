@@ -182,41 +182,34 @@ def get_morpheme_attribute_predictions(
 ) -> Tuple[List[int], List[int], List[int], List[int]]:
     pos_predictions: List[int] = np.array(pos_logits).argmax(axis=1).tolist()
     subpos_predictions: List[int] = []
-    for pos_index, subpos_logit_list in zip(pos_predictions, subpos_logits):
-        subpos_tag2subpos_id = POS_TAG_SUBPOS_TAG2SUBPOS_ID[POS_TAGS[pos_index]]
-        possible_subpos_indices: Set[int] = {
-            SUBPOS_TAGS.index(subpos_tag) for subpos_tag in subpos_tag2subpos_id.keys()
-        }
-        max_subpos_logit = MASKED
-        subpos_prediction: int = 0
-        for subpos_index, subpos_logit in enumerate(subpos_logit_list):
-            if subpos_index in possible_subpos_indices and subpos_logit > max_subpos_logit:
-                max_subpos_logit = subpos_logit
-                subpos_prediction = subpos_index
-        subpos_predictions.append(subpos_prediction)
-
     conjtype_predictions: List[int] = np.array(conjtype_logits).argmax(axis=1).tolist()
     conjform_predictions: List[int] = []
-    for i, (pos_index, subpos_index, conjtype_index, conjform_logit_list) in enumerate(
-        zip(pos_predictions, subpos_predictions, conjtype_predictions, conjform_logits)
+    for i, (pos_index, subpos_logit_list, conjtype_index, conjform_logit_list) in enumerate(
+        zip(pos_predictions, subpos_logits, conjtype_predictions, conjform_logits)
     ):
-        pos_tag: str = POS_TAGS[pos_index]
-        subpos_tag: str = SUBPOS_TAGS[subpos_index]
+        pos_tag = POS_TAGS[pos_index]
+        possible_subpos_tags: Set[str] = set(POS_TAG_SUBPOS_TAG2SUBPOS_ID[pos_tag].keys())
+        for subpos_index, subpos_tag in enumerate(SUBPOS_TAGS):
+            if subpos_tag not in possible_subpos_tags:
+                subpos_logit_list[subpos_index] = MASKED
+        subpos_index = np.array(subpos_logit_list).argmax().item()
+        subpos_tag = SUBPOS_TAGS[subpos_index]
+        assert subpos_tag in possible_subpos_tags
+        subpos_predictions.append(subpos_index)
+
+        conjtype_tag = CONJTYPE_TAGS[conjtype_index]
         if (pos_tag, subpos_tag) in INFLECTABLE:
-            conjform_tag2conjform_id = CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID[CONJTYPE_TAGS[conjtype_index]]
-            possible_conjform_indices: Set[int] = {
-                CONJFORM_TAGS.index(conjform_tag) for conjform_tag in conjform_tag2conjform_id.keys()
-            }
-            max_conjform_logit = MASKED
-            conjform_prediction: int = 0
-            for conjform_index, conjform_logit in enumerate(conjform_logit_list):
-                if conjform_index in possible_conjform_indices and conjform_logit > max_conjform_logit:
-                    max_conjform_logit = conjform_logit
-                    conjform_prediction = conjform_index
+            possible_conjform_tags: Set[str] = set(CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID[conjtype_tag].keys())
+            for conjform_index, conjform_tag in enumerate(CONJFORM_TAGS):
+                if conjform_tag not in possible_conjform_tags:
+                    conjform_logit_list[conjform_index] = MASKED
+            conjform_index = np.array(conjform_logit_list).argmax().item()
+            conjform_tag = CONJFORM_TAGS[conjform_index]
+            assert conjform_tag in possible_conjform_tags
         else:
             conjtype_predictions[i] = CONJTYPE_TAGS.index("*")
-            conjform_prediction = CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID["*"]["*"]
-        conjform_predictions.append(conjform_prediction)
+            conjform_index = CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID["*"]["*"]
+        conjform_predictions.append(conjform_index)
 
     return pos_predictions, subpos_predictions, conjtype_predictions, conjform_predictions
 
