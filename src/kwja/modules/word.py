@@ -10,7 +10,12 @@ from transformers import PretrainedConfig, PreTrainedModel
 
 from kwja.modules.base import BaseModule
 from kwja.modules.components.crf import CRF
-from kwja.modules.components.head import SequenceLabelingHead, WordSelectionHead
+from kwja.modules.components.head import (
+    LoRASequenceMultiLabelingHead,
+    RelationWiseWordSelectionHead,
+    SequenceLabelingHead,
+    WordSelectionHead,
+)
 from kwja.modules.components.pooling import PoolingStrategy, pool_subwords
 from kwja.modules.functions.loss import (
     compute_cohesion_analysis_loss,
@@ -67,16 +72,14 @@ class WordModule(BaseModule[WordModuleMetric]):
         self.conjform_tagger = SequenceLabelingHead(len(CONJFORM_TAGS), **head_kwargs)
 
         # ---------- word feature tagging ----------
-        self.word_feature_tagger = SequenceLabelingHead(len(WORD_FEATURES), **head_kwargs, multi_label=True)
+        self.word_feature_tagger = LoRASequenceMultiLabelingHead(len(WORD_FEATURES), **head_kwargs)
 
         # ---------- named entity recognition ----------
         self.ne_tagger = SequenceLabelingHead(len(NE_TAGS), **head_kwargs)
         self.crf = CRF(NE_TAGS)
 
         # ---------- base phrase feature tagging ----------
-        self.base_phrase_feature_tagger = SequenceLabelingHead(
-            len(BASE_PHRASE_FEATURES), **head_kwargs, multi_label=True
-        )
+        self.base_phrase_feature_tagger = LoRASequenceMultiLabelingHead(len(BASE_PHRASE_FEATURES), **head_kwargs)
 
         # ---------- dependency parsing ----------
         self.dependency_topk: int = hparams.dependency_topk
@@ -88,7 +91,7 @@ class WordModule(BaseModule[WordModuleMetric]):
         )
 
         # ---------- cohesion analysis ----------
-        self.cohesion_analyzer = WordSelectionHead(self._get_num_cohesion_rels(hparams), **head_kwargs)
+        self.cohesion_analyzer = RelationWiseWordSelectionHead(self._get_num_cohesion_rels(hparams), **head_kwargs)
 
         # ---------- discourse parsing ----------
         self.discourse_parsing_threshold: float = hparams.discourse_parsing_threshold
