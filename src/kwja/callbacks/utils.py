@@ -218,20 +218,11 @@ def build_morphemes(
     surfs: List[str],
     lemmas: List[str],
     reading_predictions: List[str],
-    pos_predictions: List[int],
-    subpos_predictions: List[int],
-    conjtype_predictions: List[int],
-    conjform_predictions: List[int],
+    morpheme_attribute_predictions: Tuple[List[int], List[int], List[int], List[int]],
 ) -> List[Morpheme]:
     morphemes = []
     for surf, lemma, reading, pos_index, subpos_index, conjtype_index, conjform_index in zip(
-        surfs,
-        lemmas,
-        reading_predictions,
-        pos_predictions,
-        subpos_predictions,
-        conjtype_predictions,
-        conjform_predictions,
+        surfs, lemmas, reading_predictions, *morpheme_attribute_predictions
     ):
         pos = POS_TAGS[pos_index]
         pos_id = POS_TAG2POS_ID[pos]

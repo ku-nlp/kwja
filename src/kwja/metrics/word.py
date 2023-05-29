@@ -148,10 +148,7 @@ class WordModuleMetric(BaseModuleMetric):
             example_id,
             reading_predictions,
             reading_subword_map,
-            pos_logits,
-            subpos_logits,
-            conjtype_logits,
-            conjform_logits,
+            *morpheme_attribute_logits,  # pos_logits, subpos_logits, conjtype_logits, conjform_logits
             word_feature_probabilities,
             ne_predictions,
             base_phrase_feature_probabilities,
@@ -163,6 +160,7 @@ class WordModuleMetric(BaseModuleMetric):
         ) in zip(*[getattr(self, state_name).tolist() for state_name in self.STATE_NAMES]):
             example = self.dataset.examples[example_id]
             gold_document = self.dataset.doc_id2document[example.doc_id]
+            num_morphemes = len(gold_document.morphemes)
             orig_doc_id = to_orig_doc_id(gold_document.doc_id)
 
             word_reading_predictions = get_word_reading_predictions(
@@ -172,20 +170,14 @@ class WordModuleMetric(BaseModuleMetric):
                 self.dataset.tokenizer,
                 reading_subword_map,
             )
-            (
-                pos_predictions,
-                subpos_predictions,
-                conjtype_predictions,
-                conjform_predictions,
-            ) = get_morpheme_attribute_predictions(pos_logits, subpos_logits, conjtype_logits, conjform_logits)
+            morpheme_attribute_predictions = get_morpheme_attribute_predictions(
+                *(logits[:num_morphemes] for logits in morpheme_attribute_logits)
+            )
             morphemes = build_morphemes(
                 [m.surf for m in gold_document.morphemes],
                 [m.lemma for m in gold_document.morphemes],
                 word_reading_predictions,
-                pos_predictions,
-                subpos_predictions,
-                conjtype_predictions,
-                conjform_predictions,
+                morpheme_attribute_predictions,
             )
             predicted_document = chunk_morphemes(gold_document, morphemes, word_feature_probabilities)
             predicted_document.doc_id = gold_document.doc_id
