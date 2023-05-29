@@ -41,6 +41,9 @@ packages = [
 include = [
     "kwja/resource/**/*"
 ]
+exclude = [
+    "src/kwja/metrics/**/*"
+]
 
 [tool.poetry.dependencies]
 python = "^3.8"
