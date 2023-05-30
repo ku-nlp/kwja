@@ -216,7 +216,7 @@ class CLIProcessor:
 
     def run(self, input_documents: List[str], tasks: List[str], interactive: bool = False) -> None:
         self.raw_destination.write_text(
-            "".join(_normalize_text(input_document) + "\nEOD\n" for input_document in input_documents)
+            "".join(normalize_text(input_document) + "\nEOD\n" for input_document in input_documents)
         )
         input_file = self.raw_destination
         for task in tasks:
@@ -230,7 +230,7 @@ class CLIProcessor:
         print(self.processors[tasks[-1]].export_prediction(), end="")
 
 
-def _normalize_text(text: str) -> str:
+def normalize_text(text: str) -> str:
     # Tokenizers (BertJapaneseTokenizer, DebertaV2Tokenizer, etc.) apply NFKC normalization internally, so
     # there may be inconsistency in number of characters if not applying NFKC normalization in advance
     normalized = normalize("NFKC", text)

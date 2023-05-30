@@ -1,6 +1,7 @@
 import os
 import sys
 from pathlib import Path
+from time import time
 from typing import List
 
 import hydra
@@ -11,6 +12,7 @@ from omegaconf import DictConfig, ListConfig, OmegaConf
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.trainer.states import TrainerFn
 
+from kwja.cli.cli import normalize_text
 from kwja.datamodule.datamodule import DataModule
 from kwja.utils.logging_util import filter_logs
 
@@ -30,6 +32,8 @@ def main(eval_cfg: DictConfig):
     model: pl.LightningModule = hydra.utils.call(eval_cfg.module.load_from_checkpoint, _recursive_=False)
     if eval_cfg.compile is True:
         model = torch.compile(model)  # type: ignore
+
+    start = time()
 
     train_cfg: DictConfig = model.hparams
     OmegaConf.set_struct(train_cfg, False)  # enable to add new key-value pairs
@@ -59,11 +63,13 @@ def main(eval_cfg: DictConfig):
     elif getattr(cfg.datamodule.predict, "senter_file", None):
         cfg.datamodule.predict.senter_file = Path(cfg.datamodule.predict.senter_file)
     elif getattr(cfg.datamodule.predict, "texts", None) is not None:
-        cfg.datamodule.predict.texts = sys.stdin.readlines()
+        cfg.datamodule.predict.texts = [normalize_text(line) for line in sys.stdin.readlines()]
     datamodule = DataModule(cfg=cfg.datamodule)
     datamodule.setup(stage=TrainerFn.PREDICTING)
 
     trainer.predict(model=model, dataloaders=[datamodule.predict_dataloader()], return_predictions=False)
+
+    print(f"real {time() - start:.02f}", file=sys.stderr)
 
 
 if __name__ == "__main__":
