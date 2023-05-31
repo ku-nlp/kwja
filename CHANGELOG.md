@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Support CUDA 11.7 by default instead of CUDA 10.x.
 - Skip typo correction by default.
+- Optimize package requirements for faster loading.
+- Optimize model initialization for faster loading.
 
 ### Removed
 - Remove the discourse module.
