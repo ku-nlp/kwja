@@ -34,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Skip typo correction by default.
 - Optimize package requirements for faster loading.
 - Optimize model initialization for faster loading.
+- Replace mt5 models with t5 models pre-trained on Japanese corpora in seq2seq module.
+- Use partially annotated data for word normalization to train seq2seq module.
 
 ### Removed
 - Remove the discourse module.
