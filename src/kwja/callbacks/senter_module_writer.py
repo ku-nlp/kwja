@@ -58,16 +58,25 @@ class SenterModuleWriter(BasePredictionWriter):
             sent_segmentation_tags = convert_senter_predictions_into_tags(
                 sent_segmentation_predictions, example.encoding.input_ids, special_ids
             )
+
             orig_doc_id = to_orig_doc_id(document.doc_id)
-            self.prev_doc_id = self.prev_doc_id or orig_doc_id
-            if orig_doc_id != self.prev_doc_id:
+
+            is_new_document = orig_doc_id != self.prev_doc_id
+            is_first_document = self.prev_doc_id is None
+            if is_new_document:
                 self.prev_doc_id = orig_doc_id
                 self.prev_sid = 0
-            for char, sent_segmentation_tag in zip(document.text, sent_segmentation_tags):
-                if sent_segmentation_tag == "B":
+                if not is_first_document:
                     output_string += "\n"
-                    output_string += f"# S-ID:{orig_doc_id}-{self.prev_sid + 1} kwja:{kwja.__version__}"
+
+            for char_index, (char, sent_segmentation_tag) in enumerate(zip(document.text, sent_segmentation_tags)):
+                if is_new_document and char_index == 0:
+                    # The first character of the document is always the start of a sentence
+                    output_string += f"# S-ID:{orig_doc_id}-{self.prev_sid + 1} kwja:{kwja.__version__}\n"
+                    self.prev_sid += 1
+                elif sent_segmentation_tag == "B":
                     output_string += "\n"
+                    output_string += f"# S-ID:{orig_doc_id}-{self.prev_sid + 1} kwja:{kwja.__version__}\n"
                     self.prev_sid += 1
                 output_string += char
 
