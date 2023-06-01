@@ -30,7 +30,9 @@ jobs:
           poetry build
       - name: Install KWJA from wheel
         run: |
-          pip3 install dist/*.whl
+          $whlFile = (Get-ChildItem -Path dist -Filter *.whl).FullName
+          pip3 install $whlFile
+        shell: pwsh
       - name: Run KWJA
         run: |
           kwja --version
