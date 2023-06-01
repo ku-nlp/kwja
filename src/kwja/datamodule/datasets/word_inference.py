@@ -38,12 +38,12 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
     ) -> None:
         super(WordInferenceDataset, self).__init__(tokenizer, max_seq_length)
         if juman_file is not None:
-            with juman_file.open() as f:
+            with juman_file.open(encoding="utf-8") as f:
                 documents = [
                     Document.from_jumanpp(c) for c in track(chunk_by_document(f), description="Loading documents")
                 ]
         elif knp_file is not None:
-            with knp_file.open() as f:
+            with knp_file.open(encoding="utf-8") as f:
                 documents = [Document.from_knp(c) for c in track(chunk_by_document(f), description="Loading documents")]
         else:
             # do_predict_after_train

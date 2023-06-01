@@ -204,15 +204,11 @@ word_batch_size: 1
     </th>
     <th>
         mT5<sub>base</sub><br>
-        (
-            <a href="https://huggingface.co/google/mt5-base">seq2seq</a>,
-        )
+        (<a href="https://huggingface.co/google/mt5-base">seq2seq</a>)
     </th>
     <th>
         mT5<sub>large</sub><br>
-        (
-            <a href="https://huggingface.co/google/mt5-large">seq2seq</a>,
-        )
+        (<a href="https://huggingface.co/google/mt5-large">seq2seq</a>)
     </th>
   </tr>
   <tr style="text-align: right;">

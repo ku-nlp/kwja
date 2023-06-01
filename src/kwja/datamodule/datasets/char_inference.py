@@ -26,7 +26,7 @@ class CharInferenceDataset(BaseDataset[CharInferenceExample, CharModuleFeatures]
     ) -> None:
         super(CharInferenceDataset, self).__init__(tokenizer, max_seq_length)
         if senter_file is not None:
-            with senter_file.open() as f:
+            with senter_file.open(encoding="utf-8") as f:
                 documents = [
                     Document.from_line_by_line_text(c)
                     for c in track(chunk_by_document_for_line_by_line_text(f), description="Loading documents")

@@ -1,4 +1,5 @@
 from logging import getLogger
+from pathlib import Path
 from typing import Dict, List, Literal, Optional, Set, Tuple
 
 import numpy as np
@@ -39,9 +40,9 @@ logger = getLogger(__name__)
 
 
 # ---------- typo module writer ----------
-def get_maps(tokenizer: PreTrainedTokenizerBase, extended_vocab_path: str) -> Tuple[Dict[str, int], Dict[int, str]]:
+def get_maps(tokenizer: PreTrainedTokenizerBase, extended_vocab_path: Path) -> Tuple[Dict[str, int], Dict[int, str]]:
     token2token_id = tokenizer.get_vocab()
-    with open(extended_vocab_path, mode="r") as f:
+    with extended_vocab_path.open(encoding="utf-8") as f:
         for line in f:
             if line := line.strip():
                 token2token_id[line] = len(token2token_id.keys())
