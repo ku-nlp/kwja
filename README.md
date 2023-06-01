@@ -56,6 +56,13 @@ KWJAは日本語の統合解析ツールです。汎用言語モデルを利用�
 EOD
 ```
 
+If you use Windows and PowerShell, you need to set `PYTHONUTF8` environment variable to `1`:
+
+```shell
+> $env:PYTHONUTF8 = "1"
+> kwja ...
+````
+
 The output is in the KNP format, like the following:
 
 ```

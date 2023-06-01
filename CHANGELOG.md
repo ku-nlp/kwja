@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   word_batch_size: 1
   ```
 - Implement padding truncation of word module to accelerate inference.
+- Support Windows.
 
 ### Changed
 - Support CUDA 11.7 by default instead of CUDA 10.x.

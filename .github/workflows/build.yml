@@ -10,7 +10,7 @@ jobs:
       max-parallel: 4
       fail-fast: false
       matrix:
-        os: [ ubuntu-latest, macos-latest ]
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
         python-version: [ "3.8", "3.9", "3.10", "3.11" ]
     steps:
       - name: Checkout repository
@@ -30,11 +30,27 @@ jobs:
       - name: Build KWJA
         run: |
           poetry build
-      - name: Install KWJA from wheel
+      - name: Install KWJA from wheel (non-Windows)
+        if: ${{ matrix.os != 'windows-latest' }}
         run: |
           pip3 install dist/*.whl
-      - name: Run KWJA
+      - name: Install KWJA from wheel (Windows)
+        if: ${{ matrix.os == 'windows-latest' }}
         run: |
+          $whlFile = (Get-ChildItem -Path dist -Filter *.whl).FullName
+          pip3 install $whlFile
+        shell: pwsh
+      - name: Run KWJA (non-Windows)
+        if: ${{ matrix.os != 'windows-latest' }}
+        run: |
+          kwja --version
+          kwja --help
+          kwja --tasks typo,senter,char,word --model-size tiny --text "自然言語処理"
+          kwja --tasks typo,senter,seq2seq,word --model-size tiny --text "自然言語処理"
+      - name: Run KWJA (Windows)
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: |
+          $env:PYTHONUTF8 = "1"
           kwja --version
           kwja --help
           kwja --tasks typo,senter,char,word --model-size tiny --text "自然言語処理"
