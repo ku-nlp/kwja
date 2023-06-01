@@ -396,6 +396,16 @@ word_batch_size: 1
 ## Citation
 
 ```bibtex
+@InProceedings{Ueda2023a,
+  author    = {Nobuhiro Ueda and Kazumasa Omura and Takashi Kodama and Hirokazu Kiyomaru and Yugo Murawaki and Daisuke Kawahara and Sadao Kurohashi},
+  title     = {KWJA: A Unified Japanese Analyzer Based on Foundation Models},
+  booktitle = {Proceedings of the 61st Annual Meeting of the Association for Computational Linguistics: System Demonstrations},
+  year      = {2023},
+  address   = {Toronto, Canada},
+}
+```
+
+```bibtex
 @InProceedings{植田2022,
   author    = {植田 暢大 and 大村 和正 and 児玉 貴志 and 清丸 寛一 and 村脇 有吾 and 河原 大輔 and 黒橋 禎夫},
   title     = {KWJA：汎用言語モデルに基づく日本語解析器},
