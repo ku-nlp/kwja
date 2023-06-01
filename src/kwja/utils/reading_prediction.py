@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 def get_reading2reading_id(path: Path) -> Dict[str, int]:
     reading2reading_id = {UNK: UNK_ID, ID: ID_ID}
-    with path.open() as f:
+    with path.open(encoding="utf-8") as f:
         for line in f:
             if line := line.strip():
                 if line not in reading2reading_id:
@@ -165,7 +165,7 @@ class ReadingAligner:
                             if reading_part == kanji_reading2:
                                 node = Node(i=i, j=j, wI=1, wJ=len(kanji_reading), cost=10)
                                 td_lattice[i][j].append(node)
-                        # TODO: combinatoin
+                        # TODO: combination
                 # fallback nodes
                 if cj in ("ぁ", "ぃ", "ぅ", "ぇ", "ぉ", "ゃ", "ゅ", "ょ", "っ", "ん", "ー"):
                     initial_penalty = 500
@@ -321,7 +321,7 @@ def main():
     reading_counter: Dict[str, int] = Counter()
     for path in Path(args.input).glob("**/*.knp"):
         logger.info(f"processing {path}")
-        with path.open(mode="r") as f:
+        with path.open(encoding="utf-8") as f:
             document = Document.from_knp(f.read())
         try:
             for reading in reading_aligner.align(document.morphemes):

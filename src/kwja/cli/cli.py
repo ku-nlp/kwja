@@ -84,13 +84,13 @@ class TypoModuleProcessor(BaseModuleProcessor):
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
-        self.module.hparams.datamodule.predict.texts = _split_into_documents(input_file.read_text())
+        self.module.hparams.datamodule.predict.texts = _split_into_documents(input_file.read_text(encoding="utf-8"))
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
         datamodule.setup(stage=TrainerFn.PREDICTING)
         return datamodule
 
     def export_prediction(self) -> str:
-        return self.destination.read_text()
+        return self.destination.read_text(encoding="utf-8")
 
 
 class SenterModuleProcessor(BaseModuleProcessor):
@@ -109,7 +109,7 @@ class SenterModuleProcessor(BaseModuleProcessor):
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
-        self.module.hparams.datamodule.predict.texts = _split_into_documents(input_file.read_text())
+        self.module.hparams.datamodule.predict.texts = _split_into_documents(input_file.read_text(encoding="utf-8"))
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
         datamodule.setup(stage=TrainerFn.PREDICTING)
         return datamodule
@@ -122,7 +122,7 @@ class SenterModuleProcessor(BaseModuleProcessor):
         senter = RegexSenter()
         output_string = ""
         doc_id_prefix = datetime.now().strftime("%Y%m%d%H%M")
-        for document_text in _split_into_documents(input_file.read_text()):
+        for document_text in _split_into_documents(input_file.read_text(encoding="utf-8")):
             document = senter.apply_to_document(document_text)
             document.doc_id = f"{doc_id_prefix}-{self.doc_idx}"
             self.doc_idx += 1
@@ -133,7 +133,7 @@ class SenterModuleProcessor(BaseModuleProcessor):
         self.destination.write_text(output_string, encoding="utf-8")
 
     def export_prediction(self) -> str:
-        return self.destination.read_text()
+        return self.destination.read_text(encoding="utf-8")
 
 
 class Seq2SeqModuleProcessor(BaseModuleProcessor):
@@ -150,7 +150,7 @@ class Seq2SeqModuleProcessor(BaseModuleProcessor):
         return datamodule
 
     def export_prediction(self) -> str:
-        return self.destination.read_text()
+        return self.destination.read_text(encoding="utf-8")
 
 
 class CharModuleProcessor(BaseModuleProcessor):
@@ -168,7 +168,7 @@ class CharModuleProcessor(BaseModuleProcessor):
 
     def export_prediction(self) -> str:
         export_text = ""
-        with self.destination.open() as f:
+        with self.destination.open(encoding="utf-8") as f:
             for juman_text in chunk_by_sentence(f):
                 sentence = Sentence.from_jumanpp(juman_text)
                 if sentence.comment != "":
@@ -191,7 +191,7 @@ class WordModuleProcessor(BaseModuleProcessor):
         return datamodule
 
     def export_prediction(self) -> str:
-        return self.destination.read_text()
+        return self.destination.read_text(encoding="utf-8")
 
 
 class CLIProcessor:

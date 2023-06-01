@@ -85,7 +85,7 @@ class TypoModuleWriter(BasePredictionWriter):
 
         output_string = "".join(post_text + "\nEOD\n" for post_text in post_texts)
         if isinstance(self.destination, Path):
-            with self.destination.open(mode="a") as f:
+            with self.destination.open(mode="a", encoding="utf-8") as f:
                 f.write(output_string)
         elif isinstance(self.destination, TextIOBase):
             self.destination.write(output_string)
