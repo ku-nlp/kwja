@@ -216,7 +216,8 @@ class CLIProcessor:
 
     def run(self, input_documents: List[str], tasks: List[str], interactive: bool = False) -> None:
         self.raw_destination.write_text(
-            "".join(_normalize_text(input_document) + "\nEOD\n" for input_document in input_documents)
+            "".join(_normalize_text(input_document) + "\nEOD\n" for input_document in input_documents),
+            encoding="utf-8",
         )
         input_file = self.raw_destination
         for task in tasks:
