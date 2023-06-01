@@ -22,10 +22,9 @@ jobs:
         run: |
             pipx install poetry
             echo "$HOME/.local/bin" >> $GITHUB_PATH
-#      - name: Install dependencies
-#        run: |
-#          poetry config virtualenvs.create false
-#          poetry install --no-interaction --without dev
+      - name: Install dependencies
+        run: |
+          poetry install --no-interaction --without dev
       - name: Build KWJA
         run: |
           poetry build
