@@ -24,7 +24,7 @@ jobs:
             echo "$HOME/.local/bin" >> $GITHUB_PATH
       - name: Install dependencies
         run: |
-          poetry install --no-interaction --without dev
+          poetry install --no-interaction --without dev,test
       - name: Build KWJA
         run: |
           poetry build
@@ -35,6 +35,7 @@ jobs:
         shell: pwsh
       - name: Run KWJA
         run: |
+          $env:PYTHONUTF8 = "1"
           kwja --version
           kwja --help
           kwja --tasks typo,senter,char,word --model-size tiny --text "自然言語処理"
