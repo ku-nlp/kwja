@@ -81,7 +81,7 @@ class SenterModuleWriter(BasePredictionWriter):
                 output_string += char
 
         if isinstance(self.destination, Path):
-            with self.destination.open(mode="a", encoding="utf-8") as f:
+            with self.destination.open(mode="a") as f:
                 f.write(output_string)
         elif isinstance(self.destination, TextIOBase):
             self.destination.write(output_string)

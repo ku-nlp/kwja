@@ -42,7 +42,7 @@ logger = getLogger(__name__)
 # ---------- typo module writer ----------
 def get_maps(tokenizer: PreTrainedTokenizerBase, extended_vocab_path: Path) -> Tuple[Dict[str, int], Dict[int, str]]:
     token2token_id = tokenizer.get_vocab()
-    with extended_vocab_path.open(encoding="utf-8") as f:
+    with extended_vocab_path.open() as f:
         for line in f:
             if line := line.strip():
                 token2token_id[line] = len(token2token_id.keys())

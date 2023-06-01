@@ -28,9 +28,7 @@ class TypoModule(BaseModule[TypoModuleMetric]):
         head_kwargs: Dict[str, Any] = dict(hidden_size=self.encoder.config.hidden_size, hidden_dropout_prob=0.05)
 
         self.kdr_tagger = SequenceLabelingHead(self.encoder.config.vocab_size, **head_kwargs)
-        extended_vocab_size = sum(
-            1 for _ in RESOURCE_PATH.joinpath("typo_correction", "multi_char_vocab.txt").open(encoding="utf-8")
-        )
+        extended_vocab_size = sum(1 for _ in RESOURCE_PATH.joinpath("typo_correction", "multi_char_vocab.txt").open())
         self.ins_tagger = SequenceLabelingHead(self.encoder.config.vocab_size + extended_vocab_size, **head_kwargs)
 
     def setup(self, stage: str) -> None:
