@@ -1,10 +1,10 @@
-name: Test
+name: Build
 
 on: [ push, pull_request ]
 
 jobs:
   build:
-    name: Run tests with pytest
+    name: Build the project
     runs-on: ${{ matrix.os }}
     strategy:
       max-parallel: 4
