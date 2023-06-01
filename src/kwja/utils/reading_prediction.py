@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 def get_reading2reading_id(path: Path) -> Dict[str, int]:
     reading2reading_id = {UNK: UNK_ID, ID: ID_ID}
-    with path.open(encoding="utf-8") as f:
+    with path.open() as f:
         for line in f:
             if line := line.strip():
                 if line not in reading2reading_id:
@@ -321,7 +321,7 @@ def main():
     reading_counter: Dict[str, int] = Counter()
     for path in Path(args.input).glob("**/*.knp"):
         logger.info(f"processing {path}")
-        with path.open(encoding="utf-8") as f:
+        with path.open() as f:
             document = Document.from_knp(f.read())
         try:
             for reading in reading_aligner.align(document.morphemes):

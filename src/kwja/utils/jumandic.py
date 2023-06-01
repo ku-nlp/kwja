@@ -12,9 +12,7 @@ class JumanDic:
     def __init__(self, dic_dir: Path) -> None:
         self.jumandic = cdblib.Reader(dic_dir.joinpath("jumandic.db").read_bytes())
         self.jumandic_canon = cdblib.Reader(dic_dir.joinpath("jumandic_canon.db").read_bytes())
-        self.grammar_data: Dict[str, List[str]] = json.loads(
-            dic_dir.joinpath("grammar.json").read_text(encoding="utf-8")
-        )
+        self.grammar_data: Dict[str, List[str]] = json.loads(dic_dir.joinpath("grammar.json").read_text())
 
     def lookup_by_norm(self, surf: str) -> List[Dict[str, str]]:
         buf = self.jumandic.get(surf.encode("utf-8"))
@@ -131,6 +129,5 @@ class JumanDic:
                     "id2semantics": _build_reverse_lookup(semantics2id),
                 },
                 ensure_ascii=False,
-            ),
-            encoding="utf-8",
+            )
         )

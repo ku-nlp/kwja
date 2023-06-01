@@ -30,7 +30,7 @@ class Seq2SeqInferenceDataset(BaseDataset[Seq2SeqInferenceExample, Seq2SeqModule
         self.max_tgt_length: int = max_tgt_length
 
         if senter_file is not None:
-            with senter_file.open(encoding="utf-8") as f:
+            with senter_file.open() as f:
                 documents = [
                     Document.from_line_by_line_text(c)
                     for c in track(chunk_by_document_for_line_by_line_text(f), description="Loading documents")

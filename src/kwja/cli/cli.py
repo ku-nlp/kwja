@@ -84,13 +84,13 @@ class TypoModuleProcessor(BaseModuleProcessor):
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
-        self.module.hparams.datamodule.predict.texts = _split_into_documents(input_file.read_text(encoding="utf-8"))
+        self.module.hparams.datamodule.predict.texts = _split_into_documents(input_file.read_text())
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
         datamodule.setup(stage=TrainerFn.PREDICTING)
         return datamodule
 
     def export_prediction(self) -> str:
-        return self.destination.read_text(encoding="utf-8")
+        return self.destination.read_text()
 
 
 class SenterModuleProcessor(BaseModuleProcessor):
@@ -109,7 +109,7 @@ class SenterModuleProcessor(BaseModuleProcessor):
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
-        self.module.hparams.datamodule.predict.texts = _split_into_documents(input_file.read_text(encoding="utf-8"))
+        self.module.hparams.datamodule.predict.texts = _split_into_documents(input_file.read_text())
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
         datamodule.setup(stage=TrainerFn.PREDICTING)
         return datamodule
@@ -122,7 +122,7 @@ class SenterModuleProcessor(BaseModuleProcessor):
         senter = RegexSenter()
         output_string = ""
         doc_id_prefix = datetime.now().strftime("%Y%m%d%H%M")
-        for document_text in _split_into_documents(input_file.read_text(encoding="utf-8")):
+        for document_text in _split_into_documents(input_file.read_text()):
             document = senter.apply_to_document(document_text)
             document.doc_id = f"{doc_id_prefix}-{self.doc_idx}"
             self.doc_idx += 1
@@ -130,10 +130,10 @@ class SenterModuleProcessor(BaseModuleProcessor):
                 sentence.sid = f"{document.doc_id}-{sent_idx}"
                 sentence.misc_comment = f"kwja:{kwja.__version__}"
             output_string += document.to_raw_text().strip()
-        self.destination.write_text(output_string, encoding="utf-8")
+        self.destination.write_text(output_string)
 
     def export_prediction(self) -> str:
-        return self.destination.read_text(encoding="utf-8")
+        return self.destination.read_text()
 
 
 class Seq2SeqModuleProcessor(BaseModuleProcessor):
@@ -150,7 +150,7 @@ class Seq2SeqModuleProcessor(BaseModuleProcessor):
         return datamodule
 
     def export_prediction(self) -> str:
-        return self.destination.read_text(encoding="utf-8")
+        return self.destination.read_text()
 
 
 class CharModuleProcessor(BaseModuleProcessor):
@@ -168,7 +168,7 @@ class CharModuleProcessor(BaseModuleProcessor):
 
     def export_prediction(self) -> str:
         export_text = ""
-        with self.destination.open(encoding="utf-8") as f:
+        with self.destination.open() as f:
             for juman_text in chunk_by_sentence(f):
                 sentence = Sentence.from_jumanpp(juman_text)
                 if sentence.comment != "":
@@ -191,7 +191,7 @@ class WordModuleProcessor(BaseModuleProcessor):
         return datamodule
 
     def export_prediction(self) -> str:
-        return self.destination.read_text(encoding="utf-8")
+        return self.destination.read_text()
 
 
 class CLIProcessor:
@@ -216,8 +216,7 @@ class CLIProcessor:
 
     def run(self, input_documents: List[str], tasks: List[str], interactive: bool = False) -> None:
         self.raw_destination.write_text(
-            "".join(_normalize_text(input_document) + "\nEOD\n" for input_document in input_documents),
-            encoding="utf-8",
+            "".join(_normalize_text(input_document) + "\nEOD\n" for input_document in input_documents)
         )
         input_file = self.raw_destination
         for task in tasks:
