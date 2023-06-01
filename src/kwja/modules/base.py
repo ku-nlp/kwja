@@ -128,6 +128,10 @@ class _EmptyInit(TorchFunctionMode):
             if "tensor" in kwargs:
                 return kwargs["tensor"]
             return args[0]
+        if getattr(func, "__module__", None) is None and func.__name__ == "normal_":
+            if "mean" in kwargs:
+                return kwargs["mean"]
+            return args[0]
         return func(*args, **kwargs)
 
 

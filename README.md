@@ -56,6 +56,13 @@ KWJAは日本語の統合解析ツールです。汎用言語モデルを利用�
 EOD
 ```
 
+If you use Windows and PowerShell, you need to set `PYTHONUTF8` environment variable to `1`:
+
+```shell
+> $env:PYTHONUTF8 = "1"
+> kwja ...
+````
+
 The output is in the KNP format, like the following:
 
 ```
@@ -204,15 +211,11 @@ word_batch_size: 1
     </th>
     <th>
         mT5<sub>base</sub><br>
-        (
-            <a href="https://huggingface.co/google/mt5-base">seq2seq</a>,
-        )
+        (<a href="https://huggingface.co/google/mt5-base">seq2seq</a>)
     </th>
     <th>
         mT5<sub>large</sub><br>
-        (
-            <a href="https://huggingface.co/google/mt5-large">seq2seq</a>,
-        )
+        (<a href="https://huggingface.co/google/mt5-large">seq2seq</a>)
     </th>
   </tr>
   <tr style="text-align: right;">

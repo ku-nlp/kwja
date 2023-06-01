@@ -24,8 +24,8 @@ class MockTrainer:
     "destination",
     [
         None,
-        Path(TemporaryDirectory().name) / Path("typo_prediction.juman"),
-        str(Path(TemporaryDirectory().name) / Path("typo_prediction.juman")),
+        Path(TemporaryDirectory().name) / "typo_prediction.juman",
+        str(Path(TemporaryDirectory().name) / "typo_prediction.juman"),
     ],
 )
 def test_init(destination: Optional[Union[str, Path]], typo_tokenizer: PreTrainedTokenizerBase):
@@ -37,10 +37,7 @@ def test_write_on_batch_end(typo_tokenizer: PreTrainedTokenizerBase):
     num_examples = 2  # num_stash = 2
     max_seq_length = 32  # >= 11
 
-    token2token_id, _ = get_maps(
-        typo_tokenizer,
-        RESOURCE_PATH / "typo_correction" / "multi_char_vocab.txt",
-    )
+    token2token_id, _ = get_maps(typo_tokenizer, RESOURCE_PATH / "typo_correction" / "multi_char_vocab.txt")
 
     kdr_probabilities = torch.zeros((num_examples, max_seq_length, len(token2token_id)), dtype=torch.float)
     kdr_probabilities[0, 0, token2token_id["<k>"]] = 1.0  # [CLS]

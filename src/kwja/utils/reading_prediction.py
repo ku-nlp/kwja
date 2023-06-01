@@ -165,7 +165,7 @@ class ReadingAligner:
                             if reading_part == kanji_reading2:
                                 node = Node(i=i, j=j, wI=1, wJ=len(kanji_reading), cost=10)
                                 td_lattice[i][j].append(node)
-                        # TODO: combinatoin
+                        # TODO: combination
                 # fallback nodes
                 if cj in ("ぁ", "ぃ", "ぅ", "ぇ", "ぉ", "ゃ", "ゅ", "ょ", "っ", "ん", "ー"):
                     initial_penalty = 500
@@ -321,7 +321,7 @@ def main():
     reading_counter: Dict[str, int] = Counter()
     for path in Path(args.input).glob("**/*.knp"):
         logger.info(f"processing {path}")
-        with path.open(mode="r") as f:
+        with path.open() as f:
             document = Document.from_knp(f.read())
         try:
             for reading in reading_aligner.align(document.morphemes):

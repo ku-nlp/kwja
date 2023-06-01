@@ -27,9 +27,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   char_batch_size: 1
   word_batch_size: 1
   ```
+- Implement padding truncation of word module to accelerate inference.
+- Support Windows.
 
 ### Changed
 - Support CUDA 11.7 by default instead of CUDA 10.x.
+- Skip typo correction by default.
+- Optimize package requirements for faster loading.
+- Optimize model initialization for faster loading.
+- Replace mt5 models with t5 models pre-trained on Japanese corpora in seq2seq module.
+- Use partially annotated data for word normalization to train seq2seq module.
+
+### Removed
+- Remove the discourse module.
+
+### Fixed
+- Fix a bug that warning messages are shown when Juman++ and/or KNP are not installed.
+- Fix a bug that document IDs are not assigned properly when a text file is given as input.
 
 ## [2.0.0] - 2023-03-14
 
