@@ -1,4 +1,6 @@
-# KWJA: Kyoto-Waseda Japanese Analyzer
+# KWJA: Kyoto-Waseda Japanese Analyzer[^1]
+
+[^1]: Pronunciation: [/kuʒa/](http://ipa-reader.xyz/?text=%20ku%CA%92a)
 
 [![test](https://github.com/ku-nlp/kwja/actions/workflows/test.yml/badge.svg)](https://github.com/ku-nlp/kwja/actions/workflows/test.yml)
 [![codecov](https://codecov.io/gh/ku-nlp/kwja/branch/main/graph/badge.svg?token=A9FWWPLITO)](https://codecov.io/gh/ku-nlp/kwja)
@@ -26,8 +28,9 @@ KWJA performs many language analysis tasks, including:
 
 ## Requirements
 
-- Python: 3.8, 3.9, 3.10
+- Python: 3.8+
 - Dependencies: See [pyproject.toml](./pyproject.toml).
+- GPUs with CUDA 11.7 (optional)
 
 ## Getting Started
 
@@ -43,8 +46,8 @@ Perform language analysis with the `kwja` command (the result is in the KNP form
 # Analyze a text
 $ kwja --text "KWJAは日本語の統合解析ツールです。汎用言語モデルを利用し、様々な言語解析を統一的な方法で解いています。"
 
-# Analyze a text file and write the result to a file
-$ kwja --file path/to/file.txt > path/to/analyzed.knp
+# Analyze text files and write the result to a file
+$ kwja --filename path/to/file1.txt --filename path/to/file2.txt > path/to/analyzed.knp
 
 # Analyze texts interactively
 $ kwja
@@ -76,7 +79,9 @@ Here are some other options for `kwja` command:
 
 `--device`: Device to be used. Please specify 'cpu' or 'gpu'.
 
-`--typo-batch-size`: Batch size for typo module.
+`--typo-batch-size`: Batch size for typo module. This batch size is also used for the senter module.
+
+`--senter-batch-size`: Batch size for senter module.
 
 `--seq2seq-batch-size`: Batch size for seq2seq module.
 
@@ -84,13 +89,14 @@ Here are some other options for `kwja` command:
 
 `--word-batch-size`: Batch size for word module.
 
-`--tasks`: Tasks to be performed. Please specify 'typo', 'char', 'seq2seq', 'typo,char', 'typo,seq2seq', 'seq2seq,word', 'char,word', 'typo,char,word',  'typo,seq2seq,word', 'char,word,word_discourse', 'seq2seq,word,word_discourse', 'typo,char,word,word_discourse' or 'typo,char,word,word_discourse'.
+`--tasks`: Tasks to be performed.
   - `typo`: Typo correction
+  - `senter`: Sentence segmentation
   - `seq2seq`: Word segmentation, Word normalization, Reading prediction, lemmatization, and Canonicalization.
   - `char`: Word segmentation and Word normalization
   - `word`: Morphological analysis, Named entity recognition, Word feature tagging, Dependency parsing, PAS analysis, Bridging reference resolution, and Coreference resolution
-  - `word_discourse`: Discourse relation analysis
-    - If you need the results of discourse relation analysis, please specify this in addition to `word`.
+
+`--config-file`: Path to a custom configuration file.
 
 You can read a KNP format file with [rhoknp](https://github.com/ku-nlp/rhoknp).
 
@@ -127,6 +133,35 @@ analyzed_document = kwja.apply(
 )
 ```
 
+## Configuration
+
+`kwja` can be configured with a configuration file to set the default options.
+ Check [Config file content](#config-file-example) for details.
+
+### Config file location
+
+On non-Windows systems `kwja` follows the
+[XDG Base Directory Specification](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html)
+convention for the location of the configuration file.
+The configuration dir `kwja` uses is itself named `kwja`.
+In that directory it refers to a file named `config.yaml`.
+For most people it should be enough to put their config file at `~/.config/kwja/config.yaml`.
+You can also provide a configuration file in a non-standard location with: `kwja --config-file <path>`
+
+### Config file example
+
+```yaml
+model_size: base
+device: cpu
+num_workers: 0
+torch_compile: false
+typo_batch_size: 1
+senter_batch_size: 1
+seq2seq_batch_size: 1
+char_batch_size: 1
+word_batch_size: 1
+```
+
 ## Performance Table
 
 - The performance on each task except typo correction and discourse relation analysis is the mean over all the corpora (KC, KWDLC, Fuman, and WAC) and over three runs with different random seeds.
@@ -136,7 +171,7 @@ analyzed_document = kwja.apply(
 <table>
   <tr>
     <th rowspan="2" colspan="2">Task</th>
-    <th colspan="4">Model</th>
+    <th colspan="6">Model</th>
   </tr>
   <tr>
     <th>
@@ -167,6 +202,14 @@ analyzed_document = kwja.apply(
             <a href="https://huggingface.co/ku-nlp/deberta-v2-large-japanese">word</a>
         )
     </th>
+    <th>
+        mT5<sub>base</sub><br>
+        (<a href="https://huggingface.co/google/mt5-base">seq2seq</a>)
+    </th>
+    <th>
+        mT5<sub>large</sub><br>
+        (<a href="https://huggingface.co/google/mt5-large">seq2seq</a>)
+    </th>
   </tr>
   <tr style="text-align: right;">
     <th colspan="2" style="text-align: center;">Typo Correction</th>
@@ -174,6 +217,8 @@ analyzed_document = kwja.apply(
     <td>TBU</td>
     <td>TBU</td>
     <td>TBU</td>
+    <td>-</td>
+    <td>-</td>
   </tr>
   <tr style="text-align: right;">
     <th colspan="2" style="text-align: center;">Sentence Segmentation</th>
@@ -181,6 +226,8 @@ analyzed_document = kwja.apply(
     <td>TBU</td>
     <td>TBU</td>
     <td>TBU</td>
+    <td>-</td>
+    <td>-</td>
   </tr>
   <tr style="text-align: right;">
     <th colspan="2" style="text-align: center;">Word Segmentation</th>
@@ -188,6 +235,8 @@ analyzed_document = kwja.apply(
     <td>98.6</td>
     <td>98.7</td>
     <td style="font-weight: bold;">98.9</td>
+    <td>97.7</td>
+    <td>98.9</td>
   </tr>
   <tr style="text-align: right;">
     <th colspan="2" style="text-align: center;">Word Normalization</th>
@@ -195,14 +244,18 @@ analyzed_document = kwja.apply(
     <td>39.2</td>
     <td>39.8</td>
     <td style="font-weight: bold;">46.0</td>
+    <td>-</td>
+    <td>-</td>
   </tr>
   <tr style="text-align: right;">
-    <th rowspan="5" style="text-align: center;">Morphological<br>Analysis</th>
+    <th rowspan="7" style="text-align: center;">Morphological<br>Analysis</th>
     <th style="text-align: left;">POS</th>
     <td>99.3</td>
     <td style="font-weight: bold;">99.4</td>
     <td>99.3</td>
     <td style="font-weight: bold;">99.4</td>
+    <td>-</td>
+    <td>-</td>
   </tr>
   <tr style="text-align: right;">
     <th style="text-align: left;">sub-POS</th>
@@ -210,6 +263,8 @@ analyzed_document = kwja.apply(
     <td style="font-weight: bold;">98.4</td>
     <td>98.2</td>
     <td style="font-weight: bold;">98.4</td>
+    <td>-</td>
+    <td>-</td>
   </tr>
   <tr style="text-align: right;">
     <th style="text-align: left;">conjugation type</th>
@@ -217,6 +272,8 @@ analyzed_document = kwja.apply(
     <td style="font-weight: bold;">99.5</td>
     <td>99.2</td>
     <td>99.4</td>
+    <td>-</td>
+    <td>-</td>
   </tr>
   <tr style="text-align: right;">
     <th style="text-align: left;">conjugation form</th>
@@ -224,13 +281,35 @@ analyzed_document = kwja.apply(
     <td style="font-weight: bold;">99.6</td>
     <td>99.4</td>
     <td style="font-weight: bold;">99.6</td>
+    <td>-</td>
+    <td>-</td>
   </tr>
   <tr style="text-align: right;">
     <th style="text-align: left;">reading</th>
-    <td style="font-weight: bold;">95.5</td>
+    <td>95.5</td>
     <td>95.2</td>
     <td>90.8</td>
     <td>95.1</td>
+    <td>95.5</td>
+    <td style="font-weight: bold;">96.2</td>
+  </tr>
+  <tr style="text-align: right;">
+    <th style="text-align: left;">lemma</th>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
+    <td>97.2</td>
+    <td style="font-weight: bold;">97.5</td>
+  </tr>
+  <tr style="text-align: right;">
+    <th style="text-align: left;">canon</th>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
+    <td>94.7</td>
+    <td style="font-weight: bold;">95.5</td>
   </tr>
   <tr style="text-align: right;">
     <th colspan="2" style="text-align: center;">Named Entity Recognition</th>
@@ -238,6 +317,8 @@ analyzed_document = kwja.apply(
     <td>83.8</td>
     <td>82.1</td>
     <td style="font-weight: bold;">84.6</td>
+    <td>-</td>
+    <td>-</td>
   </tr>
   <tr style="text-align: right;">
     <th rowspan="2" style="text-align: center;">Linguistic<br>Feature<br>Tagging</th>
@@ -246,6 +327,8 @@ analyzed_document = kwja.apply(
     <td style="font-weight: bold;">98.5</td>
     <td style="font-weight: bold;">98.5</td>
     <td>98.4</td>
+    <td>-</td>
+    <td>-</td>
   </tr>
   <tr style="text-align: right;">
     <th style="text-align: left;">base phrase</th>
@@ -253,6 +336,8 @@ analyzed_document = kwja.apply(
     <td style="font-weight: bold;">89.5</td>
     <td>86.4</td>
     <td>89.3</td>
+    <td>-</td>
+    <td>-</td>
   </tr>
   <tr style="text-align: right;">
     <th colspan="2" style="text-align: center;">Dependency Parsing</th>
@@ -260,6 +345,8 @@ analyzed_document = kwja.apply(
     <td>93.4</td>
     <td style="font-weight: bold;">93.8</td>
     <td>93.3</td>
+    <td>-</td>
+    <td>-</td>
   </tr>
   <tr style="text-align: right;">
     <th colspan="2" style="text-align: center;">Pas Analysis</th>
@@ -267,6 +354,8 @@ analyzed_document = kwja.apply(
     <td>76.7</td>
     <td>75.3</td>
     <td style="font-weight: bold;">76.9</td>
+    <td>-</td>
+    <td>-</td>
   </tr>
   <tr style="text-align: right;">
     <th colspan="2" style="text-align: center;">Bridging Reference Resolution</th>
@@ -274,6 +363,8 @@ analyzed_document = kwja.apply(
     <td style="font-weight: bold;">67.3</td>
     <td>65.2</td>
     <td>67.0</td>
+    <td>-</td>
+    <td>-</td>
   </tr>
   <tr style="text-align: right;">
     <th colspan="2" style="text-align: center;">Coreference Resolution</th>
@@ -281,6 +372,8 @@ analyzed_document = kwja.apply(
     <td style="font-weight: bold;">78.4</td>
     <td>75.9</td>
     <td>78.0</td>
+    <td>-</td>
+    <td>-</td>
   </tr>
   <tr style="text-align: right;">
     <th colspan="2" style="text-align: center;">Discourse Relation Analysis</th>
@@ -288,6 +381,8 @@ analyzed_document = kwja.apply(
     <td style="font-weight: bold;">44.8</td>
     <td>41.3</td>
     <td>41.0</td>
+    <td>-</td>
+    <td>-</td>
   </tr>
 </table>
 
