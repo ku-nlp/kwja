@@ -63,8 +63,7 @@ def download_checkpoint(
         checkpoint_dir = Path(checkpoint_dir)
     checkpoint_dir.mkdir(exist_ok=True, parents=True)
 
-    remote_checkpoint_path = Path("/kwja") / _get_model_version() / _CHECKPOINT_FILE_NAMES[model_size][module]
-    checkpoint_url = _CHECKPOINT_BASE_URL + str(remote_checkpoint_path)
+    checkpoint_url = f"{_CHECKPOINT_BASE_URL}/kwja/{_get_model_version()}/{_CHECKPOINT_FILE_NAMES[model_size][module]}"
     checkpoint_path = checkpoint_dir / _CHECKPOINT_FILE_NAMES[model_size][module]
     if checkpoint_path.exists() is False:
         sys.stderr.write(f'Downloading: "{checkpoint_url}" to {checkpoint_path}\n')
