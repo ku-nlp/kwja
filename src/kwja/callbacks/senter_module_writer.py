@@ -94,3 +94,15 @@ class SenterModuleWriter(BasePredictionWriter):
         batch_indices: Optional[Sequence[Any]] = None,
     ) -> None:
         pass  # pragma: no cover
+
+    def on_predict_epoch_end(
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+    ) -> None:
+        output_string: str = "\n"
+        if isinstance(self.destination, Path):
+            with self.destination.open(mode="a") as f:
+                f.write(output_string)
+        elif isinstance(self.destination, TextIOBase):
+            self.destination.write(output_string)
