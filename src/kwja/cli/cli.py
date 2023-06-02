@@ -64,12 +64,12 @@ class BaseModuleProcessor(ABC):
     def delete_module_and_trainer(self) -> None:
         del self.module, self.trainer
 
-    def apply_module(self, input_file: Path) -> None:
-        datamodule = self._load_datamodule(input_file)
+    def apply_module(self, input_file: Path, from_seq2seq: bool = False) -> None:
+        datamodule = self._load_datamodule(input_file, from_seq2seq)
         assert self.trainer is not None
         self.trainer.predict(model=self.module, dataloaders=[datamodule.predict_dataloader()], return_predictions=False)
 
-    def _load_datamodule(self, input_file: Path) -> DataModule:
+    def _load_datamodule(self, input_file: Path, from_seq2seq: bool = False) -> DataModule:
         raise NotImplementedError
 
     def export_prediction(self) -> str:
@@ -82,7 +82,7 @@ class TypoModuleProcessor(BaseModuleProcessor):
         checkpoint_path: Path = download_checkpoint(module="typo", model_size=self.model_size)
         return TypoModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
 
-    def _load_datamodule(self, input_file: Path) -> DataModule:
+    def _load_datamodule(self, input_file: Path, from_seq2seq: bool = False) -> DataModule:
         assert self.module is not None
         self.module.hparams.datamodule.predict.texts = _split_into_documents(input_file.read_text())
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
@@ -107,14 +107,14 @@ class SenterModuleProcessor(BaseModuleProcessor):
             return SenterModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
         return  # type: ignore
 
-    def _load_datamodule(self, input_file: Path) -> DataModule:
+    def _load_datamodule(self, input_file: Path, from_seq2seq: bool = False) -> DataModule:
         assert self.module is not None
         self.module.hparams.datamodule.predict.texts = _split_into_documents(input_file.read_text())
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
         datamodule.setup(stage=TrainerFn.PREDICTING)
         return datamodule
 
-    def apply_module(self, input_file: Path) -> None:
+    def apply_module(self, input_file: Path, from_seq2seq: bool = False) -> None:
         if self.model_size != ModelSize.tiny:
             super().apply_module(input_file)
             return
@@ -142,7 +142,7 @@ class Seq2SeqModuleProcessor(BaseModuleProcessor):
         checkpoint_path: Path = download_checkpoint(module="seq2seq", model_size=self.model_size)
         return Seq2SeqModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
 
-    def _load_datamodule(self, input_file: Path) -> DataModule:
+    def _load_datamodule(self, input_file: Path, from_seq2seq: bool = False) -> DataModule:
         assert self.module is not None
         self.module.hparams.datamodule.predict.senter_file = input_file
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
@@ -159,7 +159,7 @@ class CharModuleProcessor(BaseModuleProcessor):
         checkpoint_path: Path = download_checkpoint(module="char", model_size=self.model_size)
         return CharModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
 
-    def _load_datamodule(self, input_file: Path) -> DataModule:
+    def _load_datamodule(self, input_file: Path, from_seq2seq: bool = False) -> DataModule:
         assert self.module is not None
         self.module.hparams.datamodule.predict.senter_file = input_file
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
@@ -183,9 +183,10 @@ class WordModuleProcessor(BaseModuleProcessor):
         checkpoint_path: Path = download_checkpoint(module="word", model_size=self.model_size)
         return WordModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
 
-    def _load_datamodule(self, input_file: Path) -> DataModule:
+    def _load_datamodule(self, input_file: Path, from_seq2seq: bool = False) -> DataModule:
         assert self.module is not None
         self.module.hparams.datamodule.predict.juman_file = input_file
+        self.module.hparams.datamodule.predict.from_seq2seq = from_seq2seq
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
         datamodule.setup(stage=TrainerFn.PREDICTING)
         return datamodule
@@ -223,7 +224,9 @@ class CLIProcessor:
             processor = self.processors[task]
             if interactive is False:
                 processor.load()
-            processor.apply_module(input_file)
+
+            from_seq2seq: bool = task == "word" and "seq2seq" in tasks
+            processor.apply_module(input_file, from_seq2seq)
             input_file = processor.destination
             if interactive is False:
                 processor.delete_module_and_trainer()

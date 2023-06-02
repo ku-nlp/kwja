@@ -35,6 +35,7 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
         special_tokens: ListConfig,
         juman_file: Optional[Path] = None,
         knp_file: Optional[Path] = None,
+        from_seq2seq: bool = False,
     ) -> None:
         super(WordInferenceDataset, self).__init__(tokenizer, max_seq_length)
         if juman_file is not None:
@@ -56,8 +57,7 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
 
         super(BaseDataset, self).__init__(documents, tokenizer, max_seq_length, document_split_stride)
         # ---------- seq2seq ----------
-        self.from_seq2seq: bool = juman_file is not None and juman_file.suffix == ".seq2seq"
-
+        self.from_seq2seq: bool = from_seq2seq
         # ---------- cohesion analysis ----------
         self.cohesion_tasks = [CohesionTask(ct) for ct in cohesion_tasks]
         self.exophora_referents = [ExophoraReferent(er) for er in exophora_referents]
