@@ -171,9 +171,14 @@ word_batch_size: 1
 
 ## Performance Table
 
-- The performance on each task except typo correction and discourse relation analysis is the mean over all the corpora (KC, KWDLC, Fuman, and WAC) and over three runs with different random seeds.
-- We set the learning rate of RoBERTa<sub>LARGE</sub> (word) to 2e-5 because we failed to fine-tune it with a higher learning rate.
-  Other hyperparameters are the same described in configs, which are tuned for DeBERTa<sub>BASE</sub>.
+- char and word modules
+  - The performance on each task except typo correction, sentence segmentation and discourse relation analysis is the mean over all the corpora (KC, KWDLC, Fuman, and WAC) and over three runs with different random seeds.
+  - We set the learning rate of RoBERTa<sub>LARGE</sub> (word) to 2e-5 because we failed to fine-tune it with a higher learning rate.
+    Other hyperparameters are the same described in configs, which are tuned for DeBERTa<sub>BASE</sub>.
+- seq2seq module
+  - The performance on each task is the mean over all the corpora (KC, KWDLC, Fuman, and WAC).
+  - Results for only one run are reported.
+  - Scores are calculated using a separate [script](https://github.com/ku-nlp/kwja/blob/main/scripts/view_seq2seq_results.py) from the char and word modules.
 
 <table>
   <tr>
@@ -182,40 +187,34 @@ word_batch_size: 1
   </tr>
   <tr>
     <th>
-        RoBERTa<sub>BASE</sub><br>
+        v1.0 base<br>
         (
             <a href="https://huggingface.co/ku-nlp/roberta-base-japanese-char-wwm">char</a>,
             <a href="https://huggingface.co/nlp-waseda/roberta-base-japanese">word</a>
         )
     </th>
     <th>
-        DeBERTa<sub>BASE</sub><br>
+        v2.0 base <br>
         (
             <a href="https://huggingface.co/ku-nlp/deberta-v2-base-japanese-char-wwm">char</a>,
-            <a href="https://huggingface.co/ku-nlp/deberta-v2-base-japanese">word</a>
+            <a href="https://huggingface.co/ku-nlp/deberta-v2-base-japanese">word</a> /
+            <a href="https://huggingface.co/retrieva-jp/t5-base-long">seq2seq</a>
         )
     </th>
     <th>
-        RoBERTa<sub>LARGE</sub><br>
+        v1.0 large <br>
         (
             <a href="https://huggingface.co/ku-nlp/roberta-large-japanese-char-wwm">char</a>,
             <a href="https://huggingface.co/nlp-waseda/roberta-large-japanese-seq512">word</a>
         )
     </th>
     <th>
-        DeBERTa<sub>LARGE</sub><br>
+        v2.0 large <br>
         (
             <a href="https://huggingface.co/ku-nlp/deberta-v2-large-japanese-char-wwm">char</a>,
-            <a href="https://huggingface.co/ku-nlp/deberta-v2-large-japanese">word</a>
+            <a href="https://huggingface.co/ku-nlp/deberta-v2-large-japanese">word</a> /
+            <a href="https://huggingface.co/retrieva-jp/t5-large-long">seq2seq</a>
         )
-    </th>
-    <th>
-        mT5<sub>base</sub><br>
-        (<a href="https://huggingface.co/google/mt5-base">seq2seq</a>)
-    </th>
-    <th>
-        mT5<sub>large</sub><br>
-        (<a href="https://huggingface.co/google/mt5-large">seq2seq</a>)
     </th>
   </tr>
   <tr style="text-align: right;">
@@ -224,8 +223,6 @@ word_batch_size: 1
     <td>TBU</td>
     <td>TBU</td>
     <td>TBU</td>
-    <td>-</td>
-    <td>-</td>
   </tr>
   <tr style="text-align: right;">
     <th colspan="2" style="text-align: center;">Sentence Segmentation</th>
@@ -233,17 +230,13 @@ word_batch_size: 1
     <td>TBU</td>
     <td>TBU</td>
     <td>TBU</td>
-    <td>-</td>
-    <td>-</td>
   </tr>
   <tr style="text-align: right;">
     <th colspan="2" style="text-align: center;">Word Segmentation</th>
     <td>98.5</td>
-    <td>98.6</td>
+    <td>98.6 / 98.2</td>
     <td>98.7</td>
-    <td style="font-weight: bold;">98.9</td>
-    <td>97.7</td>
-    <td>98.9</td>
+    <td style="font-weight: bold;">98.9 / 98.4</td>
   </tr>
   <tr style="text-align: right;">
     <th colspan="2" style="text-align: center;">Word Normalization</th>
@@ -251,8 +244,6 @@ word_batch_size: 1
     <td>39.2</td>
     <td>39.8</td>
     <td style="font-weight: bold;">46.0</td>
-    <td>-</td>
-    <td>-</td>
   </tr>
   <tr style="text-align: right;">
     <th rowspan="7" style="text-align: center;">Morphological<br>Analysis</th>
@@ -261,8 +252,6 @@ word_batch_size: 1
     <td style="font-weight: bold;">99.4</td>
     <td>99.3</td>
     <td style="font-weight: bold;">99.4</td>
-    <td>-</td>
-    <td>-</td>
   </tr>
   <tr style="text-align: right;">
     <th style="text-align: left;">sub-POS</th>
@@ -270,8 +259,6 @@ word_batch_size: 1
     <td style="font-weight: bold;">98.4</td>
     <td>98.2</td>
     <td style="font-weight: bold;">98.4</td>
-    <td>-</td>
-    <td>-</td>
   </tr>
   <tr style="text-align: right;">
     <th style="text-align: left;">conjugation type</th>
@@ -279,8 +266,6 @@ word_batch_size: 1
     <td style="font-weight: bold;">99.5</td>
     <td>99.2</td>
     <td>99.4</td>
-    <td>-</td>
-    <td>-</td>
   </tr>
   <tr style="text-align: right;">
     <th style="text-align: left;">conjugation form</th>
@@ -288,35 +273,27 @@ word_batch_size: 1
     <td style="font-weight: bold;">99.6</td>
     <td>99.4</td>
     <td style="font-weight: bold;">99.6</td>
-    <td>-</td>
-    <td>-</td>
   </tr>
   <tr style="text-align: right;">
     <th style="text-align: left;">reading</th>
     <td>95.5</td>
-    <td>95.2</td>
+    <td>95.2 / 96.2</td>
     <td>90.8</td>
-    <td>95.1</td>
-    <td>95.5</td>
-    <td style="font-weight: bold;">96.2</td>
+    <td style="font-weight: bold;">95.1 / 96.8</td>
   </tr>
   <tr style="text-align: right;">
     <th style="text-align: left;">lemma</th>
     <td>-</td>
+    <td>- / 97.8</td>
     <td>-</td>
-    <td>-</td>
-    <td>-</td>
-    <td>97.2</td>
-    <td style="font-weight: bold;">97.5</td>
+    <td style="font-weight: bold;">- / 98.1</td>
   </tr>
   <tr style="text-align: right;">
     <th style="text-align: left;">canon</th>
     <td>-</td>
+    <td>- / 95.2</td>
     <td>-</td>
-    <td>-</td>
-    <td>-</td>
-    <td>94.7</td>
-    <td style="font-weight: bold;">95.5</td>
+    <td style="font-weight: bold;">- / 95.9</td>
   </tr>
   <tr style="text-align: right;">
     <th colspan="2" style="text-align: center;">Named Entity Recognition</th>
@@ -324,8 +301,6 @@ word_batch_size: 1
     <td>83.8</td>
     <td>82.1</td>
     <td style="font-weight: bold;">84.6</td>
-    <td>-</td>
-    <td>-</td>
   </tr>
   <tr style="text-align: right;">
     <th rowspan="2" style="text-align: center;">Linguistic<br>Feature<br>Tagging</th>
@@ -334,8 +309,6 @@ word_batch_size: 1
     <td style="font-weight: bold;">98.5</td>
     <td style="font-weight: bold;">98.5</td>
     <td>98.4</td>
-    <td>-</td>
-    <td>-</td>
   </tr>
   <tr style="text-align: right;">
     <th style="text-align: left;">base phrase</th>
@@ -343,8 +316,6 @@ word_batch_size: 1
     <td style="font-weight: bold;">89.5</td>
     <td>86.4</td>
     <td>89.3</td>
-    <td>-</td>
-    <td>-</td>
   </tr>
   <tr style="text-align: right;">
     <th colspan="2" style="text-align: center;">Dependency Parsing</th>
@@ -352,8 +323,6 @@ word_batch_size: 1
     <td>93.4</td>
     <td style="font-weight: bold;">93.8</td>
     <td>93.3</td>
-    <td>-</td>
-    <td>-</td>
   </tr>
   <tr style="text-align: right;">
     <th colspan="2" style="text-align: center;">Pas Analysis</th>
@@ -361,8 +330,6 @@ word_batch_size: 1
     <td>76.7</td>
     <td>75.3</td>
     <td style="font-weight: bold;">76.9</td>
-    <td>-</td>
-    <td>-</td>
   </tr>
   <tr style="text-align: right;">
     <th colspan="2" style="text-align: center;">Bridging Reference Resolution</th>
@@ -370,8 +337,6 @@ word_batch_size: 1
     <td style="font-weight: bold;">67.3</td>
     <td>65.2</td>
     <td>67.0</td>
-    <td>-</td>
-    <td>-</td>
   </tr>
   <tr style="text-align: right;">
     <th colspan="2" style="text-align: center;">Coreference Resolution</th>
@@ -379,8 +344,6 @@ word_batch_size: 1
     <td style="font-weight: bold;">78.4</td>
     <td>75.9</td>
     <td>78.0</td>
-    <td>-</td>
-    <td>-</td>
   </tr>
   <tr style="text-align: right;">
     <th colspan="2" style="text-align: center;">Discourse Relation Analysis</th>
@@ -388,8 +351,6 @@ word_batch_size: 1
     <td style="font-weight: bold;">44.8</td>
     <td>41.3</td>
     <td>41.0</td>
-    <td>-</td>
-    <td>-</td>
   </tr>
 </table>
 
