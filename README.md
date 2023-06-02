@@ -11,17 +11,18 @@
 [[Paper]](https://ipsj.ixsq.nii.ac.jp/ej/?action=pages_view_main&active_action=repository_view_main_item_detail&item_id=220232&item_no=1&page_id=13&block_id=8)
 [[Slides]](https://speakerdeck.com/nobug/kyoto-waseda-japanese-analyzer)
 
-KWJA is a Japanese language analyzer based on pre-trained language models.
-KWJA performs many language analysis tasks, including:
+KWJA is an integrated Japanese text analyzer based on foundation models.
+KWJA performs many text analysis tasks, including:
 - Typo correction
+- Sentence segmentation
 - Word segmentation
 - Word normalization
 - Morphological analysis
 - Word feature tagging
-- NER (Named Entity Recognition)
 - Base phrase feature tagging
+- NER (Named Entity Recognition)
 - Dependency parsing
-- PAS analysis
+- Predicate-argument structure (PAS) analysis
 - Bridging reference resolution
 - Coreference resolution
 - Discourse relation analysis
@@ -63,7 +64,7 @@ If you use Windows and PowerShell, you need to set `PYTHONUTF8` environment vari
 > kwja ...
 ````
 
-The output is in the KNP format, like the following:
+The output is in the KNP format, which looks like the following:
 
 ```
 # S-ID:202210010000-0-0 kwja:1.0.2
@@ -80,23 +81,27 @@ KWJA ＫWＪＡ KWJA 名詞 6 固有名詞 3 * 0 * 0 <基本句-主辞>
 ...
 ```
 
-Here are some other options for `kwja` command:
+Here are options for `kwja` command:
 
-`--model-size`: Model size to be used. Please specify 'tiny', 'base' (default) or 'large'.
+- `--text`: Text to be analyzed.
 
-`--device`: Device to be used. Please specify 'cpu' or 'gpu'.
+- `--filename`: Path to a text file to be analyzed. You can specify this option multiple times.
 
-`--typo-batch-size`: Batch size for typo module. This batch size is also used for the senter module.
+- `--model-size`: Model size to be used. Specify one of `tiny`, `base` (default), and `large`.
 
-`--senter-batch-size`: Batch size for senter module.
+- `--device`: Device to be used. Specify `cpu` or `gpu`. If not specified, the device is automatically selected.
 
-`--seq2seq-batch-size`: Batch size for seq2seq module.
+- `--typo-batch-size`: Batch size for typo module.
 
-`--char-batch-size`: Batch size for char module.
+- `--senter-batch-size`: Batch size for senter module.
 
-`--word-batch-size`: Batch size for word module.
+- `--seq2seq-batch-size`: Batch size for seq2seq module.
 
-`--tasks`: Tasks to be performed.
+- `--char-batch-size`: Batch size for character module.
+
+- `--word-batch-size`: Batch size for word module.
+
+- `--tasks`: Tasks to be performed. Specify one or more of the following values separated by commas:
   - `typo`: Typo correction
   - `senter`: Sentence segmentation
   - `seq2seq`: Word segmentation, Word normalization, Reading prediction, lemmatization, and Canonicalization.
@@ -153,7 +158,7 @@ convention for the location of the configuration file.
 The configuration dir `kwja` uses is itself named `kwja`.
 In that directory it refers to a file named `config.yaml`.
 For most people it should be enough to put their config file at `~/.config/kwja/config.yaml`.
-You can also provide a configuration file in a non-standard location with: `kwja --config-file <path>`
+You can also provide a configuration file in a non-standard location with an environment variable `KWJA_CONFIG_FILE` or a command line option `--config-file`.
 
 ### Config file example
 
@@ -171,7 +176,7 @@ word_batch_size: 1
 
 ## Performance Table
 
-- typo, senter, char, and word modules
+- typo, senter, character, and word modules
   - The performance on each task except typo correction and discourse relation analysis is the mean over all the corpora (KC, KWDLC, Fuman, and WAC) and over three runs with different random seeds.
     - \* denotes results of a single run (TBU)
   - We set the learning rate of RoBERTa<sub>LARGE</sub> (word) to 2e-5 because we failed to fine-tune it with a higher learning rate.
@@ -179,7 +184,7 @@ word_batch_size: 1
 - seq2seq module
   - The performance on each task is the mean over all the corpora (KC, KWDLC, Fuman, and WAC).
     - \* denotes results of a single run
-  - Scores are calculated using a separate [script](https://github.com/ku-nlp/kwja/blob/main/scripts/view_seq2seq_results.py) from the char and word modules.
+  - Scores are calculated using a separate [script](https://github.com/ku-nlp/kwja/blob/main/scripts/view_seq2seq_results.py) from the character and word modules.
 
 <table>
   <thead>
@@ -189,14 +194,14 @@ word_batch_size: 1
     </tr>
     <tr>
       <th>
-        v1.0 base<br>
+        v1.x base<br>
         (
             <a href="https://huggingface.co/ku-nlp/roberta-base-japanese-char-wwm">char</a>,
             <a href="https://huggingface.co/nlp-waseda/roberta-base-japanese">word</a>
         )
       </th>
       <th>
-        v2.0 base<br>
+        v2.x base<br>
         (
             <a href="https://huggingface.co/ku-nlp/deberta-v2-base-japanese-char-wwm">char</a>,
             <a href="https://huggingface.co/ku-nlp/deberta-v2-base-japanese">word</a> /
@@ -204,14 +209,14 @@ word_batch_size: 1
         )
       </th>
       <th>
-        v1.0 large<br>
+        v1.x large<br>
         (
             <a href="https://huggingface.co/ku-nlp/roberta-large-japanese-char-wwm">char</a>,
             <a href="https://huggingface.co/nlp-waseda/roberta-large-japanese-seq512">word</a>
         )
       </th>
       <th>
-        v2.0 large<br>
+        v2.x large<br>
         (
             <a href="https://huggingface.co/ku-nlp/deberta-v2-large-japanese-char-wwm">char</a>,
             <a href="https://huggingface.co/ku-nlp/deberta-v2-large-japanese">word</a> /
@@ -390,6 +395,10 @@ word_batch_size: 1
   address   = {沖縄},
 }
 ```
+
+## License
+
+This software is released under the MIT License, see [LICENSE](LICENSE).
 
 ## Reference
 
