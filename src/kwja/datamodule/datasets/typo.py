@@ -11,7 +11,7 @@ from kwja.callbacks.utils import get_maps
 from kwja.datamodule.datasets.base import BaseDataset
 from kwja.datamodule.examples import TypoExample
 from kwja.utils.constants import DUMMY_TOKEN, IGNORE_INDEX, RESOURCE_PATH, TYPO_CORR_OP_TAG2TOKEN
-from kwja.utils.progress_bar import track
+from kwja.utils.logging_util import track
 
 
 @dataclass(frozen=True)

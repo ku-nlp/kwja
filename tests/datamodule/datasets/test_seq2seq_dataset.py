@@ -55,7 +55,7 @@ def test_encode(fixture_data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBa
             "/",
             "た",
             "ろう",
-            "<br>",  # 太郎
+            "<extra_id_0>",  # 太郎
             "▁",
             "と",
             "▁",
@@ -63,8 +63,8 @@ def test_encode(fixture_data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBa
             "▁",
             "と",
             "▁",
-            "<no_canon>",
-            "<br>",  # と
+            "<extra_id_2>",
+            "<extra_id_0>",  # と
             "▁",
             "次郎",
             "▁",
@@ -77,7 +77,7 @@ def test_encode(fixture_data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBa
             "/",
             "じ",
             "ろう",
-            "<br>",  # 次郎
+            "<extra_id_0>",  # 次郎
             "▁",
             "は",
             "▁",
@@ -85,8 +85,8 @@ def test_encode(fixture_data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBa
             "▁",
             "は",
             "▁",
-            "<no_canon>",
-            "<br>",  # は
+            "<extra_id_2>",
+            "<extra_id_0>",  # は
             "▁",
             "よく",
             "▁",
@@ -94,8 +94,8 @@ def test_encode(fixture_data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBa
             "▁",
             "よく",
             "▁",
-            "<no_canon>",
-            "<br>",  # よく
+            "<extra_id_2>",
+            "<extra_id_0>",  # よく
             "▁",
             "けん",
             "か",
@@ -111,7 +111,7 @@ def test_encode(fixture_data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBa
             "/",
             "けん",
             "か",
-            "<br>",  # けんか
+            "<extra_id_0>",  # けんか
             "▁",
             "する",
             "▁",
@@ -119,8 +119,8 @@ def test_encode(fixture_data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBa
             "▁",
             "する",
             "▁",
-            "<no_canon>",
-            "<br>",  # する
+            "<extra_id_2>",
+            "<extra_id_0>",  # する
             "</s>",
         ],
         [
@@ -132,8 +132,8 @@ def test_encode(fixture_data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBa
             "▁",
             "辛い",
             "▁",
-            "<no_canon>",
-            "<br>",  # 辛い
+            "<extra_id_2>",
+            "<extra_id_0>",  # 辛い
             "▁",
             "ラーメン",
             "▁",
@@ -143,8 +143,8 @@ def test_encode(fixture_data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBa
             "▁",
             "ラーメン",
             "▁",
-            "<no_canon>",
-            "<br>",  # ラーメン
+            "<extra_id_2>",
+            "<extra_id_0>",  # ラーメン
             "▁",
             "が",
             "▁",
@@ -152,8 +152,8 @@ def test_encode(fixture_data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBa
             "▁",
             "が",
             "▁",
-            "<no_canon>",
-            "<br>",  # が
+            "<extra_id_2>",
+            "<extra_id_0>",  # が
             "▁",
             "好きな",
             "▁",
@@ -163,8 +163,8 @@ def test_encode(fixture_data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBa
             "好き",
             "だ",
             "▁",
-            "<no_canon>",
-            "<br>",  # 好きな
+            "<extra_id_2>",
+            "<extra_id_0>",  # 好きな
             "▁",
             "ので",
             "▁",
@@ -172,8 +172,8 @@ def test_encode(fixture_data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBa
             "▁",
             "のだ",
             "▁",
-            "<no_canon>",
-            "<br>",  # ので
+            "<extra_id_2>",
+            "<extra_id_0>",  # ので
             "▁",
             "頼",
             "み",
@@ -183,8 +183,8 @@ def test_encode(fixture_data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBa
             "▁",
             "頼む",
             "▁",
-            "<no_canon>",
-            "<br>",  # 頼み
+            "<extra_id_2>",
+            "<extra_id_0>",  # 頼み
             "▁",
             "ました",
             "▁",
@@ -192,8 +192,8 @@ def test_encode(fixture_data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBa
             "▁",
             "ます",
             "▁",
-            "<no_canon>",
-            "<br>",  # ました
+            "<extra_id_2>",
+            "<extra_id_0>",  # ました
             "</s>",
         ],
     ]

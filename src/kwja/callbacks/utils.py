@@ -1,4 +1,5 @@
 from logging import getLogger
+from pathlib import Path
 from typing import Dict, List, Literal, Optional, Set, Tuple
 
 import numpy as np
@@ -8,6 +9,7 @@ from rhoknp.cohesion import ExophoraReferent, RelTag, RelTagList
 from rhoknp.props import DepType, NamedEntity, NamedEntityCategory
 from transformers import PreTrainedTokenizerBase
 
+from kwja.datamodule.examples import SpecialTokenIndexer
 from kwja.utils.cohesion_analysis import CohesionUtils
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
@@ -38,9 +40,9 @@ logger = getLogger(__name__)
 
 
 # ---------- typo module writer ----------
-def get_maps(tokenizer: PreTrainedTokenizerBase, extended_vocab_path: str) -> Tuple[Dict[str, int], Dict[int, str]]:
+def get_maps(tokenizer: PreTrainedTokenizerBase, extended_vocab_path: Path) -> Tuple[Dict[str, int], Dict[int, str]]:
     token2token_id = tokenizer.get_vocab()
-    with open(extended_vocab_path, mode="r") as f:
+    with extended_vocab_path.open() as f:
         for line in f:
             if line := line.strip():
                 token2token_id[line] = len(token2token_id.keys())
@@ -174,48 +176,41 @@ def get_word_reading_predictions(
 
 
 def get_morpheme_attribute_predictions(
-    pos_logits: torch.Tensor,
-    subpos_logits: torch.Tensor,
-    conjtype_logits: torch.Tensor,
-    conjform_logits: torch.Tensor,
+    pos_logits: List[List[float]],
+    subpos_logits: List[List[float]],
+    conjtype_logits: List[List[float]],
+    conjform_logits: List[List[float]],
 ) -> Tuple[List[int], List[int], List[int], List[int]]:
-    pos_predictions: List[int] = pos_logits.argmax(dim=1).tolist()
+    pos_predictions: List[int] = np.array(pos_logits).argmax(axis=1).tolist()
     subpos_predictions: List[int] = []
-    for pos_index, subpos_logit_list in zip(pos_predictions, subpos_logits.tolist()):
-        subpos_tag2subpos_id = POS_TAG_SUBPOS_TAG2SUBPOS_ID[POS_TAGS[pos_index]]
-        possible_subpos_indices: Set[int] = {
-            SUBPOS_TAGS.index(subpos_tag) for subpos_tag in subpos_tag2subpos_id.keys()
-        }
-        max_subpos_logit = MASKED
-        subpos_prediction: int = 0
-        for subpos_index, subpos_logit in enumerate(subpos_logit_list):
-            if subpos_index in possible_subpos_indices and subpos_logit > max_subpos_logit:
-                max_subpos_logit = subpos_logit
-                subpos_prediction = subpos_index
-        subpos_predictions.append(subpos_prediction)
-
-    conjtype_predictions: List[int] = conjtype_logits.argmax(dim=1).tolist()
+    conjtype_predictions: List[int] = np.array(conjtype_logits).argmax(axis=1).tolist()
     conjform_predictions: List[int] = []
-    for i, (pos_index, subpos_index, conjtype_index, conjform_logit_list) in enumerate(
-        zip(pos_predictions, subpos_predictions, conjtype_predictions, conjform_logits.tolist())
+    for i, (pos_index, subpos_logit_list, conjtype_index, conjform_logit_list) in enumerate(
+        zip(pos_predictions, subpos_logits, conjtype_predictions, conjform_logits)
     ):
-        pos_tag: str = POS_TAGS[pos_index]
-        subpos_tag: str = SUBPOS_TAGS[subpos_index]
+        pos_tag = POS_TAGS[pos_index]
+        possible_subpos_tags: Set[str] = set(POS_TAG_SUBPOS_TAG2SUBPOS_ID[pos_tag].keys())
+        for subpos_index, subpos_tag in enumerate(SUBPOS_TAGS):
+            if subpos_tag not in possible_subpos_tags:
+                subpos_logit_list[subpos_index] = MASKED
+        subpos_index = np.array(subpos_logit_list).argmax().item()
+        subpos_tag = SUBPOS_TAGS[subpos_index]
+        assert subpos_tag in possible_subpos_tags
+        subpos_predictions.append(subpos_index)
+
+        conjtype_tag = CONJTYPE_TAGS[conjtype_index]
         if (pos_tag, subpos_tag) in INFLECTABLE:
-            conjform_tag2conjform_id = CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID[CONJTYPE_TAGS[conjtype_index]]
-            possible_conjform_indices: Set[int] = {
-                CONJFORM_TAGS.index(conjform_tag) for conjform_tag in conjform_tag2conjform_id.keys()
-            }
-            max_conjform_logit = MASKED
-            conjform_prediction: int = 0
-            for conjform_index, conjform_logit in enumerate(conjform_logit_list):
-                if conjform_index in possible_conjform_indices and conjform_logit > max_conjform_logit:
-                    max_conjform_logit = conjform_logit
-                    conjform_prediction = conjform_index
+            possible_conjform_tags: Set[str] = set(CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID[conjtype_tag].keys())
+            for conjform_index, conjform_tag in enumerate(CONJFORM_TAGS):
+                if conjform_tag not in possible_conjform_tags:
+                    conjform_logit_list[conjform_index] = MASKED
+            conjform_index = np.array(conjform_logit_list).argmax().item()
+            conjform_tag = CONJFORM_TAGS[conjform_index]
+            assert conjform_tag in possible_conjform_tags
         else:
             conjtype_predictions[i] = CONJTYPE_TAGS.index("*")
-            conjform_prediction = CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID["*"]["*"]
-        conjform_predictions.append(conjform_prediction)
+            conjform_index = CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID["*"]["*"]
+        conjform_predictions.append(conjform_index)
 
     return pos_predictions, subpos_predictions, conjtype_predictions, conjform_predictions
 
@@ -224,20 +219,11 @@ def build_morphemes(
     surfs: List[str],
     lemmas: List[str],
     reading_predictions: List[str],
-    pos_predictions: List[int],
-    subpos_predictions: List[int],
-    conjtype_predictions: List[int],
-    conjform_predictions: List[int],
+    morpheme_attribute_predictions: Tuple[List[int], List[int], List[int], List[int]],
 ) -> List[Morpheme]:
     morphemes = []
     for surf, lemma, reading, pos_index, subpos_index, conjtype_index, conjform_index in zip(
-        surfs,
-        lemmas,
-        reading_predictions,
-        pos_predictions,
-        subpos_predictions,
-        conjtype_predictions,
-        conjform_predictions,
+        surfs, lemmas, reading_predictions, *morpheme_attribute_predictions
     ):
         pos = POS_TAGS[pos_index]
         pos_id = POS_TAG2POS_ID[pos]
@@ -270,9 +256,9 @@ def chunk_morphemes(
 ) -> Document:
     predicted_sentences = []
     for sentence in document.sentences:
-        morpheme_buffer = []
-        base_phrase_buffer = []
-        phrase_buffer = []
+        morpheme_buffer: List[Morpheme] = []
+        base_phrase_buffer: List[BasePhrase] = []
+        phrase_buffer: List[Phrase] = []
         for i in [m.global_index for m in sentence.morphemes]:
             morpheme = morphemes[i]
 
@@ -378,11 +364,11 @@ def add_dependency(
     sentence: Sentence,
     dependency_predictions: List[List[int]],
     dependency_type_predictions: List[List[int]],
-    special_token2index: Dict[str, int],
+    special_token_indexer: SpecialTokenIndexer,
 ) -> None:
     base_phrases = sentence.base_phrases
     morpheme_global_index2base_phrase_index = {m.global_index: bp.index for bp in base_phrases for m in bp.morphemes}
-    morpheme_global_index2base_phrase_index[special_token2index["[ROOT]"]] = -1
+    morpheme_global_index2base_phrase_index[special_token_indexer.get_morpheme_level_index("[ROOT]")] = -1
     dependency_manager = DependencyManager()
     for base_phrase in base_phrases:
         for parent_morpheme_global_index, dependency_type_index in zip(
@@ -443,24 +429,30 @@ def add_cohesion(
     document: Document,
     cohesion_logits: List[List[List[float]]],  # (rel, seq, seq)
     cohesion_task2utils: Dict[CohesionTask, CohesionUtils],
-    index2special_token: Dict[int, str],
+    special_token_indexer: SpecialTokenIndexer,
 ) -> None:
-    flatten_rels = [r for cohesion_utils in cohesion_task2utils.values() for r in cohesion_utils.rels]
+    rel2logits = dict(
+        zip(
+            [r for cohesion_utils in cohesion_task2utils.values() for r in cohesion_utils.rels],
+            cohesion_logits,
+        )
+    )
     base_phrases = document.base_phrases
     for base_phrase in base_phrases:
         rel_tags = RelTagList()
         for cohesion_utils in cohesion_task2utils.values():
-            if cohesion_utils.is_target(base_phrase):
-                for rel in cohesion_utils.rels:
-                    rel_tag = _to_rel_tag(
-                        rel,
-                        cohesion_logits[flatten_rels.index(rel)][base_phrase.head.global_index],  # (seq, )
-                        base_phrases,
-                        index2special_token,
-                        cohesion_utils.exophora_referents,
-                    )
-                    if rel_tag is not None:
-                        rel_tags.append(rel_tag)
+            if cohesion_utils.is_target(base_phrase) is False:
+                continue
+            for rel in cohesion_utils.rels:
+                rel_tag = _to_rel_tag(
+                    rel,
+                    rel2logits[rel][base_phrase.head.global_index],  # (seq, )
+                    base_phrases,
+                    special_token_indexer,
+                    cohesion_utils.exophora_referents,
+                )
+                if rel_tag is not None:
+                    rel_tags.append(rel_tag)
         base_phrase.rel_tags = rel_tags
 
 
@@ -468,14 +460,15 @@ def _to_rel_tag(
     rel: str,
     rel_logits: List[float],  # (seq, )
     base_phrases: List[BasePhrase],
-    index2special_token: Dict[int, str],
+    special_token_indexer: SpecialTokenIndexer,
     exophora_referents: List[ExophoraReferent],
 ) -> Optional[RelTag]:
-    logits = [rel_logits[bp.head.global_index] for bp in base_phrases] + [rel_logits[i] for i in index2special_token]
-    predicted_antecedent_index: int = np.argmax(logits).item()
-    if 0 <= predicted_antecedent_index < len(base_phrases):
+    logits = [rel_logits[bp.head.global_index] for bp in base_phrases]
+    logits += [rel_logits[i] for i in special_token_indexer.get_morpheme_level_indices()]
+    predicted_base_phrase_global_index: int = np.argmax(logits).item()
+    if 0 <= predicted_base_phrase_global_index < len(base_phrases):
         # endophora
-        predicted_antecedent = base_phrases[predicted_antecedent_index]
+        predicted_antecedent = base_phrases[predicted_base_phrase_global_index]
         return RelTag(
             type=rel,
             target=predicted_antecedent.head.text,
@@ -485,17 +478,17 @@ def _to_rel_tag(
         )
     else:
         # exophora
-        special_token = list(index2special_token.values())[predicted_antecedent_index - len(base_phrases)]
-        if special_token in [str(e) for e in exophora_referents]:  # exclude [NULL], [NA], and [ROOT]
+        special_token = special_token_indexer.special_tokens[predicted_base_phrase_global_index - len(base_phrases)]
+        stripped_special_token = special_token[1:-1]  # strip '[' and ']'
+        if stripped_special_token in [str(er) for er in exophora_referents]:  # exclude [NULL], [NA], and [ROOT]
             return RelTag(
                 type=rel,
-                target=special_token,
+                target=stripped_special_token,
                 sid=None,
                 base_phrase_index=None,
                 mode=None,
             )
-        else:
-            return None
+    return None
 
 
 def add_discourse(document: Document, discourse_predictions: List[List[int]]) -> None:

@@ -39,16 +39,17 @@ def test_getitem(fixture_data_dir: Path, word_tokenizer: PreTrainedTokenizerBase
     dataset = WordDataset(str(path), word_tokenizer, max_seq_length, document_split_stride=1, **dataset_kwargs)
     num_cohesion_rels = len([r for utils in dataset.cohesion_task2utils.values() for r in utils.rels])
     for i in range(len(dataset)):
-        document = dataset.documents[i]
+        doc_id = dataset.examples[i].doc_id
+        assert doc_id is not None, "doc_id isn't set"
+        document = dataset.doc_id2document[doc_id]
         feature = dataset[i]
         assert feature.example_ids == i
         assert len(feature.input_ids) == max_seq_length
         assert len(feature.attention_mask) == max_seq_length
-        assert len(feature.target_mask) == max_seq_length
         assert np.array(feature.subword_map).shape == (max_seq_length, max_seq_length)
-        assert (np.array(feature.subword_map).sum(axis=1) != 0).sum() == len(
-            document.morphemes
-        ) + dataset.num_special_tokens
+        assert (np.array(feature.subword_map).sum(axis=1) != 0).sum() == len(document.morphemes) + len(
+            dataset.special_tokens
+        )
         assert len(feature.reading_labels) == max_seq_length
         assert np.array(feature.reading_subword_map).shape == (max_seq_length, max_seq_length)
         assert (np.array(feature.reading_subword_map).sum(axis=1) != 0).sum() == len(document.morphemes)
@@ -58,6 +59,7 @@ def test_getitem(fixture_data_dir: Path, word_tokenizer: PreTrainedTokenizerBase
         assert len(feature.conjform_labels) == max_seq_length
         assert np.array(feature.word_feature_labels).shape == (max_seq_length, len(WORD_FEATURES))
         assert len(feature.ne_labels) == max_seq_length
+        assert len(feature.ne_mask) == max_seq_length
         assert np.array(feature.base_phrase_feature_labels).shape == (max_seq_length, len(BASE_PHRASE_FEATURES))
         assert len(feature.dependency_labels) == max_seq_length
         assert np.array(feature.dependency_mask).shape == (max_seq_length, max_seq_length)
@@ -227,7 +229,7 @@ def test_encode(fixture_data_dir: Path, word_tokenizer: PreTrainedTokenizerBase,
     assert word_feature_labels[0].tolist() == dataset[0].word_feature_labels
     assert word_feature_labels[1].tolist() == dataset[1].word_feature_labels
 
-    ne_labels = torch.full((num_examples, max_seq_length), IGNORE_INDEX, dtype=torch.long)
+    ne_labels = torch.full((num_examples, max_seq_length), NE_TAGS.index("O"), dtype=torch.long)
     ne_labels[0, 0] = NE_TAGS.index("B-PERSON")  # 太郎
     ne_labels[0, 1] = NE_TAGS.index("O")  # と
     ne_labels[0, 2] = NE_TAGS.index("B-PERSON")  # 次郎
@@ -284,14 +286,16 @@ def test_encode(fixture_data_dir: Path, word_tokenizer: PreTrainedTokenizerBase,
     dependency_labels[0, 2] = 5  # 次郎 -> けんか
     dependency_labels[0, 3] = 2  # は -> 次郎
     dependency_labels[0, 4] = 5  # よく -> けんか
-    dependency_labels[0, 5] = dataset.special_token2index["[ROOT]"]  # けんか -> [ROOT]
+    # けんか -> [ROOT]
+    dependency_labels[0, 5] = dataset.examples[0].special_token_indexer.get_morpheme_level_index("[ROOT]")
     dependency_labels[0, 6] = 5  # する -> けんか
     dependency_labels[1, 0] = 1  # 辛い -> ラーメン
     dependency_labels[1, 1] = 3  # ラーメン -> 好きな
     dependency_labels[1, 2] = 1  # が -> ラーメン
     dependency_labels[1, 3] = 5  # 好きな -> 頼み
     dependency_labels[1, 4] = 3  # ので -> 好きな
-    dependency_labels[1, 5] = dataset.special_token2index["[ROOT]"]  # 頼み -> [ROOT]
+    # 頼み -> [ROOT]
+    dependency_labels[1, 5] = dataset.examples[1].special_token_indexer.get_morpheme_level_index("[ROOT]")
     dependency_labels[1, 6] = 5  # ました -> 頼み
     assert dependency_labels[0].tolist() == dataset[0].dependency_labels
     assert dependency_labels[1].tolist() == dataset[1].dependency_labels
@@ -316,28 +320,30 @@ def test_encode(fixture_data_dir: Path, word_tokenizer: PreTrainedTokenizerBase,
 
     flatten_rels = [r for cohesion_utils in dataset.cohesion_task2utils.values() for r in cohesion_utils.rels]
     cohesion_labels = torch.zeros((num_examples, len(flatten_rels), max_seq_length, max_seq_length), dtype=torch.long)
-    cohesion_labels[0, flatten_rels.index("ノ"), 0, dataset.special_token2index["[NULL]"]] = 1  # φ ノ 太郎
-    cohesion_labels[0, flatten_rels.index("="), 0, dataset.special_token2index["[NA]"]] = 1  # 太郎
-    cohesion_labels[0, flatten_rels.index("ノ"), 2, dataset.special_token2index["[NULL]"]] = 1  # φ ノ 次郎
-    cohesion_labels[0, flatten_rels.index("="), 2, dataset.special_token2index["[NA]"]] = 1  # 次郎
+    _alias = dataset.examples[0].special_token_indexer.get_morpheme_level_index
+    cohesion_labels[0, flatten_rels.index("ノ"), 0, _alias("[NULL]")] = 1  # φ ノ 太郎
+    cohesion_labels[0, flatten_rels.index("="), 0, _alias("[NA]")] = 1  # 太郎
+    cohesion_labels[0, flatten_rels.index("ノ"), 2, _alias("[NULL]")] = 1  # φ ノ 次郎
+    cohesion_labels[0, flatten_rels.index("="), 2, _alias("[NA]")] = 1  # 次郎
     cohesion_labels[0, flatten_rels.index("ガ"), 5, 2] = 1  # 次郎 ガ けんか
-    cohesion_labels[0, flatten_rels.index("ヲ"), 5, dataset.special_token2index["[NULL]"]] = 1  # φ ヲ けんか
-    cohesion_labels[0, flatten_rels.index("ニ"), 5, dataset.special_token2index["[NULL]"]] = 1  # φ ニ けんか
-    cohesion_labels[0, flatten_rels.index("ガ２"), 5, dataset.special_token2index["[NULL]"]] = 1  # φ ガ２ けんか
+    cohesion_labels[0, flatten_rels.index("ヲ"), 5, _alias("[NULL]")] = 1  # φ ヲ けんか
+    cohesion_labels[0, flatten_rels.index("ニ"), 5, _alias("[NULL]")] = 1  # φ ニ けんか
+    cohesion_labels[0, flatten_rels.index("ガ２"), 5, _alias("[NULL]")] = 1  # φ ガ２ けんか
+    _alias = dataset.examples[1].special_token_indexer.get_morpheme_level_index
     cohesion_labels[1, flatten_rels.index("ガ"), 0, 1] = 1  # ラーメン ガ 辛い
-    cohesion_labels[1, flatten_rels.index("ヲ"), 0, dataset.special_token2index["[NULL]"]] = 1  # φ ヲ 辛い
-    cohesion_labels[1, flatten_rels.index("ニ"), 0, dataset.special_token2index["[NULL]"]] = 1  # φ ニ 辛い
-    cohesion_labels[1, flatten_rels.index("ガ２"), 0, dataset.special_token2index["[NULL]"]] = 1  # φ ガ２ 辛い
-    cohesion_labels[1, flatten_rels.index("ノ"), 1, dataset.special_token2index["[NULL]"]] = 1  # φ ノ ラーメン
-    cohesion_labels[1, flatten_rels.index("="), 1, dataset.special_token2index["[NA]"]] = 1  # ラーメン
+    cohesion_labels[1, flatten_rels.index("ヲ"), 0, _alias("[NULL]")] = 1  # φ ヲ 辛い
+    cohesion_labels[1, flatten_rels.index("ニ"), 0, _alias("[NULL]")] = 1  # φ ニ 辛い
+    cohesion_labels[1, flatten_rels.index("ガ２"), 0, _alias("[NULL]")] = 1  # φ ガ２ 辛い
+    cohesion_labels[1, flatten_rels.index("ノ"), 1, _alias("[NULL]")] = 1  # φ ノ ラーメン
+    cohesion_labels[1, flatten_rels.index("="), 1, _alias("[NA]")] = 1  # ラーメン
     cohesion_labels[1, flatten_rels.index("ガ"), 3, 1] = 1  # ラーメン ガ 好き
-    cohesion_labels[1, flatten_rels.index("ヲ"), 3, dataset.special_token2index["[NULL]"]] = 1  # φ ヲ 好き
-    cohesion_labels[1, flatten_rels.index("ニ"), 3, dataset.special_token2index["[NULL]"]] = 1  # φ ニ 好き
-    cohesion_labels[1, flatten_rels.index("ガ２"), 3, dataset.special_token2index["著者"]] = 1  # 著者 ガ２ 好き
-    cohesion_labels[1, flatten_rels.index("ガ"), 5, dataset.special_token2index["著者"]] = 1  # 著者 ガ 頼み
+    cohesion_labels[1, flatten_rels.index("ヲ"), 3, _alias("[NULL]")] = 1  # φ ヲ 好き
+    cohesion_labels[1, flatten_rels.index("ニ"), 3, _alias("[NULL]")] = 1  # φ ニ 好き
+    cohesion_labels[1, flatten_rels.index("ガ２"), 3, _alias("[著者]")] = 1  # 著者 ガ２ 好き
+    cohesion_labels[1, flatten_rels.index("ガ"), 5, _alias("[著者]")] = 1  # 著者 ガ 頼み
     cohesion_labels[1, flatten_rels.index("ヲ"), 5, 1] = 1  # ラーメン ヲ 頼み
-    cohesion_labels[1, flatten_rels.index("ニ"), 5, dataset.special_token2index["[NULL]"]] = 1  # φ ニ 頼み
-    cohesion_labels[1, flatten_rels.index("ガ２"), 5, dataset.special_token2index["[NULL]"]] = 1  # φ ガ２ 頼み
+    cohesion_labels[1, flatten_rels.index("ニ"), 5, _alias("[NULL]")] = 1  # φ ニ 頼み
+    cohesion_labels[1, flatten_rels.index("ガ２"), 5, _alias("[NULL]")] = 1  # φ ガ２ 頼み
     assert cohesion_labels[0].tolist() == dataset[0].cohesion_labels
     assert cohesion_labels[1].tolist() == dataset[1].cohesion_labels
 
@@ -516,7 +522,7 @@ def test_split_into_words_encode(
     assert word_feature_labels[0].tolist() == dataset[0].word_feature_labels
     assert word_feature_labels[1].tolist() == dataset[1].word_feature_labels
 
-    ne_labels = torch.full((num_examples, max_seq_length), IGNORE_INDEX, dtype=torch.long)
+    ne_labels = torch.full((num_examples, max_seq_length), NE_TAGS.index("O"), dtype=torch.long)
     ne_labels[0, 0] = NE_TAGS.index("B-PERSON")  # 太郎
     ne_labels[0, 1] = NE_TAGS.index("O")  # と
     ne_labels[0, 2] = NE_TAGS.index("B-PERSON")  # 次郎
@@ -573,14 +579,16 @@ def test_split_into_words_encode(
     dependency_labels[0, 2] = 5  # 次郎 -> けんか
     dependency_labels[0, 3] = 2  # は -> 次郎
     dependency_labels[0, 4] = 5  # よく -> けんか
-    dependency_labels[0, 5] = dataset.special_token2index["[ROOT]"]  # けんか -> [ROOT]
+    # けんか -> [ROOT]
+    dependency_labels[0, 5] = dataset.examples[0].special_token_indexer.get_morpheme_level_index("[ROOT]")
     dependency_labels[0, 6] = 5  # する -> けんか
     dependency_labels[1, 0] = 1  # 辛い -> ラーメン
     dependency_labels[1, 1] = 3  # ラーメン -> 好きな
     dependency_labels[1, 2] = 1  # が -> ラーメン
     dependency_labels[1, 3] = 5  # 好きな -> 頼み
     dependency_labels[1, 4] = 3  # ので -> 好きな
-    dependency_labels[1, 5] = dataset.special_token2index["[ROOT]"]  # 頼み -> [ROOT]
+    # 頼み -> [ROOT]
+    dependency_labels[1, 5] = dataset.examples[1].special_token_indexer.get_morpheme_level_index("[ROOT]")
     dependency_labels[1, 6] = 5  # ました -> 頼み
     assert dependency_labels[0].tolist() == dataset[0].dependency_labels
     assert dependency_labels[1].tolist() == dataset[1].dependency_labels
@@ -605,28 +613,30 @@ def test_split_into_words_encode(
 
     flatten_rels = [r for cohesion_utils in dataset.cohesion_task2utils.values() for r in cohesion_utils.rels]
     cohesion_labels = torch.zeros((num_examples, len(flatten_rels), max_seq_length, max_seq_length), dtype=torch.long)
-    cohesion_labels[0, flatten_rels.index("ノ"), 0, dataset.special_token2index["[NULL]"]] = 1  # φ ノ 太郎
-    cohesion_labels[0, flatten_rels.index("="), 0, dataset.special_token2index["[NA]"]] = 1  # 太郎
-    cohesion_labels[0, flatten_rels.index("ノ"), 2, dataset.special_token2index["[NULL]"]] = 1  # φ ノ 次郎
-    cohesion_labels[0, flatten_rels.index("="), 2, dataset.special_token2index["[NA]"]] = 1  # 次郎
+    _alias = dataset.examples[0].special_token_indexer.get_morpheme_level_index
+    cohesion_labels[0, flatten_rels.index("ノ"), 0, _alias("[NULL]")] = 1  # φ ノ 太郎
+    cohesion_labels[0, flatten_rels.index("="), 0, _alias("[NA]")] = 1  # 太郎
+    cohesion_labels[0, flatten_rels.index("ノ"), 2, _alias("[NULL]")] = 1  # φ ノ 次郎
+    cohesion_labels[0, flatten_rels.index("="), 2, _alias("[NA]")] = 1  # 次郎
     cohesion_labels[0, flatten_rels.index("ガ"), 5, 2] = 1  # 次郎 ガ けんか
-    cohesion_labels[0, flatten_rels.index("ヲ"), 5, dataset.special_token2index["[NULL]"]] = 1  # φ ヲ けんか
-    cohesion_labels[0, flatten_rels.index("ニ"), 5, dataset.special_token2index["[NULL]"]] = 1  # φ ニ けんか
-    cohesion_labels[0, flatten_rels.index("ガ２"), 5, dataset.special_token2index["[NULL]"]] = 1  # φ ガ２ けんか
+    cohesion_labels[0, flatten_rels.index("ヲ"), 5, _alias("[NULL]")] = 1  # φ ヲ けんか
+    cohesion_labels[0, flatten_rels.index("ニ"), 5, _alias("[NULL]")] = 1  # φ ニ けんか
+    cohesion_labels[0, flatten_rels.index("ガ２"), 5, _alias("[NULL]")] = 1  # φ ガ２ けんか
+    _alias = dataset.examples[1].special_token_indexer.get_morpheme_level_index
     cohesion_labels[1, flatten_rels.index("ガ"), 0, 1] = 1  # ラーメン ガ 辛い
-    cohesion_labels[1, flatten_rels.index("ヲ"), 0, dataset.special_token2index["[NULL]"]] = 1  # φ ヲ 辛い
-    cohesion_labels[1, flatten_rels.index("ニ"), 0, dataset.special_token2index["[NULL]"]] = 1  # φ ニ 辛い
-    cohesion_labels[1, flatten_rels.index("ガ２"), 0, dataset.special_token2index["[NULL]"]] = 1  # φ ガ２ 辛い
-    cohesion_labels[1, flatten_rels.index("ノ"), 1, dataset.special_token2index["[NULL]"]] = 1  # φ ノ ラーメン
-    cohesion_labels[1, flatten_rels.index("="), 1, dataset.special_token2index["[NA]"]] = 1  # ラーメン
+    cohesion_labels[1, flatten_rels.index("ヲ"), 0, _alias("[NULL]")] = 1  # φ ヲ 辛い
+    cohesion_labels[1, flatten_rels.index("ニ"), 0, _alias("[NULL]")] = 1  # φ ニ 辛い
+    cohesion_labels[1, flatten_rels.index("ガ２"), 0, _alias("[NULL]")] = 1  # φ ガ２ 辛い
+    cohesion_labels[1, flatten_rels.index("ノ"), 1, _alias("[NULL]")] = 1  # φ ノ ラーメン
+    cohesion_labels[1, flatten_rels.index("="), 1, _alias("[NA]")] = 1  # ラーメン
     cohesion_labels[1, flatten_rels.index("ガ"), 3, 1] = 1  # ラーメン ガ 好き
-    cohesion_labels[1, flatten_rels.index("ヲ"), 3, dataset.special_token2index["[NULL]"]] = 1  # φ ヲ 好き
-    cohesion_labels[1, flatten_rels.index("ニ"), 3, dataset.special_token2index["[NULL]"]] = 1  # φ ニ 好き
-    cohesion_labels[1, flatten_rels.index("ガ２"), 3, dataset.special_token2index["著者"]] = 1  # 著者 ガ２ 好き
-    cohesion_labels[1, flatten_rels.index("ガ"), 5, dataset.special_token2index["著者"]] = 1  # 著者 ガ 頼み
+    cohesion_labels[1, flatten_rels.index("ヲ"), 3, _alias("[NULL]")] = 1  # φ ヲ 好き
+    cohesion_labels[1, flatten_rels.index("ニ"), 3, _alias("[NULL]")] = 1  # φ ニ 好き
+    cohesion_labels[1, flatten_rels.index("ガ２"), 3, _alias("[著者]")] = 1  # 著者 ガ２ 好き
+    cohesion_labels[1, flatten_rels.index("ガ"), 5, _alias("[著者]")] = 1  # 著者 ガ 頼み
     cohesion_labels[1, flatten_rels.index("ヲ"), 5, 1] = 1  # ラーメン ヲ 頼み
-    cohesion_labels[1, flatten_rels.index("ニ"), 5, dataset.special_token2index["[NULL]"]] = 1  # φ ニ 頼み
-    cohesion_labels[1, flatten_rels.index("ガ２"), 5, dataset.special_token2index["[NULL]"]] = 1  # φ ガ２ 頼み
+    cohesion_labels[1, flatten_rels.index("ニ"), 5, _alias("[NULL]")] = 1  # φ ニ 頼み
+    cohesion_labels[1, flatten_rels.index("ガ２"), 5, _alias("[NULL]")] = 1  # φ ガ２ 頼み
     assert cohesion_labels[0].tolist() == dataset[0].cohesion_labels
     assert cohesion_labels[1].tolist() == dataset[1].cohesion_labels
 

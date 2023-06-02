@@ -1,7 +1,6 @@
 import logging
 from datetime import datetime
-from typing import List, Optional
-from unicodedata import normalize
+from typing import Dict, List, Optional
 
 from omegaconf import ListConfig
 from rhoknp import Document, RegexSenter
@@ -12,8 +11,7 @@ import kwja
 from kwja.datamodule.datasets.base import BaseDataset, FullAnnotatedDocumentLoaderMixin
 from kwja.datamodule.datasets.senter import SenterModuleFeatures
 from kwja.datamodule.examples import SenterInferenceExample
-from kwja.utils.constants import TRANSLATION_TABLE
-from kwja.utils.progress_bar import track
+from kwja.utils.logging_util import track
 
 logger = logging.getLogger(__name__)
 
@@ -33,12 +31,12 @@ class SenterInferenceDataset(
         super(SenterInferenceDataset, self).__init__(tokenizer, max_seq_length)
         documents = self._build_documents_from_texts(list(texts), doc_id_prefix)
         super(BaseDataset, self).__init__(documents, tokenizer, max_seq_length, document_split_stride)
-        self.examples: List[SenterInferenceExample] = self._load_examples(self.documents)
+        self.examples: List[SenterInferenceExample] = self._load_examples(self.doc_id2document)
 
-    def _load_examples(self, documents: List[Document]) -> List[SenterInferenceExample]:
+    def _load_examples(self, doc_id2document: Dict[str, Document]) -> List[SenterInferenceExample]:
         examples = []
         example_id = 0
-        for document in track(documents, description="Loading examples"):
+        for document in track(doc_id2document.values(), description="Loading examples"):
             encoding: BatchEncoding = self.tokenizer(
                 document.text,
                 padding=PaddingStrategy.MAX_LENGTH,
@@ -81,12 +79,3 @@ class SenterInferenceDataset(
                 sentence.sid = f"{document.doc_id}-{sent_idx:0{sent_id_width}}"
                 sentence.misc_comment = f"kwja:{kwja.__version__}"
         return documents
-
-    def _postprocess_document(self, document: Document) -> Document:
-        for sentence in document.sentences:
-            normalized = normalize("NFKC", sentence.text).translate(TRANSLATION_TABLE)
-            if normalized != sentence.text:
-                logger.warning(f"apply normalization ({sentence.text} -> {normalized})")
-                sentence.text = normalized
-        document.text = "".join(sentence.text for sentence in document.sentences)
-        return document

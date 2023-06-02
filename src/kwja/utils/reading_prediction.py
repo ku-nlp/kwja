@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Literal, Optional, Tuple, Union
 
-import jaconv
 import numpy as np
 from rhoknp import Document, Morpheme
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
@@ -17,6 +16,7 @@ from kwja.utils.constants import (
     HATSUON_SET,
     ID,
     ID_ID,
+    KATA2HIRA,
     LOWER2UPPER,
     PROLONGED_MAP,
     PROLONGED_MAP_FOR_EROW,
@@ -127,7 +127,7 @@ class ReadingAligner:
                     kanji_reading_list = self._extend_kanji_reading_list(self.kanji_dic.entries[surf[i - 1]]["reading"])
             for j in range(len(reading)):
                 cj = reading[j]
-                if jaconv.kata2hira(ci) == cj:
+                if ci.translate(KATA2HIRA) == cj:
                     node = Node(i=i, j=j, wI=1, wJ=1, cost=0)
                     td_lattice[i][j].append(node)
                 if ci in VOICED2VOICELESS and cj == VOICED2VOICELESS[ci]:
@@ -165,7 +165,7 @@ class ReadingAligner:
                             if reading_part == kanji_reading2:
                                 node = Node(i=i, j=j, wI=1, wJ=len(kanji_reading), cost=10)
                                 td_lattice[i][j].append(node)
-                        # TODO: combinatoin
+                        # TODO: combination
                 # fallback nodes
                 if cj in ("ぁ", "ぃ", "ぅ", "ぇ", "ぉ", "ゃ", "ゅ", "ょ", "っ", "ん", "ー"):
                     initial_penalty = 500
@@ -321,7 +321,7 @@ def main():
     reading_counter: Dict[str, int] = Counter()
     for path in Path(args.input).glob("**/*.knp"):
         logger.info(f"processing {path}")
-        with path.open(mode="r") as f:
+        with path.open() as f:
             document = Document.from_knp(f.read())
         try:
             for reading in reading_aligner.align(document.morphemes):

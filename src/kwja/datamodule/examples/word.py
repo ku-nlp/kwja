@@ -1,5 +1,6 @@
 import logging
 from dataclasses import dataclass
+from functools import cached_property
 from typing import Dict, List, Optional, Set, Tuple
 
 from rhoknp import BasePhrase, Clause, Document, Morpheme, Phrase
@@ -20,10 +21,40 @@ from kwja.utils.sub_document import extract_target_sentences
 logger = logging.getLogger(__name__)
 
 
+class SpecialTokenIndexer:
+    def __init__(self, special_tokens: List[str], num_tokens: int, num_morphemes: int) -> None:
+        self.special_tokens: List[str] = special_tokens
+        self._special_token2token_level_index: Dict[str, int] = {
+            st: num_tokens + i for i, st in enumerate(special_tokens)
+        }
+        self._special_token2morpheme_level_index: Dict[str, int] = {
+            st: num_morphemes + i for i, st in enumerate(special_tokens)
+        }
+
+    def get_morpheme_level_index(self, special_token: str) -> int:
+        return self._special_token2morpheme_level_index[special_token]
+
+    def get_morpheme_level_indices(self, only_cohesion: bool = False) -> List[int]:
+        return [
+            i for st, i in self._special_token2morpheme_level_index.items() if not (only_cohesion and st == "[ROOT]")
+        ]
+
+    @cached_property
+    def token_level_indices(self) -> List[int]:
+        return list(self._special_token2token_level_index.values())
+
+    @cached_property
+    def token_and_morpheme_level_indices(self) -> List[Tuple[int, int]]:
+        return list(
+            zip(self._special_token2token_level_index.values(), self._special_token2morpheme_level_index.values())
+        )
+
+
 class WordExample:
-    def __init__(self, example_id: int, encoding: Encoding) -> None:
+    def __init__(self, example_id: int, encoding: Encoding, special_token_indexer: SpecialTokenIndexer) -> None:
         self.example_id = example_id
         self.encoding = encoding
+        self.special_token_indexer = special_token_indexer
         self.doc_id: Optional[str] = None
 
         # ---------- reading prediction ----------
@@ -158,4 +189,5 @@ class WordExample:
 class WordInferenceExample:
     example_id: int
     encoding: Encoding
+    special_token_indexer: SpecialTokenIndexer
     doc_id: str

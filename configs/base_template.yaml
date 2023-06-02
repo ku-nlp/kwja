@@ -47,3 +47,4 @@ hydra:
           - logger
           - max_batches_per_device
           - do_predict_after_train
+          - compile

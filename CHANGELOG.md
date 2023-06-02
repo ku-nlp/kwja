@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v2.1.0] - 2023-06-02
+### Added
+- Support Python 3.11.
+- Support NN-based sentence segmentation.
+  ```shell
+  kwja --tasks senter --text "モーニング娘。は日本のアイドルグループです。"
+  ```
+- Support multiple files as input.
+  ```shell
+  kwja --filename file1.txt --filename file2.txt
+  ```
+- Introduce a config file. You can specify some options in `XDG_CONFIG_HOME/kwja/config.yaml`.
+  ```yaml
+  model_size: base
+  device: cpu
+  num_workers: 0
+  torch_compile: false
+  typo_batch_size: 1
+  senter_batch_size: 1
+  seq2seq_batch_size: 1
+  char_batch_size: 1
+  word_batch_size: 1
+  ```
+- Implement padding truncation of word module to accelerate inference.
+- Support Windows.
+
+### Changed
+- Support CUDA 11.7 by default instead of CUDA 10.x.
+- Skip typo correction by default.
+- Optimize package requirements for faster loading.
+- Optimize model initialization for faster loading.
+- Replace mt5 models with t5 models pre-trained on Japanese corpora in seq2seq module.
+- Use partially annotated data for word normalization to train seq2seq module.
+
+### Removed
+- Remove the discourse module.
+
+### Fixed
+- Fix a bug that warning messages are shown when Juman++ and/or KNP are not installed.
+- Fix a bug that document IDs are not assigned properly when a text file is given as input.
+
 ## [2.0.0] - 2023-03-14
 
 ### Added
@@ -118,7 +159,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove an unnecessary dependency, `fugashi`.
 
-[Unreleased]: https://github.com/ku-nlp/kwja/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/ku-nlp/kwja/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/ku-nlp/kwja/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/ku-nlp/kwja/compare/v1.4.2...v2.0.0
 [1.4.2]: https://github.com/ku-nlp/kwja/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/ku-nlp/kwja/compare/v1.4.0...v1.4.1

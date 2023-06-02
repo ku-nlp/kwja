@@ -4,13 +4,13 @@ from pathlib import Path
 from typing import List
 
 from rhoknp import Document
-from torch.utils.data import Dataset
 from transformers import BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
+from kwja.datamodule.datasets.base import BaseDataset
 from kwja.datamodule.examples import Seq2SeqExample
-from kwja.utils.constants import IGNORE_INDEX, NEW_LINE_TOKEN
-from kwja.utils.progress_bar import track
+from kwja.utils.constants import FULL_SPACE_TOKEN, IGNORE_INDEX, NEW_LINE_TOKEN
+from kwja.utils.logging_util import track
 from kwja.utils.seq2seq_format import get_seq2seq_format
 
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ class Seq2SeqModuleFeatures:
     seq2seq_labels: List[int]
 
 
-class Seq2SeqDataset(Dataset[Seq2SeqModuleFeatures]):
+class Seq2SeqDataset(BaseDataset[Seq2SeqExample, Seq2SeqModuleFeatures]):
     def __init__(
         self,
         path: str,
@@ -34,20 +34,14 @@ class Seq2SeqDataset(Dataset[Seq2SeqModuleFeatures]):
         max_tgt_length: int,
         ext: str = "knp",
     ) -> None:
+        super().__init__(tokenizer, max_src_length)
         self.path = Path(path)
 
-        self.tokenizer: PreTrainedTokenizerBase = tokenizer
         self.max_src_length: int = max_src_length
         self.max_tgt_length: int = max_tgt_length
 
         self.documents: List[Document] = self._load_documents(self.path, ext)
         self.examples: List[Seq2SeqExample] = self._load_examples(self.documents)
-
-    def __len__(self) -> int:
-        return len(self.examples)
-
-    def __getitem__(self, index: int) -> Seq2SeqModuleFeatures:
-        return self.encode(self.examples[index])
 
     @staticmethod
     def _load_documents(document_dir: Path, ext: str = "knp") -> List[Document]:
@@ -86,7 +80,7 @@ class Seq2SeqDataset(Dataset[Seq2SeqModuleFeatures]):
                 examples.append(
                     Seq2SeqExample(
                         example_id=example_id,
-                        src_text=sentence.text,
+                        src_text=sentence.text.strip().replace("\u3000", FULL_SPACE_TOKEN),
                         src_encoding=src_encoding,
                         tgt_encoding=tgt_encoding,
                         sid=sentence.sid,
@@ -95,17 +89,16 @@ class Seq2SeqDataset(Dataset[Seq2SeqModuleFeatures]):
                 example_id += 1
         if len(examples) == 0:
             logger.error(
-                "No examples to process. "
-                f"Make sure there exist any documents in {self.path} and they are not too long."
+                f"No examples to process. Make sure there exist any documents in {self.path} and they are not too long."
             )
         return examples
 
     def encode(self, example: Seq2SeqExample) -> Seq2SeqModuleFeatures:
-        seq2seq_labels: List[int] = [IGNORE_INDEX for _ in range(self.max_tgt_length)]
-        for seq2seq_global_index, seq2seq_tag in enumerate(example.tgt_encoding.input_ids):
-            if seq2seq_tag == self.tokenizer.pad_token_id:
-                continue
-            seq2seq_labels[seq2seq_global_index] = seq2seq_tag
+        seq2seq_labels: List[int] = [
+            (seq2seq_tag if seq2seq_tag != self.tokenizer.pad_token_id else IGNORE_INDEX)
+            for seq2seq_tag in example.tgt_encoding.input_ids
+        ]
+        assert len(seq2seq_labels) == self.max_tgt_length
 
         return Seq2SeqModuleFeatures(
             example_ids=example.example_id,

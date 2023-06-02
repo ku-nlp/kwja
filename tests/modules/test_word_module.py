@@ -1,12 +1,13 @@
 from pathlib import Path
 
 import hydra
+import pytorch_lightning as pl
 from hydra import compose, initialize
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import ListConfig, OmegaConf
 from torch.utils.data import DataLoader
 
-from kwja.datamodule.datamodule import dataclass_data_collator
+from kwja.datamodule.datamodule import word_dataclass_data_collator
 from kwja.datamodule.datasets import WordDataset
 from kwja.modules import WordModule
 
@@ -14,7 +15,6 @@ with initialize(version_base=None, config_path="../../configs"):
     cfg = compose(config_name="word_module.debug", return_hydra_config=True, overrides=["max_seq_length=32"])
     HydraConfig.instance().set_config(cfg)
     OmegaConf.set_readonly(cfg.hydra, False)
-    OmegaConf.register_new_resolver("concat", lambda x, y: x + y, replace=True)
     OmegaConf.resolve(cfg)
 
 
@@ -23,9 +23,9 @@ def test_init() -> None:
 
 
 def test_steps(fixture_data_dir: Path) -> None:
-    trainer = hydra.utils.instantiate(
+    trainer: pl.Trainer = hydra.utils.instantiate(
         cfg.trainer,
-        logger=None,
+        logger=False,
         enable_checkpointing=False,
         devices=1,
         accelerator="cpu",
@@ -45,12 +45,13 @@ def test_steps(fixture_data_dir: Path) -> None:
         br_cases=ListConfig(cfg.br_cases),
         special_tokens=ListConfig(cfg.special_tokens),
     )
-    data_loader = DataLoader(dataset, batch_size=len(dataset), collate_fn=dataclass_data_collator)
+    data_loader = DataLoader(dataset, batch_size=len(dataset), collate_fn=word_dataclass_data_collator)
+    val_dataloaders = {"dummy": data_loader}
 
     cfg.datamodule.valid = {"dummy": ""}
     cfg.datamodule.test = {"dummy": ""}
     module = WordModule(cfg)
 
-    trainer.fit(model=module, train_dataloaders=data_loader, val_dataloaders=data_loader)
-    trainer.test(model=module, dataloaders=data_loader)
-    trainer.predict(model=module, dataloaders=data_loader)
+    trainer.fit(model=module, train_dataloaders=data_loader, val_dataloaders=val_dataloaders)
+    trainer.test(model=module, dataloaders=val_dataloaders)
+    trainer.predict(model=module, dataloaders=val_dataloaders)

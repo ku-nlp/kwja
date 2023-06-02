@@ -5,18 +5,14 @@ from typing import Dict, List
 
 import cdblib
 
-from kwja.utils.progress_bar import track
+from kwja.utils.logging_util import track
 
 
 class JumanDic:
     def __init__(self, dic_dir: Path) -> None:
-        with dic_dir.joinpath("jumandic.db").open(mode="rb") as f:
-            self.jumandic = cdblib.Reader(f.read())
-        with dic_dir.joinpath("jumandic_canon.db").open(mode="rb") as f:
-            self.jumandic_canon = cdblib.Reader(f.read())
-
-        with dic_dir.joinpath("grammar.json").open(mode="rt") as f:
-            self.grammar_data = json.loads(f.read())
+        self.jumandic = cdblib.Reader(dic_dir.joinpath("jumandic.db").read_bytes())
+        self.jumandic_canon = cdblib.Reader(dic_dir.joinpath("jumandic_canon.db").read_bytes())
+        self.grammar_data: Dict[str, List[str]] = json.loads(dic_dir.joinpath("grammar.json").read_text())
 
     def lookup_by_norm(self, surf: str) -> List[Dict[str, str]]:
         buf = self.jumandic.get(surf.encode("utf-8"))
@@ -111,31 +107,27 @@ class JumanDic:
             surf2entries[surf] = surf2entries.get(surf, b"") + v
             canon2entries[canon] = canon2entries.get(canon, b"") + v
 
-        out_dir.joinpath("jumandic.db").unlink(missing_ok=True)
         with out_dir.joinpath("jumandic.db").open(mode="wb") as f1:
             with cdblib.Writer(f1) as writer1:
                 for key_surf, value_entries in surf2entries.items():
                     writer1.put(key_surf.encode("utf-8"), value_entries)
 
-        out_dir.joinpath("jumandic_canon.db").unlink(missing_ok=True)
         with out_dir.joinpath("jumandic_canon.db").open(mode="wb") as f2:
             with cdblib.Writer(f2) as writer2:
                 for key_canon, value_entries in canon2entries.items():
                     writer2.put(key_canon.encode("utf-8"), value_entries)
 
-        out_dir.joinpath("grammar.json").unlink(missing_ok=True)
-        with out_dir.joinpath("grammar.json").open(mode="wt") as f3:
-            f3.write(
-                json.dumps(
-                    {
-                        "id2reading": _build_reverse_lookup(reading2id),
-                        "id2lemma": _build_reverse_lookup(lemma2id),
-                        "id2pos": _build_reverse_lookup(pos2id),
-                        "id2subpos": _build_reverse_lookup(subpos2id),
-                        "id2conjtype": _build_reverse_lookup(conjtype2id),
-                        "id2conjform": _build_reverse_lookup(conjform2id),
-                        "id2semantics": _build_reverse_lookup(semantics2id),
-                    },
-                    ensure_ascii=False,
-                )
+        out_dir.joinpath("grammar.json").write_text(
+            json.dumps(
+                {
+                    "id2reading": _build_reverse_lookup(reading2id),
+                    "id2lemma": _build_reverse_lookup(lemma2id),
+                    "id2pos": _build_reverse_lookup(pos2id),
+                    "id2subpos": _build_reverse_lookup(subpos2id),
+                    "id2conjtype": _build_reverse_lookup(conjtype2id),
+                    "id2conjform": _build_reverse_lookup(conjform2id),
+                    "id2semantics": _build_reverse_lookup(semantics2id),
+                },
+                ensure_ascii=False,
             )
+        )

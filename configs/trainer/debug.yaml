@@ -1,12 +1,7 @@
-_target_: pytorch_lightning.Trainer
-gradient_clip_val: 0.5
+defaults:
+  - default
+
 #fast_dev_run: 3
-accumulate_grad_batches: null
-max_epochs: ${max_epochs}
-min_epochs: 1
 limit_train_batches: 10
 limit_val_batches: 10
 limit_test_batches: 10
-accelerator: "auto"     # set gpu or cpu automatically
-strategy: ddp
-precision: 32

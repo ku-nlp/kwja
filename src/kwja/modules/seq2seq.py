@@ -1,5 +1,6 @@
+import os
 from statistics import mean
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 import hydra
 import torch
@@ -7,69 +8,56 @@ from omegaconf import DictConfig
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from transformers.generation import LogitsProcessorList
 
-from kwja.metrics import Seq2SeqModuleMetric
 from kwja.modules.base import BaseModule
 from kwja.modules.components.logits_processor import ForcedSurfLogitsProcessor, get_char2tokens
-from kwja.utils.constants import IGNORE_INDEX
+
+if os.environ.get("KWJA_CLI_MODE") == "1":
+    from kwja.modules.base import DummyModuleMetric as Seq2SeqModuleMetric  # dummy class for faster loading
+else:
+    from kwja.metrics import Seq2SeqModuleMetric  # type: ignore
 
 
-class Seq2SeqModule(BaseModule):
+class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
     def __init__(self, hparams: DictConfig) -> None:
-        super().__init__(hparams)
-
-        if valid_corpora := getattr(hparams.datamodule, "valid", None):
-            self.valid_corpora: List[str] = list(valid_corpora)
-            self.valid_corpus2seq2seq_module_metric: Dict[str, Seq2SeqModuleMetric] = {
-                corpus: Seq2SeqModuleMetric() for corpus in self.valid_corpora
-            }
-        if test_corpora := getattr(hparams.datamodule, "test", None):
-            self.test_corpora: List[str] = list(test_corpora)
-            self.test_corpus2seq2seq_module_metric: Dict[str, Seq2SeqModuleMetric] = {
-                corpus: Seq2SeqModuleMetric() for corpus in self.test_corpora
-            }
+        super().__init__(hparams, Seq2SeqModuleMetric())
 
         self.tokenizer: PreTrainedTokenizerBase = hydra.utils.call(hparams.module.tokenizer)
 
-        self.seq2seq_model: PreTrainedModel = hydra.utils.call(hparams.encoder)
-        if hasattr(hparams, "special_tokens"):
-            # https://github.com/huggingface/transformers/issues/4875
-            self.seq2seq_model.resize_token_embeddings(len(self.tokenizer.get_vocab()))
+        self.encoder_decoder: PreTrainedModel = hydra.utils.call(hparams.encoder.from_config)
+        # https://github.com/huggingface/transformers/issues/4875
+        self.encoder_decoder.resize_token_embeddings(len(self.tokenizer.get_vocab()))
 
         self.char2tokens, self.char2underscore_tokens = get_char2tokens(self.tokenizer)
         self.use_forced_surf_decoding: bool = getattr(hparams, "use_forced_surf_decoding", False)
 
+    def setup(self, stage: str) -> None:
+        if stage == "fit":
+            self.encoder_decoder = hydra.utils.call(self.hparams.encoder.from_pretrained)
+            # https://github.com/huggingface/transformers/issues/4875
+            self.encoder_decoder.resize_token_embeddings(len(self.tokenizer.get_vocab()))
+
     def forward(self, batch: Any) -> Dict[str, torch.Tensor]:
-        self._truncate(batch)
-        output = self.seq2seq_model(
+        output = self.encoder_decoder(
             input_ids=batch["input_ids"], attention_mask=batch["attention_mask"], labels=batch["seq2seq_labels"]
         )
         return {"loss": output.loss, "logits": output.logits}
-
-    @staticmethod
-    def _truncate(batch: Any) -> None:
-        max_src_length = batch["attention_mask"].sum(dim=1).max().item()
-        for key, value in batch.items():
-            if key in {"input_ids", "attention_mask"}:
-                batch[key] = value[:, :max_src_length].contiguous()
-        max_tgt_length = (batch["seq2seq_labels"] != IGNORE_INDEX).sum(dim=1).max().item()
-        batch["seq2seq_labels"] = batch["seq2seq_labels"][:, :max_tgt_length].contiguous()
 
     def training_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
         ret: Dict[str, torch.Tensor] = self(batch)
         self.log("train/loss", ret["loss"])
         return ret["loss"]
 
-    def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> None:
+    def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
         kwargs = self(batch)
         kwargs.update({"example_ids": batch["example_ids"], "loss": kwargs["loss"]})
-        corpus = self.valid_corpora[dataloader_idx or 0]
-        self.valid_corpus2seq2seq_module_metric[corpus].update(kwargs)
+        metric = self.valid_corpus2metric[self.valid_corpora[dataloader_idx]]
+        metric.update(kwargs)
 
-    def validation_epoch_end(self, outputs: List[Any]) -> None:
-        metrics_log: Dict[str, Dict[str, float]] = {corpus: {} for corpus in self.valid_corpora}
-        for corpus, seq2seq_module_metric in self.valid_corpus2seq2seq_module_metric.items():
-            metrics_log[corpus] = seq2seq_module_metric.compute()
-            seq2seq_module_metric.reset()
+    def on_validation_epoch_end(self) -> None:
+        metrics_log: Dict[str, Dict[str, float]] = {}
+        for corpus, metric in self.valid_corpus2metric.items():
+            metrics_log[corpus] = metric.compute()
+            metric.reset()
 
         for corpus, metrics in metrics_log.items():
             self.log_dict({f"valid_{corpus}/{key}": value for key, value in metrics.items()})
@@ -77,17 +65,17 @@ class Seq2SeqModule(BaseModule):
             mean_score = mean(metrics_log[corpus][key] for corpus in self.valid_corpora if key in metrics_log[corpus])
             self.log(f"valid/{key}", mean_score)
 
-    def test_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> None:
+    def test_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
         kwargs = self(batch)
         kwargs.update({"example_ids": batch["example_ids"], "loss": kwargs["loss"]})
-        corpus = self.test_corpora[dataloader_idx or 0]
-        self.test_corpus2seq2seq_module_metric[corpus].update(kwargs)
+        metric = self.test_corpus2metric[self.test_corpora[dataloader_idx]]
+        metric.update(kwargs)
 
-    def test_epoch_end(self, outputs: List[Any]) -> None:
-        metrics_log: Dict[str, Dict[str, float]] = {corpus: {} for corpus in self.test_corpora}
-        for corpus, seq2seq_module_metric in self.test_corpus2seq2seq_module_metric.items():
-            metrics_log[corpus] = seq2seq_module_metric.compute()
-            seq2seq_module_metric.reset()
+    def on_test_epoch_end(self) -> None:
+        metrics_log: Dict[str, Dict[str, float]] = {}
+        for corpus, metric in self.test_corpus2metric.items():
+            metrics_log[corpus] = metric.compute()
+            metric.reset()
 
         for corpus, metrics in metrics_log.items():
             self.log_dict({f"test_{corpus}/{key}": value for key, value in metrics.items()})
@@ -95,8 +83,8 @@ class Seq2SeqModule(BaseModule):
             mean_score = mean(metrics_log[corpus][key] for corpus in self.test_corpora if key in metrics_log[corpus])
             self.log(f"test/{key}", mean_score)
 
-    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: Optional[int] = None) -> Any:
-        generateds = self.seq2seq_model.generate(
+    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Any:
+        generations = self.encoder_decoder.generate(
             input_ids=batch["input_ids"],
             attention_mask=batch["attention_mask"],
             logits_processor=LogitsProcessorList(
@@ -115,5 +103,5 @@ class Seq2SeqModule(BaseModule):
         )  # (b, max_tgt_len)
         return {
             "example_ids": batch["example_ids"] if "example_ids" in batch else [],
-            "seq2seq_predictions": generateds["sequences"],
+            "seq2seq_predictions": generations["sequences"],
         }

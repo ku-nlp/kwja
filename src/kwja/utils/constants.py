@@ -2,7 +2,10 @@ import re
 from enum import Enum
 from typing import Dict, Optional, Tuple
 
-import importlib_resources
+try:
+    from importlib.resources import files as resource_files  # type: ignore
+except ImportError:
+    from importlib_resources import files as resource_files
 from rhoknp.props import DepType, NamedEntityCategory
 
 import kwja
@@ -10,15 +13,15 @@ import kwja
 # ---------- common ----------
 IGNORE_INDEX = -100
 MASKED = -1024.0
-RESOURCE_PATH = importlib_resources.files(kwja) / "resource"
+RESOURCE_PATH = resource_files(kwja) / "resource"
 
 # ---------- senter module ----------
 SENT_SEGMENTATION_TAGS = ("B", "I")
 
 # ---------- seq2seq module----------
-NEW_LINE_TOKEN: str = "<br>"
-NO_READING_TOKEN: str = "<no_read>"
-NO_CANON_TOKEN: str = "<no_canon>"
+NEW_LINE_TOKEN: str = "<extra_id_0>"  # "<br>"
+FULL_SPACE_TOKEN: str = "<extra_id_1>"  # "<full_space>"
+NO_CANON_TOKEN: str = "<extra_id_2>"  # "<no_canon>"
 
 # ---------- word (inference) dataset ----------
 SPLIT_INTO_WORDS_MODEL_NAMES = [
@@ -197,11 +200,15 @@ PROLONGED_MAP_FOR_EROW = {
     "れ": "え",
 }
 
+_HIRAGANA = "ぁあぃいぅうぇえぉおかがきぎくぐけげこごさざしじすずせぜそぞただちぢっつづてでとどなにぬねのはばぱひびぴふぶぷへべぺほぼぽまみむめもゃやゅゆょよらりるれろわをんーゎゐゑゕゖゔゝゞ"
+_KATAKANA = "ァアィイゥウェエォオカガキギクグケゲコゴサザシジスズセゼソゾタダチヂッツヅテデトドナニヌネノハバパヒビピフブプヘベペホボポマミムメモャヤュユョヨラリルレロワヲンーヮヰヱヵヶヴヽヾ"
+KATA2HIRA = str.maketrans(_KATAKANA, _HIRAGANA)
+
 
 # ---------- char module|text normalization ----------
 # 制御文字(\t,\nを含む)は削除
 TRANSLATION_TABLE: Dict[int, Optional[int]] = str.maketrans(
-    ' "▁', "␣”▂", "".join(chr(i) for i in [*range(32), *range(127, 160)])
+    ' "#▁', "␣”＃▂", "".join(chr(i) for i in [*range(32), *range(127, 160)])
 )
 
 

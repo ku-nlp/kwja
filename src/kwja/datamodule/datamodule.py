@@ -19,14 +19,13 @@ from kwja.datamodule.datasets import (
     WordDataset,
     WordInferenceDataset,
 )
+from kwja.utils.constants import IGNORE_INDEX
 
 
 class DataModule(pl.LightningDataModule):
     def __init__(self, cfg: DictConfig) -> None:
         super().__init__()
         self.cfg: DictConfig = cfg
-        self.batch_size: int = cfg.batch_size
-        self.num_workers: int = cfg.num_workers
 
         self.train_dataset: Optional[ConcatDataset] = None
         self.valid_datasets: Dict[str, Union[TypoDataset, Seq2SeqDataset, CharDataset, WordDataset]] = {}
@@ -59,37 +58,77 @@ class DataModule(pl.LightningDataModule):
 
     def train_dataloader(self) -> DataLoader:
         assert self.train_dataset is not None
-        return self._get_dataloader(dataset=self.train_dataset, shuffle=True)
+        return self._get_dataloader(self.train_dataset, shuffle=True)
 
-    def val_dataloader(self) -> List[DataLoader]:
-        return [self._get_dataloader(dataset, shuffle=False) for dataset in self.valid_datasets.values()]
+    def val_dataloader(self) -> Dict[str, DataLoader]:
+        return {corpus: self._get_dataloader(dataset, shuffle=False) for corpus, dataset in self.valid_datasets.items()}
 
-    def test_dataloader(self) -> List[DataLoader]:
-        return [self._get_dataloader(dataset, shuffle=False) for dataset in self.test_datasets.values()]
+    def test_dataloader(self) -> Dict[str, DataLoader]:
+        return {corpus: self._get_dataloader(dataset, shuffle=False) for corpus, dataset in self.test_datasets.items()}
 
     def predict_dataloader(self) -> DataLoader:
         assert isinstance(self.predict_dataset, Dataset)
         return self._get_dataloader(self.predict_dataset, shuffle=False)
 
-    def _get_dataloader(self, dataset: Dataset, shuffle: bool) -> DataLoader:
+    def _get_dataloader(self, dataset: Dataset, shuffle: bool = False) -> DataLoader:
+        if self.cfg.dataset_type == "word":
+            collate_fn = word_dataclass_data_collator
+        else:
+            collate_fn = token_dataclass_data_collator
         return DataLoader(
             dataset=dataset,
-            batch_size=self.batch_size,
+            batch_size=self.cfg.batch_size,
             shuffle=shuffle,
-            num_workers=self.num_workers,
-            collate_fn=dataclass_data_collator,
+            num_workers=self.cfg.num_workers,
+            collate_fn=collate_fn,
             pin_memory=True,
         )
 
 
-def dataclass_data_collator(features: List[Any]) -> Dict[str, Union[Tensor, List[str]]]:
-    first: Any = features[0]
-    assert is_dataclass(first), "Data must be a dataclass"
+def token_dataclass_data_collator(batch_features: List[Any]) -> Dict[str, Union[Tensor, List[str]]]:
+    first_features: Any = batch_features[0]
+    assert is_dataclass(first_features), "Data must be a dataclass"
+
+    token_indices = torch.arange(max(sum(getattr(fs, "attention_mask")) for fs in batch_features))
+
     batch: Dict[str, Union[Tensor, List[str]]] = {}
-    for field in fields(first):
-        feats = [getattr(f, field.name) for f in features]
-        if "text" in field.name:
-            batch[field.name] = feats
+    for field in fields(first_features):
+        features = [getattr(fs, field.name) for fs in batch_features]
+        if field.name in {"src_text"}:
+            batch[field.name] = features
         else:
-            batch[field.name] = torch.as_tensor(feats)
+            value = torch.as_tensor(features)
+            if value.ndim == 1 or value.size(1) == 0:
+                pass
+            elif field.name in {"seq2seq_labels"}:
+                target_indices = torch.arange(value.ne(IGNORE_INDEX).sum(dim=1).max().item())
+                value = value[:, target_indices]
+            else:
+                value = value[:, token_indices]
+            batch[field.name] = value
+    return batch
+
+
+def word_dataclass_data_collator(batch_features: List[Any]) -> Dict[str, Union[Tensor, List[str]]]:
+    first_features: Any = batch_features[0]
+    assert is_dataclass(first_features), "Data must be a dataclass"
+
+    token_indices = torch.arange(max(sum(getattr(fs, "attention_mask")) for fs in batch_features))
+    word_indices = torch.arange(max(sum(any(row) for row in getattr(fs, "subword_map")) for fs in batch_features))
+
+    batch: Dict[str, Union[Tensor, List[str]]] = {}
+    for field in fields(first_features):
+        features = [getattr(fs, field.name) for fs in batch_features]
+        value = torch.as_tensor(features)
+        if value.ndim == 1 or value.size(1) == 0:
+            pass
+        elif field.name in {"input_ids", "attention_mask", "reading_labels"}:
+            value = value[:, token_indices]
+        elif field.name in {"subword_map", "reading_subword_map"}:
+            value = value[:, word_indices.unsqueeze(1), token_indices]
+        elif field.name in {"dependency_mask", "cohesion_mask", "cohesion_labels", "discourse_labels"}:
+            value = value[..., word_indices.unsqueeze(1), word_indices]
+        else:
+            value = value[:, word_indices]
+        batch[field.name] = value
     return batch

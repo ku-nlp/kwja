@@ -6,6 +6,7 @@ from typing import Any, Optional, Sequence, TextIO, Union
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import BasePredictionWriter
 
+import kwja
 from kwja.callbacks.utils import convert_senter_predictions_into_tags
 from kwja.datamodule.datasets.senter import SenterDataset
 from kwja.datamodule.datasets.senter_inference import SenterInferenceDataset, SenterInferenceExample
@@ -25,7 +26,7 @@ class SenterModuleWriter(BasePredictionWriter):
             self.destination.parent.mkdir(exist_ok=True, parents=True)
             self.destination.unlink(missing_ok=True)
 
-        self.prev_did: Optional[str] = None
+        self.prev_doc_id: Optional[str] = None
         self.prev_sid: int = 0
 
     def write_on_batch_end(
@@ -39,6 +40,8 @@ class SenterModuleWriter(BasePredictionWriter):
         dataloader_idx: int,
     ) -> None:
         dataloaders = trainer.predict_dataloaders
+        if isinstance(trainer.predict_dataloaders, dict):
+            dataloaders = list(trainer.predict_dataloaders.values())
         dataset: Union[SenterDataset, SenterInferenceDataset] = dataloaders[dataloader_idx].dataset
 
         special_ids = set(dataset.tokenizer.all_special_ids) - {dataset.tokenizer.unk_token_id}
@@ -50,28 +53,35 @@ class SenterModuleWriter(BasePredictionWriter):
         ):
             example: Union[SenterExample, SenterInferenceExample] = dataset.examples[example_id]
             assert example.doc_id is not None, "doc_id isn't set"
-            document = dataset.doc_id2document[example.doc_id]
-
-            assert len(example.encoding.input_ids) == len(sent_segmentation_predictions)
+            document = dataset.doc_id2document.pop(example.doc_id)
 
             sent_segmentation_tags = convert_senter_predictions_into_tags(
                 sent_segmentation_predictions, example.encoding.input_ids, special_ids
             )
-            current_did = to_orig_doc_id(document.did)
-            is_new_doc = self.prev_did is None or self.prev_did != current_did
-            if is_new_doc:
-                self.prev_did = current_did
+
+            orig_doc_id = to_orig_doc_id(document.doc_id)
+
+            is_new_document = orig_doc_id != self.prev_doc_id
+            is_first_document = self.prev_doc_id is None
+            if is_new_document:
+                self.prev_doc_id = orig_doc_id
                 self.prev_sid = 0
-            for char, sent_segmentation_tag in zip(document.text, sent_segmentation_tags):
-                if is_new_doc or sent_segmentation_tag == "B":
+                if not is_first_document:
                     output_string += "\n"
-                    output_string += f"# S-ID:{current_did}-{self.prev_sid + 1}"
+
+            for char_index, (char, sent_segmentation_tag) in enumerate(zip(document.text, sent_segmentation_tags)):
+                if is_new_document and char_index == 0:
+                    # The first character of the document is always the start of a sentence
+                    output_string += f"# S-ID:{orig_doc_id}-{self.prev_sid + 1} kwja:{kwja.__version__}\n"
+                    self.prev_sid += 1
+                elif sent_segmentation_tag == "B":
                     output_string += "\n"
+                    output_string += f"# S-ID:{orig_doc_id}-{self.prev_sid + 1} kwja:{kwja.__version__}\n"
                     self.prev_sid += 1
                 output_string += char
 
         if isinstance(self.destination, Path):
-            with self.destination.open("a") as f:
+            with self.destination.open(mode="a") as f:
                 f.write(output_string)
         elif isinstance(self.destination, TextIOBase):
             self.destination.write(output_string)

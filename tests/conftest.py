@@ -34,7 +34,7 @@ def typo_tokenizer() -> PreTrainedTokenizerBase:
 def seq2seq_tokenizer() -> PreTrainedTokenizerBase:
     return AutoTokenizer.from_pretrained(
         "google/mt5-small",
-        additional_special_tokens=["<br>", "<no_read>", "<no_canon>"],
+        additional_special_tokens=[f"<extra_id_{idx}>" for idx in range(100)],
     )
 
 
@@ -70,7 +70,7 @@ def br_cases() -> List[str]:
 
 @pytest.fixture()
 def special_tokens(exophora_referents: List[str]) -> List[str]:
-    return exophora_referents + ["[NULL]", "[NA]", "[ROOT]"]
+    return [f"[{e}]" for e in exophora_referents] + ["[NULL]", "[NA]", "[ROOT]"]
 
 
 @pytest.fixture()

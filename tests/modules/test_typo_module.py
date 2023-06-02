@@ -1,12 +1,13 @@
 from pathlib import Path
 
 import hydra
+import pytorch_lightning as pl
 from hydra import compose, initialize
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
 
-from kwja.datamodule.datamodule import dataclass_data_collator
+from kwja.datamodule.datamodule import token_dataclass_data_collator
 from kwja.datamodule.datasets import TypoDataset
 from kwja.modules import TypoModule
 
@@ -22,9 +23,9 @@ def test_init() -> None:
 
 
 def test_run(fixture_data_dir: Path) -> None:
-    trainer = hydra.utils.instantiate(
+    trainer: pl.Trainer = hydra.utils.instantiate(
         cfg.trainer,
-        logger=None,
+        logger=False,
         enable_checkpointing=False,
         devices=1,
         accelerator="cpu",
@@ -33,10 +34,11 @@ def test_run(fixture_data_dir: Path) -> None:
     path = fixture_data_dir / "datasets" / "typo_files"
     typo_tokenizer = hydra.utils.instantiate(cfg.datamodule.train.jwtd.tokenizer)
     dataset = TypoDataset(str(path), typo_tokenizer, cfg.max_seq_length)
-    data_loader = DataLoader(dataset, batch_size=len(dataset), collate_fn=dataclass_data_collator)
+    data_loader = DataLoader(dataset, batch_size=len(dataset), collate_fn=token_dataclass_data_collator)
+    val_dataloaders = {"jwtd": data_loader}
 
     module = TypoModule(cfg)
 
-    trainer.fit(model=module, train_dataloaders=data_loader, val_dataloaders=data_loader)
-    trainer.test(model=module, dataloaders=data_loader)
-    trainer.predict(model=module, dataloaders=data_loader)
+    trainer.fit(model=module, train_dataloaders=data_loader, val_dataloaders=val_dataloaders)
+    trainer.test(model=module, dataloaders=val_dataloaders)
+    trainer.predict(model=module, dataloaders=val_dataloaders)

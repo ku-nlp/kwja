@@ -3,5 +3,4 @@ defaults:
   - _self_
 
 _target_: kwja.datamodule.datasets.CharInferenceDataset
-texts: []
-doc_id_prefix: null
+senter_file: null

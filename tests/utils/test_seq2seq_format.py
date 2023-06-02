@@ -6,7 +6,7 @@ from rhoknp import Sentence
 from transformers import PreTrainedTokenizerBase
 
 from kwja.callbacks.seq2seq_module_writer import Seq2SeqModuleWriter
-from kwja.utils.constants import NEW_LINE_TOKEN, NO_CANON_TOKEN, NO_READING_TOKEN
+from kwja.utils.constants import FULL_SPACE_TOKEN, NEW_LINE_TOKEN, NO_CANON_TOKEN
 from kwja.utils.seq2seq_format import get_sent_from_seq2seq_format, get_seq2seq_format
 
 input_seq2seq_formats = [
@@ -67,10 +67,19 @@ input_seq2seq_formats = [
         f"""\
         後 あと 後 後/あと
         一 ついたち 一 一/いち
-        日 {NO_READING_TOKEN} 日 日/にち
+        日 {FULL_SPACE_TOKEN} 日 日/にち
         まで まで まで まで/まで
         ！ ！ ！ ！/！
         ？ ？ ？ ？/？
+        . . . ./.
+        / / / ///
+        """
+    ),
+    dedent(
+        f"""\
+        ＪＵＭＰ ＪＵＭＰ ＪＵＭＰ ＪＵＭＰ/ＪＵＭＰ
+        {FULL_SPACE_TOKEN} {FULL_SPACE_TOKEN} {FULL_SPACE_TOKEN} {NO_CANON_TOKEN}
+        ＣＯＭＩＣＳ ＣＯＭＩＣＳ ＣＯＭＩＣＳ ＣＯＭＩＣＳ/ＣＯＭＩＣＳ
         """
     ),
 ]
@@ -92,7 +101,7 @@ output_seq2seq_formats = [
     dedent(
         """\
         また また また 又/また
-        , , , ,/,
+        ,,,,/,
         校区 こうく 校区 校区/こうく
         で で で で/で
         行わ おこなわ 行う 行う/おこなう
@@ -119,7 +128,7 @@ output_seq2seq_formats = [
         核 かく 核 核/かく
         の の の の/の
         歴史 れきし 歴史 歴史/れきし
-        … … … …/…
+        ............/...
         ヒロシマ ひろしま ヒロシマ ヒロシマ/ひろしま
         、 、 、 、/、
         ナガサキ ながさき ナガサキ ナガサキ/ながさき
@@ -133,10 +142,19 @@ output_seq2seq_formats = [
         f"""\
         後 あと 後 後/あと
         一 ついたち 一 一/いち
-        日 {NO_READING_TOKEN} 日 日/にち
+        日 {FULL_SPACE_TOKEN} 日 日/にち
         まで まで まで まで/まで
-        ! ! ! !/!
-        ? ? ? ?/?
+        !!!!/!
+        ????/?
+        ..../.
+        / / / ///
+        """
+    ),
+    dedent(
+        f"""\
+        ＪＵＭＰ ＪＵＭＰ ＪＵＭＰ ＪＵＭＰ/ＪＵＭＰ
+        {FULL_SPACE_TOKEN} {FULL_SPACE_TOKEN} {FULL_SPACE_TOKEN} {NO_CANON_TOKEN}
+        ＣＯＭＩＣＳ ＣＯＭＩＣＳ ＣＯＭＩＣＳ ＣＯＭＩＣＳ/ＣＯＭＩＣＳ
         """
     ),
 ]
@@ -163,10 +181,8 @@ def test_get_sent_from_seq2seq_format(fixture_data_dir: Path, seq2seq_tokenizer:
         actual_sent = get_sent_from_seq2seq_format(shaped_output)
         assert len(actual_sent.morphemes) == len(expected_sent.morphemes)
         for actual_morpheme, expected_morpheme in zip(actual_sent.morphemes, expected_sent.morphemes):
-            if expected_morpheme.reading == "\u3000":
-                expected_reading: str = NO_READING_TOKEN
-            elif "/" in expected_morpheme.reading:
-                expected_reading = expected_morpheme.reading.split("/")[0]
+            if "/" in expected_morpheme.reading and len(expected_morpheme.reading) > 1:
+                expected_reading: str = expected_morpheme.reading.split("/")[0]
             else:
                 expected_reading = expected_morpheme.reading
 

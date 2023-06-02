@@ -22,6 +22,15 @@ class BaseModuleMetric(Metric, ABC):
             if isinstance(value, torch.BoolTensor):
                 value = value.long()
             state.append(value)
+            # # The following code works for SingleDeviceStrategy, but not for DDPStrategy.
+            # if len(value.size()) == 0:
+            #     value = value.view(1)  # (1)
+            # if isinstance(state, torch.Tensor):
+            #     new_value = torch.cat([state, value], dim=0)
+            # else:
+            #     assert len(state) == 0, f"state {state_name} is not empty"
+            #     new_value = value
+            # setattr(self, state_name, new_value)
 
     def set_properties(self, kwargs: Dict[str, Any]) -> None:
         for key, value in kwargs.items():

@@ -5,7 +5,7 @@ import torch
 from transformers import PreTrainedTokenizerBase
 from transformers.generation import LogitsProcessor
 
-from kwja.utils.constants import NEW_LINE_TOKEN
+from kwja.utils.constants import FULL_SPACE_TOKEN, NEW_LINE_TOKEN
 
 
 def get_char2tokens(tokenizer: PreTrainedTokenizerBase) -> Tuple[Dict[str, Dict[str, int]], Dict[str, Dict[str, int]]]:
@@ -30,14 +30,18 @@ class ForcedSurfLogitsProcessor(LogitsProcessor):
         char2underscore_tokens: Dict[str, Dict[str, int]],
     ) -> None:
         self.tokenizer = tokenizer
-        self.texts = tokenizer.batch_decode(tokenizer.batch_encode_plus(texts).input_ids, skip_special_tokens=True)
+        self.texts: List[str] = []
+        for text in tokenizer.batch_decode(tokenizer.batch_encode_plus(texts).input_ids):
+            if text.endswith(self.tokenizer.eos_token):
+                text = text[: -len(self.tokenizer.eos_token)]
+            if f"{FULL_SPACE_TOKEN} " in text:
+                text = text.replace(f"{FULL_SPACE_TOKEN} ", FULL_SPACE_TOKEN)
+            self.texts.append(text)
         self.char2tokens: Dict[str, Dict[str, int]] = char2tokens
         self.char2underscore_tokens: Dict[str, Dict[str, int]] = char2underscore_tokens
         self.new_line_token_id: int = tokenizer.convert_tokens_to_ids(NEW_LINE_TOKEN)
         self.under_score_token_id: int = tokenizer.convert_tokens_to_ids("▁")
         self.pad_token_id: int = self.tokenizer.pad_token_id
-        assert self.new_line_token_id == 250100
-        assert self.under_score_token_id == 259
 
     def get_generated_surfs(self, input_ids: torch.Tensor) -> List[str]:
         generated_surfs: List[str] = []
@@ -48,10 +52,10 @@ class ForcedSurfLogitsProcessor(LogitsProcessor):
                 stripped_line: str = line.lstrip().rstrip()
                 if stripped_line in ["", "EOS"]:
                     break
-                if stripped_line[0] in ["!", "?", ","]:
-                    generated_surf += stripped_line[0]
-                elif stripped_line[:3] == "...":
+                if stripped_line == "............/...":
                     generated_surf += "..."
+                elif stripped_line[0] in ["!", "?", ",", "."]:
+                    generated_surf += stripped_line[0]
                 else:
                     split_line: List[str] = stripped_line.split()
                     if len(split_line) > 0:

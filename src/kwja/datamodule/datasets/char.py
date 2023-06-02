@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List
+from typing import Dict, List
 from unicodedata import normalize
 
 from rhoknp import Document
@@ -17,7 +17,7 @@ from kwja.utils.constants import (
     WORD_NORM_OP_TAGS,
     WORD_SEGMENTATION_TAGS,
 )
-from kwja.utils.progress_bar import track
+from kwja.utils.logging_util import track
 from kwja.utils.word_normalization import SentenceDenormalizer
 
 logger = logging.getLogger(__name__)
@@ -44,14 +44,14 @@ class CharDataset(BaseDataset[CharExample, CharModuleFeatures], FullAnnotatedDoc
         super(CharDataset, self).__init__(tokenizer, max_seq_length)
         self.path = Path(path)
         self.denormalizer = SentenceDenormalizer()
-        self.denormalize_probability: float = denormalize_probability
+        self.denormalize_probability: float = denormalize_probability if "train" in self.path.parts else 0.0
         super(BaseDataset, self).__init__(self.path, tokenizer, max_seq_length, document_split_stride)
-        self.examples: List[CharExample] = self._load_examples(self.documents)
+        self.examples: List[CharExample] = self._load_examples(self.doc_id2document)
 
-    def _load_examples(self, documents: List[Document]) -> List[CharExample]:
+    def _load_examples(self, doc_id2document: Dict[str, Document]) -> List[CharExample]:
         examples = []
         example_id = 0
-        for document in track(documents, description="Loading examples"):
+        for document in track(doc_id2document.values(), description="Loading examples"):
             encoding: BatchEncoding = self.tokenizer(
                 document.text,
                 padding=PaddingStrategy.MAX_LENGTH,

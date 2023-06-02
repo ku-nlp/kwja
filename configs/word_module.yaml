@@ -53,7 +53,7 @@ aggregating_metrics:
 
 # hyper-parameters to be tuned
 lr: 1e-4
-max_epochs: 20
+max_epochs: 12
 warmup_steps: 100
 effective_batch_size: 16
 
@@ -61,11 +61,12 @@ effective_batch_size: 16
 devices: ${oc.env:DEVICES,0}
 max_batches_per_device: ${oc.env:MAX_BATCHES_PER_DEVICE,2}
 num_workers: ${oc.env:NUM_WORKERS,4}
+compile: ${oc.env:COMPILE,false}
 
 ignore_hparams_on_save: false
 
 # constants
-special_tokens: ${concat:${exophora_referents},["[NULL]", "[NA]", "[ROOT]"]}
+special_tokens: ["[著者]", "[読者]", "[不特定:人]", "[不特定:物]", "[NULL]", "[NA]", "[ROOT]"]
 hparams_to_ignore_on_save:
   - project
   - work_dir

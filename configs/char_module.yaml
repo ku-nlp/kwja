@@ -27,7 +27,7 @@ aggregating_metrics:
 
 # hyper-parameters to be tuned
 lr: 2e-5
-max_epochs: 20
+max_epochs: 12
 warmup_steps: 2000
 effective_batch_size: 32
 
@@ -35,6 +35,7 @@ effective_batch_size: 32
 devices: ${oc.env:DEVICES,0}
 max_batches_per_device: ${oc.env:MAX_BATCHES_PER_DEVICE,2}
 num_workers: ${oc.env:NUM_WORKERS,4}
+compile: ${oc.env:COMPILE,false}
 
 ignore_hparams_on_save: false
 

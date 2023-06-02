@@ -30,6 +30,21 @@ class CharModuleMetric(BaseModuleMetric):
         self.word_norm_op_predictions: torch.Tensor
         self.word_norm_op_labels: torch.Tensor
 
+    @staticmethod
+    def pad(kwargs: Dict[str, torch.Tensor], max_seq_length: int) -> None:
+        for key, value in kwargs.items():
+            if key in {"example_ids"}:
+                continue
+            else:
+                dims = [1]
+            for dim in dims:
+                size = [max_seq_length - s if i == dim else s for i, s in enumerate(value.size())]
+                if size[dim] == 0:
+                    continue
+                padding = torch.zeros(size, dtype=value.dtype, device=value.device)
+                value = torch.cat([value, padding], dim=dim)
+            kwargs[key] = value
+
     def compute(self) -> Dict[str, float]:
         sorted_indices = unique(self.example_ids)
         for state_name in self.STATE_NAMES:
@@ -88,12 +103,7 @@ class CharModuleMetric(BaseModuleMetric):
         predictions = [self._convert_document_into_segmentation_tags(d) for d in predicted_documents]
         return {
             "word_segmentation_accuracy": accuracy_score(y_true=labels, y_pred=predictions),
-            "word_segmentation_f1": f1_score(
-                y_true=labels,
-                y_pred=predictions,
-                mode="strict",
-                scheme=IOB2,
-            ),
+            "word_segmentation_f1": f1_score(y_true=labels, y_pred=predictions, mode="strict", scheme=IOB2).item(),
         }
 
     @staticmethod

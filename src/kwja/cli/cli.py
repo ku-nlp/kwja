@@ -1,61 +1,59 @@
 import os
 import re
+import sys
 from abc import ABC
-from enum import Enum
+from datetime import datetime
 from pathlib import Path
-from tempfile import TemporaryDirectory
+from tempfile import NamedTemporaryFile
 from typing import Dict, List, Optional, Set, Tuple
+from unicodedata import normalize
 
 import hydra
 import pytorch_lightning as pl
+import torch
 import typer
-from omegaconf import OmegaConf
 from pytorch_lightning.trainer.states import TrainerFn
-from rhoknp import Document
-from rhoknp.utils.reader import chunk_by_document
+from rhoknp import RegexSenter, Sentence
+from rhoknp.utils.reader import chunk_by_sentence
 
 import kwja
-from kwja.cli.utils import download_checkpoint, prepare_device, suppress_debug_info
+from kwja.cli.config import CLIConfig, Device, ModelSize, get_kwja_config_file
+from kwja.cli.utils import download_checkpoint, prepare_device
 from kwja.datamodule.datamodule import DataModule
-from kwja.modules import CharModule, Seq2SeqModule, TypoModule, WordModule
+from kwja.modules import CharModule, SenterModule, Seq2SeqModule, TypoModule, WordModule
+from kwja.utils.constants import TRANSLATION_TABLE
+from kwja.utils.logging_util import filter_logs
 
-suppress_debug_info()
+filter_logs(environment="production")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
-OmegaConf.register_new_resolver("concat", lambda x, y: x + y)
 OMEGACONF_VARIABLE_INTERPOLATION = re.compile(r"\$(?P<variable>\{.+?})")
 
 app = typer.Typer(pretty_exceptions_show_locals=False)
 
 
-class Device(str, Enum):
-    auto = "auto"
-    cpu = "cpu"
-    gpu = "gpu"
-
-
 class BaseModuleProcessor(ABC):
-    def __init__(
-        self,
-        specified_device: str,
-        model_size: str,
-        batch_size: int,
-        destination: Path,
-    ) -> None:
-        self.device_name, self.device = prepare_device(specified_device)
-        self.model_size: str = model_size
+    def __init__(self, config: CLIConfig, batch_size: int) -> None:
+        self.config: CLIConfig = config
+        self.device_name, self.device = prepare_device(config.device.value)
+        self.model_size: ModelSize = config.model_size
         self.batch_size: int = batch_size
-        self.destination: Path = destination
+        self.destination = Path(NamedTemporaryFile().name)
         self.module: Optional[pl.LightningModule] = None
         self.trainer: Optional[pl.Trainer] = None
 
     def load(self):
         self.module = self._load_module()
+        if self.config.torch_compile is True:
+            self.module = torch.compile(self.module)  # type: ignore
         self.module.hparams.datamodule.batch_size = self.batch_size
+        self.module.hparams.datamodule.num_workers = self.config.num_workers
 
-        writer = hydra.utils.instantiate(self.module.hparams.callbacks.prediction_writer, destination=self.destination)
         self.trainer = pl.Trainer(
             logger=False,
-            callbacks=[writer, hydra.utils.instantiate(self.module.hparams.callbacks.progress_bar)],
+            callbacks=[
+                hydra.utils.instantiate(self.module.hparams.callbacks.prediction_writer, destination=self.destination),
+                hydra.utils.instantiate(self.module.hparams.callbacks.progress_bar),
+            ],
             accelerator=self.device_name,
             devices=1,
         )
@@ -66,16 +64,15 @@ class BaseModuleProcessor(ABC):
     def delete_module_and_trainer(self) -> None:
         del self.module, self.trainer
 
-    def apply_module(self, input_file: Path) -> Path:
+    def apply_module(self, input_file: Path) -> None:
         datamodule = self._load_datamodule(input_file)
         assert self.trainer is not None
-        self.trainer.predict(model=self.module, dataloaders=datamodule.predict_dataloader(), return_predictions=False)
-        return self.destination
+        self.trainer.predict(model=self.module, dataloaders=[datamodule.predict_dataloader()], return_predictions=False)
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
         raise NotImplementedError
 
-    def output_prediction(self) -> None:
+    def export_prediction(self) -> str:
         raise NotImplementedError
 
 
@@ -83,73 +80,108 @@ class TypoModuleProcessor(BaseModuleProcessor):
     def _load_module(self) -> pl.LightningModule:
         typer.echo("Loading typo module", err=True)
         checkpoint_path: Path = download_checkpoint(module="typo", model_size=self.model_size)
-        return TypoModule.load_from_checkpoint(checkpoint_path, map_location=self.device)
+        return TypoModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
-        self.module.hparams.datamodule.predict.texts = input_file.read_text().splitlines()
+        self.module.hparams.datamodule.predict.texts = _split_into_documents(input_file.read_text())
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
         datamodule.setup(stage=TrainerFn.PREDICTING)
         return datamodule
 
-    def output_prediction(self) -> None:
-        post_texts: List[str] = []
-        with self.destination.open() as f:
-            for line in f:
-                if line.strip() != "EOD":
-                    post_texts.append(line.strip())
-        print("\n".join(post_texts))
+    def export_prediction(self) -> str:
+        return self.destination.read_text()
+
+
+class SenterModuleProcessor(BaseModuleProcessor):
+    doc_idx = 0
+
+    def load(self):
+        if self.model_size != ModelSize.tiny:
+            super().load()
+
+    def _load_module(self) -> pl.LightningModule:
+        if self.model_size != ModelSize.tiny:
+            typer.echo("Loading senter module", err=True)
+            checkpoint_path: Path = download_checkpoint(module="senter", model_size=self.model_size)
+            return SenterModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
+        return  # type: ignore
+
+    def _load_datamodule(self, input_file: Path) -> DataModule:
+        assert self.module is not None
+        self.module.hparams.datamodule.predict.texts = _split_into_documents(input_file.read_text())
+        datamodule = DataModule(cfg=self.module.hparams.datamodule)
+        datamodule.setup(stage=TrainerFn.PREDICTING)
+        return datamodule
+
+    def apply_module(self, input_file: Path) -> None:
+        if self.model_size != ModelSize.tiny:
+            super().apply_module(input_file)
+            return
+
+        senter = RegexSenter()
+        output_string = ""
+        doc_id_prefix = datetime.now().strftime("%Y%m%d%H%M")
+        for document_text in _split_into_documents(input_file.read_text()):
+            document = senter.apply_to_document(document_text)
+            document.doc_id = f"{doc_id_prefix}-{self.doc_idx}"
+            self.doc_idx += 1
+            for sent_idx, sentence in enumerate(document.sentences):
+                sentence.sid = f"{document.doc_id}-{sent_idx}"
+                sentence.misc_comment = f"kwja:{kwja.__version__}"
+            output_string += document.to_raw_text().strip()
+        self.destination.write_text(output_string)
+
+    def export_prediction(self) -> str:
+        return self.destination.read_text()
 
 
 class Seq2SeqModuleProcessor(BaseModuleProcessor):
     def _load_module(self):
         typer.echo("Loading seq2seq module", err=True)
         checkpoint_path: Path = download_checkpoint(module="seq2seq", model_size=self.model_size)
-        return Seq2SeqModule.load_from_checkpoint(checkpoint_path, map_location=self.device)
+        return Seq2SeqModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
-        self.module.hparams.datamodule.predict.texts = input_file.read_text().splitlines()
+        self.module.hparams.datamodule.predict.senter_file = input_file
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
         datamodule.setup(stage=TrainerFn.PREDICTING)
         return datamodule
 
-    def output_prediction(self) -> None:
-        seq2seq_texts: List[str] = []
-        with self.destination.open() as f:
-            for line in f:
-                if line.strip() != "EOD":
-                    seq2seq_texts.append(line.strip())
-        print("\n".join(seq2seq_texts))
+    def export_prediction(self) -> str:
+        return self.destination.read_text()
 
 
 class CharModuleProcessor(BaseModuleProcessor):
     def _load_module(self) -> pl.LightningModule:
         typer.echo("Loading char module", err=True)
         checkpoint_path: Path = download_checkpoint(module="char", model_size=self.model_size)
-        return CharModule.load_from_checkpoint(checkpoint_path, map_location=self.device)
+        return CharModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
-        self.module.hparams.datamodule.predict.texts = input_file.read_text().splitlines()
+        self.module.hparams.datamodule.predict.senter_file = input_file
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
         datamodule.setup(stage=TrainerFn.PREDICTING)
         return datamodule
 
-    def output_prediction(self) -> None:
-        word_segmented_texts: List[str] = []
+    def export_prediction(self) -> str:
+        export_text = ""
         with self.destination.open() as f:
-            for juman_text in chunk_by_document(f):
-                document = Document.from_jumanpp(juman_text)
-                word_segmented_texts.append(" ".join(m.text for m in document.morphemes))
-        print("\n".join(word_segmented_texts))
+            for juman_text in chunk_by_sentence(f):
+                sentence = Sentence.from_jumanpp(juman_text)
+                if sentence.comment != "":
+                    export_text += sentence.comment + "\n"
+                export_text += " ".join(m.text for m in sentence.morphemes) + "\n"
+        return export_text
 
 
 class WordModuleProcessor(BaseModuleProcessor):
     def _load_module(self) -> pl.LightningModule:
         typer.echo("Loading word module", err=True)
         checkpoint_path: Path = download_checkpoint(module="word", model_size=self.model_size)
-        return WordModule.load_from_checkpoint(checkpoint_path, map_location=self.device)
+        return WordModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
@@ -158,56 +190,19 @@ class WordModuleProcessor(BaseModuleProcessor):
         datamodule.setup(stage=TrainerFn.PREDICTING)
         return datamodule
 
-    def output_prediction(self) -> None:
-        print(self.destination.read_text(), end="")
-
-
-class WordDiscourseModuleProcessor(BaseModuleProcessor):
-    def _load_module(self) -> pl.LightningModule:
-        typer.echo("Loading word_discourse module", err=True)
-        checkpoint_path: Path = download_checkpoint(module="word_discourse", model_size=self.model_size)
-        module = WordModule.load_from_checkpoint(checkpoint_path, map_location=self.device)
-        module.hparams.callbacks.prediction_writer = {
-            "_target_": "kwja.callbacks.word_discourse_module_writer.WordDiscourseModuleWriter"
-        }
-        return module
-
-    def _load_datamodule(self, input_file: Path) -> DataModule:
-        assert self.module is not None
-        self.module.hparams.datamodule.predict.knp_file = input_file
-        datamodule = DataModule(cfg=self.module.hparams.datamodule)
-        datamodule.setup(stage=TrainerFn.PREDICTING)
-        return datamodule
-
-    def output_prediction(self) -> None:
-        print(self.destination.read_text(), end="")
+    def export_prediction(self) -> str:
+        return self.destination.read_text()
 
 
 class CLIProcessor:
-    def __init__(
-        self,
-        specified_device: str,
-        model_size: str,
-        typo_batch_size: int,
-        seq2seq_batch_size: int,
-        char_batch_size: int,
-        word_batch_size: int,
-    ) -> None:
-        self.tmp_dir = TemporaryDirectory()
-        self.raw_destination = self.tmp_dir.name / Path("raw_text.txt")
-        typo_destination = self.tmp_dir.name / Path("typo_prediction.txt")
-        seq2seq_destination = self.tmp_dir.name / Path("seq2seq_prediction.seq2seq")
-        char_destination = self.tmp_dir.name / Path("char_prediction.juman")
-        word_destination = self.tmp_dir.name / Path("word_prediction.knp")
-        word_discourse_destination = self.tmp_dir.name / Path("word_discourse_prediction.knp")
+    def __init__(self, config: CLIConfig) -> None:
+        self.raw_destination = Path(NamedTemporaryFile(suffix=".txt", delete=False).name)
         self.processors: Dict[str, BaseModuleProcessor] = {
-            "typo": TypoModuleProcessor(specified_device, model_size, typo_batch_size, typo_destination),
-            "seq2seq": Seq2SeqModuleProcessor(specified_device, model_size, seq2seq_batch_size, seq2seq_destination),
-            "char": CharModuleProcessor(specified_device, model_size, char_batch_size, char_destination),
-            "word": WordModuleProcessor(specified_device, model_size, word_batch_size, word_destination),
-            "word_discourse": WordDiscourseModuleProcessor(
-                specified_device, model_size, word_batch_size, word_discourse_destination
-            ),
+            "typo": TypoModuleProcessor(config, config.typo_batch_size),
+            "senter": SenterModuleProcessor(config, config.senter_batch_size),
+            "seq2seq": Seq2SeqModuleProcessor(config, config.seq2seq_batch_size),
+            "char": CharModuleProcessor(config, config.char_batch_size),
+            "word": WordModuleProcessor(config, config.word_batch_size),
         }
 
     def load_modules(self, tasks: List[str]) -> None:
@@ -215,43 +210,52 @@ class CLIProcessor:
             self.processors[task].load()
 
     def refresh(self) -> None:
+        self.raw_destination.unlink(missing_ok=True)
         for processor in self.processors.values():
             processor.destination.unlink(missing_ok=True)
 
-    def run(self, input_text: str, specified_tasks: List[str], interactive: bool = False) -> None:
-        input_texts = _split_input_texts([input_text])
-        self.raw_destination.write_text("\n".join(input_texts))  # TODO: consider using pickle
+    def run(self, input_documents: List[str], tasks: List[str], interactive: bool = False) -> None:
+        self.raw_destination.write_text(
+            "".join(_normalize_text(input_document) + "\nEOD\n" for input_document in input_documents)
+        )
         input_file = self.raw_destination
-        for specified_task in specified_tasks:
-            processor = self.processors[specified_task]
+        for task in tasks:
+            processor = self.processors[task]
             if interactive is False:
                 processor.load()
-            if specified_task in {"char", "seq2seq"} and "typo" in specified_tasks:
-                # char and seq2seq module after typo module
-                input_texts = _split_input_texts([input_file.read_text()])
-                input_file.write_text("\n".join(input_texts))  # TODO: consider using pickle
-            input_file = processor.apply_module(input_file)
+            processor.apply_module(input_file)
+            input_file = processor.destination
             if interactive is False:
                 processor.delete_module_and_trainer()
-        self.processors[specified_tasks[-1]].output_prediction()
+        print(self.processors[tasks[-1]].export_prediction(), end="")
 
 
-def _split_input_texts(input_texts: List[str]) -> List[str]:
-    split_texts: List[str] = []
-    split_text: str = ""
-    for input_text in input_texts:
-        input_text_with_eod: str = input_text.strip() + "\nEOD"
-        for text in input_text_with_eod.split("\n"):
-            if text == "EOD":
-                # hydra.utils.instantiateを実行する際に文字列${...}を補間しようとするのを防ぐ
-                normalized = OMEGACONF_VARIABLE_INTERPOLATION.sub(r"$␣\g<variable>", split_text)
-                # "#"で始まる行がコメント行と誤認識されることを防ぐ
-                normalized = normalized.replace("#", "♯").replace("＃", "♯")  # TODO: use "＃" instead of "♯"
-                split_texts.append(normalized.rstrip())
-                split_text = ""
-            else:
-                split_text += f"{text}\n"
-    return split_texts
+def _normalize_text(text: str) -> str:
+    # Tokenizers (BertJapaneseTokenizer, DebertaV2Tokenizer, etc.) apply NFKC normalization internally, so
+    # there may be inconsistency in number of characters if not applying NFKC normalization in advance
+    normalized = normalize("NFKC", text)
+    # escape several symbols and delete control characters
+    normalized = normalized.translate(TRANSLATION_TABLE)
+    # prevent hydra.utils.instantiate from interpolating the string "${...}"
+    normalized = OMEGACONF_VARIABLE_INTERPOLATION.sub(r"$␣\g<variable>", normalized)
+    # if normalized != text:
+    #     typer.echo(f"apply normalization ({text} -> {normalized})", err=True)
+    return normalized
+
+
+def _split_into_documents(input_text: str) -> List[str]:
+    documents: List[str] = []
+    document: str = ""
+    for line in input_text.split("\n"):
+        if line == "EOD":
+            documents.append(document.rstrip())
+            document = ""
+        else:
+            document += f"{line}\n"
+    else:
+        if document.rstrip() != "":
+            documents.append(document.rstrip())
+    return documents
 
 
 def version_callback(value: bool) -> None:
@@ -260,117 +264,115 @@ def version_callback(value: bool) -> None:
         raise typer.Exit()
 
 
-def model_size_callback(value: str) -> str:
-    if value not in ("tiny", "base", "large"):
-        raise typer.BadParameter("model size must be one of 'tiny', 'base', or 'large'")
-    return value
-
-
 def tasks_callback(value: str) -> str:
-    tasks: List[str] = value.split(",")
+    """sort and validate specified tasks"""
+    values: List[str] = [v for v in value.split(",") if v]
+    tasks: List[str] = []
+    for candidate_task in ("typo", "senter", "seq2seq", "char", "word"):
+        if candidate_task in values:
+            tasks.append(candidate_task)
+            values.remove(candidate_task)
+    if len(values) == 1:
+        raise typer.BadParameter(f"invalid task is specified: {repr(values[0])}")
+    if len(values) > 1:
+        raise typer.BadParameter(f"invalid tasks are specified: {', '.join(repr(v) for v in values)}")
     if len(tasks) == 0:
         raise typer.BadParameter("task must be specified")
-    for task in tasks:
-        if task not in ("typo", "seq2seq", "char", "word", "word_discourse"):
-            raise typer.BadParameter("invalid task name is contained")
     valid_task_combinations: Set[Tuple[str, ...]] = {
         ("typo",),
-        ("char",),
-        ("seq2seq",),
-        ("seq2seq", "typo"),
-        ("seq2seq", "word"),
-        ("seq2seq", "typo", "word"),
-        ("seq2seq", "word", "word_discourse"),
-        ("seq2seq", "typo", "word", "word_discourse"),
-        ("char", "typo"),
-        ("char", "word"),
-        ("char", "typo", "word"),
-        ("char", "word", "word_discourse"),
-        ("char", "typo", "word", "word_discourse"),
+        ("typo", "senter"),
+        ("typo", "senter", "char"),
+        ("typo", "senter", "char", "word"),
+        ("typo", "senter", "seq2seq"),
+        ("typo", "senter", "seq2seq", "word"),
+        ("senter",),
+        ("senter", "char"),
+        ("senter", "char", "word"),
+        ("senter", "seq2seq"),
+        ("senter", "seq2seq", "word"),
     }
-    sorted_task: Tuple[str, ...] = tuple(sorted(tasks))
-    if sorted_task not in valid_task_combinations:
+
+    if tuple(tasks) not in valid_task_combinations:
         raise typer.BadParameter(
             "task combination is invalid. "
-            "Please specify one of "
-            "'typo', "
-            "'char', "
-            "'seq2seq', "
-            "'typo,char', "
-            "'typo,seq2seq', "
-            "'seq2seq,word', "
-            "'char,word', "
-            "'typo,seq2seq,word', "
-            "'seq2seq,word,word_discourse', "
-            "'typo,seq2seq,word,word_discourse', "
-            "'typo,char,word', "
-            "'char,word,word_discourse' "
-            "or 'typo,char,word,word_discourse'."
+            f"Please specify one of {', '.join(repr(','.join(ts)) for ts in valid_task_combinations)}."
         )
-    return value
+    return ",".join(tasks)
 
 
 @app.command()
 def main(
     text: Optional[str] = typer.Option(None, help="Text to be analyzed."),
-    filename: Optional[Path] = typer.Option(None, help="File to be analyzed."),
-    device: Device = typer.Option(
-        Device.auto,
-        help="Device to be used. Please specify 'auto', 'cpu' or 'gpu'.",
-    ),
-    model_size: str = typer.Option(
-        "base", callback=model_size_callback, help="Model size to be used. Please specify 'tiny', 'base', or 'large'."
-    ),
-    typo_batch_size: int = typer.Option(1, help="Batch size for typo module."),
-    seq2seq_batch_size: int = typer.Option(1, help="Batch size for seq2seq module."),
-    char_batch_size: int = typer.Option(1, help="Batch size for char module."),
-    word_batch_size: int = typer.Option(1, help="Batch size for word module."),
-    tasks: str = typer.Option("typo,char,word,word_discourse", callback=tasks_callback, help="Tasks to be performed."),
+    filename: List[Path] = typer.Option([], dir_okay=False, help="Files to be analyzed."),
+    model_size: Optional[ModelSize] = typer.Option(None, help="Model size to be used."),
+    device: Optional[Device] = typer.Option(None, help="Device to be used."),
+    typo_batch_size: Optional[int] = typer.Option(None, help="Batch size for typo module."),
+    senter_batch_size: Optional[int] = typer.Option(None, help="Batch size for senter module."),
+    seq2seq_batch_size: Optional[int] = typer.Option(None, help="Batch size for seq2seq module."),
+    char_batch_size: Optional[int] = typer.Option(None, help="Batch size for char module."),
+    word_batch_size: Optional[int] = typer.Option(None, help="Batch size for word module."),
+    tasks: str = typer.Option("senter,char,word", callback=tasks_callback, help="Tasks to be performed."),
     _: Optional[bool] = typer.Option(None, "--version", callback=version_callback, is_eager=True),
+    config_file: Optional[Path] = typer.Option(None, help="Path to KWJA config file."),
 ) -> None:
     input_text: Optional[str] = None
-    if text is not None and filename is not None:
+    if text is not None and len(filename) > 0:
         typer.echo("ERROR: Please provide text or filename, not both", err=True)
         raise typer.Abort()
     elif text is not None:
         input_text = text
-    elif filename is not None:
-        input_text = Path(filename).read_text()
-
-    if model_size == "large" and "seq2seq" in tasks:
-        typer.echo("ERROR: Large model does not support seq2seq module now", err=True)
-        raise typer.Abort()
-
-    processor = CLIProcessor(
-        specified_device=device.value,
-        model_size=model_size,
-        typo_batch_size=typo_batch_size,
-        seq2seq_batch_size=seq2seq_batch_size,
-        char_batch_size=char_batch_size,
-        word_batch_size=word_batch_size,
-    )
-    specified_tasks: List[str] = [
-        task for task in ["typo", "seq2seq", "char", "word", "word_discourse"] if task in tasks.split(",")
-    ]
-
-    if input_text is None:
-        processor.load_modules(specified_tasks)
-
-        typer.echo('Please end your input with a new line and type "EOD"', err=True)
-        input_text = ""
-        while True:
-            input_ = input()
-            if input_ == "EOD":
-                processor.refresh()
-                processor.run(input_text, specified_tasks, interactive=True)
-                print("EOD")  # To indicate the end of the output.
-                input_text = ""
-            else:
-                input_text += input_ + "\n"
+    elif len(filename) > 0:
+        input_text = "".join(path.read_text().rstrip("\n") + "\nEOD\n" for path in filename)
+    elif sys.stdin.isatty() is False:
+        input_text = sys.stdin.read()
     else:
-        if input_text.strip() == "":
-            raise typer.Exit()
-        processor.run(input_text, specified_tasks)
+        pass  # interactive mode
+
+    specified_tasks: List[str] = tasks.split(",")
+
+    if config_file is None:
+        config_file = get_kwja_config_file()
+    if config_file.exists():
+        config = CLIConfig.from_yaml(config_file)
+    else:
+        config = CLIConfig()
+    if model_size is not None:
+        config.model_size = model_size
+    if device is not None:
+        config.device = device
+    if typo_batch_size is not None:
+        config.typo_batch_size = typo_batch_size
+    if senter_batch_size is not None:
+        config.senter_batch_size = senter_batch_size
+    if seq2seq_batch_size is not None:
+        config.seq2seq_batch_size = seq2seq_batch_size
+    if char_batch_size is not None:
+        config.char_batch_size = char_batch_size
+    if word_batch_size is not None:
+        config.word_batch_size = word_batch_size
+
+    processor = CLIProcessor(config)
+
+    # Batch mode
+    if input_text is not None:
+        if input_text.strip() != "":
+            processor.run(_split_into_documents(input_text), specified_tasks)
+        processor.refresh()
+        raise typer.Exit()
+
+    # Interactive mode
+    processor.load_modules(specified_tasks)
+    typer.echo('Please end your input with a new line and type "EOD"', err=True)
+    input_text = ""
+    while True:
+        input_ = input()
+        if input_ == "EOD":
+            processor.refresh()
+            processor.run([input_text], specified_tasks, interactive=True)
+            print("EOD")  # To indicate the end of the output.
+            input_text = ""
+        else:
+            input_text += input_ + "\n"
 
 
 if __name__ == "__main__":

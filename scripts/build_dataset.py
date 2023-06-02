@@ -13,7 +13,7 @@ from rhoknp.props import FeatureDict, NamedEntity, NamedEntityCategory
 from rhoknp.utils.reader import chunk_by_document, chunk_by_sentence
 
 from kwja.utils.constants import BASE_PHRASE_FEATURES, IGNORE_VALUE_FEATURE_PAT, SUB_WORD_FEATURES
-from kwja.utils.progress_bar import track
+from kwja.utils.logging_util import track
 
 
 class JumanppAugmenter:
@@ -65,13 +65,21 @@ class JumanppAugmenter:
     def _postprocess_sentence(
         original_sentence: Sentence, augmented_sentence: Sentence, update_original: bool = True
     ) -> None:
-        for original_morpheme, augmented_morpheme in zip(original_sentence.morphemes, augmented_sentence.morphemes):
-            # Jumanpp may override reading
-            augmented_morpheme.reading = original_morpheme.reading
-            if update_original and not original_sentence.need_knp:
-                # add Semantics
-                for k, v in augmented_morpheme.semantics.items():
-                    original_morpheme.semantics[k] = v
+        alignment = align_morphemes(original_sentence.morphemes, augmented_sentence.morphemes)
+        if alignment is None:
+            return None
+        keys = []
+        for original_morpheme in original_sentence.morphemes:
+            keys.append(str(original_morpheme.index))
+            if "-".join(keys) in alignment:
+                aligned = alignment["-".join(keys)]
+                if len(keys) == 1 and len(aligned) == 1:
+                    augmented_morpheme = aligned[0]
+                    # Jumanpp may override reading
+                    augmented_morpheme.reading = original_morpheme.reading
+                    if update_original and not original_sentence.need_knp:
+                        original_morpheme.semantics.update(augmented_morpheme.semantics)
+                keys = []
 
 
 def align_morphemes(morphemes1: List[Morpheme], morphemes2: List[Morpheme]) -> Optional[Dict[str, List[Morpheme]]]:
@@ -428,14 +436,17 @@ def main():
 
     output_root = Path(args.OUTPUT)
     doc_id2split = {}
-    for input_file in Path(args.id).glob("*.id"):
-        if input_file.stem not in {"train", "dev", "test"}:
-            continue
-        split = "valid" if input_file.stem == "dev" else input_file.stem
+    for id_file in Path(args.id).glob("*.id"):
+        if output_root.parts[-1] == "kyoto_ed":
+            if id_file.stem != "all":
+                continue
+        else:
+            if id_file.stem not in {"train", "dev", "test"}:
+                continue
+        split = "valid" if id_file.stem == "dev" else id_file.stem
         output_root.joinpath(split).mkdir(parents=True, exist_ok=True)
-        with input_file.open(mode="r") as f:
-            for line in f:
-                doc_id2split[line.strip()] = split
+        for doc_id in id_file.read_text().splitlines():
+            doc_id2split[doc_id] = split
 
     chunk_size = len(knp_texts) // args.j + int(len(knp_texts) % args.j > 0)
     iterable = [

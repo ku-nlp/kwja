@@ -1,4 +1,5 @@
 import tempfile
+from importlib.metadata import version
 from pathlib import Path
 from textwrap import dedent
 from typing import Any, Dict, List, Optional, Union
@@ -10,7 +11,6 @@ from rhoknp.props import DepType
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
 
-import kwja
 from kwja.callbacks.word_module_writer import WordModuleWriter
 from kwja.datamodule.datasets import WordInferenceDataset
 from kwja.utils.constants import (
@@ -80,7 +80,7 @@ def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwa
     doc_id_prefix = "test"
     juman_text = dedent(
         f"""\
-        # S-ID:{doc_id_prefix}-0-0 kwja:{kwja.__version__}
+        # S-ID:{doc_id_prefix}-0-0 kwja:{version("kwja")}
         太郎 _ 太郎 未定義語 15 その他 1 * 0 * 0
         と _ と 未定義語 15 その他 1 * 0 * 0
         次郎 _ 次郎 未定義語 15 その他 1 * 0 * 0
@@ -89,7 +89,7 @@ def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwa
         けんか _ けんか 未定義語 15 その他 1 * 0 * 0
         する _ する 未定義語 15 その他 1 * 0 * 0
         EOS
-        # S-ID:{doc_id_prefix}-1-0 kwja:{kwja.__version__}
+        # S-ID:{doc_id_prefix}-1-0 kwja:{version("kwja")}
         辛い _ 辛い 未定義語 15 その他 1 * 0 * 0
         ラーメン _ ラーメン 未定義語 15 その他 1 * 0 * 0
         が _ が 未定義語 15 その他 1 * 0 * 0
@@ -308,14 +308,16 @@ def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwa
     dependency_logits[0, 2, 5] = 1.0  # 次郎 -> けんか
     dependency_logits[0, 3, 2] = 1.0  # は -> 次郎
     dependency_logits[0, 4, 5] = 1.0  # よく -> けんか
-    dependency_logits[0, 5, dataset.special_token2index["[ROOT]"]] = 1.0  # けんか -> [ROOT]
+    # けんか -> [ROOT]
+    dependency_logits[0, 5, dataset.examples[0].special_token_indexer.get_morpheme_level_index("[ROOT]")] = 1.0
     dependency_logits[0, 6, 5] = 1.0  # する -> けんか
     dependency_logits[1, 0, 1] = 1.0  # 辛い -> ラーメン
     dependency_logits[1, 1, 3] = 1.0  # ラーメン -> 好きな
     dependency_logits[1, 2, 1] = 1.0  # が -> ラーメン
     dependency_logits[1, 3, 5] = 1.0  # 好きな -> 頼み
     dependency_logits[1, 4, 3] = 1.0  # ので -> 好きな
-    dependency_logits[1, 5, dataset.special_token2index["[ROOT]"]] = 1.0  # 頼み -> [ROOT]
+    # 頼み -> [ROOT]
+    dependency_logits[1, 5, dataset.examples[1].special_token_indexer.get_morpheme_level_index("[ROOT]")] = 1.0
     dependency_logits[1, 6, 5] = 1.0  # ました -> 頼み
 
     dependency_type_logits = torch.zeros(
@@ -339,14 +341,22 @@ def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwa
     # (b, rel, src, tgt)
     flatten_rels = [r for cohesion_utils in dataset.cohesion_task2utils.values() for r in cohesion_utils.rels]
     cohesion_logits = torch.zeros((num_examples, len(flatten_rels), max_seq_length, max_seq_length), dtype=torch.float)
-    for i, rel in enumerate(flatten_rels):
-        j = dataset.special_token2index["[NA]"] if rel == "=" else dataset.special_token2index["[NULL]"]
-        cohesion_logits[:, i, :, j] = 1.0
+    for i in range(num_examples):
+        for j, rel in enumerate(flatten_rels):
+            if rel == "=":
+                k = dataset.examples[i].special_token_indexer.get_morpheme_level_index("[NA]")
+            else:
+                k = dataset.examples[i].special_token_indexer.get_morpheme_level_index("[NULL]")
+            cohesion_logits[i, j, :, k] = 1.0
     cohesion_logits[0, flatten_rels.index("ガ"), 5, 2] = 2.0  # 次郎 ガ けんか
     cohesion_logits[1, flatten_rels.index("ガ"), 0, 1] = 2.0  # ラーメン ガ 辛い
     cohesion_logits[1, flatten_rels.index("ガ"), 3, 1] = 2.0  # ラーメン ガ 好き
-    cohesion_logits[1, flatten_rels.index("ガ２"), 3, dataset.special_token2index["著者"]] = 2.0  # 著者 ガ２ 好き
-    cohesion_logits[1, flatten_rels.index("ガ"), 5, dataset.special_token2index["著者"]] = 2.0  # 著者 ガ 頼み
+    cohesion_logits[
+        1, flatten_rels.index("ガ２"), 3, dataset.examples[1].special_token_indexer.get_morpheme_level_index("[著者]")
+    ] = 2.0  # 著者 ガ２ 好き
+    cohesion_logits[
+        1, flatten_rels.index("ガ"), 5, dataset.examples[1].special_token_indexer.get_morpheme_level_index("[著者]")
+    ] = 2.0  # 著者 ガ 頼み
     cohesion_logits[1, flatten_rels.index("ヲ"), 5, 1] = 2.0  # ラーメン ヲ 頼み
 
     # (b, src, tgt, rel)
@@ -381,7 +391,7 @@ def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwa
         assert isinstance(writer.destination, Path), "destination isn't set"
         assert writer.destination.read_text() == dedent(
             f"""\
-            # S-ID:{doc_id_prefix}-0-0 kwja:{kwja.__version__}
+            # S-ID:{doc_id_prefix}-0-0 kwja:{version("kwja")}
             * 1P
             + 1P <NE:PERSON:太郎><体言><SM-主体>
             太郎 たろう 太郎 名詞 6 人名 5 * 0 * 0 "代表表記:太郎/たろう 人名" <基本句-主辞>
@@ -398,7 +408,7 @@ def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwa
             けんか けんか けんか 名詞 6 サ変名詞 2 * 0 * 0 "代表表記:喧嘩/けんか" <基本句-主辞><用言表記先頭><用言表記末尾><ALT-けんか-けんか-けんか-6-2-0-0-"代表表記:献花/けんか">
             する する する 動詞 2 * 0 サ変動詞 16 基本形 2
             EOS
-            # S-ID:{doc_id_prefix}-1-0 kwja:{kwja.__version__}
+            # S-ID:{doc_id_prefix}-1-0 kwja:{version("kwja")}
             * 1D
             + 1D <rel type="ガ" target="ラーメン" sid="test-1-0" id="1"/><用言:形><時制:非過去><レベル:B-><状態述語>
             辛い からい 辛い 形容詞 3 * 0 イ形容詞アウオ段 18 基本形 2 <基本句-主辞><用言表記先頭><用言表記末尾>

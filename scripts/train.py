@@ -1,46 +1,33 @@
-import logging
 import math
-import warnings
-from typing import List, Optional
+from typing import List, Union
 
 import hydra
 import pytorch_lightning as pl
-import transformers.utils.logging as hf_logging
+import torch
 import wandb
 from dotenv import load_dotenv
-from omegaconf import DictConfig, ListConfig, OmegaConf
+from omegaconf import DictConfig, ListConfig
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.loggers import Logger
-from pytorch_lightning.utilities.warnings import PossibleUserWarning
 
 from kwja.datamodule.datamodule import DataModule
+from kwja.utils.logging_util import filter_logs
 
-hf_logging.set_verbosity(hf_logging.ERROR)
-logging.getLogger("rhoknp").setLevel(logging.ERROR)
-warnings.filterwarnings(
-    "ignore",
-    message=r"It is recommended to use .+ when logging on epoch level in distributed setting to accumulate the metric"
-    r" across devices",
-    category=PossibleUserWarning,
-)
-OmegaConf.register_new_resolver("concat", lambda x, y: x + y)
+filter_logs(environment="development")
 
 
 @hydra.main(version_base=None, config_path="../configs")
 def main(cfg: DictConfig):
     load_dotenv()
     if isinstance(cfg.devices, str):
-        try:
-            cfg.devices = [int(x) for x in cfg.devices.split(",")]
-        except ValueError:
-            cfg.devices = None
+        cfg.devices = list(map(int, cfg.devices.split(","))) if "," in cfg.devices else int(cfg.devices)
     if isinstance(cfg.max_batches_per_device, str):
         cfg.max_batches_per_device = int(cfg.max_batches_per_device)
     if isinstance(cfg.num_workers, str):
         cfg.num_workers = int(cfg.num_workers)
     cfg.seed = pl.seed_everything(seed=cfg.seed, workers=True)
 
-    logger: Optional[Logger] = cfg.get("logger") and hydra.utils.instantiate(cfg.get("logger"))
+    logger: Union[Logger, bool] = cfg.get("logger", False) and hydra.utils.instantiate(cfg.get("logger"))
     callbacks: List[Callback] = list(map(hydra.utils.instantiate, cfg.get("callbacks", {}).values()))
 
     # Calculate gradient_accumulation_steps assuming DDP
@@ -69,6 +56,8 @@ def main(cfg: DictConfig):
     datamodule = DataModule(cfg=cfg.datamodule)
 
     model: pl.LightningModule = hydra.utils.instantiate(cfg.module.cls, hparams=cfg, _recursive_=False)
+    if cfg.compile is True:
+        model = torch.compile(model)  # type: ignore
 
     trainer.fit(model=model, datamodule=datamodule)
     trainer.test(model=model, datamodule=datamodule, ckpt_path="best" if not trainer.fast_dev_run else None)

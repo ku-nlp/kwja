@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 
 from kwja.utils.jumandic import JumanDic
-from kwja.utils.progress_bar import track
+from kwja.utils.logging_util import track
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s: %(message)s", level=logging.DEBUG)

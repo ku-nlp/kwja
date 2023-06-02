@@ -35,6 +35,8 @@ class CharModuleWriter(BasePredictionWriter):
         dataloader_idx: int,
     ) -> None:
         dataloaders = trainer.predict_dataloaders
+        if isinstance(trainer.predict_dataloaders, dict):
+            dataloaders = list(trainer.predict_dataloaders.values())
         dataset: Union[CharDataset, CharInferenceDataset] = dataloaders[dataloader_idx].dataset
 
         special_ids = set(dataset.tokenizer.all_special_ids) - {dataset.tokenizer.unk_token_id}
@@ -45,22 +47,14 @@ class CharModuleWriter(BasePredictionWriter):
         ):
             example: Union[CharExample, CharInferenceExample] = dataset.examples[example_id]
             assert example.doc_id is not None, "doc_id isn't set"
-            document = dataset.doc_id2document[example.doc_id]
-            # メモリリーク対策
-            predicted_document = document.reparse()
-            predicted_document.doc_id = document.doc_id
-            for predicted_sentence, sentence in zip(predicted_document.sentences, document.sentences):
-                predicted_sentence.comment = sentence.comment
+            document = dataset.doc_id2document.pop(example.doc_id)
 
-            assert (
-                len(example.encoding.input_ids) == len(word_segmentation_predictions) == len(word_norm_op_predictions)
-            )
             word_segmentation_tags, word_norm_op_tags = convert_predictions_into_tags(
                 word_segmentation_predictions, word_norm_op_predictions, example.encoding.input_ids, special_ids
             )
-            set_morphemes(predicted_document, word_segmentation_tags, word_norm_op_tags)
+            set_morphemes(document, word_segmentation_tags, word_norm_op_tags)
 
-            output_string = "".join(s.to_jumanpp() for s in extract_target_sentences(predicted_document))
+            output_string = "".join(s.to_jumanpp() for s in extract_target_sentences(document))
             if isinstance(self.destination, Path):
                 with self.destination.open(mode="a") as f:
                     f.write(output_string)

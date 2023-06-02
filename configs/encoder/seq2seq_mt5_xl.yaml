@@ -1,2 +1,9 @@
-_target_: transformers.AutoModelForSeq2SeqLM.from_pretrained
+defaults:
+  - base
+  - _self_
+
 pretrained_model_name_or_path: google/mt5-xl
+from_config:
+  _target_: transformers.AutoModelForSeq2SeqLM.from_config
+from_pretrained:
+  _target_: transformers.AutoModelForSeq2SeqLM.from_pretrained

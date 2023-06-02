@@ -1,12 +1,45 @@
+import logging
 import sys
+import warnings
 from datetime import timedelta
 from functools import partial
-from typing import Iterable, List, Optional, Sequence, Union
+from typing import Iterable, List, Literal, Optional, Sequence, Union
 
+from lightning_fabric.utilities.warnings import PossibleUserWarning
 from rich.console import Console
 from rich.progress import BarColumn, Progress, ProgressColumn, ProgressType, TextColumn
 from rich.style import StyleType
 from rich.text import Text
+from transformers.utils import logging as hf_logging
+
+
+def filter_logs(environment: Literal["development", "production"]) -> None:
+    logging.getLogger("rhoknp").setLevel(logging.ERROR)
+    hf_logging.set_verbosity(hf_logging.ERROR)
+    if environment == "production":
+        warnings.filterwarnings("ignore")
+        logging.getLogger("kwja").setLevel(logging.ERROR)
+        logging.getLogger("torch").setLevel(logging.ERROR)
+        logging.getLogger("pytorch_lightning").setLevel(logging.ERROR)
+    elif environment == "development":
+        warnings.filterwarnings(
+            "ignore",
+            message=(
+                r"It is recommended to use .+ when logging on epoch level in distributed setting to accumulate the metric"
+                r" across devices"
+            ),
+            category=PossibleUserWarning,
+        )
+        warnings.filterwarnings(
+            "ignore",
+            message=(
+                r"Using `DistributedSampler` with the dataloaders. During `trainer..+`, it is recommended to use"
+                r" `Trainer(devices=1, num_nodes=1)` to ensure each sample/batch gets evaluated exactly once. Otherwise,"
+                r" multi-device settings use `DistributedSampler` that replicates some samples to make sure all devices have"
+                r" same batch size in case of uneven inputs."
+            ),
+            category=PossibleUserWarning,
+        )
 
 
 class CustomPostfixColumn(ProgressColumn):

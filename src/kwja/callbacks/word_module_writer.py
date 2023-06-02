@@ -4,7 +4,7 @@ from collections import defaultdict
 from io import TextIOBase
 from itertools import product
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, TextIO, Union
+from typing import Any, Dict, List, Optional, Sequence, TextIO, Tuple, Union
 
 import pytorch_lightning as pl
 from jinf import Jinf
@@ -33,7 +33,6 @@ from kwja.utils.constants import (
     POS_TAGS,
     RESOURCE_PATH,
     SUBPOS_TAGS,
-    WordTask,
 )
 from kwja.utils.jumandic import JumanDic
 from kwja.utils.reading_prediction import get_reading2reading_id
@@ -75,16 +74,15 @@ class WordModuleWriter(BasePredictionWriter):
         dataloader_idx: int,
     ) -> None:
         dataloaders = trainer.predict_dataloaders
+        if isinstance(trainer.predict_dataloaders, dict):
+            dataloaders = list(trainer.predict_dataloaders.values())
         dataset: Union[WordDataset, WordInferenceDataset] = dataloaders[dataloader_idx].dataset
 
         for (
             example_id,
             reading_predictions,
             reading_subword_map,
-            pos_logits,
-            subpos_logits,
-            conjtype_logits,
-            conjform_logits,
+            *morpheme_attribute_logits,  # pos_logits, subpos_logits, conjtype_logits, conjform_logits
             word_feature_probabilities,
             ne_predictions,
             base_phrase_feature_probabilities,
@@ -96,22 +94,23 @@ class WordModuleWriter(BasePredictionWriter):
             prediction["example_ids"].tolist(),
             prediction["reading_predictions"].tolist(),
             prediction["reading_subword_map"].tolist(),
-            prediction["pos_logits"],
-            prediction["subpos_logits"],
-            prediction["conjtype_logits"],
-            prediction["conjform_logits"],
+            prediction["pos_logits"].tolist(),
+            prediction["subpos_logits"].tolist(),
+            prediction["conjtype_logits"].tolist(),
+            prediction["conjform_logits"].tolist(),
             prediction["word_feature_probabilities"].tolist(),
-            prediction["ne_predictions"],
+            prediction["ne_predictions"].tolist(),
             prediction["base_phrase_feature_probabilities"].tolist(),
             prediction["dependency_predictions"].tolist(),
             prediction["dependency_type_predictions"].tolist(),
-            prediction["cohesion_logits"].tolist(),  # (b, rel, seq, seq)
+            prediction["cohesion_logits"].tolist(),
             prediction["discourse_predictions"].tolist(),
         ):
             example: Union[WordExample, WordInferenceExample] = dataset.examples[example_id]
             assert example.doc_id is not None, "doc_id isn't set"
-            document = dataset.doc_id2document[example.doc_id]
-            if dataset.from_seq2seq:
+            document = dataset.doc_id2document.pop(example.doc_id)
+            num_morphemes = len(document.morphemes)
+            if dataset.from_seq2seq is True:
                 word_reading_predictions = [m.reading for m in document.morphemes]
                 canons = [m.canon for m in document.morphemes]
             else:
@@ -123,20 +122,14 @@ class WordModuleWriter(BasePredictionWriter):
                     reading_subword_map,
                 )
                 canons = ["" for _ in document.morphemes]
-            (
-                pos_predictions,
-                subpos_predictions,
-                conjtype_predictions,
-                conjform_predictions,
-            ) = get_morpheme_attribute_predictions(pos_logits, subpos_logits, conjtype_logits, conjform_logits)
+            morpheme_attribute_predictions = get_morpheme_attribute_predictions(
+                *(logits[:num_morphemes] for logits in morpheme_attribute_logits)
+            )
             morphemes = self._build_morphemes(
                 [m.surf for m in document.morphemes],
                 [m.lemma for m in document.morphemes],
                 word_reading_predictions,
-                pos_predictions,
-                subpos_predictions,
-                conjtype_predictions,
-                conjform_predictions,
+                morpheme_attribute_predictions,
                 canons,
                 dataset.from_seq2seq,
             )
@@ -146,7 +139,7 @@ class WordModuleWriter(BasePredictionWriter):
                 add_named_entities(sentence, ne_predictions)
                 add_base_phrase_features(sentence, base_phrase_feature_probabilities)
                 add_dependency(
-                    sentence, dependency_predictions, dependency_type_predictions, dataset.special_token2index
+                    sentence, dependency_predictions, dependency_type_predictions, example.special_token_indexer
                 )
             orig_doc_id = to_orig_doc_id(document.doc_id)
             # 解析済みの文とマージ
@@ -159,10 +152,9 @@ class WordModuleWriter(BasePredictionWriter):
                 predicted_document,
                 cohesion_logits,
                 dataset.cohesion_task2utils,
-                dataset.index2special_token,
+                example.special_token_indexer,
             )
-            if WordTask.DISCOURSE_PARSING in pl_module.training_tasks:
-                add_discourse(predicted_document, discourse_predictions)
+            add_discourse(predicted_document, discourse_predictions)
 
             for predicted_sentence, sentence in zip(
                 extract_target_sentences(predicted_document),
@@ -186,24 +178,14 @@ class WordModuleWriter(BasePredictionWriter):
         surfs: List[str],
         norms: List[str],
         reading_predictions: List[str],
-        pos_predictions: List[int],
-        subpos_predictions: List[int],
-        conjtype_predictions: List[int],
-        conjform_predictions: List[int],
+        morpheme_attribute_predictions: Tuple[List[int], List[int], List[int], List[int]],
         canons: List[Optional[str]],
         from_seq2seq: bool,
     ) -> List[Morpheme]:
         assert len(surfs) == len(norms) == len(reading_predictions)
         morphemes = []
         for surf, norm, reading, pos_index, subpos_index, conjtype_index, conjform_index, canon in zip(
-            surfs,
-            norms,
-            reading_predictions,
-            pos_predictions,
-            subpos_predictions,
-            conjtype_predictions,
-            conjform_predictions,
-            canons,
+            surfs, norms, reading_predictions, *morpheme_attribute_predictions, canons
         ):
             pos = POS_TAGS[pos_index]
             pos_id = POS_TAG2POS_ID[pos]

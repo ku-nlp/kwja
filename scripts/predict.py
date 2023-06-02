@@ -1,40 +1,31 @@
-import logging
-import warnings
 from typing import List
 
 import hydra
 import pytorch_lightning as pl
-import transformers.utils.logging as hf_logging
+import torch
 from dotenv import load_dotenv
-from lightning_fabric.utilities.warnings import PossibleUserWarning
 from omegaconf import DictConfig, ListConfig, OmegaConf
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.trainer.states import TrainerFn
 
 from kwja.datamodule.datamodule import DataModule
+from kwja.utils.logging_util import filter_logs
 
-hf_logging.set_verbosity(hf_logging.ERROR)
-logging.getLogger("rhoknp").setLevel(logging.ERROR)
-warnings.filterwarnings(
-    "ignore",
-    message=r"It is recommended to use .+ when logging on epoch level in distributed setting to accumulate the metric"
-    r" across devices",
-    category=PossibleUserWarning,
-)
-OmegaConf.register_new_resolver("concat", lambda x, y: x + y)
+filter_logs(environment="development")
 
 
 @hydra.main(version_base=None, config_path="../configs", config_name="eval")
 def main(eval_cfg: DictConfig):
     load_dotenv()
     if isinstance(eval_cfg.devices, str):
-        try:
-            eval_cfg.devices = [int(x) for x in eval_cfg.devices.split(",")]
-        except ValueError:
-            eval_cfg.devices = None
+        eval_cfg.devices = (
+            list(map(int, eval_cfg.devices.split(","))) if "," in eval_cfg.devices else int(eval_cfg.devices)
+        )
 
     # Load saved model and config
     model: pl.LightningModule = hydra.utils.call(eval_cfg.module.load_from_checkpoint, _recursive_=False)
+    if eval_cfg.compile is True:
+        model = torch.compile(model)  # type: ignore
 
     train_cfg: DictConfig = model.hparams
     OmegaConf.set_struct(train_cfg, False)  # enable to add new key-value pairs
@@ -52,7 +43,7 @@ def main(eval_cfg: DictConfig):
 
     trainer: pl.Trainer = hydra.utils.instantiate(
         cfg.trainer,
-        logger=None,
+        logger=False,
         callbacks=callbacks,
         devices=cfg.devices,
     )
