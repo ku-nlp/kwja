@@ -238,9 +238,9 @@ word_batch_size: 1
     <tr>
       <th colspan="2">Word Segmentation</th>
       <td>98.5</td>
-      <td>98.6 / 98.2</td>
+      <td>98.6 / 98.2*</td>
       <td>98.7</td>
-      <td>98.9 / 98.4</td>
+      <td>98.9 / 98.4*</td>
     </tr>
     <tr>
       <th colspan="2">Word Normalization</th>
