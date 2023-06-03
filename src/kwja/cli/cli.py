@@ -129,7 +129,7 @@ class SenterModuleProcessor(BaseModuleProcessor):
             for sent_idx, sentence in enumerate(document.sentences):
                 sentence.sid = f"{document.doc_id}-{sent_idx}"
                 sentence.misc_comment = f"kwja:{kwja.__version__}"
-            output_string += document.to_raw_text().strip()
+            output_string += document.to_raw_text()
         self.destination.write_text(output_string)
 
     def export_prediction(self) -> str:
