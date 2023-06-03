@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v2.1.1] - 2023-06-03
+### Fixed
+- Fix a bug in the interactive mode.
+- Fix a bug in the seq2seq model's output.
+
 ## [v2.1.0] - 2023-06-02
 ### Added
 - Support Python 3.11.
@@ -159,7 +164,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove an unnecessary dependency, `fugashi`.
 
-[Unreleased]: https://github.com/ku-nlp/kwja/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/ku-nlp/kwja/compare/v2.1.1...HEAD
+[2.1.1]: https://github.com/ku-nlp/kwja/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/ku-nlp/kwja/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/ku-nlp/kwja/compare/v1.4.2...v2.0.0
 [1.4.2]: https://github.com/ku-nlp/kwja/compare/v1.4.1...v1.4.2

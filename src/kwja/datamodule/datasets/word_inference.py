@@ -55,9 +55,6 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
             self.tokenizer_input_format = "text"
 
         super(BaseDataset, self).__init__(documents, tokenizer, max_seq_length, document_split_stride)
-        # ---------- seq2seq ----------
-        self.from_seq2seq: bool = juman_file is not None and juman_file.suffix == ".seq2seq"
-
         # ---------- cohesion analysis ----------
         self.cohesion_tasks = [CohesionTask(ct) for ct in cohesion_tasks]
         self.exophora_referents = [ExophoraReferent(er) for er in exophora_referents]

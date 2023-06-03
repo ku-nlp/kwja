@@ -83,12 +83,14 @@ def test_write_on_batch_end(char_tokenizer: PreTrainedTokenizerBase) -> None:
                 # S-ID:{doc_id_prefix}-1-1 kwja:{kwja.__version__}
                 違う文書の一文目。
                 # S-ID:{doc_id_prefix}-1-2 kwja:{kwja.__version__}
-                二文目。"""
+                二文目。
+                """
             ),
         ]
         dataset = SenterInferenceDataset(ListConfig(texts), char_tokenizer, max_seq_length, doc_id_prefix=doc_id_prefix)
         trainer = MockTrainer([DataLoader(dataset, batch_size=num_examples)])
         writer = SenterModuleWriter(destination=destination)
         writer.write_on_batch_end(trainer, ..., prediction, None, ..., 0, 0)
+        writer.on_predict_epoch_end(trainer, ...)
         assert isinstance(writer.destination, Path), "destination isn't set"
         assert writer.destination.read_text() == expected_texts[0]

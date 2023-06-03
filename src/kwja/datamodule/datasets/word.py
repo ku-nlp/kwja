@@ -84,9 +84,6 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         # some tags are not annotated in editorial articles
         self.skip_cohesion_ne_discourse = self.path.parts[-2] == "kyoto_ed"
 
-        # ---------- seq2seq ----------
-        self.from_seq2seq: bool = False
-
         # ---------- reading prediction ----------
         reading_resource_path = RESOURCE_PATH / "reading_prediction"
         self.reading2reading_id = get_reading2reading_id(reading_resource_path / "vocab.txt")
