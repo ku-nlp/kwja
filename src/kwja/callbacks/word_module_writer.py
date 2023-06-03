@@ -42,7 +42,12 @@ logger = logging.getLogger(__name__)
 
 
 class WordModuleWriter(BasePredictionWriter):
-    def __init__(self, ambig_surf_specs: List[Dict[str, str]], destination: Optional[Union[str, Path]] = None) -> None:
+    def __init__(
+        self,
+        ambig_surf_specs: List[Dict[str, str]],
+        preserve_reading_lemma_canon: bool = False,
+        destination: Optional[Union[str, Path]] = None,
+    ) -> None:
         super().__init__(write_interval="batch")
         if destination is None:
             self.destination: Union[Path, TextIO] = sys.stdout
@@ -59,6 +64,8 @@ class WordModuleWriter(BasePredictionWriter):
         self.ambig_surf_specs = ambig_surf_specs
         self.jumandic = JumanDic(RESOURCE_PATH / "jumandic")
         self.jinf = Jinf()
+
+        self.preserve_reading_lemma_canon: bool = preserve_reading_lemma_canon
 
         self.prev_doc_id: Optional[str] = None
         self.doc_id_sid2predicted_sentence: Dict[str, Dict[str, Sentence]] = defaultdict(dict)
@@ -110,7 +117,7 @@ class WordModuleWriter(BasePredictionWriter):
             assert example.doc_id is not None, "doc_id isn't set"
             document = dataset.doc_id2document.pop(example.doc_id)
             num_morphemes = len(document.morphemes)
-            if dataset.from_seq2seq is True:
+            if self.preserve_reading_lemma_canon is True:
                 word_reading_predictions = [m.reading for m in document.morphemes]
                 canons = [m.canon for m in document.morphemes]
             else:
@@ -131,7 +138,7 @@ class WordModuleWriter(BasePredictionWriter):
                 word_reading_predictions,
                 morpheme_attribute_predictions,
                 canons,
-                dataset.from_seq2seq,
+                self.preserve_reading_lemma_canon,
             )
             predicted_document = chunk_morphemes(document, morphemes, word_feature_probabilities)
             predicted_document.doc_id = document.doc_id
@@ -180,7 +187,7 @@ class WordModuleWriter(BasePredictionWriter):
         reading_predictions: List[str],
         morpheme_attribute_predictions: Tuple[List[int], List[int], List[int], List[int]],
         canons: List[Optional[str]],
-        from_seq2seq: bool,
+        preserve_lemma: bool,
     ) -> List[Morpheme]:
         assert len(surfs) == len(norms) == len(reading_predictions)
         morphemes = []
@@ -197,7 +204,7 @@ class WordModuleWriter(BasePredictionWriter):
             conjform_id = CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID[conjtype][conjform]
 
             homograph_ops: List[Dict[str, Any]] = []
-            if from_seq2seq:
+            if preserve_lemma is True:
                 lemma = norm
             else:
                 lemma = self._get_lemma(norm, pos, subpos, conjtype, conjform, homograph_ops)

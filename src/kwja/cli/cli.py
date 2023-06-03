@@ -41,7 +41,7 @@ class BaseModuleProcessor(ABC):
         self.module: Optional[pl.LightningModule] = None
         self.trainer: Optional[pl.Trainer] = None
 
-    def load(self):
+    def load(self, **writer_kwargs):
         self.module = self._load_module()
         if self.config.torch_compile is True:
             self.module = torch.compile(self.module)  # type: ignore
@@ -51,7 +51,9 @@ class BaseModuleProcessor(ABC):
         self.trainer = pl.Trainer(
             logger=False,
             callbacks=[
-                hydra.utils.instantiate(self.module.hparams.callbacks.prediction_writer, destination=self.destination),
+                hydra.utils.instantiate(
+                    self.module.hparams.callbacks.prediction_writer, destination=self.destination, **writer_kwargs
+                ),
                 hydra.utils.instantiate(self.module.hparams.callbacks.progress_bar),
             ],
             accelerator=self.device_name,
@@ -64,12 +66,12 @@ class BaseModuleProcessor(ABC):
     def delete_module_and_trainer(self) -> None:
         del self.module, self.trainer
 
-    def apply_module(self, input_file: Path, from_seq2seq: bool = False) -> None:
-        datamodule = self._load_datamodule(input_file, from_seq2seq)
+    def apply_module(self, input_file: Path) -> None:
+        datamodule = self._load_datamodule(input_file)
         assert self.trainer is not None
         self.trainer.predict(model=self.module, dataloaders=[datamodule.predict_dataloader()], return_predictions=False)
 
-    def _load_datamodule(self, input_file: Path, from_seq2seq: bool = False) -> DataModule:
+    def _load_datamodule(self, input_file: Path) -> DataModule:
         raise NotImplementedError
 
     def export_prediction(self) -> str:
@@ -82,7 +84,7 @@ class TypoModuleProcessor(BaseModuleProcessor):
         checkpoint_path: Path = download_checkpoint(module="typo", model_size=self.model_size)
         return TypoModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
 
-    def _load_datamodule(self, input_file: Path, from_seq2seq: bool = False) -> DataModule:
+    def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
         self.module.hparams.datamodule.predict.texts = _split_into_documents(input_file.read_text())
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
@@ -107,14 +109,14 @@ class SenterModuleProcessor(BaseModuleProcessor):
             return SenterModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
         return  # type: ignore
 
-    def _load_datamodule(self, input_file: Path, from_seq2seq: bool = False) -> DataModule:
+    def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
         self.module.hparams.datamodule.predict.texts = _split_into_documents(input_file.read_text())
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
         datamodule.setup(stage=TrainerFn.PREDICTING)
         return datamodule
 
-    def apply_module(self, input_file: Path, from_seq2seq: bool = False) -> None:
+    def apply_module(self, input_file: Path) -> None:
         if self.model_size != ModelSize.tiny:
             super().apply_module(input_file)
             return
@@ -142,7 +144,7 @@ class Seq2SeqModuleProcessor(BaseModuleProcessor):
         checkpoint_path: Path = download_checkpoint(module="seq2seq", model_size=self.model_size)
         return Seq2SeqModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
 
-    def _load_datamodule(self, input_file: Path, from_seq2seq: bool = False) -> DataModule:
+    def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
         self.module.hparams.datamodule.predict.senter_file = input_file
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
@@ -159,7 +161,7 @@ class CharModuleProcessor(BaseModuleProcessor):
         checkpoint_path: Path = download_checkpoint(module="char", model_size=self.model_size)
         return CharModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
 
-    def _load_datamodule(self, input_file: Path, from_seq2seq: bool = False) -> DataModule:
+    def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
         self.module.hparams.datamodule.predict.senter_file = input_file
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
@@ -178,15 +180,21 @@ class CharModuleProcessor(BaseModuleProcessor):
 
 
 class WordModuleProcessor(BaseModuleProcessor):
+    def __init__(self, config: CLIConfig, batch_size: int, from_seq2seq: bool) -> None:
+        super().__init__(config, batch_size)
+        self.from_seq2seq = from_seq2seq
+
+    def load(self):
+        super().load(preserve_reading_lemma_canon=self.from_seq2seq)
+
     def _load_module(self) -> pl.LightningModule:
         typer.echo("Loading word module", err=True)
         checkpoint_path: Path = download_checkpoint(module="word", model_size=self.model_size)
         return WordModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
 
-    def _load_datamodule(self, input_file: Path, from_seq2seq: bool = False) -> DataModule:
+    def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
         self.module.hparams.datamodule.predict.juman_file = input_file
-        self.module.hparams.datamodule.predict.from_seq2seq = from_seq2seq
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
         datamodule.setup(stage=TrainerFn.PREDICTING)
         return datamodule
@@ -196,41 +204,43 @@ class WordModuleProcessor(BaseModuleProcessor):
 
 
 class CLIProcessor:
-    def __init__(self, config: CLIConfig) -> None:
+    def __init__(self, config: CLIConfig, tasks: List[str]) -> None:
         self.raw_destination = Path(NamedTemporaryFile(suffix=".txt", delete=False).name)
-        self.processors: Dict[str, BaseModuleProcessor] = {
+        self._task2processors: Dict[str, BaseModuleProcessor] = {
             "typo": TypoModuleProcessor(config, config.typo_batch_size),
             "senter": SenterModuleProcessor(config, config.senter_batch_size),
             "seq2seq": Seq2SeqModuleProcessor(config, config.seq2seq_batch_size),
             "char": CharModuleProcessor(config, config.char_batch_size),
-            "word": WordModuleProcessor(config, config.word_batch_size),
+            "word": WordModuleProcessor(
+                config,
+                config.word_batch_size,
+                from_seq2seq="seq2seq" in tasks,
+            ),
         }
+        self.processors: List[BaseModuleProcessor] = [self._task2processors[task] for task in tasks]
 
-    def load_modules(self, tasks: List[str]) -> None:
-        for task in tasks:
-            self.processors[task].load()
+    def load_all_modules(self) -> None:
+        for processor in self.processors:
+            processor.load()
 
     def refresh(self) -> None:
         self.raw_destination.unlink(missing_ok=True)
-        for processor in self.processors.values():
+        for processor in self._task2processors.values():
             processor.destination.unlink(missing_ok=True)
 
-    def run(self, input_documents: List[str], tasks: List[str], interactive: bool = False) -> None:
+    def run(self, input_documents: List[str], interactive: bool = False) -> None:
         self.raw_destination.write_text(
             "".join(_normalize_text(input_document) + "\nEOD\n" for input_document in input_documents)
         )
         input_file = self.raw_destination
-        for task in tasks:
-            processor = self.processors[task]
+        for processor in self.processors:
             if interactive is False:
                 processor.load()
-
-            from_seq2seq: bool = task == "word" and "seq2seq" in tasks
-            processor.apply_module(input_file, from_seq2seq)
+            processor.apply_module(input_file)
             input_file = processor.destination
             if interactive is False:
                 processor.delete_module_and_trainer()
-        print(self.processors[tasks[-1]].export_prediction(), end="")
+        print(self.processors[-1].export_prediction(), end="")
 
 
 def _normalize_text(text: str) -> str:
@@ -354,24 +364,24 @@ def main(
     if word_batch_size is not None:
         config.word_batch_size = word_batch_size
 
-    processor = CLIProcessor(config)
+    processor = CLIProcessor(config, specified_tasks)
 
     # Batch mode
     if input_text is not None:
         if input_text.strip() != "":
-            processor.run(_split_into_documents(input_text), specified_tasks)
+            processor.run(_split_into_documents(input_text))
         processor.refresh()
         raise typer.Exit()
 
     # Interactive mode
-    processor.load_modules(specified_tasks)
+    processor.load_all_modules()
     typer.echo('Please end your input with a new line and type "EOD"', err=True)
     input_text = ""
     while True:
         input_ = input()
         if input_ == "EOD":
             processor.refresh()
-            processor.run([input_text], specified_tasks, interactive=True)
+            processor.run([input_text], interactive=True)
             print("EOD")  # To indicate the end of the output.
             input_text = ""
         else:
