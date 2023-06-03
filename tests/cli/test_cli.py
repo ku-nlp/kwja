@@ -1,10 +1,15 @@
+import io
+import tempfile
+import textwrap
 from typing import List, Set, Tuple
 
+from rhoknp import Document
+from rhoknp.utils.reader import chunk_by_document
 from typer.testing import CliRunner
 
 from kwja.cli.cli import app
 
-runner = CliRunner()
+runner = CliRunner(mix_stderr=False)
 
 
 def test_version():
@@ -17,11 +22,54 @@ def test_device():
 
 
 def test_text_input():
-    _ = runner.invoke(app, args=["--model-size", "tiny", "--text", "おはよう"])
+    ret = runner.invoke(app, args=["--model-size", "tiny", "--text", "おはよう"])
+    assert ret.exception is None
 
 
 def test_file_input():
-    _ = runner.invoke(app, args=["--model-size", "tiny", "--filename", "./sample.txt"])
+    with tempfile.NamedTemporaryFile("wt") as f:
+        f.write(
+            textwrap.dedent(
+                """\
+                KWJAは日本語の統合解析ツールです。汎用言語モデルを利用し、様々な言語解析を統一的な方法で解いています。
+                EOD
+                計算機による言語理解を実現するためには，計算機に常識・世界知識を与える必要があります．
+                10年前にはこれは非常に難しい問題でしたが，近年の計算機パワー，計算機ネットワークの飛躍的進展によって計算機が超大規模テキストを取り扱えるようになり，そこから常識を自動獲得することが少しずつ可能になってきました．
+                EOD
+                """
+            )
+        )
+        f.seek(0)
+        ret = runner.invoke(app, args=["--model-size", "tiny", "--filename", f.name])
+        assert ret.exception is None
+
+
+def test_sanity():
+    with tempfile.NamedTemporaryFile("wt") as f:
+        f.write(
+            textwrap.dedent(
+                """\
+                KWJAは日本語の統合解析ツールです。汎用言語モデルを利用し、様々な言語解析を統一的な方法で解いています。
+                EOD
+                計算機による言語理解を実現するためには、計算機に常識・世界知識を与える必要があります。
+                10年前にはこれは非常に難しい問題でしたが、近年の計算機パワー、計算機ネットワークの飛躍的進展によって
+                計算機が超大規模テキストを取り扱えるようになり、そこから常識を自動獲得することが少しずつ可能になってきました。
+                EOD
+                """
+            )
+        )
+        f.seek(0)
+        ret = runner.invoke(app, args=["--model-size", "tiny", "--filename", f.name])
+        documents: list[Document] = []
+        for knp_text in chunk_by_document(io.StringIO(ret.stdout)):
+            documents.append(Document.from_knp(knp_text))
+        assert len(documents) == 2
+        assert documents[0].text == "KWJAは日本語の統合解析ツールです。汎用言語モデルを利用し、様々な言語解析を統一的な方法で解いています。"
+        assert documents[1].text == (
+            "計算機による言語理解を実現するためには、計算機に常識・世界知識を与える必要があります。10年前にはこれは非常に難しい問題でしたが、"
+            + "近年の計算機パワー、計算機ネットワークの飛躍的進展によって計算機が超大規模テキストを取り扱えるようになり、そこから常識を"
+            + "自動獲得することが少しずつ可能になってきました。"
+        )
 
 
 def test_task_input():
