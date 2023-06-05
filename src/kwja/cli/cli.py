@@ -336,8 +336,6 @@ def main(
         input_text = text
     elif len(filename) > 0:
         input_text = "".join(path.read_text().rstrip("\n") + "\nEOD\n" for path in filename)
-    elif sys.stdin.isatty() is False:
-        input_text = sys.stdin.read()
     else:
         pass  # interactive mode
 
@@ -378,7 +376,10 @@ def main(
     print('Please end your input with a new line and type "EOD"', file=sys.stderr)
     input_text = ""
     while True:
-        input_ = input()
+        try:
+            input_ = input()
+        except EOFError:
+            break
         if input_ == "EOD":
             processor.refresh()
             processor.run([input_text], interactive=True)
