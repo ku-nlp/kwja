@@ -11,7 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Fix a bug in senter prediction.
-- Fix a bug in interactive mode.
 
 ## [v2.1.1] - 2023-06-03
 ### Fixed
