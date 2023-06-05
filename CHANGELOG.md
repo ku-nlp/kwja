@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Support executing kwja with `python -m kwja`.
 
+### Fixed
+- Fix a bug in senter prediction.
+- Fix a bug in interactive mode.
+
 ## [v2.1.1] - 2023-06-03
 ### Fixed
 - Fix a bug in the interactive mode.
