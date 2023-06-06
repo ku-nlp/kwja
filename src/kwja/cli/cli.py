@@ -228,7 +228,7 @@ class CLIProcessor:
         for processor in self._task2processors.values():
             processor.destination.unlink(missing_ok=True)
 
-    def run(self, input_documents: List[str], interactive: bool = False) -> None:
+    def run(self, input_documents: List[str], interactive: bool = False) -> str:
         self.raw_destination.write_text(
             "".join(_normalize_text(input_document) + "\nEOD\n" for input_document in input_documents)
         )
@@ -240,7 +240,7 @@ class CLIProcessor:
             input_file = processor.destination
             if interactive is False:
                 processor.delete_module_and_trainer()
-        print(self.processors[-1].export_prediction(), end="")
+        return self.processors[-1].export_prediction()
 
 
 def _normalize_text(text: str) -> str:
@@ -335,7 +335,7 @@ def main(
     elif text is not None:
         input_text = text
     elif len(filename) > 0:
-        input_text = "".join(path.read_text().rstrip("\n") + "\nEOD\n" for path in filename)
+        input_text = "".join(path.read_text().rstrip("\n").rstrip("EOD").rstrip() + "\nEOD\n" for path in filename)
     else:
         pass  # interactive mode
 
@@ -367,13 +367,13 @@ def main(
     # Batch mode
     if input_text is not None:
         if input_text.strip() != "":
-            processor.run(_split_into_documents(input_text))
+            print(processor.run(_split_into_documents(input_text)), end="")
         processor.refresh()
         raise typer.Exit()
 
     # Interactive mode
     processor.load_all_modules()
-    print('Please end your input with a new line and type "EOD"', file=sys.stderr)
+    print('Type "EOD" in a new line to finish the input.', file=sys.stderr)
     input_text = ""
     while True:
         try:
@@ -382,7 +382,9 @@ def main(
             break
         if input_ == "EOD":
             processor.refresh()
-            processor.run([input_text], interactive=True)
+            output_text = processor.run([input_text], interactive=True)
+            output_text = output_text.rstrip("\n").rstrip("EOD").rstrip()
+            print(output_text)
             print("EOD")  # To indicate the end of the output.
             input_text = ""
         else:
