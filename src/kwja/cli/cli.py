@@ -80,7 +80,7 @@ class BaseModuleProcessor(ABC):
 
 class TypoModuleProcessor(BaseModuleProcessor):
     def _load_module(self) -> pl.LightningModule:
-        typer.echo("Loading typo module", err=True)
+        print("Loading typo module", file=sys.stderr)
         checkpoint_path: Path = download_checkpoint(module="typo", model_size=self.model_size)
         return TypoModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
 
@@ -104,7 +104,7 @@ class SenterModuleProcessor(BaseModuleProcessor):
 
     def _load_module(self) -> pl.LightningModule:
         if self.model_size != ModelSize.tiny:
-            typer.echo("Loading senter module", err=True)
+            print("Loading senter module", file=sys.stderr)
             checkpoint_path: Path = download_checkpoint(module="senter", model_size=self.model_size)
             return SenterModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
         return  # type: ignore
@@ -140,7 +140,7 @@ class SenterModuleProcessor(BaseModuleProcessor):
 
 class Seq2SeqModuleProcessor(BaseModuleProcessor):
     def _load_module(self):
-        typer.echo("Loading seq2seq module", err=True)
+        print("Loading seq2seq module", file=sys.stderr)
         checkpoint_path: Path = download_checkpoint(module="seq2seq", model_size=self.model_size)
         return Seq2SeqModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
 
@@ -157,7 +157,7 @@ class Seq2SeqModuleProcessor(BaseModuleProcessor):
 
 class CharModuleProcessor(BaseModuleProcessor):
     def _load_module(self) -> pl.LightningModule:
-        typer.echo("Loading char module", err=True)
+        print("Loading char module", file=sys.stderr)
         checkpoint_path: Path = download_checkpoint(module="char", model_size=self.model_size)
         return CharModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
 
@@ -188,7 +188,7 @@ class WordModuleProcessor(BaseModuleProcessor):
         super().load(preserve_reading_lemma_canon=self.from_seq2seq)
 
     def _load_module(self) -> pl.LightningModule:
-        typer.echo("Loading word module", err=True)
+        print("Loading word module", file=sys.stderr)
         checkpoint_path: Path = download_checkpoint(module="word", model_size=self.model_size)
         return WordModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
 
@@ -228,7 +228,7 @@ class CLIProcessor:
         for processor in self._task2processors.values():
             processor.destination.unlink(missing_ok=True)
 
-    def run(self, input_documents: List[str], interactive: bool = False) -> None:
+    def run(self, input_documents: List[str], interactive: bool = False) -> str:
         self.raw_destination.write_text(
             "".join(_normalize_text(input_document) + "\nEOD\n" for input_document in input_documents)
         )
@@ -240,7 +240,7 @@ class CLIProcessor:
             input_file = processor.destination
             if interactive is False:
                 processor.delete_module_and_trainer()
-        print(self.processors[-1].export_prediction(), end="")
+        return self.processors[-1].export_prediction()
 
 
 def _normalize_text(text: str) -> str:
@@ -273,7 +273,7 @@ def _split_into_documents(input_text: str) -> List[str]:
 
 def version_callback(value: bool) -> None:
     if value is True:
-        typer.echo(f"KWJA {kwja.__version__}")
+        print(f"KWJA {kwja.__version__}")
         raise typer.Exit()
 
 
@@ -330,14 +330,12 @@ def main(
 ) -> None:
     input_text: Optional[str] = None
     if text is not None and len(filename) > 0:
-        typer.echo("ERROR: Please provide text or filename, not both", err=True)
+        print("ERROR: Please provide text or filename, not both", file=sys.stderr)
         raise typer.Abort()
     elif text is not None:
         input_text = text
     elif len(filename) > 0:
-        input_text = "".join(path.read_text().rstrip("\n") + "\nEOD\n" for path in filename)
-    elif sys.stdin.isatty() is False:
-        input_text = sys.stdin.read()
+        input_text = "".join(path.read_text().rstrip("\n").rstrip("EOD").rstrip() + "\nEOD\n" for path in filename)
     else:
         pass  # interactive mode
 
@@ -369,19 +367,24 @@ def main(
     # Batch mode
     if input_text is not None:
         if input_text.strip() != "":
-            processor.run(_split_into_documents(input_text))
+            print(processor.run(_split_into_documents(input_text)), end="")
         processor.refresh()
         raise typer.Exit()
 
     # Interactive mode
     processor.load_all_modules()
-    typer.echo('Please end your input with a new line and type "EOD"', err=True)
+    print('Type "EOD" in a new line to finish the input.', file=sys.stderr)
     input_text = ""
     while True:
-        input_ = input()
+        try:
+            input_ = input()
+        except EOFError:
+            break
         if input_ == "EOD":
             processor.refresh()
-            processor.run([input_text], interactive=True)
+            output_text = processor.run([input_text], interactive=True)
+            output_text = output_text.rstrip("\n").rstrip("EOD").rstrip()
+            print(output_text)
             print("EOD")  # To indicate the end of the output.
             input_text = ""
         else:
