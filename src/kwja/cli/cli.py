@@ -333,7 +333,8 @@ def main(
         print("ERROR: Please provide text or filename, not both", file=sys.stderr)
         raise typer.Abort()
     elif text is not None:
-        input_text = text
+        # unescape newline characters
+        input_text = text.replace("\\n", "\n")
     elif len(filename) > 0:
         input_text = "".join(path.read_text().rstrip("\n").rstrip("EOD").rstrip() + "\nEOD\n" for path in filename)
     else:
