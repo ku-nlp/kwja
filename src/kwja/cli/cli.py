@@ -386,10 +386,9 @@ def main(
             break
         if input_ == "EOD":
             processor.refresh()
-            output_text = processor.run([input_text], interactive=True)
-            output_text = output_text.rstrip("\n").rstrip("EOD").rstrip()
-            print(output_text)
-            print("EOD")  # To indicate the end of the output.
+            print(processor.run([input_text], interactive=True), end="")
+            if specified_tasks != ["typo"]:
+                print("EOD")  # To indicate the end of the output.
             input_text = ""
         else:
             input_text += input_ + "\n"
