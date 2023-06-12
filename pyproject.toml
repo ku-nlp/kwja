@@ -48,7 +48,7 @@ exclude = [
 [tool.poetry.dependencies]
 python = "^3.8"
 torch = ">=1.11,!=2.0.1"  # https://github.com/pytorch/pytorch/issues/100974
-transformers = { version = "~4.28.1", extras = ["sentencepiece"]}
+transformers = { version = "~4.29.2", extras = ["sentencepiece"]}
 tokenizers = "^0.13.2"
 pytorch-lightning = "~2.0.0"  # As "lightning" comes with many extra dependencies, we stay with "pytorch-lightning"
 omegaconf = "^2.1"

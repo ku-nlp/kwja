@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 import sys
@@ -27,7 +28,10 @@ from kwja.utils.logging_util import filter_logs
 filter_logs(environment="production")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 OMEGACONF_VARIABLE_INTERPOLATION = re.compile(r"\$(?P<variable>\{.+?})")
+logging.basicConfig(format="")
 
+logger = logging.getLogger("kwja_cli")
+logger.setLevel(logging.INFO)
 app = typer.Typer(pretty_exceptions_show_locals=False)
 
 
@@ -80,7 +84,7 @@ class BaseModuleProcessor(ABC):
 
 class TypoModuleProcessor(BaseModuleProcessor):
     def _load_module(self) -> pl.LightningModule:
-        print("Loading typo module", file=sys.stderr)
+        logger.info("Loading typo module")
         checkpoint_path: Path = download_checkpoint(module="typo", model_size=self.model_size)
         return TypoModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
 
@@ -104,7 +108,7 @@ class SenterModuleProcessor(BaseModuleProcessor):
 
     def _load_module(self) -> pl.LightningModule:
         if self.model_size != ModelSize.tiny:
-            print("Loading senter module", file=sys.stderr)
+            logger.info("Loading senter module")
             checkpoint_path: Path = download_checkpoint(module="senter", model_size=self.model_size)
             return SenterModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
         return  # type: ignore
@@ -140,7 +144,7 @@ class SenterModuleProcessor(BaseModuleProcessor):
 
 class Seq2SeqModuleProcessor(BaseModuleProcessor):
     def _load_module(self):
-        print("Loading seq2seq module", file=sys.stderr)
+        logger.info("Loading seq2seq module")
         checkpoint_path: Path = download_checkpoint(module="seq2seq", model_size=self.model_size)
         return Seq2SeqModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
 
@@ -157,7 +161,7 @@ class Seq2SeqModuleProcessor(BaseModuleProcessor):
 
 class CharModuleProcessor(BaseModuleProcessor):
     def _load_module(self) -> pl.LightningModule:
-        print("Loading char module", file=sys.stderr)
+        logger.info("Loading char module")
         checkpoint_path: Path = download_checkpoint(module="char", model_size=self.model_size)
         return CharModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
 
@@ -188,7 +192,7 @@ class WordModuleProcessor(BaseModuleProcessor):
         super().load(preserve_reading_lemma_canon=self.from_seq2seq)
 
     def _load_module(self) -> pl.LightningModule:
-        print("Loading word module", file=sys.stderr)
+        logger.info("Loading word module")
         checkpoint_path: Path = download_checkpoint(module="word", model_size=self.model_size)
         return WordModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
 
@@ -330,7 +334,7 @@ def main(
 ) -> None:
     input_text: Optional[str] = None
     if text is not None and len(filename) > 0:
-        print("ERROR: Please provide text or filename, not both", file=sys.stderr)
+        logger.error("ERROR: Please provide text or filename, not both")
         raise typer.Abort()
     elif text is not None:
         input_text = text
@@ -382,10 +386,9 @@ def main(
             break
         if input_ == "EOD":
             processor.refresh()
-            output_text = processor.run([input_text], interactive=True)
-            output_text = output_text.rstrip("\n").rstrip("EOD").rstrip()
-            print(output_text)
-            print("EOD")  # To indicate the end of the output.
+            print(processor.run([input_text], interactive=True), end="")
+            if specified_tasks != ["typo"]:
+                print("EOD")  # To indicate the end of the output.
             input_text = ""
         else:
             input_text += input_ + "\n"
