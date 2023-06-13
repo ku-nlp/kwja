@@ -106,3 +106,4 @@ class SenterModuleWriter(BasePredictionWriter):
                 f.write(output_string)
         elif isinstance(self.destination, TextIOBase):
             self.destination.write(output_string)
+        self.prev_doc_id = None
