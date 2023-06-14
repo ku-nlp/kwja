@@ -7,13 +7,13 @@ from kwja.datamodule.datasets import CharDataset
 from kwja.utils.constants import IGNORE_INDEX, WORD_NORM_OP_TAGS, WORD_SEGMENTATION_TAGS
 
 
-def test_init(fixture_data_dir: Path, char_tokenizer: PreTrainedTokenizerBase):
-    path = fixture_data_dir / "datasets" / "char_files"
+def test_init(data_dir: Path, char_tokenizer: PreTrainedTokenizerBase):
+    path = data_dir / "datasets" / "char_files"
     _ = CharDataset(str(path), char_tokenizer, max_seq_length=512, denormalize_probability=0.0)
 
 
-def test_getitem(fixture_data_dir: Path, char_tokenizer: PreTrainedTokenizerBase):
-    path = fixture_data_dir / "datasets" / "char_files"
+def test_getitem(data_dir: Path, char_tokenizer: PreTrainedTokenizerBase):
+    path = data_dir / "datasets" / "char_files"
     max_seq_length: int = 512
     dataset = CharDataset(str(path), char_tokenizer, max_seq_length, denormalize_probability=0.0)
     for i in range(len(dataset)):
@@ -25,8 +25,8 @@ def test_getitem(fixture_data_dir: Path, char_tokenizer: PreTrainedTokenizerBase
         assert len(feature.word_norm_op_labels) == max_seq_length
 
 
-def test_encode(fixture_data_dir: Path, char_tokenizer: PreTrainedTokenizerBase):
-    path = fixture_data_dir / "datasets" / "char_files"
+def test_encode(data_dir: Path, char_tokenizer: PreTrainedTokenizerBase):
+    path = data_dir / "datasets" / "char_files"
     max_seq_length = 512
     dataset = CharDataset(str(path), char_tokenizer, max_seq_length, denormalize_probability=0.0)
     num_examples = len(dataset)

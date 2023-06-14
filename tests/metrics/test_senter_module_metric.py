@@ -9,10 +9,10 @@ from kwja.metrics import SenterModuleMetric
 from kwja.utils.constants import IGNORE_INDEX, SENT_SEGMENTATION_TAGS
 
 
-def test_char_module_metric(fixture_data_dir: Path, char_tokenizer: PreTrainedTokenizerBase) -> None:
+def test_char_module_metric(data_dir: Path, char_tokenizer: PreTrainedTokenizerBase) -> None:
     metric = SenterModuleMetric()
 
-    path = fixture_data_dir / "datasets" / "char_files"
+    path = data_dir / "datasets" / "char_files"
     max_seq_length = 20
     dataset = SenterDataset(str(path), char_tokenizer, max_seq_length=max_seq_length)
     metric.set_properties({"dataset": dataset})

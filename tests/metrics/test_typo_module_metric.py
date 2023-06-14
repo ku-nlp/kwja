@@ -8,10 +8,10 @@ from kwja.datamodule.datasets import TypoDataset
 from kwja.metrics import TypoModuleMetric
 
 
-def test_typo_module_metric(fixture_data_dir: Path, typo_tokenizer: PreTrainedTokenizerBase) -> None:
+def test_typo_module_metric(data_dir: Path, typo_tokenizer: PreTrainedTokenizerBase) -> None:
     metric = TypoModuleMetric(confidence_thresholds=(0.0, 0.8, 0.9))
 
-    path = fixture_data_dir / "datasets" / "typo_files"
+    path = data_dir / "datasets" / "typo_files"
     max_seq_length = 20
     dataset = TypoDataset(str(path), typo_tokenizer, max_seq_length)
     metric.set_properties({"dataset": dataset})

@@ -9,10 +9,10 @@ from kwja.metrics import CharModuleMetric
 from kwja.utils.constants import IGNORE_INDEX, WORD_NORM_OP_TAGS, WORD_SEGMENTATION_TAGS
 
 
-def test_char_module_metric(fixture_data_dir: Path, char_tokenizer: PreTrainedTokenizerBase) -> None:
+def test_char_module_metric(data_dir: Path, char_tokenizer: PreTrainedTokenizerBase) -> None:
     metric = CharModuleMetric()
 
-    path = fixture_data_dir / "datasets" / "char_files"
+    path = data_dir / "datasets" / "char_files"
     max_seq_length = 20
     dataset = CharDataset(str(path), char_tokenizer, max_seq_length, denormalize_probability=0.0)
     metric.set_properties({"dataset": dataset})

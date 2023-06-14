@@ -24,13 +24,13 @@ from kwja.utils.constants import (
 
 
 def test_word_module_metric(
-    fixture_data_dir: Path,
+    data_dir: Path,
     word_tokenizer: PreTrainedTokenizerBase,
     dataset_kwargs: Dict[str, Any],
 ) -> None:
     metric = WordModuleMetric()
 
-    path = fixture_data_dir / "datasets" / "word_files"
+    path = data_dir / "datasets" / "word_files"
     max_seq_length = 20
     dataset = WordDataset(str(path), word_tokenizer, max_seq_length, document_split_stride=1, **dataset_kwargs)
     dataset.examples[1].load_discourse_document(Document.from_knp(path.joinpath("1.knp").read_text()))
