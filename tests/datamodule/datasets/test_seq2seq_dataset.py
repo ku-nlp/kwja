@@ -6,13 +6,13 @@ from kwja.datamodule.datasets import Seq2SeqDataset
 from kwja.utils.constants import IGNORE_INDEX
 
 
-def test_init(fixture_data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
-    path = fixture_data_dir / "datasets" / "word_files"
+def test_init(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
+    path = data_dir / "datasets" / "word_files"
     _ = Seq2SeqDataset(str(path), seq2seq_tokenizer, max_src_length=128, max_tgt_length=512)
 
 
-def test_getitem(fixture_data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
-    path = fixture_data_dir / "datasets" / "word_files"
+def test_getitem(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
+    path = data_dir / "datasets" / "word_files"
     max_src_length = 128
     max_tgt_length = 512
     dataset = Seq2SeqDataset(
@@ -29,8 +29,8 @@ def test_getitem(fixture_data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerB
         assert len(feature.seq2seq_labels) == max_tgt_length
 
 
-def test_encode(fixture_data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
-    path = fixture_data_dir / "datasets" / "word_files"
+def test_encode(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
+    path = data_dir / "datasets" / "word_files"
     max_src_length = 128
     max_tgt_length = 512
     dataset = Seq2SeqDataset(

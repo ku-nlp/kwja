@@ -58,10 +58,10 @@ def test_get_word_level_readings(
     assert reading_prediction.get_word_level_readings(readings, tokens, subword_map) == expected_output
 
 
-def test_main(fixture_data_dir: Path):
+def test_main(data_dir: Path):
     script_path = reading_prediction.__file__
     kanjidic_path = RESOURCE_PATH / "reading_prediction" / "kanjidic"
-    input_path = fixture_data_dir / "datasets" / "word_files"
+    input_path = data_dir / "datasets" / "word_files"
     subprocess.run(
         [
             "poetry",

@@ -64,7 +64,7 @@ def test_get_char2tokens():
     assert t5_char2underscore_tokens["京"] == {}
 
 
-def test_get_generated_surfs(fixture_data_dir: Path) -> None:
+def test_get_generated_surfs(data_dir: Path) -> None:
     for pretrained_model_name_or_path in ["google/mt5-small", "retrieva-jp/t5-small-long"]:
         tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             pretrained_model_name_or_path=pretrained_model_name_or_path,
@@ -72,7 +72,7 @@ def test_get_generated_surfs(fixture_data_dir: Path) -> None:
         )
         char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
 
-        test_case_dir: Path = fixture_data_dir / "modules" / "juman"
+        test_case_dir: Path = data_dir / "modules" / "juman"
         for path in test_case_dir.glob("*.juman"):
             with path.open() as f:
                 sentence: Sentence = Sentence.from_jumanpp(f.read())
@@ -164,7 +164,7 @@ def test_get_permitted_consecutive_token_ids(input_text: str, permitted_consecut
         assert permitted_tokens_without_underscore == permitted_consecutive_tokens
 
 
-def test_get_batch_banned_token_ids(fixture_data_dir: Path):
+def test_get_batch_banned_token_ids(data_dir: Path):
     model2pretrained_model_name_or_path: Dict[str, str] = {
         "mt5": "google/mt5-small",
         "t5": "retrieva-jp/t5-small-long",
@@ -183,7 +183,7 @@ def test_get_batch_banned_token_ids(fixture_data_dir: Path):
         else:
             raise ValueError(f"model: {model}")
 
-        test_case_path: Path = fixture_data_dir / "modules" / "permitted_tokens.json"
+        test_case_path: Path = data_dir / "modules" / "permitted_tokens.json"
         with open(test_case_path) as f:
             test_cases = json.load(f)
         for test_id, test_case in test_cases.items():

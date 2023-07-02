@@ -160,17 +160,17 @@ output_seq2seq_formats = [
 ]
 
 
-def test_get_seq2seq_format(fixture_data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
-    juman_dir: Path = fixture_data_dir / "modules" / "juman"
+def test_get_seq2seq_format(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
+    juman_dir: Path = data_dir / "modules" / "juman"
     for idx, path in enumerate(sorted(juman_dir.glob("*.juman"))):
         with open(path) as f:
             sent = Sentence.from_jumanpp(f.read())
             assert get_seq2seq_format(sent) == input_seq2seq_formats[idx]
 
 
-def test_get_sent_from_seq2seq_format(fixture_data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
+def test_get_sent_from_seq2seq_format(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
     seq2seq_module_writer = Seq2SeqModuleWriter(seq2seq_tokenizer)
-    juman_dir: Path = fixture_data_dir / "modules" / "juman"
+    juman_dir: Path = data_dir / "modules" / "juman"
     for idx, path in enumerate(sorted(juman_dir.glob("*.juman"))):
         with open(path) as f:
             expected_sent = Sentence.from_jumanpp(f.read())

@@ -7,13 +7,13 @@ from kwja.datamodule.datasets import SenterDataset
 from kwja.utils.constants import IGNORE_INDEX, SENT_SEGMENTATION_TAGS
 
 
-def test_init(fixture_data_dir: Path, char_tokenizer: PreTrainedTokenizerBase):
-    path = fixture_data_dir / "datasets" / "char_files"
+def test_init(data_dir: Path, char_tokenizer: PreTrainedTokenizerBase):
+    path = data_dir / "datasets" / "char_files"
     _ = SenterDataset(str(path), char_tokenizer, max_seq_length=512)
 
 
-def test_getitem(fixture_data_dir: Path, char_tokenizer: PreTrainedTokenizerBase):
-    path = fixture_data_dir / "datasets" / "char_files"
+def test_getitem(data_dir: Path, char_tokenizer: PreTrainedTokenizerBase):
+    path = data_dir / "datasets" / "char_files"
     max_seq_length: int = 512
     dataset = SenterDataset(str(path), char_tokenizer, max_seq_length)
     for i in range(len(dataset)):
@@ -24,8 +24,8 @@ def test_getitem(fixture_data_dir: Path, char_tokenizer: PreTrainedTokenizerBase
         assert len(feature.sent_segmentation_labels) == max_seq_length
 
 
-def test_encode(fixture_data_dir: Path, char_tokenizer: PreTrainedTokenizerBase):
-    path = fixture_data_dir / "datasets" / "char_files"
+def test_encode(data_dir: Path, char_tokenizer: PreTrainedTokenizerBase):
+    path = data_dir / "datasets" / "char_files"
     max_seq_length = 512
     dataset = SenterDataset(str(path), char_tokenizer, max_seq_length)
     num_examples = len(dataset)
