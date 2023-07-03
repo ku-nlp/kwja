@@ -178,7 +178,6 @@ word_batch_size: 1
 
 - typo, senter, character, and word modules
   - The performance on each task except typo correction and discourse relation analysis is the mean over all the corpora (KC, KWDLC, Fuman, and WAC) and over three runs with different random seeds.
-    - \* denotes results of a single run (TBU)
   - We set the learning rate of RoBERTa<sub>LARGE</sub> (word) to 2e-5 because we failed to fine-tune it with a higher learning rate.
     Other hyperparameters are the same described in configs, which are tuned for DeBERTa<sub>BASE</sub>.
 - seq2seq module
@@ -229,7 +228,7 @@ word_batch_size: 1
     <tr>
       <th colspan="2">Typo Correction</th>
       <td>79.0</td>
-      <td>76.7*</td>
+      <td>76.7</td>
       <td>80.8</td>
       <td>83.1</td>
     </tr>
