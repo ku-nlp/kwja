@@ -4,6 +4,7 @@ from statistics import mean
 from typing import Dict, List, Literal, Optional, Tuple, Union
 
 import torch
+from cohesion_tools.evaluation import CohesionScore, CohesionScorer
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
 from rhoknp.props import DepType
 from seqeval.metrics import accuracy_score, f1_score
@@ -21,7 +22,6 @@ from kwja.callbacks.utils import (  # add_discourse,
 )
 from kwja.datamodule.datasets import WordDataset
 from kwja.metrics.base import BaseModuleMetric
-from kwja.metrics.cohesion_scorer import Scorer, ScoreResult
 from kwja.metrics.conll18_ud_eval import main as conll18_ud_eval
 from kwja.metrics.utils import unique
 from kwja.utils.cohesion_analysis import PasUtils
@@ -448,7 +448,7 @@ class WordModuleMetric(BaseModuleMetric):
             pas_cases = []
             pas_target = ""
 
-        scorer = Scorer(
+        scorer = CohesionScorer(
             partly_gold_documents2,
             gold_documents,
             exophora_referents=self.dataset.exophora_referents,
@@ -457,20 +457,29 @@ class WordModuleMetric(BaseModuleMetric):
             bridging=(CohesionTask.BRIDGING_REFERENCE_RESOLUTION in self.dataset.cohesion_tasks),
             coreference=(CohesionTask.COREFERENCE_RESOLUTION in self.dataset.cohesion_tasks),
         )
-        score_result: ScoreResult = scorer.run()
+        score: CohesionScore = scorer.run()
 
         metrics: Dict[str, float] = {}
-        for rel, analysis2metric in score_result.to_dict().items():
+        for task, analysis2metric in score.to_dict().items():
             for analysis, metric in analysis2metric.items():
-                metrics[f"{analysis}_{rel}"] = metric.f1
+                if task not in ("bridging", "coreference"):
+                    key = "pas"
+                    if task != "all_case":
+                        key += f"_{task}"
+                else:
+                    key = task
+                if analysis != "all":
+                    key += f"_{analysis}"
+                key += "_f1"
+                metrics[key] = metric.f1
         cohesion_analysis_f1s = []
         if CohesionTask.PAS_ANALYSIS in self.dataset.cohesion_tasks:
-            cohesion_analysis_f1s.append(metrics["pas_all_case"])
+            cohesion_analysis_f1s.append(metrics["pas_f1"])
         if CohesionTask.BRIDGING_REFERENCE_RESOLUTION in self.dataset.cohesion_tasks:
-            cohesion_analysis_f1s.append(metrics["bridging_all_case"])
+            cohesion_analysis_f1s.append(metrics["bridging_f1"])
         if CohesionTask.COREFERENCE_RESOLUTION in self.dataset.cohesion_tasks:
-            cohesion_analysis_f1s.append(metrics["coreference_all_case"])
-        metrics["cohesion_analysis_f1"] = mean(cohesion_analysis_f1s)
+            cohesion_analysis_f1s.append(metrics["coreference_f1"])
+        metrics["cohesion_analysis_f1"] = mean(cohesion_analysis_f1s) if cohesion_analysis_f1s else 0.0
         return metrics
 
     @staticmethod

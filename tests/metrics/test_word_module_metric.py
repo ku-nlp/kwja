@@ -356,9 +356,9 @@ def test_word_module_metric(
     # tp = , fp = , fn =
     assert metrics["morpheme_UAS_f1"] == pytest.approx(1.0)
 
-    assert metrics["pas_all_case"] == pytest.approx(1.0)
-    assert metrics["bridging_all_case"] == pytest.approx(0.0)
-    assert metrics["coreference_all_case"] == pytest.approx(0.0)
+    assert metrics["pas_f1"] == pytest.approx(1.0)
+    assert metrics["bridging_f1"] == pytest.approx(0.0)
+    assert metrics["coreference_f1"] == pytest.approx(0.0)
     assert metrics["cohesion_analysis_f1"] == pytest.approx(1 / 3)
 
     assert metrics["discourse_parsing_f1"] == pytest.approx(1.0)
