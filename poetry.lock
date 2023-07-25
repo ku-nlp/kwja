@@ -350,6 +350,25 @@ files = [
 test = ["coverage (>=4.2)", "flake8 (>=3.0.4)", "path.py (>=11.5.0)", "pytest (>=3.0.3)", "pytest-cov (>=2.4.0)", "pytest-runner (>=2.9)", "pytest-virtualenv (>=1.7.0)", "scikit-build (>=0.10.0)", "setuptools (>=28.0.0)", "virtualenv (>=15.0.3)", "wheel"]
 
 [[package]]
+name = "cohesion-tools"
+version = "0.1.0"
+description = ""
+optional = false
+python-versions = "^3.8"
+files = []
+develop = false
+
+[package.dependencies]
+pandas = "^2.0"
+rhoknp = "^1.3"
+
+[package.source]
+type = "git"
+url = "https://github.com/nobu-g/cohesion-tools.git"
+reference = "HEAD"
+resolved_reference = "71a00f23ea89ed5075acf498687920967dbd242a"
+
+[[package]]
 name = "colorama"
 version = "0.4.6"
 description = "Cross-platform colored terminal text."
@@ -3084,4 +3103,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "a17e0206a4da7f8780b90b5f1fb542e95501c9c86dd1f342682e61d4b24a3aa8"
+content-hash = "69773c44e319ae16c4858dbc532bde9cb0e1e190d3577e1a82c7f9b849ca20b9"
