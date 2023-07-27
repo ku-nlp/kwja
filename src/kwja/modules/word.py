@@ -11,6 +11,7 @@ from transformers import PretrainedConfig, PreTrainedModel
 from kwja.modules.base import BaseModule
 from kwja.modules.components.crf import CRF
 from kwja.modules.components.head import (
+    LoRARelationWiseWordSelectionHead,
     LoRASequenceMultiLabelingHead,
     RelationWiseWordSelectionHead,
     SequenceLabelingHead,
@@ -91,7 +92,7 @@ class WordModule(BaseModule[WordModuleMetric]):
         )
 
         # ---------- cohesion analysis ----------
-        self.cohesion_analyzer = RelationWiseWordSelectionHead(self._get_num_cohesion_rels(hparams), **head_kwargs)
+        self.cohesion_analyzer = LoRARelationWiseWordSelectionHead(self._get_num_cohesion_rels(hparams), **head_kwargs)
 
         # ---------- discourse parsing ----------
         self.discourse_parsing_threshold: float = hparams.discourse_parsing_threshold
