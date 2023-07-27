@@ -3,6 +3,7 @@ import logging
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Union
 
+from cohesion_tools.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
 from rhoknp import BasePhrase, Morpheme
 from rhoknp.cohesion import Argument, EndophoraArgument, ExophoraArgument, ExophoraReferent
 
@@ -29,12 +30,7 @@ class CohesionBasePhrase:
 
 
 class CohesionUtils:
-    def __init__(
-        self,
-        exophora_referents: List[ExophoraReferent],
-        restrict_target: bool,
-    ) -> None:
-        self.exophora_referents = exophora_referents
+    def __init__(self, restrict_target: bool) -> None:
         self.restrict_target = restrict_target
 
     @property
@@ -44,15 +40,9 @@ class CohesionUtils:
     def wrap(self, base_phrases: List[BasePhrase]) -> List[CohesionBasePhrase]:
         raise NotImplementedError
 
-    def is_target(self, base_phrase: BasePhrase) -> bool:
-        raise NotImplementedError
-
     @staticmethod
     def is_antecedent_candidate(antecedent: Union[BasePhrase, Morpheme], anaphor: Union[BasePhrase, Morpheme]) -> bool:
         raise NotImplementedError
-
-    def get_antecedent_candidates(self, base_phrase: BasePhrase, base_phrases: List[BasePhrase]) -> List[BasePhrase]:
-        return [bp for bp in base_phrases if self.is_antecedent_candidate(bp, base_phrase)]
 
     def get_antecedent_candidate_morphemes(self, morpheme: Morpheme, morphemes: List[Morpheme]) -> List[Morpheme]:
         return [m for m in morphemes if self.is_antecedent_candidate(m, morpheme)]
@@ -66,9 +56,15 @@ class PasUtils(CohesionUtils):
         exophora_referents: List[ExophoraReferent],
         restrict_target: bool,
     ) -> None:
-        super().__init__(exophora_referents, restrict_target)
+        super().__init__(restrict_target)
         self.cases = cases
         self.target = target
+        self.extractor = PasExtractor(
+            cases,
+            [er.type for er in exophora_referents],
+            verbal_predicate=self.target in ("pred", "all"),
+            nominal_predicate=self.target in ("noun", "all"),
+        )
 
     @property
     def rels(self) -> List[str]:
@@ -77,17 +73,16 @@ class PasUtils(CohesionUtils):
     def wrap(self, base_phrases: List[BasePhrase]) -> List[CohesionBasePhrase]:
         cohesion_base_phrases: List[CohesionBasePhrase] = []
         for base_phrase in base_phrases:
-            if is_target_sentence(base_phrase.sentence) and self.is_target(base_phrase):
-                antecedent_candidates = self.get_antecedent_candidates(base_phrase, base_phrases)
+            if is_target_sentence(base_phrase.sentence) and self.extractor.is_target(base_phrase):
+                antecedent_candidates = self.extractor.get_candidates(base_phrase)
+                all_arguments = self.extractor.extract_rels(base_phrase)
                 cohesion_base_phrases.append(
                     CohesionBasePhrase(
                         base_phrase,
                         is_target=True,
                         antecedent_candidates=antecedent_candidates,
                         rel2tags={
-                            case: self._get_argument_tags(
-                                base_phrase.pas.get_arguments(case, relax=False), antecedent_candidates
-                            )
+                            case: self._get_argument_tags(all_arguments[case], antecedent_candidates)
                             for case in self.cases
                         },
                     )
@@ -116,10 +111,7 @@ class PasUtils(CohesionUtils):
                     logger.info(f'argument "{argument}" is ignored ({argument.sentence.sent_id})')
             else:  # ExophoraArgument
                 argument.exophora_referent.index = None  # 不特定:人１ -> 不特定:人
-                if argument.exophora_referent in self.exophora_referents:
-                    target_arguments.append(argument)
-                elif argument.exophora_referent.text == "[不明]":
-                    return []  # don't train uncertain argument
+                target_arguments.append(argument)
 
         argument_tags: List[str] = []
         for target_argument in target_arguments:
@@ -131,20 +123,6 @@ class PasUtils(CohesionUtils):
             argument_tags.append(argument_tag)
         return argument_tags or ["[NULL]"]
 
-    def is_target(self, base_phrase: BasePhrase) -> bool:
-        verbal = self.target in ("pred", "all")
-        nominal = self.target in ("noun", "all")
-        return (self.restrict_target is False) or is_pas_target(base_phrase, verbal, nominal)
-
-    @staticmethod
-    def is_antecedent_candidate(antecedent: Union[BasePhrase, Morpheme], anaphor: Union[BasePhrase, Morpheme]) -> bool:
-        anaphora = antecedent.global_index < anaphor.global_index
-        # 文内の後方照応は許す
-        cataphora = (antecedent.global_index > anaphor.global_index) and (
-            antecedent.sentence.sid == anaphor.sentence.sid
-        )
-        return anaphora or cataphora
-
 
 class BridgingUtils(CohesionUtils):
     def __init__(
@@ -153,28 +131,29 @@ class BridgingUtils(CohesionUtils):
         exophora_referents: List[ExophoraReferent],
         restrict_target: bool,
     ) -> None:
-        super().__init__(exophora_referents, restrict_target)
-        assert "ノ" in cases, '"ノ" case isn\'t found'
-        self.cases = cases
+        super().__init__(restrict_target)
+        self.cases: List[str] = cases
+        self.extractor = BridgingExtractor(cases, [er.type for er in exophora_referents])
 
     @property
     def rels(self) -> List[str]:
-        return ["ノ"]
+        return self.cases
 
     def wrap(self, base_phrases: List[BasePhrase]) -> List[CohesionBasePhrase]:
         cohesion_base_phrases: List[CohesionBasePhrase] = []
         for base_phrase in base_phrases:
-            if is_target_sentence(base_phrase.sentence) and self.is_target(base_phrase):
-                arguments = []
-                for case in self.cases:
-                    arguments += base_phrase.pas.get_arguments(case, relax=False)
-                antecedent_candidates = self.get_antecedent_candidates(base_phrase, base_phrases)
+            if is_target_sentence(base_phrase.sentence) and self.extractor.is_target(base_phrase):
+                all_arguments = self.extractor.extract_rels(base_phrase)
+                antecedent_candidates = self.extractor.get_candidates(base_phrase)
                 cohesion_base_phrases.append(
                     CohesionBasePhrase(
                         base_phrase,
                         is_target=True,
                         antecedent_candidates=antecedent_candidates,
-                        rel2tags={"ノ": self._get_argument_tags(arguments, antecedent_candidates)},
+                        rel2tags={
+                            case: self._get_argument_tags(all_arguments[case], antecedent_candidates)
+                            for case in self.cases
+                        },
                     )
                 )
             else:
@@ -201,10 +180,7 @@ class BridgingUtils(CohesionUtils):
                     logger.info(f'argument "{argument}" is ignored ({argument.sentence.sent_id})')
             else:  # ExophoraArgument
                 argument.exophora_referent.index = None  # 不特定:人１ -> 不特定:人
-                if argument.exophora_referent in self.exophora_referents:
-                    target_arguments.append(argument)
-                elif argument.exophora_referent.text == "[不明]":
-                    return []  # don't train uncertain argument
+                target_arguments.append(argument)
 
         argument_tags: List[str] = []
         for target_argument in target_arguments:
@@ -216,26 +192,11 @@ class BridgingUtils(CohesionUtils):
             argument_tags.append(argument_tag)
         return argument_tags or ["[NULL]"]
 
-    def is_target(self, base_phrase: BasePhrase) -> bool:
-        return (self.restrict_target is False) or is_bridging_target(base_phrase)
-
-    @staticmethod
-    def is_antecedent_candidate(antecedent: Union[BasePhrase, Morpheme], anaphor: Union[BasePhrase, Morpheme]) -> bool:
-        anaphora = antecedent.global_index < anaphor.global_index
-        # referents of intra-sentential cataphora are included in the candidates
-        cataphora = (antecedent.global_index > anaphor.global_index) and (
-            antecedent.sentence.sid == anaphor.sentence.sid
-        )
-        return anaphora or cataphora
-
 
 class CoreferenceUtils(CohesionUtils):
-    def __init__(
-        self,
-        exophora_referents: List[ExophoraReferent],
-        restrict_target: bool,
-    ) -> None:
-        super().__init__(exophora_referents, restrict_target)
+    def __init__(self, exophora_referents: List[ExophoraReferent], restrict_target: bool) -> None:
+        super().__init__(restrict_target)
+        self.extractor = CoreferenceExtractor([er.type for er in exophora_referents])
 
     @property
     def rels(self) -> List[str]:
@@ -244,50 +205,28 @@ class CoreferenceUtils(CohesionUtils):
     def wrap(self, base_phrases: List[BasePhrase]) -> List[CohesionBasePhrase]:
         cohesion_base_phrases = []
         for base_phrase in base_phrases:
-            if is_target_sentence(base_phrase.sentence) and self.is_target(base_phrase):
-                antecedent_candidates = self.get_antecedent_candidates(base_phrase, base_phrases)
+            if is_target_sentence(base_phrase.sentence) and self.extractor.is_target(base_phrase):
+                antecedent_candidates = self.extractor.get_candidates(base_phrase)
+                referents = self.extractor.extract(base_phrase)
                 cohesion_base_phrases.append(
                     CohesionBasePhrase(
                         base_phrase,
                         is_target=True,
                         antecedent_candidates=antecedent_candidates,
-                        rel2tags={"=": self._get_mention_tags(base_phrase, antecedent_candidates)},
+                        rel2tags={"=": self._get_mention_tags(referents)},
                     )
                 )
             else:
                 cohesion_base_phrases.append(CohesionBasePhrase(base_phrase, is_target=False))
         return cohesion_base_phrases
 
-    def _get_mention_tags(self, mention: BasePhrase, antecedent_candidates: List[BasePhrase]) -> List[str]:
+    def _get_mention_tags(self, referents: List[Union[BasePhrase, ExophoraReferent]]) -> List[str]:
         mention_tags: List[str] = []
-        for another_mention in mention.get_coreferents(include_nonidentical=False):
-            if another_mention in antecedent_candidates:
+        for another_mention in referents:
+            if isinstance(another_mention, BasePhrase):
                 mention_tags.append(str(another_mention.global_index))
             else:
-                logger.info(f'mention "{another_mention}" is ignored ({another_mention.sentence.sent_id})')
-
-        for exophora_referent in [e.exophora_referent for e in mention.entities if e.exophora_referent is not None]:
-            exophora_referent.index = None  # 不特定:人１ -> 不特定:人
-            if exophora_referent in self.exophora_referents:
-                mention_tags.append(f"[{exophora_referent.text}]")  # 著者 -> [著者]
+                assert isinstance(another_mention, ExophoraReferent)
+                another_mention.index = None  # 不特定:人１ -> 不特定:人
+                mention_tags.append(f"[{another_mention.text}]")  # 著者 -> [著者]
         return mention_tags or ["[NA]"]
-
-    def is_target(self, base_phrase: BasePhrase) -> bool:
-        return (self.restrict_target is False) or is_coreference_target(base_phrase)
-
-    @staticmethod
-    def is_antecedent_candidate(antecedent: Union[BasePhrase, Morpheme], anaphor: Union[BasePhrase, Morpheme]) -> bool:
-        anaphora = antecedent.global_index < anaphor.global_index
-        return anaphora
-
-
-def is_pas_target(base_phrase: BasePhrase, verbal: bool, nominal: bool) -> bool:
-    return (verbal and "用言" in base_phrase.features) or (nominal and "非用言格解析" in base_phrase.features)
-
-
-def is_bridging_target(base_phrase: BasePhrase):
-    return (base_phrase.features.get("体言") is True) and ("非用言格解析" not in base_phrase.features)
-
-
-def is_coreference_target(base_phrase: BasePhrase) -> bool:
-    return base_phrase.features.get("体言") is True

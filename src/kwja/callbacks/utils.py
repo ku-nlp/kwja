@@ -5,7 +5,7 @@ from typing import Dict, List, Literal, Optional, Set, Tuple
 import numpy as np
 import torch
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
-from rhoknp.cohesion import ExophoraReferent, RelTag, RelTagList
+from rhoknp.cohesion import ExophoraReferent, ExophoraReferentType, RelTag, RelTagList
 from rhoknp.props import DepType, NamedEntity, NamedEntityCategory
 from transformers import PreTrainedTokenizerBase
 
@@ -441,7 +441,7 @@ def add_cohesion(
     for base_phrase in base_phrases:
         rel_tags = RelTagList()
         for cohesion_utils in cohesion_task2utils.values():
-            if cohesion_utils.is_target(base_phrase) is False:
+            if cohesion_utils.extractor.is_target(base_phrase) is False:
                 continue
             for rel in cohesion_utils.rels:
                 rel_tag = _to_rel_tag(
@@ -449,7 +449,7 @@ def add_cohesion(
                     rel2logits[rel][base_phrase.head.global_index],  # (seq, )
                     base_phrases,
                     special_token_indexer,
-                    cohesion_utils.exophora_referents,
+                    cohesion_utils.extractor.exophora_referent_types,
                 )
                 if rel_tag is not None:
                     rel_tags.append(rel_tag)
@@ -461,7 +461,7 @@ def _to_rel_tag(
     rel_logits: List[float],  # (seq, )
     base_phrases: List[BasePhrase],
     special_token_indexer: SpecialTokenIndexer,
-    exophora_referents: List[ExophoraReferent],
+    exophora_referent_types: List[ExophoraReferentType],
 ) -> Optional[RelTag]:
     logits = [rel_logits[bp.head.global_index] for bp in base_phrases]
     logits += [rel_logits[i] for i in special_token_indexer.get_morpheme_level_indices()]
@@ -480,7 +480,7 @@ def _to_rel_tag(
         # exophora
         special_token = special_token_indexer.special_tokens[predicted_base_phrase_global_index - len(base_phrases)]
         stripped_special_token = special_token[1:-1]  # strip '[' and ']'
-        if stripped_special_token in [str(er) for er in exophora_referents]:  # exclude [NULL], [NA], and [ROOT]
+        if ExophoraReferent(stripped_special_token).type in exophora_referent_types:  # exclude [NULL], [NA], and [ROOT]
             return RelTag(
                 type=rel,
                 target=stripped_special_token,
