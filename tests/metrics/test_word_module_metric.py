@@ -294,7 +294,7 @@ def test_word_module_metric(
     metric.dependency_type_predictions[1, 5] = torch.as_tensor([d, d])  # 頼み -> [ROOT], ました
     metric.dependency_type_predictions[1, 6] = torch.as_tensor([d, d])  # ました -> 頼み, 好きな
 
-    flatten_rels = [r for cohesion_utils in dataset.cohesion_task2utils.values() for r in cohesion_utils.rels]
+    flatten_rels = [r for rels in dataset.cohesion_task2rels.values() for r in rels]
     metric.cohesion_logits = torch.zeros(
         (num_examples, len(flatten_rels), max_seq_length, max_seq_length), dtype=torch.float
     )

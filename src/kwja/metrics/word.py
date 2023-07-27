@@ -5,6 +5,7 @@ from typing import Dict, List, Literal, Optional, Tuple, Union
 
 import torch
 from cohesion_tools.evaluation import CohesionScore, CohesionScorer
+from cohesion_tools.extractors import PasExtractor
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
 from rhoknp.props import DepType
 from seqeval.metrics import accuracy_score, f1_score
@@ -24,7 +25,6 @@ from kwja.datamodule.datasets import WordDataset
 from kwja.metrics.base import BaseModuleMetric
 from kwja.metrics.conll18_ud_eval import main as conll18_ud_eval
 from kwja.metrics.utils import unique
-from kwja.utils.cohesion_analysis import PasUtils
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TAGS,
@@ -203,7 +203,9 @@ class WordModuleMetric(BaseModuleMetric):
             add_cohesion(
                 partly_gold_document2,
                 cohesion_logits,
-                self.dataset.cohesion_task2utils,
+                self.dataset.cohesion_task2extractor,
+                self.dataset.cohesion_task2rels,
+                self.dataset.restrict_cohesion_target,
                 example.special_token_indexer,
             )
             for sentence in extract_target_sentences(partly_gold_document2):
@@ -440,20 +442,23 @@ class WordModuleMetric(BaseModuleMetric):
         self, partly_gold_documents2: List[Document], gold_documents: List[Document]
     ) -> Dict[str, float]:
         assert self.dataset is not None, "dataset isn't set"
-        if pas_utils := self.dataset.cohesion_task2utils.get(CohesionTask.PAS_ANALYSIS):
-            assert isinstance(pas_utils, PasUtils), "pas utils isn't set correctly"
-            pas_cases = pas_utils.cases
-            pas_target = pas_utils.target
+        if pas_extractor := self.dataset.cohesion_task2extractor[CohesionTask.PAS_ANALYSIS]:
+            assert isinstance(pas_extractor, PasExtractor), "pas utils isn't set correctly"
+            pas_cases = pas_extractor.cases
+            verbal_predicate = pas_extractor.verbal_predicate
+            nominal_predicate = pas_extractor.nominal_predicate
         else:
             pas_cases = []
-            pas_target = ""
+            verbal_predicate = False
+            nominal_predicate = False
 
         scorer = CohesionScorer(
             partly_gold_documents2,
             gold_documents,
-            exophora_referents=self.dataset.exophora_referents,
+            exophora_referent_types=[er.type for er in self.dataset.exophora_referents],
             pas_cases=pas_cases,
-            pas_target=pas_target,
+            pas_verbal=verbal_predicate,
+            pas_nominal=nominal_predicate,
             bridging=(CohesionTask.BRIDGING_REFERENCE_RESOLUTION in self.dataset.cohesion_tasks),
             coreference=(CohesionTask.COREFERENCE_RESOLUTION in self.dataset.cohesion_tasks),
         )

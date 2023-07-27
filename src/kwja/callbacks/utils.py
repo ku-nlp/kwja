@@ -4,13 +4,13 @@ from typing import Dict, List, Literal, Optional, Set, Tuple
 
 import numpy as np
 import torch
+from cohesion_tools.extractors.base import BaseExtractor
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
-from rhoknp.cohesion import ExophoraReferent, ExophoraReferentType, RelTag, RelTagList
+from rhoknp.cohesion import ExophoraReferent, ExophoraReferentType, RelTag
 from rhoknp.props import DepType, NamedEntity, NamedEntityCategory
 from transformers import PreTrainedTokenizerBase
 
 from kwja.datamodule.examples import SpecialTokenIndexer
-from kwja.utils.cohesion_analysis import CohesionUtils
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TAGS,
@@ -428,32 +428,33 @@ def _resolve_dependency(base_phrase: BasePhrase, dependency_manager: DependencyM
 def add_cohesion(
     document: Document,
     cohesion_logits: List[List[List[float]]],  # (rel, seq, seq)
-    cohesion_task2utils: Dict[CohesionTask, CohesionUtils],
+    cohesion_task2extractor: Dict[CohesionTask, BaseExtractor],
+    cohesion_task2rels: Dict[CohesionTask, List[str]],
+    restrict_cohesion_target: bool,
     special_token_indexer: SpecialTokenIndexer,
 ) -> None:
     rel2logits = dict(
         zip(
-            [r for cohesion_utils in cohesion_task2utils.values() for r in cohesion_utils.rels],
+            [r for cohesion_rels in cohesion_task2rels.values() for r in cohesion_rels],
             cohesion_logits,
         )
     )
     base_phrases = document.base_phrases
     for base_phrase in base_phrases:
-        rel_tags = RelTagList()
-        for cohesion_utils in cohesion_task2utils.values():
-            if cohesion_utils.extractor.is_target(base_phrase) is False:
+        base_phrase.rel_tags.clear()
+        for cohesion_task, cohesion_extractor in cohesion_task2extractor.items():
+            if restrict_cohesion_target is True and cohesion_extractor.is_target(base_phrase) is False:
                 continue
-            for rel in cohesion_utils.rels:
+            for rel in cohesion_task2rels[cohesion_task]:
                 rel_tag = _to_rel_tag(
                     rel,
                     rel2logits[rel][base_phrase.head.global_index],  # (seq, )
                     base_phrases,
                     special_token_indexer,
-                    cohesion_utils.extractor.exophora_referent_types,
+                    cohesion_extractor.exophora_referent_types,
                 )
                 if rel_tag is not None:
-                    rel_tags.append(rel_tag)
-        base_phrase.rel_tags = rel_tags
+                    base_phrase.rel_tags.append(rel_tag)
 
 
 def _to_rel_tag(
