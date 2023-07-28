@@ -101,6 +101,14 @@ py_version = 39
 profile = "black"
 src_paths = ["src"]
 
+[tool.flake8]
+# E203 is not PEP8 compliant and black insert space around slice (https://black.readthedocs.io/en/stable/faq.html#why-are-flake8-s-e203-and-w503-violated)
+# E501: Line too long. Disable it to allow long lines of comments and print lines which black allows.
+# W503: line break before binary operator (https://www.flake8rules.com/rules/W503.html)
+ignore = ["E203", "E501", "W503"]
+max-line-length = 120
+
+
 [tool.mypy]
 python_version = 3.8
 
