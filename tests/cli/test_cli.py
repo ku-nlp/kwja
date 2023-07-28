@@ -30,7 +30,7 @@ def test_text_input():
 @pytest.mark.parametrize(
     "text, output",
     [
-        ("", ""),
+        ("", "EOD\n"),
         # ("EOD", "EOD\nEOD\n"),  # TODO
         ("おはよう", "おはよう\nEOD\n"),
         ("おはよう．", "おはよう.\nEOD\n"),
