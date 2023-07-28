@@ -442,23 +442,16 @@ class WordModuleMetric(BaseModuleMetric):
         self, partly_gold_documents2: List[Document], gold_documents: List[Document]
     ) -> Dict[str, float]:
         assert self.dataset is not None, "dataset isn't set"
-        if pas_extractor := self.dataset.cohesion_task2extractor[CohesionTask.PAS_ANALYSIS]:
-            assert isinstance(pas_extractor, PasExtractor), "pas utils isn't set correctly"
-            pas_cases = pas_extractor.cases
-            verbal_predicate = pas_extractor.verbal_predicate
-            nominal_predicate = pas_extractor.nominal_predicate
-        else:
-            pas_cases = []
-            verbal_predicate = False
-            nominal_predicate = False
+        pas_extractor = self.dataset.cohesion_task2extractor[CohesionTask.PAS_ANALYSIS]
+        assert isinstance(pas_extractor, PasExtractor), "pas utils isn't set correctly"
 
         scorer = CohesionScorer(
             partly_gold_documents2,
             gold_documents,
             exophora_referent_types=[er.type for er in self.dataset.exophora_referents],
-            pas_cases=pas_cases,
-            pas_verbal=verbal_predicate,
-            pas_nominal=nominal_predicate,
+            pas_cases=pas_extractor.cases if CohesionTask.PAS_ANALYSIS in self.dataset.cohesion_tasks else [],
+            pas_verbal=pas_extractor.verbal_predicate,
+            pas_nominal=pas_extractor.nominal_predicate,
             bridging=(CohesionTask.BRIDGING_REFERENCE_RESOLUTION in self.dataset.cohesion_tasks),
             coreference=(CohesionTask.COREFERENCE_RESOLUTION in self.dataset.cohesion_tasks),
         )
