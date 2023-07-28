@@ -158,7 +158,9 @@ class WordModuleWriter(BasePredictionWriter):
             add_cohesion(
                 predicted_document,
                 cohesion_logits,
-                dataset.cohesion_task2utils,
+                dataset.cohesion_task2extractor,
+                dataset.cohesion_task2rels,
+                dataset.restrict_cohesion_target,
                 example.special_token_indexer,
             )
             add_discourse(predicted_document, discourse_predictions)

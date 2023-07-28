@@ -84,7 +84,7 @@ def test_getitem(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[s
         juman_file=Path(juman_file.name),
         **dataset_kwargs,
     )
-    num_cohesion_rels = len([r for utils in dataset.cohesion_task2utils.values() for r in utils.rels])
+    num_cohesion_rels = len([r for rels in dataset.cohesion_task2rels.values() for r in rels])
     for i in range(len(dataset)):
         feature = dataset[i]
         assert feature.example_ids == i
