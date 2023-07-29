@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Dict, List, Set
+from typing import Dict, List, Optional, Set
 
 import pytest
 import torch
@@ -78,6 +78,7 @@ def test_get_generated_surfs(data_dir: Path) -> None:
                 sentence: Sentence = Sentence.from_jumanpp(f.read())
                 processor = ForcedSurfLogitsProcessor(
                     texts=[sentence.text.strip().replace("\u3000", FULL_SPACE_TOKEN)],
+                    num_beams=2,
                     tokenizer=tokenizer,
                     char2tokens=char2tokens,
                     char2underscore_tokens=char2underscore_tokens,
@@ -104,6 +105,7 @@ def test_get_permitted_token_ids(input_text: str, permitted_tokens: List[str]) -
 
         processor = ForcedSurfLogitsProcessor(
             texts=[input_text],
+            num_beams=2,
             tokenizer=tokenizer,
             char2tokens=char2tokens,
             char2underscore_tokens=char2underscore_tokens,
@@ -125,6 +127,7 @@ def test_get_permitted_underscore_token_ids(input_text: str, permitted_underscor
 
         processor = ForcedSurfLogitsProcessor(
             texts=[input_text],
+            num_beams=2,
             tokenizer=tokenizer,
             char2tokens=char2tokens,
             char2underscore_tokens=char2underscore_tokens,
@@ -133,35 +136,6 @@ def test_get_permitted_underscore_token_ids(input_text: str, permitted_underscor
         permitted_underscore_token_ids: Set[int] = processor.get_permitted_underscore_token_ids(input_text)
         sorted_permitted_underscore_token_ids: List[int] = sorted(list(permitted_underscore_token_ids))
         assert permitted_underscore_tokens == tokenizer.convert_ids_to_tokens(sorted_permitted_underscore_token_ids)
-
-
-@pytest.mark.parametrize("input_text, permitted_consecutive_tokens", [("研究をする", ["研究", "研"])])
-def test_get_permitted_consecutive_token_ids(input_text: str, permitted_consecutive_tokens: List[str]) -> None:
-    for pretrained_model_name_or_path in ["google/mt5-small", "retrieva-jp/t5-small-long"]:
-        tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-            pretrained_model_name_or_path=pretrained_model_name_or_path,
-            additional_special_tokens=SPECIAL_TOKENS,
-        )
-        char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
-
-        processor = ForcedSurfLogitsProcessor(
-            texts=[input_text],
-            tokenizer=tokenizer,
-            char2tokens=char2tokens,
-            char2underscore_tokens=char2underscore_tokens,
-        )
-
-        permitted_consecutive_token_ids: Set[int] = processor.get_permitted_consecutive_token_ids(input_text)
-        sorted_permitted_consecutive_token_ids: List[int] = sorted(list(permitted_consecutive_token_ids))
-        permitted_tokens: List[str] = tokenizer.convert_ids_to_tokens(sorted_permitted_consecutive_token_ids)
-        permitted_tokens_with_underscore: List[str] = []
-        permitted_tokens_without_underscore: List[str] = []
-        for token in permitted_tokens:
-            if token.startswith("▁"):
-                permitted_tokens_with_underscore.append(token)
-            else:
-                permitted_tokens_without_underscore.append(token)
-        assert permitted_tokens_without_underscore == permitted_consecutive_tokens
 
 
 def test_get_batch_banned_token_ids(data_dir: Path):
@@ -174,12 +148,16 @@ def test_get_batch_banned_token_ids(data_dir: Path):
             pretrained_model_name_or_path=pretrained_model_name_or_path,
             additional_special_tokens=SPECIAL_TOKENS,
         )
+        vocab_size: int = len(tokenizer.get_vocab())
         char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
-        underscore_tokens: List[str] = [x for x in tokenizer.get_vocab() if x.startswith("▁")]
+        underscore_tokens: Set[str] = set([x for x in tokenizer.get_vocab() if x.startswith("▁")])
+        non_underscore_tokens: Set[str] = set([x for x in tokenizer.get_vocab() if not x.startswith("▁")])
         if model == "mt5":
             assert len(underscore_tokens) == 56369
+            assert len(non_underscore_tokens) == 193831
         elif model == "t5":
             assert len(underscore_tokens) == 531
+            assert len(non_underscore_tokens) == 31569
         else:
             raise ValueError(f"model: {model}")
 
@@ -189,29 +167,35 @@ def test_get_batch_banned_token_ids(data_dir: Path):
         for test_id, test_case in test_cases.items():
             surf_logits_processor = ForcedSurfLogitsProcessor(
                 texts=[test_case["text"]],
+                num_beams=1,
                 tokenizer=tokenizer,
                 char2tokens=char2tokens,
                 char2underscore_tokens=char2underscore_tokens,
             )
-            input_ids: torch.LongTensor = torch.LongTensor(
-                [tokenizer.convert_tokens_to_ids(test_case[model]["input_tokens"])]
-            )
-            orig_scores: torch.Tensor = torch.full((1, tokenizer.vocab_size), 0.5).float()
-            warped_scores: torch.Tensor = surf_logits_processor(
-                input_ids=input_ids,
-                scores=orig_scores,
-            )
-            assert warped_scores.shape == orig_scores.shape
-            permitted_tokens: List[str] = []
+            warped_scores: Optional[torch.Tensor] = None
+            for idx in range(1, len(test_case[model]["input_tokens"]) + 1):
+                input_ids: torch.LongTensor = torch.LongTensor(
+                    [tokenizer.convert_tokens_to_ids(test_case[model]["input_tokens"][:idx])]
+                )
+                orig_scores: torch.Tensor = torch.full((1, vocab_size), 0.5).float()
+                warped_scores = surf_logits_processor(
+                    input_ids=input_ids,
+                    scores=orig_scores,
+                )
+                assert warped_scores is not None
+                assert warped_scores.shape == orig_scores.shape
+            assert warped_scores is not None
+            permitted_tokens: Set[str] = set()
             for token_id, score in enumerate(warped_scores.tolist()[0]):
                 if score == 0.5:
-                    permitted_tokens.append(tokenizer.convert_ids_to_tokens(token_id))
-            if len(permitted_tokens) == tokenizer.vocab_size:
-                permitted_tokens = []
-            if test_case["is_consecutive"] is True:
-                gold_permitted_tokens: List[str] = sorted(
-                    list(set(test_case[model]["permitted_tokens"] + underscore_tokens))
-                )
+                    permitted_tokens.add(tokenizer.convert_ids_to_tokens(token_id))
+
+            gold_permitted_tokens: Set[str] = set(test_case[model]["permitted_tokens"])
+            if len(permitted_tokens) == vocab_size:
+                assert gold_permitted_tokens == set()
             else:
-                gold_permitted_tokens = sorted(test_case[model]["permitted_tokens"])
-            assert sorted(list(permitted_tokens)) == gold_permitted_tokens
+                if test_case["permit_underscore_tokens"] is True:
+                    gold_permitted_tokens = gold_permitted_tokens.union(underscore_tokens)
+                elif len(gold_permitted_tokens) == 0 and len(permitted_tokens) != vocab_size:
+                    gold_permitted_tokens = gold_permitted_tokens.union(non_underscore_tokens)
+                assert sorted(list(permitted_tokens)) == sorted(list(gold_permitted_tokens))
