@@ -30,22 +30,25 @@ def test_text_input():
 @pytest.mark.parametrize(
     "text, output",
     [
-        ("おはよう", "おはよう"),
-        ("おはよう．", "おはよう."),
-        ("おはよう #今日も一日", "おはよう␣＃今日も一日"),
-        ("おはよう。\nこんにちは。\nこんばんわ。\n", "おはよう。こんにちは。こんばんわ。"),
-        ("おはよう。EOD", "おはよう。EOD"),
+        ("", "EOD\n"),
+        # ("EOD", "EOD\nEOD\n"),  # TODO
+        ("おはよう", "おはよう\nEOD\n"),
+        ("おはよう．", "おはよう.\nEOD\n"),
+        ("おはよう #今日も一日", "おはよう␣＃今日も一日\nEOD\n"),
+        ("おはよう。\nこんにちは。\nこんばんわ。\n", "おはよう。こんにちは。こんばんわ。\nEOD\n"),
+        ("おはよう。EOD", "おはよう。EOD\nEOD\n"),
     ],
 )
 def test_normalization_and_typo_module(text: str, output: str):
     ret = runner.invoke(app, args=["--model-size", "tiny", "--tasks", "typo", "--text", text])
     assert ret.exception is None
-    assert ret.stdout == output + "\nEOD\n"
+    assert ret.stdout == output
 
 
 @pytest.mark.parametrize(
     "text, output",
     [
+        # ("", ""),  # TODO
         ("おはよう", "おはよう"),
         ("おはよう．", "おはよう."),
         # ("おはよう　 　", "おはよう　 　"),

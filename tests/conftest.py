@@ -4,11 +4,7 @@ from typing import Any, Dict, List
 
 import pytest
 from omegaconf import ListConfig
-from rhoknp import Document
-from rhoknp.cohesion import ExophoraReferent
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
-
-from kwja.metrics.cohesion_scorer import Scorer
 
 os.environ["DATA_DIR"] = ""
 base_path = Path(__file__).parent.parent / "configs" / "base.yaml"
@@ -89,19 +85,3 @@ def dataset_kwargs(
         "br_cases": ListConfig(br_cases),
         "special_tokens": ListConfig(special_tokens),
     }
-
-
-@pytest.fixture
-def cohesion_scorer(data_dir: Path, exophora_referents: List[str]) -> Scorer:
-    predicted_documents = [Document.from_knp(path.read_text()) for path in data_dir.glob("system/*.knp")]
-    gold_documents = [Document.from_knp(path.read_text()) for path in data_dir.glob("gold/*.knp")]
-
-    return Scorer(
-        predicted_documents,
-        gold_documents,
-        exophora_referents=[ExophoraReferent(e) for e in exophora_referents],
-        pas_cases=["ガ", "ヲ"],
-        pas_target="all",
-        bridging=True,
-        coreference=True,
-    )

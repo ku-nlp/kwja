@@ -91,6 +91,7 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
                 [
                     ForcedSurfLogitsProcessor(
                         texts=batch["src_text"],
+                        num_beams=self.hparams.decoding.num_beams,
                         tokenizer=self.tokenizer,
                         char2tokens=self.char2tokens,
                         char2underscore_tokens=self.char2underscore_tokens,

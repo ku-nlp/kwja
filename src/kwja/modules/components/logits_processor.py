@@ -25,6 +25,7 @@ class ForcedSurfLogitsProcessor(LogitsProcessor):
     def __init__(
         self,
         texts: List[str],
+        num_beams: int,
         tokenizer: PreTrainedTokenizerBase,
         char2tokens: Dict[str, Dict[str, int]],
         char2underscore_tokens: Dict[str, Dict[str, int]],
@@ -37,11 +38,17 @@ class ForcedSurfLogitsProcessor(LogitsProcessor):
             if f"{FULL_SPACE_TOKEN} " in text:
                 text = text.replace(f"{FULL_SPACE_TOKEN} ", FULL_SPACE_TOKEN)
             self.texts.append(text)
+        self.num_beams: int = num_beams
         self.char2tokens: Dict[str, Dict[str, int]] = char2tokens
         self.char2underscore_tokens: Dict[str, Dict[str, int]] = char2underscore_tokens
         self.new_line_token_id: int = tokenizer.convert_tokens_to_ids(NEW_LINE_TOKEN)
-        self.under_score_token_id: int = tokenizer.convert_tokens_to_ids("▁")
+        self.underscore_token_id: int = tokenizer.convert_tokens_to_ids("▁")
         self.pad_token_id: int = self.tokenizer.pad_token_id
+        self.is_decoding_surf: List[bool] = [True] * (len(self.texts) * self.num_beams)
+        self.underscore_token_ids: Set[int] = {
+            vocab_id for token in self.char2underscore_tokens.values() for vocab_id in token.values()
+        } | {self.underscore_token_id}
+        self.all_token_ids: Set[int] = {vocab_id for vocab_id in tokenizer.get_vocab().values()}
 
     def get_generated_surfs(self, input_ids: torch.Tensor) -> List[str]:
         generated_surfs: List[str] = []
@@ -77,22 +84,11 @@ class ForcedSurfLogitsProcessor(LogitsProcessor):
                 permitted_underscore_token_ids.add(vocab_id)
         return permitted_underscore_token_ids
 
-    def get_permitted_consecutive_token_ids(self, text: str) -> Set[int]:
-        permitted_token_ids: Set[int] = set()
-        for underscore_tokens in self.char2underscore_tokens.values():
-            for vocab_id in underscore_tokens.values():
-                permitted_token_ids.add(vocab_id)
-        permitted_token_ids.add(self.under_score_token_id)
-        for vocab_token, vocab_id in self.char2tokens[text[0]].items():
-            if text.startswith(vocab_token):
-                permitted_token_ids.add(vocab_id)
-        return permitted_token_ids
-
-    def get_batch_banned_token_ids(self, prev_input_ids: torch.Tensor, num_beams: int) -> List[List[int]]:
+    def get_batch_banned_token_ids(self, prev_input_ids: torch.Tensor) -> List[List[int]]:
         banned_token_ids: List[List[int]] = []
         generated_surfs: List[str] = self.get_generated_surfs(prev_input_ids[:, 1:])
         for hypo_idx, input_ids in enumerate(prev_input_ids.tolist()):
-            text: str = self.texts[hypo_idx // num_beams]
+            text: str = self.texts[hypo_idx // self.num_beams]
             generated_surf: str = generated_surfs[hypo_idx]
             if text == generated_surf:
                 # 生成終了
@@ -107,41 +103,58 @@ class ForcedSurfLogitsProcessor(LogitsProcessor):
                 continue
 
             total_permitted_token_ids: Set[int] = set()
-            if len(input_ids) == 1:
-                # 「<pad>」の次は，入力文字列の先頭からマッチするサブワードを許容
-                total_permitted_token_ids |= self.get_permitted_token_ids(text)
-                total_permitted_token_ids |= self.get_permitted_underscore_token_ids(text)
-                total_permitted_token_ids.add(self.under_score_token_id)
-            elif len(input_ids) == 2:
-                if input_ids[-1] == self.under_score_token_id:
-                    # 「<pad> "▁"」の次は，入力文字列の先頭からマッチするサブワードを許容．ただしアンダースコア始まりは許容しない
+            if self.is_decoding_surf[hypo_idx] is True:
+                if len(input_ids) == 1:
+                    # 「<pad>」の次は，入力文字列の先頭からマッチするサブワードを許容
+                    total_permitted_token_ids |= self.get_permitted_token_ids(text)
+                    total_permitted_token_ids |= self.get_permitted_underscore_token_ids(text)
+                    total_permitted_token_ids.add(self.underscore_token_id)
+                elif len(input_ids) == 2:
+                    if input_ids[-1] == self.underscore_token_id:
+                        # 「<pad> "▁"」の次は，入力文字列の先頭からマッチするサブワードを許容．ただしアンダースコア始まりは許容しない
+                        total_permitted_token_ids |= self.get_permitted_token_ids(remaining_surf)
+                    else:
+                        # 「<pad> "▁xxx"」または「<pad> "xxx"」の次は，入力文字列の先頭からマッチするサブワードを許容．また，全てのアンダースコア始まりのサブワードも許容
+                        total_permitted_token_ids |= self.get_permitted_token_ids(remaining_surf)
+                        total_permitted_token_ids |= self.underscore_token_ids
+                elif (input_ids[-2], input_ids[-1]) == (self.new_line_token_id, self.underscore_token_id):
+                    # 「改行 "▁"」の次は，まだ生成していない文字列の先頭からマッチするサブワードを許容．ただしアンダースコア始まりは許容しない
                     total_permitted_token_ids |= self.get_permitted_token_ids(remaining_surf)
+                elif input_ids[-2] == self.new_line_token_id:
+                    last_token: str = self.tokenizer.convert_ids_to_tokens(input_ids[-1])
+                    if last_token.startswith("▁"):
+                        # 「改行 "▁xxx"」の次は，まだ生成していない文字列の先頭からマッチするサブワードを許容．また，全てのアンダースコア始まりのサブワードも許容
+                        total_permitted_token_ids |= self.get_permitted_token_ids(remaining_surf)
+                        total_permitted_token_ids |= self.underscore_token_ids
+                    else:
+                        # 「改行 "xxx"」の次は，任意のサブワードを許容
+                        pass
+                elif input_ids[-1] == self.underscore_token_id:
+                    self.is_decoding_surf[hypo_idx] = False
+                    # 「"xxx" "▁"」 の次は，任意のサブワードを許容．ただしアンダースコア始まりは許容しない
+                    total_permitted_token_ids |= self.all_token_ids - self.underscore_token_ids
+                elif input_ids[-1] in self.underscore_token_ids:
+                    self.is_decoding_surf[hypo_idx] = False
+                    # 「"xxx" "▁yyy"」 の次は，任意のサブワードを許容
+                    pass
                 else:
-                    # 「<pad> "▁xxx"」の次は，入力文字列の先頭からマッチするサブワードを許容．また，全てのアンダースコア始まりのサブワードも許容
-                    total_permitted_token_ids |= self.get_permitted_consecutive_token_ids(remaining_surf)
-            elif input_ids[-3:-1] == [self.pad_token_id, self.under_score_token_id]:
-                # 「<pad> "▁" "xxx"」の次は，入力文字列の先頭からマッチするサブワードを許容．また，全てのアンダースコア始まりのサブワードも許容
-                total_permitted_token_ids |= self.get_permitted_consecutive_token_ids(remaining_surf)
-            elif input_ids[-2:] == [self.new_line_token_id, self.under_score_token_id]:
-                # 「改行 "▁"」 の次は，まだ生成していない文字列の先頭からマッチするサブワードを許容．ただしアンダースコア始まりは許容しない
-                total_permitted_token_ids |= self.get_permitted_token_ids(remaining_surf)
-            elif input_ids[-1] == self.new_line_token_id:
-                # 「改行」の次は，まだ生成していない文字列の先頭からマッチするサブワードを許容
-                total_permitted_token_ids |= self.get_permitted_token_ids(remaining_surf)
-                total_permitted_token_ids |= self.get_permitted_underscore_token_ids(remaining_surf)
-                total_permitted_token_ids.add(self.under_score_token_id)
-            elif input_ids[-3:-1] == [self.new_line_token_id, self.under_score_token_id]:
-                # 「改行 "▁" "xxx"」の次は，まだ生成していない文字列の先頭からマッチするサブワードを許容．また，全てのアンダースコア始まりのサブワードも許容
-                total_permitted_token_ids |= self.get_permitted_consecutive_token_ids(remaining_surf)
-            elif input_ids[-2] == self.new_line_token_id:
-                last_token: str = self.tokenizer.convert_ids_to_tokens(input_ids[-1])
-                # 「改行 "_xxx"」の次は，まだ生成していない文字列の先頭からマッチするサブワードを許容．また，全てのアンダースコア始まりのサブワードも許容
-                if last_token.startswith("▁"):
-                    total_permitted_token_ids |= self.get_permitted_consecutive_token_ids(remaining_surf)
+                    # 「"xxx" "yyy"」 の次は，まだ生成していない文字列の先頭からマッチするサブワードを許容．また，全てのアンダースコア始まりのサブワードも許容
+                    total_permitted_token_ids |= self.get_permitted_token_ids(remaining_surf)
+                    total_permitted_token_ids |= self.underscore_token_ids
+            else:
+                if input_ids[-1] == self.new_line_token_id:
+                    self.is_decoding_surf[hypo_idx] = True
+                    # 「改行」の次は，まだ生成していない文字列の先頭からマッチするサブワードを許容
+                    total_permitted_token_ids |= self.get_permitted_token_ids(remaining_surf)
+                    total_permitted_token_ids |= self.get_permitted_underscore_token_ids(remaining_surf)
+                    total_permitted_token_ids.add(self.underscore_token_id)
+                else:
+                    # surf のデコーディング時以外は，任意のサブワードを許容
+                    pass
 
             if total_permitted_token_ids:
                 banned_token_ids.append(
-                    [i for i in range(self.tokenizer.vocab_size) if i not in total_permitted_token_ids]
+                    [i for i in self.tokenizer.get_vocab().values() if i not in total_permitted_token_ids]
                 )
             else:
                 banned_token_ids.append([])
@@ -149,9 +162,8 @@ class ForcedSurfLogitsProcessor(LogitsProcessor):
         return banned_token_ids
 
     def __call__(self, input_ids: torch.Tensor, scores: torch.Tensor) -> torch.Tensor:
-        num_beams: int = input_ids.shape[0] // len(self.texts)
         input_ids[input_ids == -100] = self.tokenizer.pad_token_id
-        batch_banned_token_ids: List[List[int]] = self.get_batch_banned_token_ids(input_ids, num_beams)
+        batch_banned_token_ids: List[List[int]] = self.get_batch_banned_token_ids(input_ids)
         for i, banned_token_ids in enumerate(batch_banned_token_ids):
             scores[i, banned_token_ids] = -float("inf")
         return scores

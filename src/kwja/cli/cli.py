@@ -372,7 +372,9 @@ def main(
     if input_text is not None:
         if input_text.strip() != "":
             print(processor.run(_split_into_documents(input_text)), end="")
-        processor.refresh()
+            processor.refresh()
+        else:
+            print("EOD")
         raise typer.Exit()
 
     # Interactive mode
@@ -385,11 +387,14 @@ def main(
         except EOFError:
             break
         if input_ == "EOD":
-            processor.refresh()
-            print(processor.run([input_text], interactive=True), end="")
-            if specified_tasks != ["typo"]:
-                print("EOD")  # To indicate the end of the output.
-            input_text = ""
+            if input_text.strip() != "":
+                processor.refresh()
+                print(processor.run([input_text], interactive=True), end="")
+                if specified_tasks != ["typo"]:
+                    print("EOD")  # To indicate the end of the output.
+                input_text = ""
+            else:
+                print("EOD")
         else:
             input_text += input_ + "\n"
 

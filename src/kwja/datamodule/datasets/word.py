@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Literal, Optional, Union
 
+from cohesion_tools.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
+from cohesion_tools.extractors.base import BaseExtractor
 from omegaconf import ListConfig
 from rhoknp import Document, Sentence
 from rhoknp.cohesion import ExophoraReferent
@@ -12,7 +14,7 @@ from transformers.utils import PaddingStrategy
 
 from kwja.datamodule.datasets.base import BaseDataset, FullAnnotatedDocumentLoaderMixin
 from kwja.datamodule.examples import SpecialTokenIndexer, WordExample
-from kwja.utils.cohesion_analysis import BridgingUtils, CohesionBasePhrase, CohesionUtils, CoreferenceUtils, PasUtils
+from kwja.utils.cohesion_analysis import CohesionBasePhrase
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TAGS,
@@ -94,11 +96,24 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         # ---------- cohesion analysis ----------
         self.cohesion_tasks: List[CohesionTask] = [CohesionTask(ct) for ct in cohesion_tasks]
         self.exophora_referents = [ExophoraReferent(er) for er in exophora_referents]
-        self.pas_cases: List[str] = list(pas_cases)
-        self.br_cases: List[str] = list(br_cases)
-        self.cohesion_task2utils: Dict[CohesionTask, CohesionUtils] = {
-            ct: self._build_cohesion_utils(ct, restrict_cohesion_target) for ct in self.cohesion_tasks
+        self.cohesion_task2extractor: Dict[CohesionTask, BaseExtractor] = {
+            CohesionTask.PAS_ANALYSIS: PasExtractor(
+                list(pas_cases),
+                [er.type for er in self.exophora_referents],
+                verbal_predicate=True,
+                nominal_predicate=True,
+            ),
+            CohesionTask.BRIDGING_REFERENCE_RESOLUTION: BridgingExtractor(
+                list(br_cases), [er.type for er in self.exophora_referents]
+            ),
+            CohesionTask.COREFERENCE_RESOLUTION: CoreferenceExtractor([er.type for er in self.exophora_referents]),
         }
+        self.cohesion_task2rels: Dict[CohesionTask, List[str]] = {
+            CohesionTask.PAS_ANALYSIS: list(pas_cases),
+            CohesionTask.BRIDGING_REFERENCE_RESOLUTION: list(br_cases),
+            CohesionTask.COREFERENCE_RESOLUTION: ["="],
+        }
+        self.restrict_cohesion_target: bool = restrict_cohesion_target
 
         # ---------- dependency parsing & cohesion analysis ----------
         self.special_tokens: List[str] = list(special_tokens)
@@ -145,7 +160,13 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             special_token_indexer = SpecialTokenIndexer(self.special_tokens, len(encoding.ids), len(document.morphemes))
 
             example = WordExample(example_id, merged_encoding, special_token_indexer)
-            example.load_document(document, self.reading_aligner, self.cohesion_task2utils)
+            example.load_document(
+                document,
+                self.reading_aligner,
+                self.cohesion_task2extractor,
+                self.cohesion_task2rels,
+                self.restrict_cohesion_target,
+            )
             if discourse_document := self._find_discourse_document(document):
                 example.load_discourse_document(discourse_document)
 
@@ -236,9 +257,9 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         # ---------- cohesion analysis ----------
         cohesion_labels: List[List[List[int]]] = []  # (rel, seq, seq)
         cohesion_mask: List[List[List[bool]]] = []  # (rel, seq, seq)
-        for cohesion_task, cohesion_utils in self.cohesion_task2utils.items():
+        for cohesion_task, cohesion_rels in self.cohesion_task2rels.items():
             cohesion_base_phrases = example.cohesion_task2base_phrases[cohesion_task]
-            for rel in cohesion_utils.rels:
+            for rel in cohesion_rels:
                 rel_labels = self._convert_cohesion_base_phrases_into_rel_labels(
                     cohesion_base_phrases, rel, example.special_token_indexer
                 )
@@ -246,7 +267,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             rel_mask = self._convert_cohesion_base_phrases_into_rel_mask(
                 cohesion_base_phrases, example.special_token_indexer
             )
-            cohesion_mask.extend([rel_mask] * len(cohesion_utils.rels))
+            cohesion_mask.extend([rel_mask] * len(cohesion_rels))
 
         # ---------- discourse parsing ----------
         discourse_labels = [[IGNORE_INDEX] * self.max_seq_length for _ in range(self.max_seq_length)]
@@ -314,16 +335,6 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             except AssertionError:
                 logger.warning(f"{discourse_path} is not a valid KNP file")
         return None
-
-    def _build_cohesion_utils(self, cohesion_task: CohesionTask, restrict_cohesion_target: bool) -> CohesionUtils:
-        if cohesion_task == CohesionTask.PAS_ANALYSIS:
-            return PasUtils(self.pas_cases, "all", self.exophora_referents, restrict_cohesion_target)
-        elif cohesion_task == CohesionTask.BRIDGING_REFERENCE_RESOLUTION:
-            return BridgingUtils(self.br_cases, self.exophora_referents, restrict_cohesion_target)
-        elif cohesion_task == CohesionTask.COREFERENCE_RESOLUTION:
-            return CoreferenceUtils(self.exophora_referents, restrict_cohesion_target)
-        else:
-            raise ValueError("invalid cohesion task")
 
     def _convert_cohesion_base_phrases_into_rel_labels(
         self,
