@@ -16,7 +16,7 @@ do_predict_after_train: false
 checkpoint_path: ""
 
 # For decoding settings
-use_forced_surf_decoding: true
+use_forced_decoding: true
 decoding:
   max_length: ${max_tgt_length}
   min_length: 1

@@ -43,7 +43,7 @@ def get_char2tokens(tokenizer: PreTrainedTokenizerBase) -> Tuple[Dict[str, Dict[
     return char2tokens, char2underscore_tokens
 
 
-class ForcedSurfLogitsProcessor(LogitsProcessor):
+class ForcedLogitsProcessor(LogitsProcessor):
     def __init__(
         self,
         texts: List[str],

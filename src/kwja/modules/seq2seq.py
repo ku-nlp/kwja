@@ -9,7 +9,7 @@ from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from transformers.generation import LogitsProcessorList
 
 from kwja.modules.base import BaseModule
-from kwja.modules.components.logits_processor import ForcedSurfLogitsProcessor, get_char2tokens, get_reading_candidates
+from kwja.modules.components.logits_processor import ForcedLogitsProcessor, get_char2tokens, get_reading_candidates
 
 if os.environ.get("KWJA_CLI_MODE") == "1":
     from kwja.modules.base import DummyModuleMetric as Seq2SeqModuleMetric  # dummy class for faster loading
@@ -29,7 +29,7 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
 
         self.reading_candidates = get_reading_candidates(self.tokenizer)
         self.char2tokens, self.char2underscore_tokens = get_char2tokens(self.tokenizer)
-        self.use_forced_surf_decoding: bool = getattr(hparams, "use_forced_surf_decoding", False)
+        self.use_forced_decoding: bool = getattr(hparams, "use_forced_decoding", False)
 
     def setup(self, stage: str) -> None:
         if stage == "fit":
@@ -90,7 +90,7 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
             attention_mask=batch["attention_mask"],
             logits_processor=LogitsProcessorList(
                 [
-                    ForcedSurfLogitsProcessor(
+                    ForcedLogitsProcessor(
                         texts=batch["src_text"],
                         num_beams=self.hparams.decoding.num_beams,
                         tokenizer=self.tokenizer,
@@ -100,7 +100,7 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
                     ),
                 ]
             )
-            if self.use_forced_surf_decoding
+            if self.use_forced_decoding
             else None,
             **self.hparams.decoding,
         )  # (b, max_tgt_len)

@@ -8,7 +8,7 @@ from rhoknp import Sentence
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from kwja.datamodule.datasets.seq2seq import Seq2SeqFormatter
-from kwja.modules.components.logits_processor import ForcedSurfLogitsProcessor, get_char2tokens, get_reading_candidates
+from kwja.modules.components.logits_processor import ForcedLogitsProcessor, get_char2tokens, get_reading_candidates
 
 SPECIAL_TOKENS: List[str] = [f"<extra_id_{idx}>" for idx in range(100)]
 
@@ -77,7 +77,7 @@ def test_get_generated_surfs(data_dir: Path) -> None:
         for path in test_case_dir.glob("*.juman"):
             with path.open() as f:
                 sentence: Sentence = Sentence.from_jumanpp(f.read())
-                processor = ForcedSurfLogitsProcessor(
+                processor = ForcedLogitsProcessor(
                     texts=[formatter.sent_to_text(sentence)],
                     num_beams=2,
                     tokenizer=tokenizer,
@@ -105,7 +105,7 @@ def test_get_permitted_token_ids(input_text: str, permitted_tokens: List[str]) -
         reading_candidates = get_reading_candidates(tokenizer)
         char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
 
-        processor = ForcedSurfLogitsProcessor(
+        processor = ForcedLogitsProcessor(
             texts=[input_text],
             num_beams=2,
             tokenizer=tokenizer,
@@ -129,7 +129,7 @@ def test_get_permitted_underscore_token_ids(input_text: str, permitted_underscor
         reading_candidates = get_reading_candidates(tokenizer)
         char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
 
-        processor = ForcedSurfLogitsProcessor(
+        processor = ForcedLogitsProcessor(
             texts=[input_text],
             num_beams=2,
             tokenizer=tokenizer,
@@ -172,7 +172,7 @@ def test_get_batch_banned_token_ids(data_dir: Path):
         with open(test_case_path) as f:
             test_cases = json.load(f)
         for test_id, test_case in test_cases.items():
-            surf_logits_processor = ForcedSurfLogitsProcessor(
+            processor = ForcedLogitsProcessor(
                 texts=[test_case["text"]],
                 num_beams=1,
                 tokenizer=tokenizer,
@@ -186,7 +186,7 @@ def test_get_batch_banned_token_ids(data_dir: Path):
                     [tokenizer.convert_tokens_to_ids(test_case[model]["input_tokens"][:idx])]
                 )
                 orig_scores: torch.Tensor = torch.full((1, vocab_size), 0.5).float()
-                warped_scores = surf_logits_processor(
+                warped_scores = processor(
                     input_ids=input_ids,
                     scores=orig_scores,
                 )
