@@ -19,9 +19,16 @@ RESOURCE_PATH = resource_files(kwja) / "resource"
 SENT_SEGMENTATION_TAGS = ("B", "I")
 
 # ---------- seq2seq module----------
-NEW_LINE_TOKEN: str = "<extra_id_0>"  # "<br>"
-FULL_SPACE_TOKEN: str = "<extra_id_1>"  # "<full_space>"
-NO_CANON_TOKEN: str = "<extra_id_2>"  # "<no_canon>"
+# tokens to separate surface, reading, lemma, and canonical form
+SURF_TOKEN: str = "<extra_id_0>"
+READING_TOKEN: str = "<extra_id_1>"
+LEMMA_TOKEN: str = "<extra_id_2>"
+CANON_TOKEN: str = "<extra_id_3>"
+# tokens to represent full space, half space, no canonical form, and triple dots
+NO_CANON_TOKEN: str = "<extra_id_4>"
+FULL_SPACE_TOKEN: str = "<extra_id_5>"
+HALF_SPACE_TOKEN: str = "<extra_id_6>"
+TRIPLE_DOT_TOKEN: str = "<extra_id_7>"
 
 # ---------- word (inference) dataset ----------
 SPLIT_INTO_WORDS_MODEL_NAMES = [
