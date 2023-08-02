@@ -9,7 +9,7 @@ from transformers import PreTrainedTokenizerBase
 from kwja.utils.constants import (
     CANON_TOKEN,
     FULL_SPACE_TOKEN,
-    HALF_SPACE_TOKEN,
+    HALF_SPACE_TOKEN1,
     LEMMA_TOKEN,
     NO_CANON_TOKEN,
     READING_TOKEN,
@@ -23,7 +23,7 @@ texts: List[str] = [
     "また，校区で行われる事業や防犯など校区の情報も記載されています。",
     f"「核の歴史{TRIPLE_DOT_TOKEN}ヒロシマ、ナガサキを超えて」。",
     "後一日まで！？./",
-    f"ＪＵＭＰ{FULL_SPACE_TOKEN}ＣＯＭＩＣＳ{HALF_SPACE_TOKEN}",
+    f"ＪＵＭＰ{FULL_SPACE_TOKEN}ＣＯＭＩＣＳ{HALF_SPACE_TOKEN1}",
 ]
 
 seq2seq_formats: List[str] = [
@@ -97,7 +97,7 @@ seq2seq_formats: List[str] = [
         ＪＵＭＰ ＪＵＭＰ ＪＵＭＰ ＪＵＭＰ/ＪＵＭＰ
         {FULL_SPACE_TOKEN} {FULL_SPACE_TOKEN} {FULL_SPACE_TOKEN} /
         ＣＯＭＩＣＳ ＣＯＭＩＣＳ ＣＯＭＩＣＳ ＣＯＭＩＣＳ/ＣＯＭＩＣＳ
-        {HALF_SPACE_TOKEN} {HALF_SPACE_TOKEN} {HALF_SPACE_TOKEN} /
+        {HALF_SPACE_TOKEN1} {HALF_SPACE_TOKEN1} {HALF_SPACE_TOKEN1} /
         """
     ),
 ]

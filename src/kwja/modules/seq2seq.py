@@ -9,7 +9,7 @@ from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from transformers.generation import LogitsProcessorList
 
 from kwja.modules.base import BaseModule
-from kwja.modules.components.logits_processor import ForcedSurfLogitsProcessor, get_char2tokens
+from kwja.modules.components.logits_processor import ForcedSurfLogitsProcessor, get_char2tokens, get_reading_candidates
 
 if os.environ.get("KWJA_CLI_MODE") == "1":
     from kwja.modules.base import DummyModuleMetric as Seq2SeqModuleMetric  # dummy class for faster loading
@@ -27,6 +27,7 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
         # https://github.com/huggingface/transformers/issues/4875
         self.encoder_decoder.resize_token_embeddings(len(self.tokenizer.get_vocab()))
 
+        self.reading_candidates = get_reading_candidates(self.tokenizer)
         self.char2tokens, self.char2underscore_tokens = get_char2tokens(self.tokenizer)
         self.use_forced_surf_decoding: bool = getattr(hparams, "use_forced_surf_decoding", False)
 
@@ -93,6 +94,7 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
                         texts=batch["src_text"],
                         num_beams=self.hparams.decoding.num_beams,
                         tokenizer=self.tokenizer,
+                        reading_candidates=self.reading_candidates,
                         char2tokens=self.char2tokens,
                         char2underscore_tokens=self.char2underscore_tokens,
                     ),

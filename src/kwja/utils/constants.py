@@ -27,28 +27,29 @@ CANON_TOKEN: str = "<extra_id_3>"
 # tokens to represent full space, half space, no canonical form, and triple dots
 NO_CANON_TOKEN: str = "<extra_id_4>"
 FULL_SPACE_TOKEN: str = "<extra_id_5>"
-HALF_SPACE_TOKEN: str = "<extra_id_6>"
-TRIPLE_DOT_TOKEN: str = "<extra_id_7>"
+HALF_SPACE_TOKEN1: str = "<extra_id_6>"
+HALF_SPACE_TOKEN2: str = "<extra_id_7>"
+TRIPLE_DOT_TOKEN: str = "<extra_id_8>"
 # tokens for unk tokens
 RARE_TO_SPECIAL: Dict[str, str] = {
-    "ゔ": "<extra_id_8>",
-    "榕": "<extra_id_9>",
-    "謄": "<extra_id_10>",
-    "丿": "<extra_id_11>",
-    "孜": "<extra_id_12>",
-    "腑": "<extra_id_13>",
-    "庖": "<extra_id_14>",
-    "┘": "<extra_id_15>",
-    "秧": "<extra_id_16>",
-    "褪": "<extra_id_17>",
-    "疥": "<extra_id_18>",
-    "鮪": "<extra_id_19>",
-    "髑髏": "<extra_id_20>",
-    "侭": "<extra_id_21>",
-    "蒟蒻": "<extra_id_22>",
-    "╹": "<extra_id_23>",
-    "厂": "<extra_id_24>",
-    "Ӧ": "<extra_id_25>",
+    "ゔ": "<extra_id_9>",
+    "榕": "<extra_id_10>",
+    "謄": "<extra_id_11>",
+    "丿": "<extra_id_12>",
+    "孜": "<extra_id_13>",
+    "腑": "<extra_id_14>",
+    "庖": "<extra_id_15>",
+    "┘": "<extra_id_16>",
+    "秧": "<extra_id_17>",
+    "褪": "<extra_id_18>",
+    "疥": "<extra_id_19>",
+    "鮪": "<extra_id_20>",
+    "髑髏": "<extra_id_21>",
+    "侭": "<extra_id_22>",
+    "蒟蒻": "<extra_id_23>",
+    "╹": "<extra_id_24>",
+    "厂": "<extra_id_25>",
+    "Ӧ": "<extra_id_26>",
 }
 SPECIAL_TO_RARE: Dict[str, str] = {v: k for k, v in RARE_TO_SPECIAL.items()}
 

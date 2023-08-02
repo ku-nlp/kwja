@@ -6,7 +6,8 @@ from transformers import PreTrainedTokenizerBase
 from kwja.utils.constants import (
     CANON_TOKEN,
     FULL_SPACE_TOKEN,
-    HALF_SPACE_TOKEN,
+    HALF_SPACE_TOKEN1,
+    HALF_SPACE_TOKEN2,
     LEMMA_TOKEN,
     NO_CANON_TOKEN,
     RARE_TO_SPECIAL,
@@ -23,7 +24,8 @@ class Seq2SeqFormatter:
 
         self.word_to_token: Dict[str, str] = {
             "\u3000": FULL_SPACE_TOKEN,
-            " ": HALF_SPACE_TOKEN,
+            " ": HALF_SPACE_TOKEN1,
+            "␣": HALF_SPACE_TOKEN2,
             "…": TRIPLE_DOT_TOKEN,
         }
         self.token_to_word: Dict[str, str] = {v: k for k, v in self.word_to_token.items()}
@@ -68,11 +70,24 @@ class Seq2SeqFormatter:
                 outputs.extend(
                     [
                         SURF_TOKEN,
-                        HALF_SPACE_TOKEN,
+                        HALF_SPACE_TOKEN1,
                         READING_TOKEN,
-                        HALF_SPACE_TOKEN,
+                        HALF_SPACE_TOKEN1,
                         LEMMA_TOKEN,
-                        HALF_SPACE_TOKEN,
+                        HALF_SPACE_TOKEN1,
+                        CANON_TOKEN,
+                        "/",
+                    ]
+                )
+            elif mrph.surf == "␣":
+                outputs.extend(
+                    [
+                        SURF_TOKEN,
+                        HALF_SPACE_TOKEN2,
+                        READING_TOKEN,
+                        HALF_SPACE_TOKEN2,
+                        LEMMA_TOKEN,
+                        HALF_SPACE_TOKEN2,
                         CANON_TOKEN,
                         "/",
                     ]
@@ -109,22 +124,24 @@ class Seq2SeqFormatter:
             if not line:
                 continue
             try:
-                surf: str = line.split(READING_TOKEN)[0]
+                surf: str = line.split(READING_TOKEN)[0].strip(" ")
                 surf = self.token_to_word[surf] if surf in self.token_to_word else surf
                 for k, v in SPECIAL_TO_RARE.items():
                     surf = surf.replace(k, v)
 
-                reading: str = line.split(READING_TOKEN)[1].split(LEMMA_TOKEN)[0]
+                reading: str = line.split(READING_TOKEN)[1].split(LEMMA_TOKEN)[0].strip(" ")
                 reading = self.token_to_word[reading] if reading in self.token_to_word else reading
                 for k, v in SPECIAL_TO_RARE.items():
                     reading = reading.replace(k, v)
 
-                lemma: str = line.split(LEMMA_TOKEN)[1].split(CANON_TOKEN)[0]
+                lemma: str = line.split(LEMMA_TOKEN)[1].split(CANON_TOKEN)[0].strip(" ")
                 lemma = self.token_to_word[lemma] if lemma in self.token_to_word else lemma
                 for k, v in SPECIAL_TO_RARE.items():
                     lemma = lemma.replace(k, v)
 
-                canon: str = line.split(CANON_TOKEN)[1]
+                canon: str = line.split(CANON_TOKEN)[1].strip(" ")
+                for k, v in self.token_to_word.items():
+                    canon = canon.replace(k, v)
                 for k, v in SPECIAL_TO_RARE.items():
                     canon = canon.replace(k, v)
                 canon = (
