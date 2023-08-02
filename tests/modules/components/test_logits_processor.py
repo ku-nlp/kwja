@@ -5,11 +5,10 @@ from typing import Dict, List, Optional, Set
 import pytest
 import torch
 from rhoknp import Sentence
-from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizerBase
+from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from kwja.datamodule.datasets.seq2seq import get_seq2seq_format
-from kwja.modules.components.logits_processor import ForcedSurfLogitsProcessor, get_char2tokens
-from kwja.utils.constants import FULL_SPACE_TOKEN, NEW_LINE_TOKEN
+from kwja.datamodule.datasets.seq2seq import Seq2SeqFormatter
+from kwja.modules.components.logits_processor import ForcedSurfLogitsProcessor, get_char2tokens, get_reading_candidates
 
 SPECIAL_TOKENS: List[str] = [f"<extra_id_{idx}>" for idx in range(100)]
 
@@ -70,28 +69,30 @@ def test_get_generated_surfs(data_dir: Path) -> None:
             pretrained_model_name_or_path=pretrained_model_name_or_path,
             additional_special_tokens=SPECIAL_TOKENS,
         )
+        formatter: Seq2SeqFormatter = Seq2SeqFormatter(tokenizer)
         char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
+        reading_candidates = get_reading_candidates(tokenizer)
 
         test_case_dir: Path = data_dir / "modules" / "juman"
         for path in test_case_dir.glob("*.juman"):
             with path.open() as f:
                 sentence: Sentence = Sentence.from_jumanpp(f.read())
                 processor = ForcedSurfLogitsProcessor(
-                    texts=[sentence.text.strip().replace("\u3000", FULL_SPACE_TOKEN)],
+                    texts=[formatter.sent_to_text(sentence)],
                     num_beams=2,
                     tokenizer=tokenizer,
+                    reading_candidates=reading_candidates,
                     char2tokens=char2tokens,
                     char2underscore_tokens=char2underscore_tokens,
                 )
-                tgt_encoding: BatchEncoding = tokenizer(
-                    get_seq2seq_format(sentence).replace("\n", NEW_LINE_TOKEN),
-                    truncation=False,
-                    max_length=512,
-                    return_tensors="pt",
+
+                seq2seq_format: List[str] = formatter.sent_to_format(sentence)
+                tgt_tokens: List[str] = formatter.tokenize(seq2seq_format)
+                tgt_input_ids: torch.Tensor = torch.LongTensor(
+                    [tokenizer.convert_tokens_to_ids(tgt_tokens) + [tokenizer.eos_token_id]]
                 )
-                assert processor.texts[0] == processor.get_generated_surfs(tgt_encoding.input_ids)[0].replace(
-                    "</s>", ""
-                )
+
+                assert processor.texts[0] == processor.get_generated_surfs(tgt_input_ids)[0].replace(" ", "")
 
 
 @pytest.mark.parametrize("input_text, permitted_tokens", [("研究をする", ["研究", "研"])])
@@ -101,12 +102,14 @@ def test_get_permitted_token_ids(input_text: str, permitted_tokens: List[str]) -
             pretrained_model_name_or_path=pretrained_model_name_or_path,
             additional_special_tokens=SPECIAL_TOKENS,
         )
+        reading_candidates = get_reading_candidates(tokenizer)
         char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
 
         processor = ForcedSurfLogitsProcessor(
             texts=[input_text],
             num_beams=2,
             tokenizer=tokenizer,
+            reading_candidates=reading_candidates,
             char2tokens=char2tokens,
             char2underscore_tokens=char2underscore_tokens,
         )
@@ -123,12 +126,14 @@ def test_get_permitted_underscore_token_ids(input_text: str, permitted_underscor
             pretrained_model_name_or_path=pretrained_model_name_or_path,
             additional_special_tokens=SPECIAL_TOKENS,
         )
+        reading_candidates = get_reading_candidates(tokenizer)
         char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
 
         processor = ForcedSurfLogitsProcessor(
             texts=[input_text],
             num_beams=2,
             tokenizer=tokenizer,
+            reading_candidates=reading_candidates,
             char2tokens=char2tokens,
             char2underscore_tokens=char2underscore_tokens,
         )
@@ -149,6 +154,8 @@ def test_get_batch_banned_token_ids(data_dir: Path):
             additional_special_tokens=SPECIAL_TOKENS,
         )
         vocab_size: int = len(tokenizer.get_vocab())
+        reading_candidates: Set[int] = get_reading_candidates(tokenizer)
+        reading_candidate_tokens: Set[str] = set([tokenizer.convert_ids_to_tokens([x])[0] for x in reading_candidates])
         char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
         underscore_tokens: Set[str] = set([x for x in tokenizer.get_vocab() if x.startswith("▁")])
         non_underscore_tokens: Set[str] = set([x for x in tokenizer.get_vocab() if not x.startswith("▁")])
@@ -169,6 +176,7 @@ def test_get_batch_banned_token_ids(data_dir: Path):
                 texts=[test_case["text"]],
                 num_beams=1,
                 tokenizer=tokenizer,
+                reading_candidates=reading_candidates,
                 char2tokens=char2tokens,
                 char2underscore_tokens=char2underscore_tokens,
             )
@@ -194,8 +202,6 @@ def test_get_batch_banned_token_ids(data_dir: Path):
             if len(permitted_tokens) == vocab_size:
                 assert gold_permitted_tokens == set()
             else:
-                if test_case["permit_underscore_tokens"] is True:
-                    gold_permitted_tokens = gold_permitted_tokens.union(underscore_tokens)
-                elif len(gold_permitted_tokens) == 0 and len(permitted_tokens) != vocab_size:
-                    gold_permitted_tokens = gold_permitted_tokens.union(non_underscore_tokens)
+                if test_case.get("is_decoding_reading", False) is True:
+                    gold_permitted_tokens = gold_permitted_tokens.union(reading_candidate_tokens)
                 assert sorted(list(permitted_tokens)) == sorted(list(gold_permitted_tokens))
