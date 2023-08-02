@@ -29,6 +29,29 @@ NO_CANON_TOKEN: str = "<extra_id_4>"
 FULL_SPACE_TOKEN: str = "<extra_id_5>"
 HALF_SPACE_TOKEN: str = "<extra_id_6>"
 TRIPLE_DOT_TOKEN: str = "<extra_id_7>"
+# tokens for unk tokens
+RARE_TO_SPECIAL: Dict[str, str] = {
+    "ゔ": "<extra_id_8>",
+    "榕": "<extra_id_9>",
+    "謄": "<extra_id_10>",
+    "丿": "<extra_id_11>",
+    "孜": "<extra_id_12>",
+    "腑": "<extra_id_13>",
+    "庖": "<extra_id_14>",
+    "┘": "<extra_id_15>",
+    "秧": "<extra_id_16>",
+    "褪": "<extra_id_17>",
+    "疥": "<extra_id_18>",
+    "鮪": "<extra_id_19>",
+    "髑髏": "<extra_id_20>",
+    "侭": "<extra_id_21>",
+    "蒟蒻": "<extra_id_22>",
+    "╹": "<extra_id_23>",
+    "厂": "<extra_id_24>",
+    "Ӧ": "<extra_id_25>",
+}
+SPECIAL_TO_RARE: Dict[str, str] = {v: k for k, v in RARE_TO_SPECIAL.items()}
+
 
 # ---------- word (inference) dataset ----------
 SPLIT_INTO_WORDS_MODEL_NAMES = [

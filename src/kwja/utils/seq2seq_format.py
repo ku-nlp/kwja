@@ -9,7 +9,9 @@ from kwja.utils.constants import (
     HALF_SPACE_TOKEN,
     LEMMA_TOKEN,
     NO_CANON_TOKEN,
+    RARE_TO_SPECIAL,
     READING_TOKEN,
+    SPECIAL_TO_RARE,
     SURF_TOKEN,
     TRIPLE_DOT_TOKEN,
 )
@@ -29,6 +31,8 @@ class Seq2SeqFormatter:
     def tokenize(self, texts: List[str]) -> List[str]:
         tokenized: List[str] = []
         for text in texts:
+            for k, v in RARE_TO_SPECIAL.items():
+                text = text.replace(k, v)
             tokenized_tmp: List[str] = self.tokenizer.tokenize(text)
             if len(tokenized_tmp) > 1 and tokenized_tmp[0] == "▁":
                 tokenized_tmp = tokenized_tmp[1:]
@@ -38,6 +42,8 @@ class Seq2SeqFormatter:
     def sent_to_text(self, sentence: Sentence) -> str:
         text: str = sentence.text
         for k, v in self.word_to_token.items():
+            text = text.replace(k, v)
+        for k, v in RARE_TO_SPECIAL.items():
             text = text.replace(k, v)
         return text
 
@@ -105,14 +111,22 @@ class Seq2SeqFormatter:
             try:
                 surf: str = line.split(READING_TOKEN)[0]
                 surf = self.token_to_word[surf] if surf in self.token_to_word else surf
+                for k, v in SPECIAL_TO_RARE.items():
+                    surf = surf.replace(k, v)
 
                 reading: str = line.split(READING_TOKEN)[1].split(LEMMA_TOKEN)[0]
                 reading = self.token_to_word[reading] if reading in self.token_to_word else reading
+                for k, v in SPECIAL_TO_RARE.items():
+                    reading = reading.replace(k, v)
 
                 lemma: str = line.split(LEMMA_TOKEN)[1].split(CANON_TOKEN)[0]
                 lemma = self.token_to_word[lemma] if lemma in self.token_to_word else lemma
+                for k, v in SPECIAL_TO_RARE.items():
+                    lemma = lemma.replace(k, v)
 
                 canon: str = line.split(CANON_TOKEN)[1]
+                for k, v in SPECIAL_TO_RARE.items():
+                    canon = canon.replace(k, v)
                 canon = (
                     f"{self.token_to_word[TRIPLE_DOT_TOKEN]}/{self.token_to_word[TRIPLE_DOT_TOKEN]}"
                     if canon == f"{TRIPLE_DOT_TOKEN}/{TRIPLE_DOT_TOKEN}"
