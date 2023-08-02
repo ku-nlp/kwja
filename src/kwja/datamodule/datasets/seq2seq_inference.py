@@ -47,7 +47,7 @@ class Seq2SeqInferenceDataset(BaseDataset[Seq2SeqInferenceExample, Seq2SeqModule
         for document in track(documents, description="Loading examples"):
             for sentence in document.sentences:
                 src_encoding: BatchEncoding = self.tokenizer(
-                    "解析：" + sentence.text.strip(),
+                    sentence.text.strip(),
                     padding=PaddingStrategy.MAX_LENGTH,
                     truncation=True,
                     max_length=self.max_src_length,
