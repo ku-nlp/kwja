@@ -1,5 +1,4 @@
-from collections import defaultdict
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Set
 
 import regex
 import torch
@@ -30,17 +29,19 @@ def get_reading_candidates(tokenizer: PreTrainedTokenizerBase) -> Set[int]:
     return candidates
 
 
-def get_char2tokens(tokenizer: PreTrainedTokenizerBase) -> Tuple[Dict[str, Dict[str, int]], Dict[str, Dict[str, int]]]:
-    char2tokens: Dict[str, Dict[str, int]] = defaultdict(dict)
-    char2underscore_tokens: Dict[str, Dict[str, int]] = defaultdict(dict)
+def get_char2tokens(tokenizer: PreTrainedTokenizerBase) -> Dict[str, Dict[str, int]]:
+    char2tokens: Dict[str, Dict[str, int]] = {}
     for vocab_token, vocab_id in tokenizer.get_vocab().items():
         if vocab_token.startswith("▁"):
             if len(vocab_token) == 1:
                 continue
-            char2underscore_tokens[vocab_token[1]][vocab_token] = vocab_id
+            char: str = vocab_token[1]
         else:
-            char2tokens[vocab_token[0]][vocab_token] = vocab_id
-    return char2tokens, char2underscore_tokens
+            char = vocab_token[0]
+        if char not in char2tokens:
+            char2tokens[char] = {}
+        char2tokens[char][vocab_token] = vocab_id
+    return char2tokens
 
 
 class ForcedLogitsProcessor(LogitsProcessor):
@@ -51,7 +52,6 @@ class ForcedLogitsProcessor(LogitsProcessor):
         tokenizer: PreTrainedTokenizerBase,
         reading_candidates: Set[int],
         char2tokens: Dict[str, Dict[str, int]],
-        char2underscore_tokens: Dict[str, Dict[str, int]],
     ) -> None:
         self.tokenizer = tokenizer
         self.texts: List[str] = []
@@ -66,15 +66,10 @@ class ForcedLogitsProcessor(LogitsProcessor):
         self.num_beams: int = num_beams
         self.reading_candidates: Set[int] = reading_candidates
         self.char2tokens: Dict[str, Dict[str, int]] = char2tokens
-        self.char2underscore_tokens: Dict[str, Dict[str, int]] = char2underscore_tokens
         self.underscore_token_id: int = tokenizer.convert_tokens_to_ids("▁")
         self.pad_token_id: int = self.tokenizer.pad_token_id
         self.is_decoding_surf: List[bool] = [True] * (len(self.texts) * self.num_beams)
         self.is_decoding_reading: List[bool] = [False] * (len(self.texts) * self.num_beams)
-        self.underscore_token_ids: Set[int] = {
-            vocab_id for token in self.char2underscore_tokens.values() for vocab_id in token.values()
-        } | {self.underscore_token_id}
-        self.all_token_ids: Set[int] = {vocab_id for vocab_id in tokenizer.get_vocab().values()}
 
         self.surf_token_id: int = tokenizer.convert_tokens_to_ids(SURF_TOKEN)
         self.reading_token_id: int = tokenizer.convert_tokens_to_ids(READING_TOKEN)
@@ -94,16 +89,11 @@ class ForcedLogitsProcessor(LogitsProcessor):
     def get_permitted_token_ids(self, text: str) -> Set[int]:
         permitted_token_ids: Set[int] = set()
         for vocab_token, vocab_id in self.char2tokens[text[0]].items():
-            if text.startswith(vocab_token):
+            if vocab_token.startswith("▁") and text.startswith(vocab_token[1:]):
+                permitted_token_ids.add(vocab_id)
+            elif text.startswith(vocab_token):
                 permitted_token_ids.add(vocab_id)
         return permitted_token_ids
-
-    def get_permitted_underscore_token_ids(self, text: str) -> Set[int]:
-        permitted_underscore_token_ids: Set[int] = set()
-        for vocab_token, vocab_id in self.char2underscore_tokens[text[0]].items():
-            if text.startswith(vocab_token[1:]):
-                permitted_underscore_token_ids.add(vocab_id)
-        return permitted_underscore_token_ids
 
     def get_batch_banned_token_ids(self, prev_input_ids: torch.Tensor) -> List[List[int]]:
         banned_token_ids: List[List[int]] = []
@@ -139,7 +129,6 @@ class ForcedLogitsProcessor(LogitsProcessor):
 
             if self.is_decoding_surf[hypo_idx] is True:
                 total_permitted_token_ids |= self.get_permitted_token_ids(remaining_surf)
-                total_permitted_token_ids |= self.get_permitted_underscore_token_ids(remaining_surf)
                 total_permitted_token_ids.add(self.reading_token_id)
             elif self.is_decoding_reading[hypo_idx] is True:
                 total_permitted_token_ids |= self.reading_candidates

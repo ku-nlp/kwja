@@ -28,7 +28,7 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
         self.encoder_decoder.resize_token_embeddings(len(self.tokenizer.get_vocab()))
 
         self.reading_candidates = get_reading_candidates(self.tokenizer)
-        self.char2tokens, self.char2underscore_tokens = get_char2tokens(self.tokenizer)
+        self.char2tokens = get_char2tokens(self.tokenizer)
         self.use_forced_decoding: bool = getattr(hparams, "use_forced_decoding", False)
 
     def setup(self, stage: str) -> None:
@@ -96,7 +96,6 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
                         tokenizer=self.tokenizer,
                         reading_candidates=self.reading_candidates,
                         char2tokens=self.char2tokens,
-                        char2underscore_tokens=self.char2underscore_tokens,
                     ),
                 ]
             )

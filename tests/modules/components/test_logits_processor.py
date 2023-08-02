@@ -18,9 +18,8 @@ def test_get_char2tokens():
         pretrained_model_name_or_path="google/mt5-small",
         additional_special_tokens=SPECIAL_TOKENS,
     )
-    mt5_char2tokens, mt5_char2underscore_tokens = get_char2tokens(mt5_tokenizer)
+    mt5_char2tokens = get_char2tokens(mt5_tokenizer)
     assert len(mt5_char2tokens) == 19455
-    assert len(mt5_char2underscore_tokens) == 1665
     assert mt5_char2tokens["京"] == {
         "京东": 165392,
         "京娱乐": 178804,
@@ -29,16 +28,15 @@ def test_get_char2tokens():
         "京都市": 209455,
         "京都": 51389,
         "京区": 208641,
+        "▁京公网安备": 234066,
     }
-    assert mt5_char2underscore_tokens["京"] == {"▁京公网安备": 234066}
 
     t5_tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
         pretrained_model_name_or_path="retrieva-jp/t5-small-long",
         additional_special_tokens=SPECIAL_TOKENS,
     )
-    t5_char2tokens, t5_char2underscore_tokens = get_char2tokens(t5_tokenizer)
+    t5_char2tokens = get_char2tokens(t5_tokenizer)
     assert len(t5_char2tokens) == 4289
-    assert len(t5_char2underscore_tokens) == 150
     assert t5_char2tokens["京"] == {
         "京都府": 3411,
         "京都府出身": 26029,
@@ -60,7 +58,6 @@ def test_get_char2tokens():
         "京阪": 14311,
         "京都市立": 24756,
     }
-    assert t5_char2underscore_tokens["京"] == {}
 
 
 def test_get_generated_surfs(data_dir: Path) -> None:
@@ -70,7 +67,7 @@ def test_get_generated_surfs(data_dir: Path) -> None:
             additional_special_tokens=SPECIAL_TOKENS,
         )
         formatter: Seq2SeqFormatter = Seq2SeqFormatter(tokenizer)
-        char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
+        char2tokens = get_char2tokens(tokenizer)
         reading_candidates = get_reading_candidates(tokenizer)
 
         test_case_dir: Path = data_dir / "modules" / "juman"
@@ -83,7 +80,6 @@ def test_get_generated_surfs(data_dir: Path) -> None:
                     tokenizer=tokenizer,
                     reading_candidates=reading_candidates,
                     char2tokens=char2tokens,
-                    char2underscore_tokens=char2underscore_tokens,
                 )
 
                 seq2seq_format: List[str] = formatter.sent_to_format(sentence)
@@ -103,7 +99,7 @@ def test_get_permitted_token_ids(input_text: str, permitted_tokens: List[str]) -
             additional_special_tokens=SPECIAL_TOKENS,
         )
         reading_candidates = get_reading_candidates(tokenizer)
-        char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
+        char2tokens = get_char2tokens(tokenizer)
 
         processor = ForcedLogitsProcessor(
             texts=[input_text],
@@ -111,7 +107,6 @@ def test_get_permitted_token_ids(input_text: str, permitted_tokens: List[str]) -
             tokenizer=tokenizer,
             reading_candidates=reading_candidates,
             char2tokens=char2tokens,
-            char2underscore_tokens=char2underscore_tokens,
         )
 
         permitted_token_ids: Set[int] = processor.get_permitted_token_ids(input_text)
@@ -127,7 +122,7 @@ def test_get_permitted_underscore_token_ids(input_text: str, permitted_underscor
             additional_special_tokens=SPECIAL_TOKENS,
         )
         reading_candidates = get_reading_candidates(tokenizer)
-        char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
+        char2tokens = get_char2tokens(tokenizer)
 
         processor = ForcedLogitsProcessor(
             texts=[input_text],
@@ -135,7 +130,6 @@ def test_get_permitted_underscore_token_ids(input_text: str, permitted_underscor
             tokenizer=tokenizer,
             reading_candidates=reading_candidates,
             char2tokens=char2tokens,
-            char2underscore_tokens=char2underscore_tokens,
         )
 
         permitted_underscore_token_ids: Set[int] = processor.get_permitted_underscore_token_ids(input_text)
@@ -156,7 +150,7 @@ def test_get_batch_banned_token_ids(data_dir: Path):
         vocab_size: int = len(tokenizer.get_vocab())
         reading_candidates: Set[int] = get_reading_candidates(tokenizer)
         reading_candidate_tokens: Set[str] = set([tokenizer.convert_ids_to_tokens([x])[0] for x in reading_candidates])
-        char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
+        char2tokens = get_char2tokens(tokenizer)
         underscore_tokens: Set[str] = set([x for x in tokenizer.get_vocab() if x.startswith("▁")])
         non_underscore_tokens: Set[str] = set([x for x in tokenizer.get_vocab() if not x.startswith("▁")])
         if model == "mt5":
@@ -178,7 +172,6 @@ def test_get_batch_banned_token_ids(data_dir: Path):
                 tokenizer=tokenizer,
                 reading_candidates=reading_candidates,
                 char2tokens=char2tokens,
-                char2underscore_tokens=char2underscore_tokens,
             )
             warped_scores: Optional[torch.Tensor] = None
             for idx in range(1, len(test_case[model]["input_tokens"]) + 1):
