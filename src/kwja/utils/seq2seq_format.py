@@ -31,15 +31,10 @@ class Seq2SeqFormatter:
         self.token_to_word: Dict[str, str] = {v: k for k, v in self.word_to_token.items()}
 
     def tokenize(self, texts: List[str]) -> List[str]:
-        tokenized: List[str] = []
-        for text in texts:
-            for k, v in RARE_TO_SPECIAL.items():
-                text = text.replace(k, v)
-            tokenized_tmp: List[str] = self.tokenizer.tokenize(text)
-            if len(tokenized_tmp) > 1 and tokenized_tmp[0] == "▁":
-                tokenized_tmp = tokenized_tmp[1:]
-            tokenized.extend(tokenized_tmp)
-        return tokenized
+        concat_text: str = "".join(texts)
+        for k, v in RARE_TO_SPECIAL.items():
+            concat_text = concat_text.replace(k, v)
+        return [token for token in self.tokenizer.tokenize(concat_text) if token != "▁"]
 
     def sent_to_text(self, sentence: Sentence) -> str:
         text: str = sentence.text

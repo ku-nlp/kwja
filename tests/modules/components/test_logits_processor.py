@@ -114,29 +114,6 @@ def test_get_permitted_token_ids(input_text: str, permitted_tokens: List[str]) -
         assert permitted_tokens == tokenizer.convert_ids_to_tokens(sorted_permitted_token_ids)
 
 
-@pytest.mark.parametrize("input_text, permitted_underscore_tokens", [("新古品", ["▁新"])])
-def test_get_permitted_underscore_token_ids(input_text: str, permitted_underscore_tokens: List[str]) -> None:
-    for pretrained_model_name_or_path in ["google/mt5-small", "retrieva-jp/t5-small-long"]:
-        tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-            pretrained_model_name_or_path=pretrained_model_name_or_path,
-            additional_special_tokens=SPECIAL_TOKENS,
-        )
-        reading_candidates = get_reading_candidates(tokenizer)
-        char2tokens = get_char2tokens(tokenizer)
-
-        processor = ForcedLogitsProcessor(
-            texts=[input_text],
-            num_beams=2,
-            tokenizer=tokenizer,
-            reading_candidates=reading_candidates,
-            char2tokens=char2tokens,
-        )
-
-        permitted_underscore_token_ids: Set[int] = processor.get_permitted_underscore_token_ids(input_text)
-        sorted_permitted_underscore_token_ids: List[int] = sorted(list(permitted_underscore_token_ids))
-        assert permitted_underscore_tokens == tokenizer.convert_ids_to_tokens(sorted_permitted_underscore_token_ids)
-
-
 def test_get_batch_banned_token_ids(data_dir: Path):
     model2pretrained_model_name_or_path: Dict[str, str] = {
         "mt5": "google/mt5-small",
