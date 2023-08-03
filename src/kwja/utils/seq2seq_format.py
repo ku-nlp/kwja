@@ -119,22 +119,22 @@ class Seq2SeqFormatter:
             if not line:
                 continue
             try:
-                surf: str = line.split(READING_TOKEN)[0].strip(" ")
+                surf: str = line.split(READING_TOKEN)[0]
                 surf = self.token_to_word[surf] if surf in self.token_to_word else surf
                 for k, v in SPECIAL_TO_RARE.items():
                     surf = surf.replace(k, v)
 
-                reading: str = line.split(READING_TOKEN)[1].split(LEMMA_TOKEN)[0].strip(" ")
+                reading: str = line.split(READING_TOKEN)[1].split(LEMMA_TOKEN)[0]
                 reading = self.token_to_word[reading] if reading in self.token_to_word else reading
                 for k, v in SPECIAL_TO_RARE.items():
                     reading = reading.replace(k, v)
 
-                lemma: str = line.split(LEMMA_TOKEN)[1].split(CANON_TOKEN)[0].strip(" ")
+                lemma: str = line.split(LEMMA_TOKEN)[1].split(CANON_TOKEN)[0]
                 lemma = self.token_to_word[lemma] if lemma in self.token_to_word else lemma
                 for k, v in SPECIAL_TO_RARE.items():
                     lemma = lemma.replace(k, v)
 
-                canon: str = line.split(CANON_TOKEN)[1].strip(" ")
+                canon: str = line.split(CANON_TOKEN)[1]
                 for k, v in self.token_to_word.items():
                     canon = canon.replace(k, v)
                 for k, v in SPECIAL_TO_RARE.items():
@@ -145,6 +145,9 @@ class Seq2SeqFormatter:
                     else canon
                 )
                 canon = f'"代表表記:{canon}"' if canon != NO_CANON_TOKEN else "NIL"
+
+                if surf == "␣" and (reading == "\u3000" and lemma == "\u3000"):
+                    surf = "\u3000"
 
                 formatted += f"{surf} {reading} {lemma} 未定義語 15 その他 1 * 0 * 0 {canon}\n"
             except IndexError:

@@ -66,7 +66,6 @@ class ForcedLogitsProcessor(LogitsProcessor):
         self.num_beams: int = num_beams
         self.reading_candidates: Set[int] = reading_candidates
         self.char2tokens: Dict[str, Dict[str, int]] = char2tokens
-        self.underscore_token_id: int = tokenizer.convert_tokens_to_ids("▁")
         self.pad_token_id: int = self.tokenizer.pad_token_id
         self.is_decoding_surf: List[bool] = [True] * (len(self.texts) * self.num_beams)
         self.is_decoding_reading: List[bool] = [False] * (len(self.texts) * self.num_beams)
@@ -74,6 +73,7 @@ class ForcedLogitsProcessor(LogitsProcessor):
         self.surf_token_id: int = tokenizer.convert_tokens_to_ids(SURF_TOKEN)
         self.reading_token_id: int = tokenizer.convert_tokens_to_ids(READING_TOKEN)
         self.lemma_token_id: int = tokenizer.convert_tokens_to_ids(LEMMA_TOKEN)
+        self.ids_except_surf: List[int] = [i for i in self.tokenizer.get_vocab().values() if i != self.surf_token_id]
 
     def get_generated_surfs(self, input_ids: torch.Tensor) -> List[str]:
         generated_surfs: List[str] = []
@@ -88,6 +88,12 @@ class ForcedLogitsProcessor(LogitsProcessor):
 
     def get_permitted_token_ids(self, text: str) -> Set[int]:
         permitted_token_ids: Set[int] = set()
+        for special_token in [FULL_SPACE_TOKEN, HALF_SPACE_TOKEN1, HALF_SPACE_TOKEN2, TRIPLE_DOT_TOKEN]:
+            if text.startswith(special_token):
+                return {self.tokenizer.convert_tokens_to_ids(special_token)}
+        for special_token in SPECIAL_TO_RARE:
+            if text.startswith(special_token):
+                return {self.tokenizer.convert_tokens_to_ids(special_token)}
         for vocab_token, vocab_id in self.char2tokens[text[0]].items():
             if vocab_token.startswith("▁") and text.startswith(vocab_token[1:]):
                 permitted_token_ids.add(vocab_id)
@@ -100,13 +106,13 @@ class ForcedLogitsProcessor(LogitsProcessor):
         generated_surfs: List[str] = self.get_generated_surfs(prev_input_ids[:, 1:])
         for hypo_idx, input_ids in enumerate(prev_input_ids.tolist()):
             if len(input_ids) == 1:
-                banned_token_ids.append([i for i in self.tokenizer.get_vocab().values() if i != self.surf_token_id])
+                banned_token_ids.append(self.ids_except_surf)
                 continue
             text: str = self.texts[hypo_idx // self.num_beams]
             generated_surf: str = generated_surfs[hypo_idx]
             if text == generated_surf:
                 # 生成終了
-                banned_token_ids.append([])
+                banned_token_ids.append([self.surf_token_id])
                 continue
 
             if text.startswith(generated_surf):
@@ -129,10 +135,12 @@ class ForcedLogitsProcessor(LogitsProcessor):
 
             if self.is_decoding_surf[hypo_idx] is True:
                 total_permitted_token_ids |= self.get_permitted_token_ids(remaining_surf)
-                total_permitted_token_ids.add(self.reading_token_id)
+                if input_ids[-1] != self.surf_token_id:
+                    total_permitted_token_ids.add(self.reading_token_id)
             elif self.is_decoding_reading[hypo_idx] is True:
                 total_permitted_token_ids |= self.reading_candidates
-                total_permitted_token_ids.add(self.lemma_token_id)
+                if input_ids[-1] != self.reading_token_id:
+                    total_permitted_token_ids.add(self.lemma_token_id)
 
             if total_permitted_token_ids:
                 banned_token_ids.append(
@@ -140,7 +148,6 @@ class ForcedLogitsProcessor(LogitsProcessor):
                 )
             else:
                 banned_token_ids.append([])
-
         return banned_token_ids
 
     def __call__(self, input_ids: torch.Tensor, scores: torch.Tensor) -> torch.Tensor:

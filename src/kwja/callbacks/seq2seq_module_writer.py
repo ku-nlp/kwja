@@ -54,10 +54,14 @@ class Seq2SeqModuleWriter(BasePredictionWriter):
             if seq_len == 0:
                 continue
 
-            decoded: str = self.tokenizer.decode(
-                [x for x in seq2seq_predictions if x != self.tokenizer.pad_token_id], skip_special_tokens=False
+            decoded: str = (
+                self.tokenizer.decode(
+                    [x for x in seq2seq_predictions if x != self.tokenizer.pad_token_id], skip_special_tokens=False
+                )
+                .rstrip(self.tokenizer.eos_token)
+                .replace(" ", "")
             )
-            seq2seq_format: Sentence = self.formatter.format_to_sent(decoded.rstrip(self.tokenizer.eos_token))
+            seq2seq_format: Sentence = self.formatter.format_to_sent(decoded)
             seq2seq_format.sid = example.sid
             seq2seq_format.misc_comment = f"kwja:{kwja.__version__}"
             outputs.append(seq2seq_format.to_jumanpp())
