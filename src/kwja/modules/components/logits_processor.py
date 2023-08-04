@@ -81,8 +81,7 @@ class ForcedLogitsProcessor(LogitsProcessor):
         for decoded in decodeds:
             generated_surf: str = ""
             for line in decoded.split(SURF_TOKEN):
-                surf: str = line.split(READING_TOKEN)[0]
-                generated_surf += surf
+                generated_surf += line.split(READING_TOKEN)[0].strip(" ")
             generated_surfs.append(generated_surf)
         return generated_surfs
 
