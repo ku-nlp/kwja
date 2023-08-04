@@ -142,8 +142,10 @@ class Seq2SeqFormatter:
                 )
                 canon = f'"代表表記:{canon}"' if canon != NO_CANON_TOKEN else "NIL"
 
-                if surf == " " and (reading == "\u3000" and lemma == "\u3000"):
+                if surf == " " and reading == "\u3000" and lemma == "\u3000":
                     surf = "\u3000"
+                if surf == "°C":
+                    surf, lemma, canon = "℃", "℃", "℃/ど"
 
                 formatted += f"{surf} {reading} {lemma} 未定義語 15 その他 1 * 0 * 0 {canon}\n"
             except IndexError:
