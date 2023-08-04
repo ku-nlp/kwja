@@ -737,9 +737,9 @@ def test_get_seq2seq_format(data_dir: Path, seq2seq_tokenizer: PreTrainedTokeniz
             sent = Sentence.from_jumanpp(f.read())
             seq2seq_format: List[str] = []
             for line in seq2seq_formats[idx].rstrip("\n").split("\n"):
-                splitted: List[str] = line.split(" ")
+                morphemes: List[str] = line.split(" ")
                 seq2seq_format.extend(
-                    f"{SURF_TOKEN} {splitted[0]} {READING_TOKEN} {splitted[1]} {LEMMA_TOKEN} {splitted[2]} {CANON_TOKEN} {splitted[3]}".split(
+                    f"{SURF_TOKEN} {morphemes[0]} {READING_TOKEN} {morphemes[1]} {LEMMA_TOKEN} {morphemes[2]} {CANON_TOKEN} {morphemes[3]}".split(
                         " "
                     )
                 )
