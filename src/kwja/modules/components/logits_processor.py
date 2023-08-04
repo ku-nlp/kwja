@@ -1,3 +1,4 @@
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import Dict, List, Set
 
@@ -19,6 +20,14 @@ from kwja.utils.constants import (
 )
 
 KANJI_KATAKANA_PATTERN = r"[\p{Script=Han}\p{Script=Katakana}]"
+
+
+@dataclass()
+class TargetMorpheme:
+    surf: bool = False
+    reading: bool = False
+    lemma: bool = False
+    canon: bool = False
 
 
 def get_reading_candidates(tokenizer: PreTrainedTokenizerBase) -> Set[int]:
@@ -45,14 +54,6 @@ def get_char2tokens(tokenizer: PreTrainedTokenizerBase) -> Dict[str, Dict[str, i
     return char2tokens
 
 
-@dataclass()
-class TargetMorpheme:
-    surf: bool = False
-    reading: bool = False
-    lemma: bool = False
-    canon: bool = False
-
-
 class ForcedLogitsProcessor(LogitsProcessor):
     def __init__(
         self,
@@ -65,7 +66,6 @@ class ForcedLogitsProcessor(LogitsProcessor):
         self.tokenizer = tokenizer
         self.texts: List[str] = texts
         self.num_beams: int = num_beams
-        self.reading_candidates: Set[int] = reading_candidates
         self.char2tokens: Dict[str, Dict[str, int]] = char2tokens
         self.pad_token_id: int = self.tokenizer.pad_token_id
 
@@ -73,14 +73,22 @@ class ForcedLogitsProcessor(LogitsProcessor):
         self.reading_token_id: int = tokenizer.convert_tokens_to_ids(READING_TOKEN)
         self.lemma_token_id: int = tokenizer.convert_tokens_to_ids(LEMMA_TOKEN)
         self.canon_token_id: int = tokenizer.convert_tokens_to_ids(CANON_TOKEN)
+
         self.all_token_ids: Set[int] = set(self.tokenizer.get_vocab().values())
         self.ids_except_surf: List[int] = list(self.all_token_ids - {self.surf_token_id})
+        self.ids_except_kanji_and_katakana: Set[int] = deepcopy(self.all_token_ids) - reading_candidates
 
-        self.special_token_to_id: Dict[str, int] = {}
-        for special_token in [FULL_SPACE_TOKEN, HALF_SPACE_TOKEN1, HALF_SPACE_TOKEN2, TRIPLE_DOT_TOKEN]:
-            self.special_token_to_id[special_token] = self.tokenizer.convert_tokens_to_ids(special_token)
-        for special_token in SPECIAL_TO_RARE:
-            self.special_token_to_id[special_token] = self.tokenizer.convert_tokens_to_ids(special_token)
+        self.token_to_ids_except_token: Dict[str, Set[int]] = {}
+        special_tokens: List[str] = [FULL_SPACE_TOKEN, HALF_SPACE_TOKEN1, HALF_SPACE_TOKEN2, TRIPLE_DOT_TOKEN] + list(
+            SPECIAL_TO_RARE.keys()
+        )
+        for special_token in special_tokens:
+            self.token_to_ids_except_token[special_token] = deepcopy(self.all_token_ids) - {
+                self.tokenizer.convert_tokens_to_ids(special_token)
+            }
+            self.token_to_ids_except_token[special_token] = deepcopy(self.all_token_ids) - {
+                self.tokenizer.convert_tokens_to_ids(special_token)
+            }
 
     def get_generated_surfs(self, input_ids: torch.Tensor) -> List[str]:
         generated_surfs: List[str] = []
@@ -92,17 +100,17 @@ class ForcedLogitsProcessor(LogitsProcessor):
             generated_surfs.append(generated_surf)
         return generated_surfs
 
-    def get_permitted_token_ids(self, text: str) -> Set[int]:
-        for token, token_id in self.special_token_to_id.items():
+    def get_banned_token_ids(self, text: str) -> Set[int]:
+        for token, ids_except_token in self.token_to_ids_except_token.items():
             if text.startswith(token):
-                return {token_id}
+                return ids_except_token
         permitted_token_ids: Set[int] = set()
         for vocab_token, vocab_id in self.char2tokens[text[0]].items():
             if vocab_token.startswith("▁") and text.startswith(vocab_token[1:]):
                 permitted_token_ids.add(vocab_id)
             elif text.startswith(vocab_token):
                 permitted_token_ids.add(vocab_id)
-        return permitted_token_ids
+        return deepcopy(self.all_token_ids) - permitted_token_ids
 
     def get_target_morpheme(self, input_ids: List[int]) -> TargetMorpheme:
         target_morpheme: TargetMorpheme = TargetMorpheme()
@@ -121,14 +129,15 @@ class ForcedLogitsProcessor(LogitsProcessor):
                 break
         return target_morpheme
 
-    def get_batch_banned_token_ids(self, prev_input_ids: torch.Tensor) -> List[List[int]]:
-        batch_banned_token_ids: List[List[int]] = []
-        generated_surfs: List[str] = self.get_generated_surfs(prev_input_ids[:, 1:])
-        for hypo_idx, input_ids in enumerate(prev_input_ids.tolist()):
-            if len(input_ids) == 1:
-                batch_banned_token_ids.append(self.ids_except_surf)
-                continue
+    def get_mask(self, prev_input_ids: torch.Tensor, scores: torch.Tensor) -> torch.Tensor:
+        mask: torch.Tensor = torch.zeros_like(scores).bool()
+        _, seq_len = prev_input_ids.size()
+        if seq_len == 1:
+            mask[:, self.ids_except_surf] = True
+            return mask
 
+        generated_surfs: List[str] = self.get_generated_surfs(prev_input_ids[:, 2:])
+        for hypo_idx, input_ids in enumerate(prev_input_ids.tolist()):
             target_morpheme: TargetMorpheme = self.get_target_morpheme(input_ids)
 
             text: str = self.texts[hypo_idx // self.num_beams]
@@ -137,24 +146,22 @@ class ForcedLogitsProcessor(LogitsProcessor):
                 remaining_surf: str = text[len(generated_surf) :]
             else:
                 # 生成されている文字列が，入力の先頭からの文字列とマッチしない場合は補正をしない
-                batch_banned_token_ids.append([])
                 continue
 
-            permitted_token_ids: Set[int] = set()
             banned_token_ids: Set[int] = set()
             if target_morpheme.surf is True:
                 if remaining_surf:
-                    permitted_token_ids |= self.get_permitted_token_ids(remaining_surf)
+                    banned_token_ids |= self.get_banned_token_ids(remaining_surf)
                     if input_ids[-1] != self.surf_token_id:
-                        permitted_token_ids.add(self.reading_token_id)
+                        banned_token_ids.discard(self.reading_token_id)
                 elif input_ids[-1] == self.surf_token_id:
                     banned_token_ids.add(self.reading_token_id)
             elif target_morpheme.reading is True:
-                permitted_token_ids |= self.reading_candidates
+                banned_token_ids |= self.ids_except_kanji_and_katakana
                 if input_ids[-1] == self.reading_token_id:
                     banned_token_ids.add(self.lemma_token_id)
                 else:
-                    permitted_token_ids.add(self.lemma_token_id)
+                    banned_token_ids.discard(self.lemma_token_id)
             elif target_morpheme.lemma is True:
                 if input_ids[-1] == self.lemma_token_id:
                     banned_token_ids.add(self.canon_token_id)
@@ -164,16 +171,15 @@ class ForcedLogitsProcessor(LogitsProcessor):
             else:
                 raise ValueError("target_morphemes is invalid")
 
-            if permitted_token_ids:
-                banned_token_ids |= self.all_token_ids - permitted_token_ids
-            if remaining_surf:
+            if remaining_surf or target_morpheme.canon is False:
                 banned_token_ids.add(self.tokenizer.eos_token_id)
-            batch_banned_token_ids.append(list(banned_token_ids))
-        return batch_banned_token_ids
+            else:
+                banned_token_ids.discard(self.tokenizer.eos_token_id)
+            mask[hypo_idx, list(banned_token_ids)] = True
+        return mask
 
     def __call__(self, input_ids: torch.Tensor, scores: torch.Tensor) -> torch.Tensor:
         input_ids[input_ids == -100] = self.tokenizer.pad_token_id
-        batch_banned_token_ids: List[List[int]] = self.get_batch_banned_token_ids(input_ids)
-        for i, banned_token_ids in enumerate(batch_banned_token_ids):
-            scores[i, banned_token_ids] = -float("inf")
+        mask: torch.Tensor = self.get_mask(input_ids, scores)
+        scores.masked_fill_(mask, -float("inf"))
         return scores

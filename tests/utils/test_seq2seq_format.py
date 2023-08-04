@@ -20,10 +20,10 @@ from kwja.utils.seq2seq_format import Seq2SeqFormatter
 
 texts: List[str] = [
     "計算機による言語理解を実現する",
-    "また，校区で行われる事業や防犯など校区の情報も記載されています。",
+    "また,校区で行われる事業や防犯など校区の情報も記載されています。",
     f"「核の歴史{TRIPLE_DOT_TOKEN}ヒロシマ、ナガサキを超えて」。",
-    "後一日まで！？./",
-    f"ＪＵＭＰ{FULL_SPACE_TOKEN}ＣＯＭＩＣＳ{HALF_SPACE_TOKEN1}",
+    "後一日まで!?./",
+    f"JUMP{FULL_SPACE_TOKEN}COMICS{HALF_SPACE_TOKEN1}",
 ]
 
 seq2seq_formats: List[str] = [

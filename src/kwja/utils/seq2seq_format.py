@@ -37,7 +37,7 @@ class Seq2SeqFormatter:
         return [token for token in self.tokenizer.tokenize(concat_text) if token != "▁"]
 
     def sent_to_text(self, sentence: Sentence) -> str:
-        text: str = sentence.text.strip()
+        text: str = sentence.text
         for k, v in self.word_to_token.items():
             text = text.replace(k, v)
         text = text.replace(HALF_SPACE_TOKEN2, HALF_SPACE_TOKEN1)
