@@ -42,6 +42,7 @@ class Seq2SeqFormatter:
             text = text.replace(k, v)
         for k, v in RARE_TO_SPECIAL.items():
             text = text.replace(k, v)
+        text = text.replace(HALF_SPACE_TOKEN2, HALF_SPACE_TOKEN1)
         return text
 
     @staticmethod
@@ -70,19 +71,6 @@ class Seq2SeqFormatter:
                         HALF_SPACE_TOKEN1,
                         LEMMA_TOKEN,
                         HALF_SPACE_TOKEN1,
-                        CANON_TOKEN,
-                        "/",
-                    ]
-                )
-            elif mrph.surf == "␣":
-                outputs.extend(
-                    [
-                        SURF_TOKEN,
-                        HALF_SPACE_TOKEN2,
-                        READING_TOKEN,
-                        HALF_SPACE_TOKEN2,
-                        LEMMA_TOKEN,
-                        HALF_SPACE_TOKEN2,
                         CANON_TOKEN,
                         "/",
                     ]
@@ -146,7 +134,7 @@ class Seq2SeqFormatter:
                 )
                 canon = f'"代表表記:{canon}"' if canon != NO_CANON_TOKEN else "NIL"
 
-                if surf == "␣" and (reading == "\u3000" and lemma == "\u3000"):
+                if surf == " " and (reading == "\u3000" and lemma == "\u3000"):
                     surf = "\u3000"
 
                 formatted += f"{surf} {reading} {lemma} 未定義語 15 その他 1 * 0 * 0 {canon}\n"
