@@ -12,7 +12,6 @@ from kwja.utils.constants import (
     HALF_SPACE_TOKEN1,
     HALF_SPACE_TOKEN2,
     LEMMA_TOKEN,
-    NO_CANON_TOKEN,
     READING_TOKEN,
     SPECIAL_TO_RARE,
     SURF_TOKEN,
@@ -64,15 +63,7 @@ class ForcedLogitsProcessor(LogitsProcessor):
         char2tokens: Dict[str, Dict[str, int]],
     ) -> None:
         self.tokenizer = tokenizer
-        self.texts: List[str] = []
-        for text in tokenizer.batch_decode(tokenizer.batch_encode_plus(texts).input_ids):
-            if text.endswith(self.tokenizer.eos_token):
-                text = text[: -len(self.tokenizer.eos_token)]
-            for token in [NO_CANON_TOKEN, FULL_SPACE_TOKEN, HALF_SPACE_TOKEN1, HALF_SPACE_TOKEN2, TRIPLE_DOT_TOKEN]:
-                text = text.replace(f"{token} ", token)
-            for token in SPECIAL_TO_RARE:
-                text = text.replace(f"{token} ", token)
-            self.texts.append(text)
+        self.texts: List[str] = texts
         self.num_beams: int = num_beams
         self.reading_candidates: Set[int] = reading_candidates
         self.char2tokens: Dict[str, Dict[str, int]] = char2tokens

@@ -37,13 +37,21 @@ class Seq2SeqFormatter:
         return [token for token in self.tokenizer.tokenize(concat_text) if token != "▁"]
 
     def sent_to_text(self, sentence: Sentence) -> str:
-        text: str = sentence.text
+        text: str = sentence.text.strip()
         for k, v in self.word_to_token.items():
             text = text.replace(k, v)
+        text = text.replace(HALF_SPACE_TOKEN2, HALF_SPACE_TOKEN1)
         for k, v in RARE_TO_SPECIAL.items():
             text = text.replace(k, v)
-        text = text.replace(HALF_SPACE_TOKEN2, HALF_SPACE_TOKEN1)
-        return text
+
+        tokenized: List[str] = [token for token in self.tokenizer.tokenize(text) if token != "▁"]
+        decoded: str = self.tokenizer.decode(self.tokenizer.convert_tokens_to_ids(tokenized))
+        for token in [FULL_SPACE_TOKEN, HALF_SPACE_TOKEN1, HALF_SPACE_TOKEN2, TRIPLE_DOT_TOKEN]:
+            decoded = decoded.replace(f"{token} ", token)
+        for token in SPECIAL_TO_RARE:
+            decoded = decoded.replace(f"{token} ", token)
+        decoded = decoded.replace(" ", HALF_SPACE_TOKEN1)
+        return decoded
 
     @staticmethod
     def sent_to_format(sentence: Sentence) -> List[str]:
