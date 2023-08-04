@@ -73,8 +73,14 @@ class ForcedLogitsProcessor(LogitsProcessor):
         self.reading_token_id: int = tokenizer.convert_tokens_to_ids(READING_TOKEN)
         self.lemma_token_id: int = tokenizer.convert_tokens_to_ids(LEMMA_TOKEN)
         self.canon_token_id: int = tokenizer.convert_tokens_to_ids(CANON_TOKEN)
-        self.ids_except_surf: List[int] = [i for i in self.tokenizer.get_vocab().values() if i != self.surf_token_id]
         self.all_token_ids: Set[int] = set(self.tokenizer.get_vocab().values())
+        self.ids_except_surf: List[int] = list(self.all_token_ids - {self.surf_token_id})
+
+        self.special_token_to_id: Dict[str, int] = {}
+        for special_token in [FULL_SPACE_TOKEN, HALF_SPACE_TOKEN1, HALF_SPACE_TOKEN2, TRIPLE_DOT_TOKEN]:
+            self.special_token_to_id[special_token] = self.tokenizer.convert_tokens_to_ids(special_token)
+        for special_token in SPECIAL_TO_RARE:
+            self.special_token_to_id[special_token] = self.tokenizer.convert_tokens_to_ids(special_token)
 
     def get_generated_surfs(self, input_ids: torch.Tensor) -> List[str]:
         generated_surfs: List[str] = []
@@ -87,13 +93,10 @@ class ForcedLogitsProcessor(LogitsProcessor):
         return generated_surfs
 
     def get_permitted_token_ids(self, text: str) -> Set[int]:
+        for token, token_id in self.special_token_to_id.items():
+            if text.startswith(token):
+                return {token_id}
         permitted_token_ids: Set[int] = set()
-        for special_token in [FULL_SPACE_TOKEN, HALF_SPACE_TOKEN1, HALF_SPACE_TOKEN2, TRIPLE_DOT_TOKEN]:
-            if text.startswith(special_token):
-                return {self.tokenizer.convert_tokens_to_ids(special_token)}
-        for special_token in SPECIAL_TO_RARE:
-            if text.startswith(special_token):
-                return {self.tokenizer.convert_tokens_to_ids(special_token)}
         for vocab_token, vocab_id in self.char2tokens[text[0]].items():
             if vocab_token.startswith("▁") and text.startswith(vocab_token[1:]):
                 permitted_token_ids.add(vocab_id)
