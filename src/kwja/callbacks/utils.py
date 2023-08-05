@@ -50,8 +50,8 @@ def get_maps(tokenizer: PreTrainedTokenizerBase, extended_vocab_path: Path) -> T
     return token2token_id, token_id2token
 
 
-def convert_predictions_into_typo_corr_op_tags(
-    predictions: List[int],
+def convert_typo_predictions_into_tags(
+    predictions: List[int],  # kdr_predictions or ins_predictions
     probabilities: List[float],
     prefix: Literal["R", "I"],
     confidence_threshold: float,
@@ -87,14 +87,19 @@ def apply_edit_operations(pre_text: str, kdr_tags: List[str], ins_tags: List[str
     return post_text
 
 
-# ---------- senter module writer ----------
-def convert_senter_predictions_into_tags(
+# ---------- char module writer ----------
+def convert_char_predictions_into_tags(
     sent_segmentation_predictions: List[int],
+    word_segmentation_predictions: List[int],
+    word_norm_op_predictions: List[int],
     input_ids: List[int],
     special_ids: Set[int],
-) -> List[str]:
+) -> Tuple[List[str], List[str], List[str]]:
     indices = [i for i, input_id in enumerate(input_ids) if input_id not in special_ids]
-    return [SENT_SEGMENTATION_TAGS[sent_segmentation_predictions[i]] for i in indices]
+    sent_segmentation_tags = [SENT_SEGMENTATION_TAGS[sent_segmentation_predictions[i]] for i in indices]
+    word_segmentation_tags = [WORD_SEGMENTATION_TAGS[word_segmentation_predictions[i]] for i in indices]
+    word_norm_op_tags = [WORD_NORM_OP_TAGS[word_norm_op_predictions[i]] for i in indices]
+    return sent_segmentation_tags, word_segmentation_tags, word_norm_op_tags
 
 
 def set_sentences(document: Document, sent_segmentation_tags: List[str]) -> None:
@@ -108,19 +113,6 @@ def set_sentences(document: Document, sent_segmentation_tags: List[str]) -> None
     if surf:
         sentences.append(Sentence(surf))
     document.sentences = sentences
-
-
-# ---------- char module writer ----------
-def convert_predictions_into_tags(
-    word_segmentation_predictions: List[int],
-    word_norm_op_predictions: List[int],
-    input_ids: List[int],
-    special_ids: Set[int],
-) -> Tuple[List[str], List[str]]:
-    indices = [i for i, input_id in enumerate(input_ids) if input_id not in special_ids]
-    word_segmentation_tags = [WORD_SEGMENTATION_TAGS[word_segmentation_predictions[i]] for i in indices]
-    word_norm_op_tags = [WORD_NORM_OP_TAGS[word_norm_op_predictions[i]] for i in indices]
-    return word_segmentation_tags, word_norm_op_tags
 
 
 def set_morphemes(document: Document, word_segmentation_tags: List[str], word_norm_op_tags: List[str]) -> None:
