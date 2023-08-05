@@ -6,7 +6,7 @@ from typing import Any, Optional, Sequence, TextIO, Union
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import BasePredictionWriter
 
-from kwja.callbacks.utils import convert_predictions_into_tags, set_morphemes
+from kwja.callbacks.utils import convert_char_predictions_into_tags, set_morphemes, set_sentences
 from kwja.datamodule.datasets import CharDataset, CharInferenceDataset
 from kwja.datamodule.examples import CharExample, CharInferenceExample
 from kwja.utils.sub_document import extract_target_sentences
@@ -40,8 +40,9 @@ class CharModuleWriter(BasePredictionWriter):
         dataset: Union[CharDataset, CharInferenceDataset] = dataloaders[dataloader_idx].dataset
 
         special_ids = set(dataset.tokenizer.all_special_ids) - {dataset.tokenizer.unk_token_id}
-        for example_id, word_segmentation_predictions, word_norm_op_predictions in zip(
+        for example_id, sent_segmentation_predictions, word_segmentation_predictions, word_norm_op_predictions in zip(
             prediction["example_ids"].tolist(),
+            prediction["sent_segmentation_predictions"].tolist(),
             prediction["word_segmentation_predictions"].tolist(),
             prediction["word_norm_op_predictions"].tolist(),
         ):
@@ -49,9 +50,14 @@ class CharModuleWriter(BasePredictionWriter):
             assert example.doc_id is not None, "doc_id isn't set"
             document = dataset.doc_id2document.pop(example.doc_id)
 
-            word_segmentation_tags, word_norm_op_tags = convert_predictions_into_tags(
-                word_segmentation_predictions, word_norm_op_predictions, example.encoding.input_ids, special_ids
+            sent_segmentation_tags, word_segmentation_tags, word_norm_op_tags = convert_char_predictions_into_tags(
+                sent_segmentation_predictions,
+                word_segmentation_predictions,
+                word_norm_op_predictions,
+                example.encoding.input_ids,
+                special_ids,
             )
+            set_sentences(document, sent_segmentation_tags)
             set_morphemes(document, word_segmentation_tags, word_norm_op_tags)
 
             output_string = "".join(s.to_jumanpp() for s in extract_target_sentences(document))
