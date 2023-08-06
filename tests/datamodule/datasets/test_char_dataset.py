@@ -21,6 +21,7 @@ def test_getitem(data_dir: Path, char_tokenizer: PreTrainedTokenizerBase):
         assert feature.example_ids == i
         assert len(feature.input_ids) == max_seq_length
         assert len(feature.attention_mask) == max_seq_length
+        assert len(feature.sent_segmentation_labels) == max_seq_length
         assert len(feature.word_segmentation_labels) == max_seq_length
         assert len(feature.word_norm_op_labels) == max_seq_length
 
@@ -30,6 +31,26 @@ def test_encode(data_dir: Path, char_tokenizer: PreTrainedTokenizerBase):
     max_seq_length = 512
     dataset = CharDataset(str(path), char_tokenizer, max_seq_length, denormalize_probability=0.0)
     num_examples = len(dataset)
+
+    sent_segmentation_labels = torch.full((num_examples, max_seq_length), IGNORE_INDEX, dtype=torch.long)
+    sent_segmentation_labels[0, 1] = WORD_SEGMENTATION_TAGS.index("B")  # 花
+    sent_segmentation_labels[0, 2] = WORD_SEGMENTATION_TAGS.index("I")  # 咲
+    sent_segmentation_labels[0, 3] = WORD_SEGMENTATION_TAGS.index("I")  # ガ
+    sent_segmentation_labels[0, 4] = WORD_SEGMENTATION_TAGS.index("I")  # ニ
+    sent_segmentation_labels[0, 5] = WORD_SEGMENTATION_TAGS.index("I")  # を
+    sent_segmentation_labels[0, 6] = WORD_SEGMENTATION_TAGS.index("I")  # 買
+    sent_segmentation_labels[0, 7] = WORD_SEGMENTATION_TAGS.index("I")  # ぅ
+    sent_segmentation_labels[1, 1] = WORD_SEGMENTATION_TAGS.index("B")  # う
+    sent_segmentation_labels[1, 2] = WORD_SEGMENTATION_TAGS.index("I")  # ま
+    sent_segmentation_labels[1, 3] = WORD_SEGMENTATION_TAGS.index("I")  # そ
+    sent_segmentation_labels[1, 4] = WORD_SEGMENTATION_TAGS.index("I")  # ー
+    sent_segmentation_labels[1, 5] = WORD_SEGMENTATION_TAGS.index("I")  # で
+    sent_segmentation_labels[1, 6] = WORD_SEGMENTATION_TAGS.index("I")  # す
+    sent_segmentation_labels[1, 7] = WORD_SEGMENTATION_TAGS.index("I")  # ね
+    sent_segmentation_labels[1, 8] = WORD_SEGMENTATION_TAGS.index("I")  # 〜
+    sent_segmentation_labels[1, 9] = WORD_SEGMENTATION_TAGS.index("I")  # 〜
+    assert dataset[0].sent_segmentation_labels == sent_segmentation_labels[0].tolist()
+    assert dataset[1].sent_segmentation_labels == sent_segmentation_labels[1].tolist()
 
     word_segmentation_labels = torch.full((num_examples, max_seq_length), IGNORE_INDEX, dtype=torch.long)
     word_segmentation_labels[0, 1] = WORD_SEGMENTATION_TAGS.index("B")  # 花
