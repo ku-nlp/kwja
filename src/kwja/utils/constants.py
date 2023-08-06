@@ -15,13 +15,6 @@ IGNORE_INDEX = -100
 MASKED = -1024.0
 RESOURCE_PATH = resource_files(kwja) / "resource"
 
-# ---------- senter module ----------
-SENT_SEGMENTATION_TAGS = ("B", "I")
-
-# ---------- seq2seq module----------
-NEW_LINE_TOKEN: str = "<extra_id_0>"  # "<br>"
-FULL_SPACE_TOKEN: str = "<extra_id_1>"  # "<full_space>"
-NO_CANON_TOKEN: str = "<extra_id_2>"  # "<no_canon>"
 
 # ---------- word (inference) dataset ----------
 SPLIT_INTO_WORDS_MODEL_NAMES = [
@@ -39,6 +32,9 @@ TYPO_CORR_OP_TAG2TOKEN = {
 }
 TOKEN2TYPO_CORR_OP_TAG: Dict[str, str] = {v: k for k, v in TYPO_CORR_OP_TAG2TOKEN.items()}
 DUMMY_TOKEN = "<dummy>"
+
+# ---------- char module|sentence segmentation ----------
+SENT_SEGMENTATION_TAGS = ("B", "I")
 
 
 # ---------- char module|word segmentation ----------
@@ -210,6 +206,12 @@ KATA2HIRA = str.maketrans(_KATAKANA, _HIRAGANA)
 TRANSLATION_TABLE: Dict[int, Optional[int]] = str.maketrans(
     ' "#▁', "␣”＃▂", "".join(chr(i) for i in [*range(32), *range(127, 160)])
 )
+
+
+# ---------- seq2seq module----------
+NEW_LINE_TOKEN: str = "<extra_id_0>"  # "<br>"
+FULL_SPACE_TOKEN: str = "<extra_id_1>"  # "<full_space>"
+NO_CANON_TOKEN: str = "<extra_id_2>"  # "<no_canon>"
 
 
 # ---------- word module ----------

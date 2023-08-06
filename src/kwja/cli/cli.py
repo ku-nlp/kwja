@@ -240,7 +240,7 @@ def tasks_callback(value: str) -> str:
     """sort and validate specified tasks"""
     values: List[str] = [v for v in value.split(",") if v]
     tasks: List[str] = []
-    for candidate_task in ("typo", "senter", "seq2seq", "char", "word"):
+    for candidate_task in ("typo", "char", "seq2seq", "word"):
         if candidate_task in values:
             tasks.append(candidate_task)
             values.remove(candidate_task)
@@ -263,6 +263,7 @@ def tasks_callback(value: str) -> str:
     }
 
     if tuple(tasks) not in valid_task_combinations:
+        print(tuple(tasks))
         raise typer.BadParameter(
             "task combination is invalid. "
             f"Please specify one of {', '.join(repr(','.join(ts)) for ts in valid_task_combinations)}."
