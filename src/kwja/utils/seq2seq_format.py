@@ -145,7 +145,7 @@ class Seq2SeqFormatter:
                 if surf == " " and reading == "\u3000" and lemma == "\u3000":
                     surf = "\u3000"
                 if surf == "°C":
-                    surf, lemma, canon = "℃", "℃", "℃/ど"
+                    surf, lemma, canon = "℃", "℃", '"代表表記:℃/ど"'
 
                 formatted += f"{surf} {reading} {lemma} 未定義語 15 その他 1 * 0 * 0 {canon}\n"
             except IndexError:
