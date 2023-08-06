@@ -1,3 +1,0 @@
-prediction_writer:
-  _target_: kwja.callbacks.senter_module_writer.SenterModuleWriter
-  destination: ${run_dir}/senter_prediction.txt
