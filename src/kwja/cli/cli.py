@@ -3,7 +3,6 @@ import os
 import re
 import sys
 from abc import ABC
-from datetime import datetime
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Dict, List, Optional, Set, Tuple
@@ -14,14 +13,14 @@ import pytorch_lightning as pl
 import torch
 import typer
 from pytorch_lightning.trainer.states import TrainerFn
-from rhoknp import RegexSenter, Sentence
+from rhoknp import Sentence
 from rhoknp.utils.reader import chunk_by_sentence
 
 import kwja
 from kwja.cli.config import CLIConfig, Device, ModelSize, get_kwja_config_file
 from kwja.cli.utils import download_checkpoint, prepare_device
 from kwja.datamodule.datamodule import DataModule
-from kwja.modules import CharModule, SenterModule, Seq2SeqModule, TypoModule, WordModule
+from kwja.modules import CharModule, Seq2SeqModule, TypoModule, WordModule
 from kwja.utils.constants import TRANSLATION_TABLE
 from kwja.utils.logging_util import filter_logs
 
@@ -99,19 +98,11 @@ class TypoModuleProcessor(BaseModuleProcessor):
         return self.destination.read_text()
 
 
-class SenterModuleProcessor(BaseModuleProcessor):
-    doc_idx = 0
-
-    def load(self):
-        if self.model_size != ModelSize.tiny:
-            super().load()
-
+class CharModuleProcessor(BaseModuleProcessor):
     def _load_module(self) -> pl.LightningModule:
-        if self.model_size != ModelSize.tiny:
-            logger.info("Loading senter module")
-            checkpoint_path: Path = download_checkpoint(module="senter", model_size=self.model_size)
-            return SenterModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
-        return  # type: ignore
+        logger.info("Loading char module")
+        checkpoint_path: Path = download_checkpoint(module="char", model_size=self.model_size)
+        return CharModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
@@ -120,26 +111,15 @@ class SenterModuleProcessor(BaseModuleProcessor):
         datamodule.setup(stage=TrainerFn.PREDICTING)
         return datamodule
 
-    def apply_module(self, input_file: Path) -> None:
-        if self.model_size != ModelSize.tiny:
-            super().apply_module(input_file)
-            return
-
-        senter = RegexSenter()
-        output_string = ""
-        doc_id_prefix = datetime.now().strftime("%Y%m%d%H%M")
-        for document_text in _split_into_documents(input_file.read_text()):
-            document = senter.apply_to_document(document_text)
-            document.doc_id = f"{doc_id_prefix}-{self.doc_idx}"
-            self.doc_idx += 1
-            for sent_idx, sentence in enumerate(document.sentences):
-                sentence.sid = f"{document.doc_id}-{sent_idx}"
-                sentence.misc_comment = f"kwja:{kwja.__version__}"
-            output_string += document.to_raw_text()
-        self.destination.write_text(output_string)
-
     def export_prediction(self) -> str:
-        return self.destination.read_text()
+        export_text = ""
+        with self.destination.open() as f:
+            for juman_text in chunk_by_sentence(f):
+                sentence = Sentence.from_jumanpp(juman_text)
+                if sentence.comment != "":
+                    export_text += sentence.comment + "\n"
+                export_text += " ".join(m.text for m in sentence.morphemes) + "\n"
+        return export_text
 
 
 class Seq2SeqModuleProcessor(BaseModuleProcessor):
@@ -157,30 +137,6 @@ class Seq2SeqModuleProcessor(BaseModuleProcessor):
 
     def export_prediction(self) -> str:
         return self.destination.read_text()
-
-
-class CharModuleProcessor(BaseModuleProcessor):
-    def _load_module(self) -> pl.LightningModule:
-        logger.info("Loading char module")
-        checkpoint_path: Path = download_checkpoint(module="char", model_size=self.model_size)
-        return CharModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
-
-    def _load_datamodule(self, input_file: Path) -> DataModule:
-        assert self.module is not None
-        self.module.hparams.datamodule.predict.senter_file = input_file
-        datamodule = DataModule(cfg=self.module.hparams.datamodule)
-        datamodule.setup(stage=TrainerFn.PREDICTING)
-        return datamodule
-
-    def export_prediction(self) -> str:
-        export_text = ""
-        with self.destination.open() as f:
-            for juman_text in chunk_by_sentence(f):
-                sentence = Sentence.from_jumanpp(juman_text)
-                if sentence.comment != "":
-                    export_text += sentence.comment + "\n"
-                export_text += " ".join(m.text for m in sentence.morphemes) + "\n"
-        return export_text
 
 
 class WordModuleProcessor(BaseModuleProcessor):
@@ -212,9 +168,8 @@ class CLIProcessor:
         self.raw_destination = Path(NamedTemporaryFile(suffix=".txt", delete=False).name)
         self._task2processors: Dict[str, BaseModuleProcessor] = {
             "typo": TypoModuleProcessor(config, config.typo_batch_size),
-            "senter": SenterModuleProcessor(config, config.senter_batch_size),
-            "seq2seq": Seq2SeqModuleProcessor(config, config.seq2seq_batch_size),
             "char": CharModuleProcessor(config, config.char_batch_size),
+            "seq2seq": Seq2SeqModuleProcessor(config, config.seq2seq_batch_size),
             "word": WordModuleProcessor(
                 config,
                 config.word_batch_size,
@@ -297,16 +252,14 @@ def tasks_callback(value: str) -> str:
         raise typer.BadParameter("task must be specified")
     valid_task_combinations: Set[Tuple[str, ...]] = {
         ("typo",),
-        ("typo", "senter"),
-        ("typo", "senter", "char"),
-        ("typo", "senter", "char", "word"),
-        ("typo", "senter", "seq2seq"),
-        ("typo", "senter", "seq2seq", "word"),
-        ("senter",),
-        ("senter", "char"),
-        ("senter", "char", "word"),
-        ("senter", "seq2seq"),
-        ("senter", "seq2seq", "word"),
+        ("typo", "char"),
+        ("typo", "char", "seq2seq"),
+        ("typo", "char", "word"),
+        ("typo", "char", "seq2seq", "word"),
+        ("char",),
+        ("char", "seq2seq"),
+        ("char", "word"),
+        ("char", "seq2seq", "word"),
     }
 
     if tuple(tasks) not in valid_task_combinations:
@@ -324,11 +277,10 @@ def main(
     model_size: Optional[ModelSize] = typer.Option(None, help="Model size to be used."),
     device: Optional[Device] = typer.Option(None, help="Device to be used."),
     typo_batch_size: Optional[int] = typer.Option(None, help="Batch size for typo module."),
-    senter_batch_size: Optional[int] = typer.Option(None, help="Batch size for senter module."),
-    seq2seq_batch_size: Optional[int] = typer.Option(None, help="Batch size for seq2seq module."),
     char_batch_size: Optional[int] = typer.Option(None, help="Batch size for char module."),
+    seq2seq_batch_size: Optional[int] = typer.Option(None, help="Batch size for seq2seq module."),
     word_batch_size: Optional[int] = typer.Option(None, help="Batch size for word module."),
-    tasks: str = typer.Option("senter,char,word", callback=tasks_callback, help="Tasks to be performed."),
+    tasks: str = typer.Option("char,word", callback=tasks_callback, help="Tasks to be performed."),
     _: Optional[bool] = typer.Option(None, "--version", callback=version_callback, is_eager=True),
     config_file: Optional[Path] = typer.Option(None, help="Path to KWJA config file."),
 ) -> None:
@@ -357,12 +309,10 @@ def main(
         config.device = device
     if typo_batch_size is not None:
         config.typo_batch_size = typo_batch_size
-    if senter_batch_size is not None:
-        config.senter_batch_size = senter_batch_size
-    if seq2seq_batch_size is not None:
-        config.seq2seq_batch_size = seq2seq_batch_size
     if char_batch_size is not None:
         config.char_batch_size = char_batch_size
+    if seq2seq_batch_size is not None:
+        config.seq2seq_batch_size = seq2seq_batch_size
     if word_batch_size is not None:
         config.word_batch_size = word_batch_size
 
