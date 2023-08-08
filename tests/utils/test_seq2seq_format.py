@@ -18,91 +18,6 @@ from kwja.utils.constants import (
 )
 from kwja.utils.seq2seq_format import Seq2SeqFormatter
 
-texts: List[str] = [
-    "計算機による言語理解を実現する",
-    "また,校区で行われる事業や防犯など校区の情報も記載されています。",
-    f"「核の歴史{TRIPLE_DOT_TOKEN}ヒロシマ、ナガサキを超えて」。",
-    "後一日まで!?./",
-    f"JUMP{FULL_SPACE_TOKEN}COMICS{HALF_SPACE_TOKEN1}",
-]
-
-seq2seq_formats: List[str] = [
-    dedent(
-        f"""\
-        計算 けいさん 計算 計算/けいさん
-        機 き 機 機/き
-        に に に {NO_CANON_TOKEN}
-        よる よる よる 因る/よる
-        言語 げんご 言語 言語/げんご
-        理解 りかい 理解 理解/りかい
-        を を を {NO_CANON_TOKEN}
-        実現 じつげん 実現 実現/じつげん
-        する する する する/する
-        """
-    ),
-    dedent(
-        """\
-        また また また 又/また
-        ， ， ， ，/，
-        校区 こうく 校区 校区/こうく
-        で で で で/で
-        行わ おこなわ 行う 行う/おこなう
-        れる れる れる れる/れる
-        事業 じぎょう 事業 事業/じぎょう
-        や や や や/や
-        防犯 ぼうはん 防犯 防犯/ぼうはん
-        など など など など/など
-        校区 こうく 校区 校区/こうく
-        の の の の/の
-        情報 じょうほう 情報 情報/じょうほう
-        も も も も/も
-        記載 きさい 記載 記載/きさい
-        さ さ する する/する
-        れて れて れる れる/れる
-        い い いる いる/いる
-        ます ます ます ます/ます
-        。 。 。 。/。
-        """
-    ),
-    dedent(
-        f"""\
-        「 「 「 「/「
-        核 かく 核 核/かく
-        の の の の/の
-        歴史 れきし 歴史 歴史/れきし
-        {TRIPLE_DOT_TOKEN} {TRIPLE_DOT_TOKEN} {TRIPLE_DOT_TOKEN} {TRIPLE_DOT_TOKEN}/{TRIPLE_DOT_TOKEN}
-        ヒロシマ ひろしま ヒロシマ ヒロシマ/ひろしま
-        、 、 、 、/、
-        ナガサキ ながさき ナガサキ ナガサキ/ながさき
-        を を を を/を
-        超えて こえて 超える 超える/こえる
-        」 」 」 」/」
-        。 。 。 。/。
-        """
-    ),
-    dedent(
-        f"""\
-        後 あと 後 後/あと
-        一 ついたち 一 一/いち
-        日 {FULL_SPACE_TOKEN} 日 日/にち
-        まで まで まで まで/まで
-        ！ ！ ！ ！/！
-        ？ ？ ？ ？/？
-        . . . ./.
-        / / / ///
-        """
-    ),
-    dedent(
-        f"""\
-        ＪＵＭＰ ＪＵＭＰ ＪＵＭＰ ＪＵＭＰ/ＪＵＭＰ
-        {FULL_SPACE_TOKEN} {FULL_SPACE_TOKEN} {FULL_SPACE_TOKEN} /
-        ＣＯＭＩＣＳ ＣＯＭＩＣＳ ＣＯＭＩＣＳ ＣＯＭＩＣＳ/ＣＯＭＩＣＳ
-        {HALF_SPACE_TOKEN1} {HALF_SPACE_TOKEN1} {HALF_SPACE_TOKEN1} /
-        """
-    ),
-]
-
-
 tokenizeds: List[List[str]] = [
     [
         SURF_TOKEN,
@@ -668,6 +583,19 @@ tokenizeds: List[List[str]] = [
         "/",
         CANON_TOKEN,
         "▁///",
+        SURF_TOKEN,
+        "°",
+        "C",
+        READING_TOKEN,
+        "ど",
+        LEMMA_TOKEN,
+        "°",
+        "C",
+        CANON_TOKEN,
+        "°",
+        "C",
+        "/",
+        "ど",
     ],
     [
         SURF_TOKEN,
@@ -720,6 +648,103 @@ tokenizeds: List[List[str]] = [
 ]
 
 
+texts: List[str] = [
+    "計算機による言語理解を実現する",
+    "また,校区で行われる事業や防犯など校区の情報も記載されています。",
+    f"「核の歴史{TRIPLE_DOT_TOKEN}ヒロシマ、ナガサキを超えて」。",
+    "後一日まで!?./°C",
+    f"JUMP{FULL_SPACE_TOKEN}COMICS{HALF_SPACE_TOKEN1}",
+]
+
+seq2seq_formats: List[str] = [
+    dedent(
+        f"""\
+        計算 けいさん 計算 計算/けいさん
+        機 き 機 機/き
+        に に に {NO_CANON_TOKEN}
+        よる よる よる 因る/よる
+        言語 げんご 言語 言語/げんご
+        理解 りかい 理解 理解/りかい
+        を を を {NO_CANON_TOKEN}
+        実現 じつげん 実現 実現/じつげん
+        する する する する/する
+        """
+    ),
+    dedent(
+        """\
+        また また また 又/また
+        ， ， ， ，/，
+        校区 こうく 校区 校区/こうく
+        で で で で/で
+        行わ おこなわ 行う 行う/おこなう
+        れる れる れる れる/れる
+        事業 じぎょう 事業 事業/じぎょう
+        や や や や/や
+        防犯 ぼうはん 防犯 防犯/ぼうはん
+        など など など など/など
+        校区 こうく 校区 校区/こうく
+        の の の の/の
+        情報 じょうほう 情報 情報/じょうほう
+        も も も も/も
+        記載 きさい 記載 記載/きさい
+        さ さ する する/する
+        れて れて れる れる/れる
+        い い いる いる/いる
+        ます ます ます ます/ます
+        。 。 。 。/。
+        """
+    ),
+    dedent(
+        f"""\
+        「 「 「 「/「
+        核 かく 核 核/かく
+        の の の の/の
+        歴史 れきし 歴史 歴史/れきし
+        {TRIPLE_DOT_TOKEN} {TRIPLE_DOT_TOKEN} {TRIPLE_DOT_TOKEN} {TRIPLE_DOT_TOKEN}/{TRIPLE_DOT_TOKEN}
+        ヒロシマ ひろしま ヒロシマ ヒロシマ/ひろしま
+        、 、 、 、/、
+        ナガサキ ながさき ナガサキ ナガサキ/ながさき
+        を を を を/を
+        超えて こえて 超える 超える/こえる
+        」 」 」 」/」
+        。 。 。 。/。
+        """
+    ),
+    dedent(
+        f"""\
+        後 あと 後 後/あと
+        一 ついたち 一 一/いち
+        日 {FULL_SPACE_TOKEN} 日 日/にち
+        まで まで まで まで/まで
+        ！ ！ ！ ！/！
+        ？ ？ ？ ？/？
+        . . . ./.
+        / / / ///
+        ℃ ど ℃ ℃/ど
+        """
+    ),
+    dedent(
+        f"""\
+        ＪＵＭＰ ＪＵＭＰ ＪＵＭＰ ＪＵＭＰ/ＪＵＭＰ
+        {FULL_SPACE_TOKEN} {FULL_SPACE_TOKEN} {FULL_SPACE_TOKEN} /
+        ＣＯＭＩＣＳ ＣＯＭＩＣＳ ＣＯＭＩＣＳ ＣＯＭＩＣＳ/ＣＯＭＩＣＳ
+        {HALF_SPACE_TOKEN1} {HALF_SPACE_TOKEN1} {HALF_SPACE_TOKEN1} /
+        """
+    ),
+]
+
+
+def test_tokenize(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
+    seq2seq_formatter = Seq2SeqFormatter(seq2seq_tokenizer)
+    juman_dir: Path = data_dir / "modules" / "juman"
+    for idx, path in enumerate(sorted(juman_dir.glob("*.juman"))):
+        with open(path) as f:
+            sent = Sentence.from_jumanpp(f.read())
+            seq2seq_format: List[str] = seq2seq_formatter.sent_to_format(sent)
+            tgt_tokens: List[str] = seq2seq_formatter.tokenize(seq2seq_format)
+            assert tgt_tokens == tokenizeds[idx]
+
+
 def test_sent_to_text(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
     seq2seq_formatter = Seq2SeqFormatter(seq2seq_tokenizer)
     juman_dir: Path = data_dir / "modules" / "juman"
@@ -729,7 +754,7 @@ def test_sent_to_text(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase
             assert seq2seq_formatter.sent_to_text(sent) == texts[idx]
 
 
-def test_get_seq2seq_format(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
+def test_sent_to_format(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
     seq2seq_formatter = Seq2SeqFormatter(seq2seq_tokenizer)
     juman_dir: Path = data_dir / "modules" / "juman"
     for idx, path in enumerate(sorted(juman_dir.glob("*.juman"))):
@@ -746,18 +771,7 @@ def test_get_seq2seq_format(data_dir: Path, seq2seq_tokenizer: PreTrainedTokeniz
             assert seq2seq_formatter.sent_to_format(sent) == seq2seq_format
 
 
-def test_tokenize(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
-    seq2seq_formatter = Seq2SeqFormatter(seq2seq_tokenizer)
-    juman_dir: Path = data_dir / "modules" / "juman"
-    for idx, path in enumerate(sorted(juman_dir.glob("*.juman"))):
-        with open(path) as f:
-            sent = Sentence.from_jumanpp(f.read())
-            seq2seq_format: List[str] = seq2seq_formatter.sent_to_format(sent)
-            tgt_tokens: List[str] = seq2seq_formatter.tokenize(seq2seq_format)
-            assert tgt_tokens == tokenizeds[idx]
-
-
-def test_get_sent_from_seq2seq_format(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
+def test_format_to_sent(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
     seq2seq_formatter = Seq2SeqFormatter(seq2seq_tokenizer)
     juman_dir: Path = data_dir / "modules" / "juman"
     for idx, path in enumerate(sorted(juman_dir.glob("*.juman"))):
