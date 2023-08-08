@@ -106,9 +106,7 @@ class ForcedLogitsProcessor(LogitsProcessor):
                 return ids_except_token
         permitted_token_ids: Set[int] = set()
         for vocab_token, vocab_id in self.char2tokens[text[0]].items():
-            if vocab_token.startswith("▁") and text.startswith(vocab_token[1:]):
-                permitted_token_ids.add(vocab_id)
-            elif text.startswith(vocab_token):
+            if (vocab_token.startswith("▁") and text.startswith(vocab_token[1:])) or text.startswith(vocab_token):
                 permitted_token_ids.add(vocab_id)
         return deepcopy(self.all_token_ids) - permitted_token_ids
 
@@ -168,8 +166,6 @@ class ForcedLogitsProcessor(LogitsProcessor):
             elif target_morpheme.canon is True:
                 if (not remaining_surf) or (input_ids[-1] == self.canon_token_id):
                     banned_token_ids.add(self.surf_token_id)
-            else:
-                raise ValueError("target_morphemes is invalid")
 
             if remaining_surf or target_morpheme.canon is False:
                 banned_token_ids.add(self.tokenizer.eos_token_id)
