@@ -118,12 +118,19 @@ class MorphologicalAnalysisScorer:
                 continue
             if self.eval_canon and canon_morpheme is not None and mrph.surf != canon_morpheme.surf:
                 continue
-            reading: str = jaconv.h2z(mrph.reading.replace("<unk>", "$"), ascii=True, digit=True)
+            reading: str = mrph.reading.replace("<unk>", "$")
+            if "/" in mrph.reading and len(mrph.reading) > 1:
+                reading = reading.split("/")[0]
+            reading = jaconv.h2z(reading, ascii=True, digit=True)
             lemma: str = jaconv.h2z(mrph.lemma.replace("<unk>", "$"), ascii=True, digit=True)
             if mrph.canon is None or mrph.canon == "None":
                 canon: str = f"{lemma}／{reading}"
             else:
-                canon = jaconv.h2z(mrph.canon.replace("<unk>", "$"), ascii=True, digit=True)
+                canon = mrph.canon.replace("<unk>", "$")
+                canon_list: List[str] = canon.split("/")
+                if len(canon_list) > 2 and canon_list[0] and canon_list[1]:
+                    canon = f"{canon_list[0]}/{canon_list[1]}"
+                canon = jaconv.h2z(canon, ascii=True, digit=True)
             converteds.append(f"{surf}_{reading}_{lemma}_{canon}")
         return converteds
 

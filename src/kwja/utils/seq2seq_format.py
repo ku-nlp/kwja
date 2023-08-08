@@ -104,7 +104,13 @@ class Seq2SeqFormatter:
                 else:
                     reading = mrph.reading
                 lemma: str = FULL_SPACE_TOKEN if mrph.lemma == "\u3000" else mrph.lemma
-                canon: str = mrph.canon if mrph.canon is not None else NO_CANON_TOKEN
+                if mrph.canon is not None:
+                    canon: str = mrph.canon
+                    canon_list: List[str] = canon.split("/")
+                    if len(canon_list) > 2 and canon_list[0] and canon_list[1]:
+                        canon = f"{canon_list[0]}/{canon_list[1]}"
+                else:
+                    canon = NO_CANON_TOKEN
                 outputs.extend([SURF_TOKEN, mrph.surf, READING_TOKEN, reading, LEMMA_TOKEN, lemma, CANON_TOKEN, canon])
         return outputs
 
