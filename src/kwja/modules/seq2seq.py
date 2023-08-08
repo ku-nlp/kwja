@@ -102,7 +102,7 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
             if self.use_forced_decoding
             else None,
             **self.hparams.decoding,
-        )  # (b, max_tgt_len)
+        )
         return {
             "example_ids": batch["example_ids"] if "example_ids" in batch else [],
             "seq2seq_predictions": generations,

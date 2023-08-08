@@ -148,6 +148,7 @@ class Seq2SeqFormatter:
                 )
                 canon = f'"代表表記:{canon}"' if canon != NO_CANON_TOKEN else "NIL"
 
+                # 例外処理
                 if surf == " " and reading == "\u3000" and lemma == "\u3000":
                     surf = "\u3000"
                 if surf == "°C":
