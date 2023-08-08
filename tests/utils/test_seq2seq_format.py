@@ -1,15 +1,662 @@
 from pathlib import Path
 from textwrap import dedent
+from typing import List
 
 import jaconv
 from rhoknp import Sentence
 from transformers import PreTrainedTokenizerBase
 
-from kwja.callbacks.seq2seq_module_writer import Seq2SeqModuleWriter
-from kwja.utils.constants import FULL_SPACE_TOKEN, NEW_LINE_TOKEN, NO_CANON_TOKEN
-from kwja.utils.seq2seq_format import get_sent_from_seq2seq_format, get_seq2seq_format
+from kwja.utils.constants import (
+    CANON_TOKEN,
+    FULL_SPACE_TOKEN,
+    HALF_SPACE_TOKEN1,
+    LEMMA_TOKEN,
+    NO_CANON_TOKEN,
+    READING_TOKEN,
+    SURF_TOKEN,
+    TRIPLE_DOT_TOKEN,
+)
+from kwja.utils.seq2seq_format import Seq2SeqFormatter
 
-input_seq2seq_formats = [
+tokenizeds: List[List[str]] = [
+    [
+        SURF_TOKEN,
+        "計算",
+        READING_TOKEN,
+        "けい",
+        "さん",
+        LEMMA_TOKEN,
+        "計算",
+        CANON_TOKEN,
+        "計算",
+        "/",
+        "けい",
+        "さん",
+        SURF_TOKEN,
+        "機",
+        READING_TOKEN,
+        "き",
+        LEMMA_TOKEN,
+        "機",
+        CANON_TOKEN,
+        "機",
+        "/",
+        "き",
+        SURF_TOKEN,
+        "に",
+        READING_TOKEN,
+        "に",
+        LEMMA_TOKEN,
+        "に",
+        CANON_TOKEN,
+        NO_CANON_TOKEN,
+        SURF_TOKEN,
+        "よ",
+        "る",
+        READING_TOKEN,
+        "よ",
+        "る",
+        LEMMA_TOKEN,
+        "よ",
+        "る",
+        CANON_TOKEN,
+        "因",
+        "る",
+        "/",
+        "よ",
+        "る",
+        SURF_TOKEN,
+        "言語",
+        READING_TOKEN,
+        "げん",
+        "ご",
+        LEMMA_TOKEN,
+        "言語",
+        CANON_TOKEN,
+        "言語",
+        "/",
+        "げん",
+        "ご",
+        SURF_TOKEN,
+        "理解",
+        READING_TOKEN,
+        "り",
+        "かい",
+        LEMMA_TOKEN,
+        "理解",
+        CANON_TOKEN,
+        "理解",
+        "/",
+        "り",
+        "かい",
+        SURF_TOKEN,
+        "を",
+        READING_TOKEN,
+        "を",
+        LEMMA_TOKEN,
+        "を",
+        CANON_TOKEN,
+        NO_CANON_TOKEN,
+        SURF_TOKEN,
+        "実現",
+        READING_TOKEN,
+        "じ",
+        "つ",
+        "げん",
+        LEMMA_TOKEN,
+        "実現",
+        CANON_TOKEN,
+        "実現",
+        "/",
+        "じ",
+        "つ",
+        "げん",
+        SURF_TOKEN,
+        "する",
+        READING_TOKEN,
+        "する",
+        LEMMA_TOKEN,
+        "する",
+        CANON_TOKEN,
+        "する",
+        "/",
+        "する",
+    ],
+    [
+        SURF_TOKEN,
+        "▁また",
+        READING_TOKEN,
+        "▁また",
+        LEMMA_TOKEN,
+        "▁また",
+        CANON_TOKEN,
+        "又",
+        "/",
+        "また",
+        SURF_TOKEN,
+        ",",
+        READING_TOKEN,
+        ",",
+        LEMMA_TOKEN,
+        ",",
+        CANON_TOKEN,
+        ",",
+        "/",
+        ",",
+        SURF_TOKEN,
+        "校",
+        "区",
+        READING_TOKEN,
+        "こう",
+        "く",
+        LEMMA_TOKEN,
+        "校",
+        "区",
+        CANON_TOKEN,
+        "校",
+        "区",
+        "/",
+        "こう",
+        "く",
+        SURF_TOKEN,
+        "で",
+        READING_TOKEN,
+        "で",
+        LEMMA_TOKEN,
+        "で",
+        CANON_TOKEN,
+        "で",
+        "/",
+        "で",
+        SURF_TOKEN,
+        "行",
+        "わ",
+        READING_TOKEN,
+        "おこ",
+        "な",
+        "わ",
+        LEMMA_TOKEN,
+        "行う",
+        CANON_TOKEN,
+        "行う",
+        "/",
+        "おこ",
+        "な",
+        "う",
+        SURF_TOKEN,
+        "れる",
+        READING_TOKEN,
+        "れる",
+        LEMMA_TOKEN,
+        "れる",
+        CANON_TOKEN,
+        "れる",
+        "/",
+        "れる",
+        SURF_TOKEN,
+        "事業",
+        READING_TOKEN,
+        "じ",
+        "ぎ",
+        "ょう",
+        LEMMA_TOKEN,
+        "事業",
+        CANON_TOKEN,
+        "事業",
+        "/",
+        "じ",
+        "ぎ",
+        "ょう",
+        SURF_TOKEN,
+        "や",
+        READING_TOKEN,
+        "や",
+        LEMMA_TOKEN,
+        "や",
+        CANON_TOKEN,
+        "や",
+        "/",
+        "や",
+        SURF_TOKEN,
+        "防犯",
+        READING_TOKEN,
+        "ぼう",
+        "は",
+        "ん",
+        LEMMA_TOKEN,
+        "防犯",
+        CANON_TOKEN,
+        "防犯",
+        "/",
+        "ぼう",
+        "は",
+        "ん",
+        SURF_TOKEN,
+        "など",
+        READING_TOKEN,
+        "など",
+        LEMMA_TOKEN,
+        "など",
+        CANON_TOKEN,
+        "など",
+        "/",
+        "など",
+        SURF_TOKEN,
+        "校",
+        "区",
+        READING_TOKEN,
+        "こう",
+        "く",
+        LEMMA_TOKEN,
+        "校",
+        "区",
+        CANON_TOKEN,
+        "校",
+        "区",
+        "/",
+        "こう",
+        "く",
+        SURF_TOKEN,
+        "の",
+        READING_TOKEN,
+        "の",
+        LEMMA_TOKEN,
+        "の",
+        CANON_TOKEN,
+        "の",
+        "/",
+        "の",
+        SURF_TOKEN,
+        "情報",
+        READING_TOKEN,
+        "じ",
+        "ょう",
+        "ほう",
+        LEMMA_TOKEN,
+        "情報",
+        CANON_TOKEN,
+        "情報",
+        "/",
+        "じ",
+        "ょう",
+        "ほう",
+        SURF_TOKEN,
+        "も",
+        READING_TOKEN,
+        "も",
+        LEMMA_TOKEN,
+        "も",
+        CANON_TOKEN,
+        "も",
+        "/",
+        "も",
+        SURF_TOKEN,
+        "記載",
+        READING_TOKEN,
+        "き",
+        "さい",
+        LEMMA_TOKEN,
+        "記載",
+        CANON_TOKEN,
+        "記載",
+        "/",
+        "き",
+        "さい",
+        SURF_TOKEN,
+        "さ",
+        READING_TOKEN,
+        "さ",
+        LEMMA_TOKEN,
+        "する",
+        CANON_TOKEN,
+        "する",
+        "/",
+        "する",
+        SURF_TOKEN,
+        "れて",
+        READING_TOKEN,
+        "れて",
+        LEMMA_TOKEN,
+        "れる",
+        CANON_TOKEN,
+        "れる",
+        "/",
+        "れる",
+        SURF_TOKEN,
+        "い",
+        READING_TOKEN,
+        "い",
+        LEMMA_TOKEN,
+        "いる",
+        CANON_TOKEN,
+        "いる",
+        "/",
+        "いる",
+        SURF_TOKEN,
+        "ます",
+        READING_TOKEN,
+        "ます",
+        LEMMA_TOKEN,
+        "ます",
+        CANON_TOKEN,
+        "ます",
+        "/",
+        "ます",
+        SURF_TOKEN,
+        "。",
+        READING_TOKEN,
+        "。",
+        LEMMA_TOKEN,
+        "。",
+        CANON_TOKEN,
+        "。",
+        "/",
+        "。",
+    ],
+    [
+        SURF_TOKEN,
+        "▁「",
+        READING_TOKEN,
+        "▁「",
+        LEMMA_TOKEN,
+        "▁「",
+        CANON_TOKEN,
+        "▁「",
+        "/",
+        "「",
+        SURF_TOKEN,
+        "核",
+        READING_TOKEN,
+        "かく",
+        LEMMA_TOKEN,
+        "核",
+        CANON_TOKEN,
+        "核",
+        "/",
+        "かく",
+        SURF_TOKEN,
+        "の",
+        READING_TOKEN,
+        "の",
+        LEMMA_TOKEN,
+        "の",
+        CANON_TOKEN,
+        "の",
+        "/",
+        "の",
+        SURF_TOKEN,
+        "歴史",
+        READING_TOKEN,
+        "れ",
+        "き",
+        "し",
+        LEMMA_TOKEN,
+        "歴史",
+        CANON_TOKEN,
+        "歴史",
+        "/",
+        "れ",
+        "き",
+        "し",
+        SURF_TOKEN,
+        TRIPLE_DOT_TOKEN,
+        READING_TOKEN,
+        TRIPLE_DOT_TOKEN,
+        LEMMA_TOKEN,
+        TRIPLE_DOT_TOKEN,
+        CANON_TOKEN,
+        TRIPLE_DOT_TOKEN,
+        "/",
+        TRIPLE_DOT_TOKEN,
+        SURF_TOKEN,
+        "ヒロ",
+        "シマ",
+        READING_TOKEN,
+        "ひろ",
+        "しま",
+        LEMMA_TOKEN,
+        "ヒロ",
+        "シマ",
+        CANON_TOKEN,
+        "ヒロ",
+        "シマ",
+        "/",
+        "ひろ",
+        "しま",
+        SURF_TOKEN,
+        "、",
+        READING_TOKEN,
+        "、",
+        LEMMA_TOKEN,
+        "、",
+        CANON_TOKEN,
+        "、",
+        "/",
+        "、",
+        SURF_TOKEN,
+        "ナ",
+        "ガ",
+        "サ",
+        "キ",
+        READING_TOKEN,
+        "な",
+        "が",
+        "さ",
+        "き",
+        LEMMA_TOKEN,
+        "ナ",
+        "ガ",
+        "サ",
+        "キ",
+        CANON_TOKEN,
+        "ナ",
+        "ガ",
+        "サ",
+        "キ",
+        "/",
+        "な",
+        "が",
+        "さ",
+        "き",
+        SURF_TOKEN,
+        "を",
+        READING_TOKEN,
+        "を",
+        LEMMA_TOKEN,
+        "を",
+        CANON_TOKEN,
+        "を",
+        "/",
+        "を",
+        SURF_TOKEN,
+        "超",
+        "えて",
+        READING_TOKEN,
+        "こ",
+        "えて",
+        LEMMA_TOKEN,
+        "超",
+        "える",
+        CANON_TOKEN,
+        "超",
+        "える",
+        "/",
+        "こ",
+        "える",
+        SURF_TOKEN,
+        "」",
+        READING_TOKEN,
+        "」",
+        LEMMA_TOKEN,
+        "」",
+        CANON_TOKEN,
+        "」",
+        "/",
+        "」",
+        SURF_TOKEN,
+        "。",
+        READING_TOKEN,
+        "。",
+        LEMMA_TOKEN,
+        "。",
+        CANON_TOKEN,
+        "。",
+        "/",
+        "。",
+    ],
+    [
+        SURF_TOKEN,
+        "後",
+        READING_TOKEN,
+        "あと",
+        LEMMA_TOKEN,
+        "後",
+        CANON_TOKEN,
+        "後",
+        "/",
+        "あと",
+        SURF_TOKEN,
+        "一",
+        READING_TOKEN,
+        "ついた",
+        "ち",
+        LEMMA_TOKEN,
+        "一",
+        CANON_TOKEN,
+        "一",
+        "/",
+        "いち",
+        SURF_TOKEN,
+        "日",
+        READING_TOKEN,
+        FULL_SPACE_TOKEN,
+        LEMMA_TOKEN,
+        "日",
+        CANON_TOKEN,
+        "日",
+        "/",
+        "にち",
+        SURF_TOKEN,
+        "まで",
+        READING_TOKEN,
+        "まで",
+        LEMMA_TOKEN,
+        "まで",
+        CANON_TOKEN,
+        "まで",
+        "/",
+        "まで",
+        SURF_TOKEN,
+        "!",
+        READING_TOKEN,
+        "!",
+        LEMMA_TOKEN,
+        "!",
+        CANON_TOKEN,
+        "!",
+        "/",
+        "!",
+        SURF_TOKEN,
+        "?",
+        READING_TOKEN,
+        "?",
+        LEMMA_TOKEN,
+        "?",
+        CANON_TOKEN,
+        "?",
+        "/?",
+        SURF_TOKEN,
+        ".",
+        READING_TOKEN,
+        ".",
+        LEMMA_TOKEN,
+        ".",
+        CANON_TOKEN,
+        ".",
+        "/",
+        ".",
+        SURF_TOKEN,
+        "/",
+        READING_TOKEN,
+        "/",
+        LEMMA_TOKEN,
+        "/",
+        CANON_TOKEN,
+        "▁///",
+        SURF_TOKEN,
+        "°",
+        "C",
+        READING_TOKEN,
+        "ど",
+        LEMMA_TOKEN,
+        "°",
+        "C",
+        CANON_TOKEN,
+        "°",
+        "C",
+        "/",
+        "ど",
+    ],
+    [
+        SURF_TOKEN,
+        "▁J",
+        "UMP",
+        READING_TOKEN,
+        "▁J",
+        "UMP",
+        LEMMA_TOKEN,
+        "▁J",
+        "UMP",
+        CANON_TOKEN,
+        "▁J",
+        "UMP",
+        "/",
+        "J",
+        "UMP",
+        SURF_TOKEN,
+        FULL_SPACE_TOKEN,
+        READING_TOKEN,
+        FULL_SPACE_TOKEN,
+        LEMMA_TOKEN,
+        FULL_SPACE_TOKEN,
+        CANON_TOKEN,
+        "/",
+        SURF_TOKEN,
+        "COM",
+        "ICS",
+        READING_TOKEN,
+        "COM",
+        "ICS",
+        LEMMA_TOKEN,
+        "COM",
+        "ICS",
+        CANON_TOKEN,
+        "COM",
+        "ICS",
+        "/",
+        "COM",
+        "ICS",
+        SURF_TOKEN,
+        HALF_SPACE_TOKEN1,
+        READING_TOKEN,
+        HALF_SPACE_TOKEN1,
+        LEMMA_TOKEN,
+        HALF_SPACE_TOKEN1,
+        CANON_TOKEN,
+        "/",
+    ],
+]
+
+
+texts: List[str] = [
+    "計算機による言語理解を実現する",
+    "また,校区で行われる事業や防犯など校区の情報も記載されています。",
+    f"「核の歴史{TRIPLE_DOT_TOKEN}ヒロシマ、ナガサキを超えて」。",
+    "後一日まで!?./°C",
+    f"JUMP{FULL_SPACE_TOKEN}COMICS{HALF_SPACE_TOKEN1}",
+]
+
+seq2seq_formats: List[str] = [
     dedent(
         f"""\
         計算 けいさん 計算 計算/けいさん
@@ -48,12 +695,12 @@ input_seq2seq_formats = [
         """
     ),
     dedent(
-        """\
+        f"""\
         「 「 「 「/「
         核 かく 核 核/かく
         の の の の/の
         歴史 れきし 歴史 歴史/れきし
-        … … … …/…
+        {TRIPLE_DOT_TOKEN} {TRIPLE_DOT_TOKEN} {TRIPLE_DOT_TOKEN} {TRIPLE_DOT_TOKEN}/{TRIPLE_DOT_TOKEN}
         ヒロシマ ひろしま ヒロシマ ヒロシマ/ひろしま
         、 、 、 、/、
         ナガサキ ながさき ナガサキ ナガサキ/ながさき
@@ -73,112 +720,73 @@ input_seq2seq_formats = [
         ？ ？ ？ ？/？
         . . . ./.
         / / / ///
+        ℃ ど ℃ ℃/ど
         """
     ),
     dedent(
         f"""\
         ＪＵＭＰ ＪＵＭＰ ＪＵＭＰ ＪＵＭＰ/ＪＵＭＰ
-        {FULL_SPACE_TOKEN} {FULL_SPACE_TOKEN} {FULL_SPACE_TOKEN} {NO_CANON_TOKEN}
+        {FULL_SPACE_TOKEN} {FULL_SPACE_TOKEN} {FULL_SPACE_TOKEN} /
         ＣＯＭＩＣＳ ＣＯＭＩＣＳ ＣＯＭＩＣＳ ＣＯＭＩＣＳ/ＣＯＭＩＣＳ
-        """
-    ),
-]
-
-output_seq2seq_formats = [
-    dedent(
-        f"""\
-        計算 けいさん 計算 計算/けいさん
-        機 き 機 機/き
-        に に に {NO_CANON_TOKEN}
-        よる よる よる 因る/よる
-        言語 げんご 言語 言語/げんご
-        理解 りかい 理解 理解/りかい
-        を を を {NO_CANON_TOKEN}
-        実現 じつげん 実現 実現/じつげん
-        する する する する/する
-        """
-    ),
-    dedent(
-        """\
-        また また また 又/また
-        ,,,,/,
-        校区 こうく 校区 校区/こうく
-        で で で で/で
-        行わ おこなわ 行う 行う/おこなう
-        れる れる れる れる/れる
-        事業 じぎょう 事業 事業/じぎょう
-        や や や や/や
-        防犯 ぼうはん 防犯 防犯/ぼうはん
-        など など など など/など
-        校区 こうく 校区 校区/こうく
-        の の の の/の
-        情報 じょうほう 情報 情報/じょうほう
-        も も も も/も
-        記載 きさい 記載 記載/きさい
-        さ さ する する/する
-        れて れて れる れる/れる
-        い い いる いる/いる
-        ます ます ます ます/ます
-        。 。 。 。/。
-        """
-    ),
-    dedent(
-        """\
-        「 「 「 「/「
-        核 かく 核 核/かく
-        の の の の/の
-        歴史 れきし 歴史 歴史/れきし
-        ............/...
-        ヒロシマ ひろしま ヒロシマ ヒロシマ/ひろしま
-        、 、 、 、/、
-        ナガサキ ながさき ナガサキ ナガサキ/ながさき
-        を を を を/を
-        超えて こえて 超える 超える/こえる
-        」 」 」 」/」
-        。 。 。 。/。
-        """
-    ),
-    dedent(
-        f"""\
-        後 あと 後 後/あと
-        一 ついたち 一 一/いち
-        日 {FULL_SPACE_TOKEN} 日 日/にち
-        まで まで まで まで/まで
-        !!!!/!
-        ????/?
-        ..../.
-        / / / ///
-        """
-    ),
-    dedent(
-        f"""\
-        ＪＵＭＰ ＪＵＭＰ ＪＵＭＰ ＪＵＭＰ/ＪＵＭＰ
-        {FULL_SPACE_TOKEN} {FULL_SPACE_TOKEN} {FULL_SPACE_TOKEN} {NO_CANON_TOKEN}
-        ＣＯＭＩＣＳ ＣＯＭＩＣＳ ＣＯＭＩＣＳ ＣＯＭＩＣＳ/ＣＯＭＩＣＳ
+        {HALF_SPACE_TOKEN1} {HALF_SPACE_TOKEN1} {HALF_SPACE_TOKEN1} /
         """
     ),
 ]
 
 
-def test_get_seq2seq_format(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
+def test_tokenize(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
+    seq2seq_formatter = Seq2SeqFormatter(seq2seq_tokenizer)
     juman_dir: Path = data_dir / "modules" / "juman"
     for idx, path in enumerate(sorted(juman_dir.glob("*.juman"))):
         with open(path) as f:
             sent = Sentence.from_jumanpp(f.read())
-            assert get_seq2seq_format(sent) == input_seq2seq_formats[idx]
+            seq2seq_format: List[str] = seq2seq_formatter.sent_to_format(sent)
+            tgt_tokens: List[str] = seq2seq_formatter.tokenize(seq2seq_format)
+            assert tgt_tokens == tokenizeds[idx]
 
 
-def test_get_sent_from_seq2seq_format(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
-    seq2seq_module_writer = Seq2SeqModuleWriter(seq2seq_tokenizer)
+def test_sent_to_text(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
+    seq2seq_formatter = Seq2SeqFormatter(seq2seq_tokenizer)
+    juman_dir: Path = data_dir / "modules" / "juman"
+    for idx, path in enumerate(sorted(juman_dir.glob("*.juman"))):
+        with open(path) as f:
+            sent = Sentence.from_jumanpp(f.read())
+            assert seq2seq_formatter.sent_to_text(sent) == texts[idx]
+
+
+def test_sent_to_format(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
+    seq2seq_formatter = Seq2SeqFormatter(seq2seq_tokenizer)
+    juman_dir: Path = data_dir / "modules" / "juman"
+    for idx, path in enumerate(sorted(juman_dir.glob("*.juman"))):
+        with open(path) as f:
+            sent = Sentence.from_jumanpp(f.read())
+            seq2seq_format: List[str] = []
+            for line in seq2seq_formats[idx].rstrip("\n").split("\n"):
+                morphemes: List[str] = line.split(" ")
+                seq2seq_format.extend(
+                    f"{SURF_TOKEN} {morphemes[0]} {READING_TOKEN} {morphemes[1]} {LEMMA_TOKEN} {morphemes[2]} {CANON_TOKEN} {morphemes[3]}".split(
+                        " "
+                    )
+                )
+            assert seq2seq_formatter.sent_to_format(sent) == seq2seq_format
+
+
+def test_format_to_sent(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
+    seq2seq_formatter = Seq2SeqFormatter(seq2seq_tokenizer)
     juman_dir: Path = data_dir / "modules" / "juman"
     for idx, path in enumerate(sorted(juman_dir.glob("*.juman"))):
         with open(path) as f:
             expected_sent = Sentence.from_jumanpp(f.read())
 
-        shaped_output: str = seq2seq_module_writer.shape(
-            output_seq2seq_formats[idx].replace("\n", NEW_LINE_TOKEN) + "</s>"
-        )
-        actual_sent = get_sent_from_seq2seq_format(shaped_output)
+        seq2seq_format: List[str] = []
+        for line in seq2seq_formats[idx].rstrip("\n").split("\n"):
+            morphemes: List[str] = line.split(" ")
+            seq2seq_format.extend(
+                f"{SURF_TOKEN} {morphemes[0]} {READING_TOKEN} {morphemes[1]} {LEMMA_TOKEN} {morphemes[2]} {CANON_TOKEN} {morphemes[3]}".split(
+                    " "
+                )
+            )
+        actual_sent: Sentence = seq2seq_formatter.format_to_sent("".join(seq2seq_format))
         assert len(actual_sent.morphemes) == len(expected_sent.morphemes)
         for actual_morpheme, expected_morpheme in zip(actual_sent.morphemes, expected_sent.morphemes):
             if "/" in expected_morpheme.reading and len(expected_morpheme.reading) > 1:
@@ -186,7 +794,7 @@ def test_get_sent_from_seq2seq_format(data_dir: Path, seq2seq_tokenizer: PreTrai
             else:
                 expected_reading = expected_morpheme.reading
 
-            actual_canon: str = str(actual_morpheme.canon) if actual_morpheme.canon != f"{NO_CANON_TOKEN}" else "NIL"
+            actual_canon: str = str(actual_morpheme.canon) if actual_morpheme.canon != NO_CANON_TOKEN else "NIL"
             expected_canon: str = expected_morpheme.canon if expected_morpheme.canon is not None else "NIL"
 
             if expected_morpheme.pos == "特殊":

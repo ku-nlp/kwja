@@ -1,3 +1,4 @@
+import copy
 import json
 from pathlib import Path
 from typing import Dict, List, Optional, Set
@@ -5,23 +6,27 @@ from typing import Dict, List, Optional, Set
 import pytest
 import torch
 from rhoknp import Sentence
-from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizerBase
+from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from kwja.datamodule.datasets.seq2seq import get_seq2seq_format
-from kwja.modules.components.logits_processor import ForcedSurfLogitsProcessor, get_char2tokens
-from kwja.utils.constants import FULL_SPACE_TOKEN, NEW_LINE_TOKEN
+from kwja.datamodule.datasets.seq2seq import Seq2SeqFormatter
+from kwja.modules.components.logits_processor import (
+    ForcedLogitsProcessor,
+    TargetMorpheme,
+    get_char2tokens,
+    get_reading_candidates,
+)
+from kwja.utils.constants import FULL_SPACE_TOKEN, HALF_SPACE_TOKEN1, HALF_SPACE_TOKEN2, LEMMA_TOKEN, TRIPLE_DOT_TOKEN
 
 SPECIAL_TOKENS: List[str] = [f"<extra_id_{idx}>" for idx in range(100)]
 
 
-def test_get_char2tokens():
+def test_get_char2tokens() -> None:
     mt5_tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
         pretrained_model_name_or_path="google/mt5-small",
         additional_special_tokens=SPECIAL_TOKENS,
     )
-    mt5_char2tokens, mt5_char2underscore_tokens = get_char2tokens(mt5_tokenizer)
+    mt5_char2tokens = get_char2tokens(mt5_tokenizer)
     assert len(mt5_char2tokens) == 19455
-    assert len(mt5_char2underscore_tokens) == 1665
     assert mt5_char2tokens["京"] == {
         "京东": 165392,
         "京娱乐": 178804,
@@ -30,16 +35,19 @@ def test_get_char2tokens():
         "京都市": 209455,
         "京都": 51389,
         "京区": 208641,
+        "▁京公网安备": 234066,
     }
-    assert mt5_char2underscore_tokens["京"] == {"▁京公网安备": 234066}
+    mt5_underscore_tokens: Set[str] = set([x for x in mt5_tokenizer.get_vocab() if x.startswith("▁")])
+    mt5_non_underscore_tokens: Set[str] = set([x for x in mt5_tokenizer.get_vocab() if not x.startswith("▁")])
+    assert len(mt5_underscore_tokens) == 56369
+    assert len(mt5_non_underscore_tokens) == 193831
 
     t5_tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-        pretrained_model_name_or_path="retrieva-jp/t5-small-long",
+        pretrained_model_name_or_path="retrieva-jp/t5-small-short",
         additional_special_tokens=SPECIAL_TOKENS,
     )
-    t5_char2tokens, t5_char2underscore_tokens = get_char2tokens(t5_tokenizer)
+    t5_char2tokens = get_char2tokens(t5_tokenizer)
     assert len(t5_char2tokens) == 4289
-    assert len(t5_char2underscore_tokens) == 150
     assert t5_char2tokens["京"] == {
         "京都府": 3411,
         "京都府出身": 26029,
@@ -61,116 +69,134 @@ def test_get_char2tokens():
         "京阪": 14311,
         "京都市立": 24756,
     }
-    assert t5_char2underscore_tokens["京"] == {}
+    t5_underscore_tokens: Set[str] = set([x for x in t5_tokenizer.get_vocab() if x.startswith("▁")])
+    t5_non_underscore_tokens: Set[str] = set([x for x in t5_tokenizer.get_vocab() if not x.startswith("▁")])
+    assert len(t5_underscore_tokens) == 531
+    assert len(t5_non_underscore_tokens) == 31569
 
 
 def test_get_generated_surfs(data_dir: Path) -> None:
-    for pretrained_model_name_or_path in ["google/mt5-small", "retrieva-jp/t5-small-long"]:
+    for pretrained_model_name_or_path in ["google/mt5-small", "retrieva-jp/t5-small-short"]:
         tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             pretrained_model_name_or_path=pretrained_model_name_or_path,
             additional_special_tokens=SPECIAL_TOKENS,
         )
-        char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
+        formatter: Seq2SeqFormatter = Seq2SeqFormatter(tokenizer)
+        char2tokens = get_char2tokens(tokenizer)
+        reading_candidates = get_reading_candidates(tokenizer)
 
         test_case_dir: Path = data_dir / "modules" / "juman"
         for path in test_case_dir.glob("*.juman"):
             with path.open() as f:
                 sentence: Sentence = Sentence.from_jumanpp(f.read())
-                processor = ForcedSurfLogitsProcessor(
-                    texts=[sentence.text.strip().replace("\u3000", FULL_SPACE_TOKEN)],
+                processor = ForcedLogitsProcessor(
+                    texts=[formatter.sent_to_text(sentence)],
                     num_beams=2,
                     tokenizer=tokenizer,
+                    reading_candidates=reading_candidates,
                     char2tokens=char2tokens,
-                    char2underscore_tokens=char2underscore_tokens,
-                )
-                tgt_encoding: BatchEncoding = tokenizer(
-                    get_seq2seq_format(sentence).replace("\n", NEW_LINE_TOKEN),
-                    truncation=False,
-                    max_length=512,
-                    return_tensors="pt",
-                )
-                assert processor.texts[0] == processor.get_generated_surfs(tgt_encoding.input_ids)[0].replace(
-                    "</s>", ""
                 )
 
+                seq2seq_format: List[str] = formatter.sent_to_format(sentence)
+                tgt_tokens: List[str] = formatter.tokenize(seq2seq_format)
+                tgt_input_ids: torch.Tensor = torch.LongTensor(
+                    [tokenizer.convert_tokens_to_ids(tgt_tokens) + [tokenizer.eos_token_id]]
+                )
 
-@pytest.mark.parametrize("input_text, permitted_tokens", [("研究をする", ["研究", "研"])])
-def test_get_permitted_token_ids(input_text: str, permitted_tokens: List[str]) -> None:
-    for pretrained_model_name_or_path in ["google/mt5-small", "retrieva-jp/t5-small-long"]:
+                assert processor.texts[0] == processor.get_generated_surfs(tgt_input_ids)[0].replace(" ", "")
+
+
+@pytest.mark.parametrize(
+    "input_text, permitted_tokens",
+    [
+        ("研究をする", ["研究", "研"]),
+        (f"{FULL_SPACE_TOKEN}研究をする", [FULL_SPACE_TOKEN]),
+        (f"{HALF_SPACE_TOKEN1}研究をする", [HALF_SPACE_TOKEN1]),
+        (f"{HALF_SPACE_TOKEN2}研究をする", [HALF_SPACE_TOKEN2]),
+        (f"{TRIPLE_DOT_TOKEN}研究をする", [TRIPLE_DOT_TOKEN]),
+    ],
+)
+def test_get_banned_token_ids(input_text: str, permitted_tokens: List[str]) -> None:
+    for pretrained_model_name_or_path in ["google/mt5-small", "retrieva-jp/t5-small-short"]:
         tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-            pretrained_model_name_or_path=pretrained_model_name_or_path,
+            pretrained_model_name_or_path,
             additional_special_tokens=SPECIAL_TOKENS,
         )
-        char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
+        reading_candidates: Set[int] = get_reading_candidates(tokenizer)
+        char2tokens: Dict[str, Dict[str, int]] = get_char2tokens(tokenizer)
+        expected_banned_token_ids: Set[int] = set(tokenizer.get_vocab().values()) - set(
+            tokenizer.convert_tokens_to_ids(permitted_tokens)
+        )
 
-        processor = ForcedSurfLogitsProcessor(
+        processor = ForcedLogitsProcessor(
             texts=[input_text],
             num_beams=2,
             tokenizer=tokenizer,
+            reading_candidates=reading_candidates,
             char2tokens=char2tokens,
-            char2underscore_tokens=char2underscore_tokens,
         )
-
-        permitted_token_ids: Set[int] = processor.get_permitted_token_ids(input_text)
-        sorted_permitted_token_ids: List[int] = sorted(list(permitted_token_ids))
-        assert permitted_tokens == tokenizer.convert_ids_to_tokens(sorted_permitted_token_ids)
+        banned_token_ids: Set[int] = processor.get_banned_token_ids(input_text)
+        assert sorted(list(banned_token_ids)) == sorted(list(expected_banned_token_ids))
 
 
-@pytest.mark.parametrize("input_text, permitted_underscore_tokens", [("新古品", ["▁新"])])
-def test_get_permitted_underscore_token_ids(input_text: str, permitted_underscore_tokens: List[str]) -> None:
-    for pretrained_model_name_or_path in ["google/mt5-small", "retrieva-jp/t5-small-long"]:
-        tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-            pretrained_model_name_or_path=pretrained_model_name_or_path,
-            additional_special_tokens=SPECIAL_TOKENS,
-        )
-        char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
-
-        processor = ForcedSurfLogitsProcessor(
-            texts=[input_text],
-            num_beams=2,
-            tokenizer=tokenizer,
-            char2tokens=char2tokens,
-            char2underscore_tokens=char2underscore_tokens,
-        )
-
-        permitted_underscore_token_ids: Set[int] = processor.get_permitted_underscore_token_ids(input_text)
-        sorted_permitted_underscore_token_ids: List[int] = sorted(list(permitted_underscore_token_ids))
-        assert permitted_underscore_tokens == tokenizer.convert_ids_to_tokens(sorted_permitted_underscore_token_ids)
-
-
-def test_get_batch_banned_token_ids(data_dir: Path):
+def test_get_target_morpheme(data_dir: Path) -> None:
     model2pretrained_model_name_or_path: Dict[str, str] = {
         "mt5": "google/mt5-small",
-        "t5": "retrieva-jp/t5-small-long",
+        "t5": "retrieva-jp/t5-small-short",
     }
     for model, pretrained_model_name_or_path in model2pretrained_model_name_or_path.items():
         tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-            pretrained_model_name_or_path=pretrained_model_name_or_path,
+            pretrained_model_name_or_path,
+            additional_special_tokens=SPECIAL_TOKENS,
+        )
+        test_case_path: Path = data_dir / "modules" / "permitted_tokens.json"
+        with open(test_case_path) as f:
+            test_cases = json.load(f)
+        for test_id, test_case in test_cases.items():
+            reading_candidates: Set[int] = get_reading_candidates(tokenizer)
+            char2tokens: Dict[str, Dict[str, int]] = get_char2tokens(tokenizer)
+            processor = ForcedLogitsProcessor(
+                texts=[test_case["text"]],
+                num_beams=1,
+                tokenizer=tokenizer,
+                reading_candidates=reading_candidates,
+                char2tokens=char2tokens,
+            )
+            input_ids: List[int] = tokenizer.convert_tokens_to_ids(test_case[model]["input_tokens"])
+            target_morpheme: TargetMorpheme = processor.get_target_morpheme(input_ids)
+            assert target_morpheme.surf == (test_case["target_morpheme"] == "surf")
+            assert target_morpheme.reading == (test_case["target_morpheme"] == "reading")
+            assert target_morpheme.lemma == (test_case["target_morpheme"] == "lemma")
+            assert target_morpheme.canon == (test_case["target_morpheme"] == "canon")
+
+
+def test_get_mask(data_dir: Path) -> None:
+    model2pretrained_model_name_or_path: Dict[str, str] = {
+        "mt5": "google/mt5-small",
+        "t5": "retrieva-jp/t5-small-short",
+    }
+    for model, pretrained_model_name_or_path in model2pretrained_model_name_or_path.items():
+        tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
+            pretrained_model_name_or_path,
             additional_special_tokens=SPECIAL_TOKENS,
         )
         vocab_size: int = len(tokenizer.get_vocab())
-        char2tokens, char2underscore_tokens = get_char2tokens(tokenizer)
-        underscore_tokens: Set[str] = set([x for x in tokenizer.get_vocab() if x.startswith("▁")])
-        non_underscore_tokens: Set[str] = set([x for x in tokenizer.get_vocab() if not x.startswith("▁")])
-        if model == "mt5":
-            assert len(underscore_tokens) == 56369
-            assert len(non_underscore_tokens) == 193831
-        elif model == "t5":
-            assert len(underscore_tokens) == 531
-            assert len(non_underscore_tokens) == 31569
-        else:
-            raise ValueError(f"model: {model}")
+        reading_candidates: Set[int] = get_reading_candidates(tokenizer)
+        reading_candidate_tokens: Set[str] = set([tokenizer.convert_ids_to_tokens([x])[0] for x in reading_candidates])
+        char2tokens = get_char2tokens(tokenizer)
+        all_tokens: Set[str] = set(tokenizer.get_vocab().keys())
 
         test_case_path: Path = data_dir / "modules" / "permitted_tokens.json"
         with open(test_case_path) as f:
             test_cases = json.load(f)
         for test_id, test_case in test_cases.items():
-            surf_logits_processor = ForcedSurfLogitsProcessor(
+            assert test_case["target_morpheme"] in ["surf", "reading", "lemma", "canon", "init"]
+            processor = ForcedLogitsProcessor(
                 texts=[test_case["text"]],
                 num_beams=1,
                 tokenizer=tokenizer,
+                reading_candidates=reading_candidates,
                 char2tokens=char2tokens,
-                char2underscore_tokens=char2underscore_tokens,
             )
             warped_scores: Optional[torch.Tensor] = None
             for idx in range(1, len(test_case[model]["input_tokens"]) + 1):
@@ -178,10 +204,7 @@ def test_get_batch_banned_token_ids(data_dir: Path):
                     [tokenizer.convert_tokens_to_ids(test_case[model]["input_tokens"][:idx])]
                 )
                 orig_scores: torch.Tensor = torch.full((1, vocab_size), 0.5).float()
-                warped_scores = surf_logits_processor(
-                    input_ids=input_ids,
-                    scores=orig_scores,
-                )
+                warped_scores = processor(input_ids, orig_scores)
                 assert warped_scores is not None
                 assert warped_scores.shape == orig_scores.shape
             assert warped_scores is not None
@@ -190,12 +213,14 @@ def test_get_batch_banned_token_ids(data_dir: Path):
                 if score == 0.5:
                     permitted_tokens.add(tokenizer.convert_ids_to_tokens(token_id))
 
-            gold_permitted_tokens: Set[str] = set(test_case[model]["permitted_tokens"])
-            if len(permitted_tokens) == vocab_size:
-                assert gold_permitted_tokens == set()
+            if test_case[model]["permitted_tokens"] == "reading_candidates":
+                expected_permitted_tokens: Set[str] = reading_candidate_tokens
+                expected_permitted_tokens.add(LEMMA_TOKEN)
+            elif not test_case[model]["permitted_tokens"]:
+                expected_permitted_tokens = copy.deepcopy(all_tokens)
             else:
-                if test_case["permit_underscore_tokens"] is True:
-                    gold_permitted_tokens = gold_permitted_tokens.union(underscore_tokens)
-                elif len(gold_permitted_tokens) == 0 and len(permitted_tokens) != vocab_size:
-                    gold_permitted_tokens = gold_permitted_tokens.union(non_underscore_tokens)
-                assert sorted(list(permitted_tokens)) == sorted(list(gold_permitted_tokens))
+                expected_permitted_tokens = set(test_case[model]["permitted_tokens"])
+
+            if "banned_tokens" in test_case[model]:
+                expected_permitted_tokens -= set(test_case[model]["banned_tokens"])
+            assert sorted(list(permitted_tokens)) == sorted(list(expected_permitted_tokens))

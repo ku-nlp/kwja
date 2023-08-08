@@ -9,9 +9,9 @@ from transformers.utils import PaddingStrategy
 from kwja.datamodule.datasets.base import BaseDataset
 from kwja.datamodule.datasets.seq2seq import Seq2SeqModuleFeatures
 from kwja.datamodule.examples import Seq2SeqInferenceExample
-from kwja.utils.constants import FULL_SPACE_TOKEN
 from kwja.utils.logging_util import track
 from kwja.utils.reader import chunk_by_document_for_line_by_line_text
+from kwja.utils.seq2seq_format import Seq2SeqFormatter
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +29,8 @@ class Seq2SeqInferenceDataset(BaseDataset[Seq2SeqInferenceExample, Seq2SeqModule
         self.max_src_length: int = max_src_length
         self.max_tgt_length: int = max_tgt_length
 
+        self.formatter: Seq2SeqFormatter = Seq2SeqFormatter(tokenizer)
+
         if senter_file is not None:
             with senter_file.open() as f:
                 documents = [
@@ -45,7 +47,7 @@ class Seq2SeqInferenceDataset(BaseDataset[Seq2SeqInferenceExample, Seq2SeqModule
         for document in track(documents, description="Loading examples"):
             for sentence in document.sentences:
                 src_encoding: BatchEncoding = self.tokenizer(
-                    "解析：" + sentence.text.strip(),
+                    sentence.text.strip(),
                     padding=PaddingStrategy.MAX_LENGTH,
                     truncation=True,
                     max_length=self.max_src_length,
@@ -53,7 +55,7 @@ class Seq2SeqInferenceDataset(BaseDataset[Seq2SeqInferenceExample, Seq2SeqModule
                 examples.append(
                     Seq2SeqInferenceExample(
                         example_id=example_id,
-                        src_text=sentence.text.strip().replace("\u3000", FULL_SPACE_TOKEN),
+                        src_text=self.formatter.sent_to_text(sentence),
                         src_encoding=src_encoding,
                         sid=sentence.sid,
                     )

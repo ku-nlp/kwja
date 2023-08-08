@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import List
 
 from transformers import BatchEncoding
 
@@ -8,7 +9,7 @@ class Seq2SeqExample:
     example_id: int
     src_text: str
     src_encoding: BatchEncoding
-    tgt_encoding: BatchEncoding
+    tgt_input_ids: List[int]
     sid: str
 
 

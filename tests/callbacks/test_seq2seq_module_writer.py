@@ -12,6 +12,7 @@ from transformers import PreTrainedTokenizerBase
 
 from kwja.callbacks.seq2seq_module_writer import Seq2SeqModuleWriter
 from kwja.datamodule.datasets import Seq2SeqInferenceDataset
+from kwja.utils.constants import CANON_TOKEN, LEMMA_TOKEN, READING_TOKEN, SURF_TOKEN
 
 
 class MockTrainer:
@@ -58,8 +59,8 @@ def test_write_on_batch_end(seq2seq_tokenizer: PreTrainedTokenizerBase):
     trainer = MockTrainer([DataLoader(dataset, batch_size=num_examples)])
 
     generated_texts = [
-        "太郎 たろう 太郎 太郎/たろう<extra_id_0> と と と と/と<extra_id_0> 次郎 じろう 次郎 次郎/じろう<extra_id_0> は は は は/は<extra_id_0> よく よく よい 良い/よい<extra_id_0> けんか けんか けんか 喧嘩/けんか<extra_id_0> する する する する/する<extra_id_0>",
-        "辛い からい 辛い 辛い/からい<extra_id_0> ラーメン らーめん ラーメン ラーメン/らーめん<extra_id_0> が が が が/が<extra_id_0> 好きな すきな 好きだ 好きだ/すきだ<extra_id_0> ので ので のだ のだ/のだ<extra_id_0> 頼み たのみ 頼む 頼む/たのむ<extra_id_0> ました ました ます ます/ます<extra_id_0>",
+        f"{SURF_TOKEN}太郎{READING_TOKEN}たろう{LEMMA_TOKEN}太郎{CANON_TOKEN}太郎/たろう{SURF_TOKEN}と{READING_TOKEN}と{LEMMA_TOKEN}と{CANON_TOKEN}と/と{SURF_TOKEN}次郎{READING_TOKEN}じろう{LEMMA_TOKEN}次郎{CANON_TOKEN}次郎/じろう{SURF_TOKEN}は{READING_TOKEN}は{LEMMA_TOKEN}は{CANON_TOKEN}は/は{SURF_TOKEN}よく{READING_TOKEN}よく{LEMMA_TOKEN}よい{CANON_TOKEN}良い/よい{SURF_TOKEN}けんか{READING_TOKEN}けんか{LEMMA_TOKEN}けんか{CANON_TOKEN}喧嘩/けんか{SURF_TOKEN}する{READING_TOKEN}する{LEMMA_TOKEN}する{CANON_TOKEN}する/する",
+        f"{SURF_TOKEN}辛い{READING_TOKEN}からい{LEMMA_TOKEN}辛い{CANON_TOKEN}辛い/からい{SURF_TOKEN}ラーメン{READING_TOKEN}らーめん{LEMMA_TOKEN}ラーメン{CANON_TOKEN}ラーメン/らーめん{SURF_TOKEN}が{READING_TOKEN}が{LEMMA_TOKEN}が{CANON_TOKEN}が/が{SURF_TOKEN}好きな{READING_TOKEN}すきな{LEMMA_TOKEN}好きだ{CANON_TOKEN}好きだ/すきだ{SURF_TOKEN}ので{READING_TOKEN}ので{LEMMA_TOKEN}のだ{CANON_TOKEN}のだ/のだ{SURF_TOKEN}頼み{READING_TOKEN}たのみ{LEMMA_TOKEN}頼む{CANON_TOKEN}頼む/たのむ{SURF_TOKEN}ました{READING_TOKEN}ました{LEMMA_TOKEN}ます{CANON_TOKEN}ます/ます",
     ]
     seq2seq_predictions = torch.zeros((num_examples, max_tgt_length), dtype=torch.long)
     for i, generated_text in enumerate(generated_texts):

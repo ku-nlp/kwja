@@ -19,9 +19,40 @@ RESOURCE_PATH = resource_files(kwja) / "resource"
 SENT_SEGMENTATION_TAGS = ("B", "I")
 
 # ---------- seq2seq module----------
-NEW_LINE_TOKEN: str = "<extra_id_0>"  # "<br>"
-FULL_SPACE_TOKEN: str = "<extra_id_1>"  # "<full_space>"
-NO_CANON_TOKEN: str = "<extra_id_2>"  # "<no_canon>"
+# tokens to separate surface, reading, lemma, and canonical form
+SURF_TOKEN: str = "<extra_id_0>"
+READING_TOKEN: str = "<extra_id_1>"
+LEMMA_TOKEN: str = "<extra_id_2>"
+CANON_TOKEN: str = "<extra_id_3>"
+# tokens to represent full space, half space, no canonical form, and triple dots
+NO_CANON_TOKEN: str = "<extra_id_4>"
+FULL_SPACE_TOKEN: str = "<extra_id_5>"
+HALF_SPACE_TOKEN1: str = "<extra_id_6>"
+HALF_SPACE_TOKEN2: str = "<extra_id_7>"
+TRIPLE_DOT_TOKEN: str = "<extra_id_8>"
+# tokens for unk tokens
+RARE_TO_SPECIAL: Dict[str, str] = {
+    "ゔ": "<extra_id_9>",
+    "榕": "<extra_id_10>",
+    "謄": "<extra_id_11>",
+    "丿": "<extra_id_12>",
+    "孜": "<extra_id_13>",
+    "腑": "<extra_id_14>",
+    "庖": "<extra_id_15>",
+    "┘": "<extra_id_16>",
+    "秧": "<extra_id_17>",
+    "褪": "<extra_id_18>",
+    "疥": "<extra_id_19>",
+    "鮪": "<extra_id_20>",
+    "髑髏": "<extra_id_21>",
+    "侭": "<extra_id_22>",
+    "蒟蒻": "<extra_id_23>",
+    "╹": "<extra_id_24>",
+    "厂": "<extra_id_25>",
+    "Ӧ": "<extra_id_26>",
+}
+SPECIAL_TO_RARE: Dict[str, str] = {v: k for k, v in RARE_TO_SPECIAL.items()}
+
 
 # ---------- word (inference) dataset ----------
 SPLIT_INTO_WORDS_MODEL_NAMES = [

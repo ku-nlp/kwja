@@ -1,169 +1,181 @@
-from collections import defaultdict
-from typing import Dict, List, Set, Tuple
+from copy import deepcopy
+from dataclasses import dataclass
+from typing import Dict, List, Set
 
+import regex
 import torch
 from transformers import PreTrainedTokenizerBase
 from transformers.generation import LogitsProcessor
 
-from kwja.utils.constants import FULL_SPACE_TOKEN, NEW_LINE_TOKEN
+from kwja.utils.constants import (
+    CANON_TOKEN,
+    FULL_SPACE_TOKEN,
+    HALF_SPACE_TOKEN1,
+    HALF_SPACE_TOKEN2,
+    LEMMA_TOKEN,
+    READING_TOKEN,
+    SPECIAL_TO_RARE,
+    SURF_TOKEN,
+    TRIPLE_DOT_TOKEN,
+)
+
+KANJI_KATAKANA_PATTERN = r"[\p{Script=Han}\p{Script=Katakana}]"
 
 
-def get_char2tokens(tokenizer: PreTrainedTokenizerBase) -> Tuple[Dict[str, Dict[str, int]], Dict[str, Dict[str, int]]]:
-    char2tokens: Dict[str, Dict[str, int]] = defaultdict(dict)
-    char2underscore_tokens: Dict[str, Dict[str, int]] = defaultdict(dict)
+@dataclass()
+class TargetMorpheme:
+    surf: bool = False
+    reading: bool = False
+    lemma: bool = False
+    canon: bool = False
+
+
+def get_reading_candidates(tokenizer: PreTrainedTokenizerBase) -> Set[int]:
+    candidates: Set[int] = set()
+    for token, vocab_id in tokenizer.vocab.items():
+        if not bool(regex.search(KANJI_KATAKANA_PATTERN, token)):
+            # 漢字またはカタカナを含む語彙は読みからは除外（＝読みには漢字とカタカナが含まれない）
+            candidates.add(vocab_id)
+    return candidates
+
+
+def get_char2tokens(tokenizer: PreTrainedTokenizerBase) -> Dict[str, Dict[str, int]]:
+    char2tokens: Dict[str, Dict[str, int]] = {}
     for vocab_token, vocab_id in tokenizer.get_vocab().items():
         if vocab_token.startswith("▁"):
             if len(vocab_token) == 1:
                 continue
-            char2underscore_tokens[vocab_token[1]][vocab_token] = vocab_id
+            char: str = vocab_token[1]
         else:
-            char2tokens[vocab_token[0]][vocab_token] = vocab_id
-    return char2tokens, char2underscore_tokens
+            char = vocab_token[0]
+        if char not in char2tokens:
+            char2tokens[char] = {}
+        char2tokens[char][vocab_token] = vocab_id
+    return char2tokens
 
 
-class ForcedSurfLogitsProcessor(LogitsProcessor):
+class ForcedLogitsProcessor(LogitsProcessor):
     def __init__(
         self,
         texts: List[str],
         num_beams: int,
         tokenizer: PreTrainedTokenizerBase,
+        reading_candidates: Set[int],
         char2tokens: Dict[str, Dict[str, int]],
-        char2underscore_tokens: Dict[str, Dict[str, int]],
     ) -> None:
         self.tokenizer = tokenizer
-        self.texts: List[str] = []
-        for text in tokenizer.batch_decode(tokenizer.batch_encode_plus(texts).input_ids):
-            if text.endswith(self.tokenizer.eos_token):
-                text = text[: -len(self.tokenizer.eos_token)]
-            if f"{FULL_SPACE_TOKEN} " in text:
-                text = text.replace(f"{FULL_SPACE_TOKEN} ", FULL_SPACE_TOKEN)
-            self.texts.append(text)
+        self.texts: List[str] = texts
         self.num_beams: int = num_beams
         self.char2tokens: Dict[str, Dict[str, int]] = char2tokens
-        self.char2underscore_tokens: Dict[str, Dict[str, int]] = char2underscore_tokens
-        self.new_line_token_id: int = tokenizer.convert_tokens_to_ids(NEW_LINE_TOKEN)
-        self.underscore_token_id: int = tokenizer.convert_tokens_to_ids("▁")
         self.pad_token_id: int = self.tokenizer.pad_token_id
-        self.is_decoding_surf: List[bool] = [True] * (len(self.texts) * self.num_beams)
-        self.underscore_token_ids: Set[int] = {
-            vocab_id for token in self.char2underscore_tokens.values() for vocab_id in token.values()
-        } | {self.underscore_token_id}
-        self.all_token_ids: Set[int] = {vocab_id for vocab_id in tokenizer.get_vocab().values()}
+
+        self.surf_token_id: int = tokenizer.convert_tokens_to_ids(SURF_TOKEN)
+        self.reading_token_id: int = tokenizer.convert_tokens_to_ids(READING_TOKEN)
+        self.lemma_token_id: int = tokenizer.convert_tokens_to_ids(LEMMA_TOKEN)
+        self.canon_token_id: int = tokenizer.convert_tokens_to_ids(CANON_TOKEN)
+
+        self.all_token_ids: Set[int] = set(self.tokenizer.get_vocab().values())
+        self.ids_except_surf: List[int] = list(self.all_token_ids - {self.surf_token_id})
+        self.ids_except_kanji_and_katakana: Set[int] = deepcopy(self.all_token_ids) - reading_candidates
+
+        self.token_to_ids_except_token: Dict[str, Set[int]] = {}
+        special_tokens: List[str] = [FULL_SPACE_TOKEN, HALF_SPACE_TOKEN1, HALF_SPACE_TOKEN2, TRIPLE_DOT_TOKEN] + list(
+            SPECIAL_TO_RARE.keys()
+        )
+        for special_token in special_tokens:
+            self.token_to_ids_except_token[special_token] = deepcopy(self.all_token_ids) - {
+                self.tokenizer.convert_tokens_to_ids(special_token)
+            }
+            self.token_to_ids_except_token[special_token] = deepcopy(self.all_token_ids) - {
+                self.tokenizer.convert_tokens_to_ids(special_token)
+            }
 
     def get_generated_surfs(self, input_ids: torch.Tensor) -> List[str]:
         generated_surfs: List[str] = []
         decodeds: List[str] = self.tokenizer.batch_decode(input_ids)
         for decoded in decodeds:
             generated_surf: str = ""
-            for line in decoded.replace(NEW_LINE_TOKEN, "\n").split("\n"):
-                stripped_line: str = line.lstrip().rstrip()
-                if stripped_line in ["", "EOS"]:
-                    break
-                if stripped_line == "............/...":
-                    generated_surf += "..."
-                elif stripped_line[0] in ["!", "?", ",", "."]:
-                    generated_surf += stripped_line[0]
-                else:
-                    split_line: List[str] = stripped_line.split()
-                    if len(split_line) > 0:
-                        generated_surf += split_line[0]
+            for line in decoded.split(SURF_TOKEN):
+                generated_surf += line.split(READING_TOKEN)[0].strip(" ")
             generated_surfs.append(generated_surf)
         return generated_surfs
 
-    def get_permitted_token_ids(self, text: str) -> Set[int]:
+    def get_banned_token_ids(self, text: str) -> Set[int]:
+        for token, ids_except_token in self.token_to_ids_except_token.items():
+            if text.startswith(token):
+                return ids_except_token
         permitted_token_ids: Set[int] = set()
         for vocab_token, vocab_id in self.char2tokens[text[0]].items():
-            if text.startswith(vocab_token):
+            if (vocab_token.startswith("▁") and text.startswith(vocab_token[1:])) or text.startswith(vocab_token):
                 permitted_token_ids.add(vocab_id)
-        return permitted_token_ids
+        return deepcopy(self.all_token_ids) - permitted_token_ids
 
-    def get_permitted_underscore_token_ids(self, text: str) -> Set[int]:
-        permitted_underscore_token_ids: Set[int] = set()
-        for vocab_token, vocab_id in self.char2underscore_tokens[text[0]].items():
-            if text.startswith(vocab_token[1:]):
-                permitted_underscore_token_ids.add(vocab_id)
-        return permitted_underscore_token_ids
+    def get_target_morpheme(self, input_ids: List[int]) -> TargetMorpheme:
+        target_morpheme: TargetMorpheme = TargetMorpheme()
+        for input_id in input_ids[::-1]:
+            if input_id == self.surf_token_id:
+                target_morpheme.surf = True
+                break
+            elif input_id == self.reading_token_id:
+                target_morpheme.reading = True
+                break
+            elif input_id == self.lemma_token_id:
+                target_morpheme.lemma = True
+                break
+            elif input_id == self.canon_token_id:
+                target_morpheme.canon = True
+                break
+        return target_morpheme
 
-    def get_batch_banned_token_ids(self, prev_input_ids: torch.Tensor) -> List[List[int]]:
-        banned_token_ids: List[List[int]] = []
-        generated_surfs: List[str] = self.get_generated_surfs(prev_input_ids[:, 1:])
+    def get_mask(self, prev_input_ids: torch.Tensor, scores: torch.Tensor) -> torch.Tensor:
+        mask: torch.Tensor = torch.zeros_like(scores).bool()
+        _, seq_len = prev_input_ids.size()
+        if seq_len == 1:
+            mask[:, self.ids_except_surf] = True
+            return mask
+
+        generated_surfs: List[str] = self.get_generated_surfs(prev_input_ids[:, 2:])
         for hypo_idx, input_ids in enumerate(prev_input_ids.tolist()):
+            target_morpheme: TargetMorpheme = self.get_target_morpheme(input_ids)
+
             text: str = self.texts[hypo_idx // self.num_beams]
             generated_surf: str = generated_surfs[hypo_idx]
-            if text == generated_surf:
-                # 生成終了
-                banned_token_ids.append([])
-                continue
-
             if text.startswith(generated_surf):
                 remaining_surf: str = text[len(generated_surf) :]
             else:
                 # 生成されている文字列が，入力の先頭からの文字列とマッチしない場合は補正をしない
-                banned_token_ids.append([])
                 continue
 
-            total_permitted_token_ids: Set[int] = set()
-            if self.is_decoding_surf[hypo_idx] is True:
-                if len(input_ids) == 1:
-                    # 「<pad>」の次は，入力文字列の先頭からマッチするサブワードを許容
-                    total_permitted_token_ids |= self.get_permitted_token_ids(text)
-                    total_permitted_token_ids |= self.get_permitted_underscore_token_ids(text)
-                    total_permitted_token_ids.add(self.underscore_token_id)
-                elif len(input_ids) == 2:
-                    if input_ids[-1] == self.underscore_token_id:
-                        # 「<pad> "▁"」の次は，入力文字列の先頭からマッチするサブワードを許容．ただしアンダースコア始まりは許容しない
-                        total_permitted_token_ids |= self.get_permitted_token_ids(remaining_surf)
-                    else:
-                        # 「<pad> "▁xxx"」または「<pad> "xxx"」の次は，入力文字列の先頭からマッチするサブワードを許容．また，全てのアンダースコア始まりのサブワードも許容
-                        total_permitted_token_ids |= self.get_permitted_token_ids(remaining_surf)
-                        total_permitted_token_ids |= self.underscore_token_ids
-                elif (input_ids[-2], input_ids[-1]) == (self.new_line_token_id, self.underscore_token_id):
-                    # 「改行 "▁"」の次は，まだ生成していない文字列の先頭からマッチするサブワードを許容．ただしアンダースコア始まりは許容しない
-                    total_permitted_token_ids |= self.get_permitted_token_ids(remaining_surf)
-                elif input_ids[-2] == self.new_line_token_id:
-                    last_token: str = self.tokenizer.convert_ids_to_tokens(input_ids[-1])
-                    if last_token.startswith("▁"):
-                        # 「改行 "▁xxx"」の次は，まだ生成していない文字列の先頭からマッチするサブワードを許容．また，全てのアンダースコア始まりのサブワードも許容
-                        total_permitted_token_ids |= self.get_permitted_token_ids(remaining_surf)
-                        total_permitted_token_ids |= self.underscore_token_ids
-                    else:
-                        # 「改行 "xxx"」の次は，任意のサブワードを許容
-                        pass
-                elif input_ids[-1] == self.underscore_token_id:
-                    self.is_decoding_surf[hypo_idx] = False
-                    # 「"xxx" "▁"」 の次は，任意のサブワードを許容．ただしアンダースコア始まりは許容しない
-                    total_permitted_token_ids |= self.all_token_ids - self.underscore_token_ids
-                elif input_ids[-1] in self.underscore_token_ids:
-                    self.is_decoding_surf[hypo_idx] = False
-                    # 「"xxx" "▁yyy"」 の次は，任意のサブワードを許容
-                    pass
+            banned_token_ids: Set[int] = set()
+            if target_morpheme.surf is True:
+                if remaining_surf:
+                    banned_token_ids |= self.get_banned_token_ids(remaining_surf)
+                    if input_ids[-1] != self.surf_token_id:
+                        banned_token_ids.discard(self.reading_token_id)
+                elif input_ids[-1] == self.surf_token_id:
+                    banned_token_ids.add(self.reading_token_id)
+            elif target_morpheme.reading is True:
+                banned_token_ids |= self.ids_except_kanji_and_katakana
+                if input_ids[-1] == self.reading_token_id:
+                    banned_token_ids.add(self.lemma_token_id)
                 else:
-                    # 「"xxx" "yyy"」 の次は，まだ生成していない文字列の先頭からマッチするサブワードを許容．また，全てのアンダースコア始まりのサブワードも許容
-                    total_permitted_token_ids |= self.get_permitted_token_ids(remaining_surf)
-                    total_permitted_token_ids |= self.underscore_token_ids
-            else:
-                if input_ids[-1] == self.new_line_token_id:
-                    self.is_decoding_surf[hypo_idx] = True
-                    # 「改行」の次は，まだ生成していない文字列の先頭からマッチするサブワードを許容
-                    total_permitted_token_ids |= self.get_permitted_token_ids(remaining_surf)
-                    total_permitted_token_ids |= self.get_permitted_underscore_token_ids(remaining_surf)
-                    total_permitted_token_ids.add(self.underscore_token_id)
-                else:
-                    # surf のデコーディング時以外は，任意のサブワードを許容
-                    pass
+                    banned_token_ids.discard(self.lemma_token_id)
+            elif target_morpheme.lemma is True:
+                if input_ids[-1] == self.lemma_token_id:
+                    banned_token_ids.add(self.canon_token_id)
+            elif target_morpheme.canon is True:
+                if (not remaining_surf) or (input_ids[-1] == self.canon_token_id):
+                    banned_token_ids.add(self.surf_token_id)
 
-            if total_permitted_token_ids:
-                banned_token_ids.append(
-                    [i for i in self.tokenizer.get_vocab().values() if i not in total_permitted_token_ids]
-                )
+            if remaining_surf or target_morpheme.canon is False:
+                banned_token_ids.add(self.tokenizer.eos_token_id)
             else:
-                banned_token_ids.append([])
-
-        return banned_token_ids
+                banned_token_ids.discard(self.tokenizer.eos_token_id)
+            mask[hypo_idx, list(banned_token_ids)] = True
+        return mask
 
     def __call__(self, input_ids: torch.Tensor, scores: torch.Tensor) -> torch.Tensor:
         input_ids[input_ids == -100] = self.tokenizer.pad_token_id
-        batch_banned_token_ids: List[List[int]] = self.get_batch_banned_token_ids(input_ids)
-        for i, banned_token_ids in enumerate(batch_banned_token_ids):
-            scores[i, banned_token_ids] = -float("inf")
+        mask: torch.Tensor = self.get_mask(input_ids, scores)
+        scores.masked_fill_(mask, -float("inf"))
         return scores

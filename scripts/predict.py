@@ -1,3 +1,4 @@
+import os
 from typing import List
 
 import hydra
@@ -12,6 +13,7 @@ from kwja.datamodule.datamodule import DataModule
 from kwja.utils.logging_util import filter_logs
 
 filter_logs(environment="development")
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
 @hydra.main(version_base=None, config_path="../configs", config_name="eval")

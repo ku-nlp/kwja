@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Dict, List, Set, Union
 
 from jinf import Jinf
-from rhoknp import Morpheme, Sentence
+from rhoknp import Jumanpp, Morpheme, Sentence
 from rhoknp.utils.reader import chunk_by_sentence
 from tqdm import tqdm
 
@@ -75,6 +75,8 @@ def main():
 
     random.seed(42)
 
+    jumanpp = Jumanpp()
+
     sentences: List[Sentence] = []
     canon2freq: Dict[str, int] = {}
     excluded_nums: Dict[str, int] = {}
@@ -87,6 +89,15 @@ def main():
                     except ValueError:
                         excluded_nums["sent_from_knp"] = excluded_nums.get("sent_from_knp", 0) + 1
                         continue
+
+                    juman_sentence: Sentence = jumanpp.apply_to_sentence(sentence.text)
+
+                    kwja_words: List[str] = [morpheme.text for morpheme in sentence.morphemes]
+                    juman_words: List[str] = [morpheme.text for morpheme in juman_sentence.morphemes]
+                    if kwja_words != juman_words:
+                        excluded_nums["word_segmentation"] = excluded_nums.get("word_segmentation", 0) + 1
+                        continue
+
                     for morpheme in sentence.morphemes:
                         canons: List[str] = get_canons(morpheme)
                         if len(canons) > 1:

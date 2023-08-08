@@ -1,59 +1,161 @@
-import copy
-from typing import List
+from typing import Dict, List
 
 from rhoknp import Sentence
+from transformers import PreTrainedTokenizerBase
 
-from kwja.utils.constants import FULL_SPACE_TOKEN, NO_CANON_TOKEN
+from kwja.utils.constants import (
+    CANON_TOKEN,
+    FULL_SPACE_TOKEN,
+    HALF_SPACE_TOKEN1,
+    HALF_SPACE_TOKEN2,
+    LEMMA_TOKEN,
+    NO_CANON_TOKEN,
+    RARE_TO_SPECIAL,
+    READING_TOKEN,
+    SPECIAL_TO_RARE,
+    SURF_TOKEN,
+    TRIPLE_DOT_TOKEN,
+)
 
 
-def get_seq2seq_format(sentence: Sentence) -> str:
-    output: str = ""
-    for mrph in sentence.morphemes:
-        if mrph.surf == "\u3000":
-            mrph_info: str = f"{FULL_SPACE_TOKEN} {FULL_SPACE_TOKEN} {FULL_SPACE_TOKEN} {NO_CANON_TOKEN}\n"
-        else:
-            if mrph.reading == "\u3000":
-                reading: str = FULL_SPACE_TOKEN
-            elif "/" in mrph.reading and len(mrph.reading) > 1:
-                reading = mrph.reading.split("/")[0]
+class Seq2SeqFormatter:
+    def __init__(self, tokenizer: PreTrainedTokenizerBase):
+        self.tokenizer: PreTrainedTokenizerBase = tokenizer
+
+        self.word_to_token: Dict[str, str] = {
+            "\u3000": FULL_SPACE_TOKEN,
+            " ": HALF_SPACE_TOKEN1,
+            "␣": HALF_SPACE_TOKEN2,
+            "…": TRIPLE_DOT_TOKEN,
+        }
+        self.token_to_word: Dict[str, str] = {v: k for k, v in self.word_to_token.items()}
+
+    def tokenize(self, texts: List[str]) -> List[str]:
+        concat_text: str = "".join(texts)
+        for k, v in RARE_TO_SPECIAL.items():
+            concat_text = concat_text.replace(k, v)
+        return [token for token in self.tokenizer.tokenize(concat_text) if token != "▁"]
+
+    def sent_to_text(self, sentence: Sentence) -> str:
+        text: str = sentence.text
+        for k, v in self.word_to_token.items():
+            text = text.replace(k, v)
+        text = text.replace(HALF_SPACE_TOKEN2, HALF_SPACE_TOKEN1)
+        for k, v in RARE_TO_SPECIAL.items():
+            text = text.replace(k, v)
+
+        tokenized: List[str] = [token for token in self.tokenizer.tokenize(text) if token != "▁"]
+        decoded: str = self.tokenizer.decode(self.tokenizer.convert_tokens_to_ids(tokenized))
+        for token in [FULL_SPACE_TOKEN, HALF_SPACE_TOKEN1, HALF_SPACE_TOKEN2, TRIPLE_DOT_TOKEN]:
+            decoded = decoded.replace(f"{token} ", token)
+        for token in SPECIAL_TO_RARE:
+            decoded = decoded.replace(f"{token} ", token)
+        decoded = decoded.replace(" ", HALF_SPACE_TOKEN1)
+        return decoded
+
+    @staticmethod
+    def sent_to_format(sentence: Sentence) -> List[str]:
+        outputs: List[str] = []
+        for mrph in sentence.morphemes:
+            if mrph.surf == "\u3000":
+                outputs.extend(
+                    [
+                        SURF_TOKEN,
+                        FULL_SPACE_TOKEN,
+                        READING_TOKEN,
+                        FULL_SPACE_TOKEN,
+                        LEMMA_TOKEN,
+                        FULL_SPACE_TOKEN,
+                        CANON_TOKEN,
+                        "/",
+                    ]
+                )
+            elif mrph.surf == " ":
+                outputs.extend(
+                    [
+                        SURF_TOKEN,
+                        HALF_SPACE_TOKEN1,
+                        READING_TOKEN,
+                        HALF_SPACE_TOKEN1,
+                        LEMMA_TOKEN,
+                        HALF_SPACE_TOKEN1,
+                        CANON_TOKEN,
+                        "/",
+                    ]
+                )
+            elif mrph.surf == "…":
+                outputs.extend(
+                    [
+                        SURF_TOKEN,
+                        TRIPLE_DOT_TOKEN,
+                        READING_TOKEN,
+                        TRIPLE_DOT_TOKEN,
+                        LEMMA_TOKEN,
+                        TRIPLE_DOT_TOKEN,
+                        CANON_TOKEN,
+                        f"{TRIPLE_DOT_TOKEN}/{TRIPLE_DOT_TOKEN}",
+                    ]
+                )
             else:
-                reading = mrph.reading
-            canon: str = mrph.canon if mrph.canon is not None else NO_CANON_TOKEN
-            mrph_info = f"{mrph.surf} {reading} {mrph.lemma} {canon}\n"
-        output += mrph_info
-    return output
-
-
-def get_sent_from_seq2seq_format(input_text: str) -> Sentence:
-    lines: List[str] = input_text.split("\n")
-    mrph_placeholder: List[str] = ["@", "@", "@", "未定義語", "15", "その他", "1", "*", "0", "*", "0", "NIL"]
-    formatted: str = ""
-    for line in lines:
-        if not line:
-            continue
-        if line == "EOS":
-            formatted += line + "\n"
-        else:
-            preds: List[str] = line.split(" ")  # surf reading lemma canon
-            mrphs: List[str] = copy.deepcopy(mrph_placeholder)
-            if len(preds) == 4:
-                mrphs[0] = "\u3000" if preds[0] == FULL_SPACE_TOKEN else preds[0]
-                mrphs[1] = "\u3000" if preds[1] == FULL_SPACE_TOKEN else preds[1]
-                mrphs[2] = "\u3000" if preds[2] == FULL_SPACE_TOKEN else preds[2]
-                if preds[3] == NO_CANON_TOKEN:
-                    if preds[0] == FULL_SPACE_TOKEN and preds[1] == FULL_SPACE_TOKEN and preds[2] == FULL_SPACE_TOKEN:
-                        mrphs[-1] = '"代表表記:/"'
-                    else:
-                        mrphs[-1] = "NIL"
+                if mrph.reading == "\u3000":
+                    reading: str = FULL_SPACE_TOKEN
+                elif "/" in mrph.reading and len(mrph.reading) > 1:
+                    reading = mrph.reading.split("/")[0]
                 else:
-                    mrphs[-1] = f'"代表表記:{preds[3]}"'
-            elif line in ["!!!!/!", "????/?", ",,,,/,", "..../."]:
-                for idx in range(3):
-                    mrphs[idx] = line[idx]
-                mrphs[-1] = f'"代表表記:{line[0]}/{line[0]}"'
-            elif line == "............/...":
-                for idx in range(3):
-                    mrphs[idx] = "…"
-                mrphs[-1] = '"代表表記:…/…"'
-            formatted += " ".join(mrphs) + "\n"
-    return Sentence.from_jumanpp(formatted)
+                    reading = mrph.reading
+                lemma: str = FULL_SPACE_TOKEN if mrph.lemma == "\u3000" else mrph.lemma
+                if mrph.canon is not None:
+                    canon: str = mrph.canon
+                    canon_list: List[str] = canon.split("/")
+                    if len(canon_list) > 2 and canon_list[0] and canon_list[1]:
+                        canon = f"{canon_list[0]}/{canon_list[1]}"
+                else:
+                    canon = NO_CANON_TOKEN
+                outputs.extend([SURF_TOKEN, mrph.surf, READING_TOKEN, reading, LEMMA_TOKEN, lemma, CANON_TOKEN, canon])
+        return outputs
+
+    def format_to_sent(self, text: str) -> Sentence:
+        lines: List[str] = text.split(SURF_TOKEN)
+        formatted: str = ""
+        for line in lines:
+            if not line:
+                continue
+            try:
+                surf: str = line.split(READING_TOKEN)[0]
+                surf = self.token_to_word[surf] if surf in self.token_to_word else surf
+                for k, v in SPECIAL_TO_RARE.items():
+                    surf = surf.replace(k, v)
+
+                reading: str = line.split(READING_TOKEN)[1].split(LEMMA_TOKEN)[0]
+                reading = self.token_to_word[reading] if reading in self.token_to_word else reading
+                for k, v in SPECIAL_TO_RARE.items():
+                    reading = reading.replace(k, v)
+
+                lemma: str = line.split(LEMMA_TOKEN)[1].split(CANON_TOKEN)[0]
+                lemma = self.token_to_word[lemma] if lemma in self.token_to_word else lemma
+                for k, v in SPECIAL_TO_RARE.items():
+                    lemma = lemma.replace(k, v)
+
+                canon: str = line.split(CANON_TOKEN)[1]
+                for k, v in self.token_to_word.items():
+                    canon = canon.replace(k, v)
+                for k, v in SPECIAL_TO_RARE.items():
+                    canon = canon.replace(k, v)
+                canon = (
+                    f"{self.token_to_word[TRIPLE_DOT_TOKEN]}/{self.token_to_word[TRIPLE_DOT_TOKEN]}"
+                    if canon == f"{TRIPLE_DOT_TOKEN}/{TRIPLE_DOT_TOKEN}"
+                    else canon
+                )
+                canon = f'"代表表記:{canon}"' if canon != NO_CANON_TOKEN else "NIL"
+
+                # 例外処理
+                if surf == " " and reading == "\u3000" and lemma == "\u3000":
+                    surf = "\u3000"
+                if surf == "°C":
+                    surf, lemma, canon = "℃", "℃", '"代表表記:℃/ど"'
+
+                formatted += f"{surf} {reading} {lemma} 未定義語 15 その他 1 * 0 * 0 {canon}\n"
+            except IndexError:
+                formatted += "@ @ @ 未定義語 15 その他 1 * 0 * 0 NIL\n"
+        formatted += "EOS\n"
+        return Sentence.from_jumanpp(formatted)
