@@ -19,9 +19,6 @@ checkpoint_path: ""
 use_forced_decoding: true
 decoding:
   max_length: ${max_tgt_length}
-  min_length: 1
-  return_dict_in_generate: True
-  output_scores: True
   num_beams: 3
 
 # set monitor and mode for early_stopping and model_checkpoint

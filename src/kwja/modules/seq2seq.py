@@ -105,5 +105,5 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
         )  # (b, max_tgt_len)
         return {
             "example_ids": batch["example_ids"] if "example_ids" in batch else [],
-            "seq2seq_predictions": generations["sequences"],
+            "seq2seq_predictions": generations,
         }
