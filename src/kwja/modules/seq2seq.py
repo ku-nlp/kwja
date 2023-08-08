@@ -103,7 +103,11 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
             else None,
             **self.hparams.decoding,
         )
+        if isinstance(generations, torch.Tensor):
+            seq2seq_predictions = generations
+        else:
+            seq2seq_predictions = generations["sequences"]
         return {
             "example_ids": batch["example_ids"] if "example_ids" in batch else [],
-            "seq2seq_predictions": generations,
+            "seq2seq_predictions": seq2seq_predictions,
         }
