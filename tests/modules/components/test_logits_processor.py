@@ -43,7 +43,7 @@ def test_get_char2tokens() -> None:
     assert len(mt5_non_underscore_tokens) == 193831
 
     t5_tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-        pretrained_model_name_or_path="retrieva-jp/t5-small-long",
+        pretrained_model_name_or_path="retrieva-jp/t5-small-short",
         additional_special_tokens=SPECIAL_TOKENS,
     )
     t5_char2tokens = get_char2tokens(t5_tokenizer)
@@ -76,7 +76,7 @@ def test_get_char2tokens() -> None:
 
 
 def test_get_generated_surfs(data_dir: Path) -> None:
-    for pretrained_model_name_or_path in ["google/mt5-small", "retrieva-jp/t5-small-long"]:
+    for pretrained_model_name_or_path in ["google/mt5-small", "retrieva-jp/t5-small-short"]:
         tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             pretrained_model_name_or_path=pretrained_model_name_or_path,
             additional_special_tokens=SPECIAL_TOKENS,
@@ -117,7 +117,7 @@ def test_get_generated_surfs(data_dir: Path) -> None:
     ],
 )
 def test_get_banned_token_ids(input_text: str, permitted_tokens: List[str]) -> None:
-    for pretrained_model_name_or_path in ["google/mt5-small", "retrieva-jp/t5-small-long"]:
+    for pretrained_model_name_or_path in ["google/mt5-small", "retrieva-jp/t5-small-short"]:
         tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
             pretrained_model_name_or_path,
             additional_special_tokens=SPECIAL_TOKENS,
@@ -142,7 +142,7 @@ def test_get_banned_token_ids(input_text: str, permitted_tokens: List[str]) -> N
 def test_get_target_morpheme(data_dir: Path) -> None:
     model2pretrained_model_name_or_path: Dict[str, str] = {
         "mt5": "google/mt5-small",
-        "t5": "retrieva-jp/t5-small-long",
+        "t5": "retrieva-jp/t5-small-short",
     }
     for model, pretrained_model_name_or_path in model2pretrained_model_name_or_path.items():
         tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
@@ -173,7 +173,7 @@ def test_get_target_morpheme(data_dir: Path) -> None:
 def test_get_mask(data_dir: Path) -> None:
     model2pretrained_model_name_or_path: Dict[str, str] = {
         "mt5": "google/mt5-small",
-        "t5": "retrieva-jp/t5-small-long",
+        "t5": "retrieva-jp/t5-small-short",
     }
     for model, pretrained_model_name_or_path in model2pretrained_model_name_or_path.items():
         tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
