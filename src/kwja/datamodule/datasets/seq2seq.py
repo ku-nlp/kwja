@@ -70,8 +70,8 @@ class Seq2SeqDataset(BaseDataset[Seq2SeqExample, Seq2SeqModuleFeatures]):
                 if len(src_encoding.input_ids) > self.max_src_length:
                     logger.warning(f"Length of source sentence is too long: {sentence.text}")
                     continue
-                seq2seq_format: List[str] = self.formatter.sent_to_format(sentence)
-                tgt_tokens: List[str] = self.formatter.tokenize(seq2seq_format)
+                mrph_lines: List[List[str]] = self.formatter.sent_to_mrph_lines(sentence)
+                tgt_tokens: List[str] = self.formatter.tokenize(mrph_lines)
                 tgt_input_ids: List[int] = self.tokenizer.convert_tokens_to_ids(tgt_tokens) + [
                     self.tokenizer.eos_token_id
                 ]

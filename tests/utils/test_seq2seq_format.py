@@ -740,8 +740,8 @@ def test_tokenize(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
     for idx, path in enumerate(sorted(juman_dir.glob("*.juman"))):
         with open(path) as f:
             sent = Sentence.from_jumanpp(f.read())
-            seq2seq_format: List[str] = seq2seq_formatter.sent_to_format(sent)
-            tgt_tokens: List[str] = seq2seq_formatter.tokenize(seq2seq_format)
+            mrph_lines: List[List[str]] = seq2seq_formatter.sent_to_mrph_lines(sent)
+            tgt_tokens: List[str] = seq2seq_formatter.tokenize(mrph_lines)
             assert tgt_tokens == tokenizeds[idx]
 
 
@@ -754,21 +754,16 @@ def test_sent_to_text(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase
             assert seq2seq_formatter.sent_to_text(sent) == texts[idx]
 
 
-def test_sent_to_format(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
+def test_sent_to_mrph_lines(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
     seq2seq_formatter = Seq2SeqFormatter(seq2seq_tokenizer)
     juman_dir: Path = data_dir / "modules" / "juman"
     for idx, path in enumerate(sorted(juman_dir.glob("*.juman"))):
         with open(path) as f:
             sent = Sentence.from_jumanpp(f.read())
-            seq2seq_format: List[str] = []
+            expected_mrph_lines: List[List[str]] = []
             for line in seq2seq_formats[idx].rstrip("\n").split("\n"):
-                morphemes: List[str] = line.split(" ")
-                seq2seq_format.extend(
-                    f"{SURF_TOKEN} {morphemes[0]} {READING_TOKEN} {morphemes[1]} {LEMMA_TOKEN} {morphemes[2]} {CANON_TOKEN} {morphemes[3]}".split(
-                        " "
-                    )
-                )
-            assert seq2seq_formatter.sent_to_format(sent) == seq2seq_format
+                expected_mrph_lines.append(line.split(" "))
+            assert seq2seq_formatter.sent_to_mrph_lines(sent) == expected_mrph_lines
 
 
 def test_format_to_sent(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
