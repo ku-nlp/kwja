@@ -21,6 +21,7 @@ from kwja.utils.constants import (
 class Seq2SeqFormatter:
     def __init__(self, tokenizer: PreTrainedTokenizerBase):
         self.tokenizer: PreTrainedTokenizerBase = tokenizer
+        self.pad_token: str = self.tokenizer.pad_token
 
         self.word_to_token: Dict[str, str] = {
             "\u3000": FULL_SPACE_TOKEN,
@@ -29,21 +30,40 @@ class Seq2SeqFormatter:
             "…": TRIPLE_DOT_TOKEN,
         }
         self.token_to_word: Dict[str, str] = {v: k for k, v in self.word_to_token.items()}
-        self.mrph_idx_to_token: Dict[int, str] = {
-            0: SURF_TOKEN,
-            1: READING_TOKEN,
-            2: LEMMA_TOKEN,
-            3: CANON_TOKEN,
-        }
 
-    def tokenize(self, mrph_lines: List[List[str]]) -> List[str]:
-        output: List[str] = []
-        for mrph_line in mrph_lines:
-            for mrph_idx, mrph in enumerate(mrph_line):
+    def tokenize(self, mrph_lines: List[List[str]], tgt_mrphs: Dict[str, Dict[str, str]]) -> List[str]:
+        is_partial: bool = len(tgt_mrphs) > 0
+        output: List[str] = [self.pad_token] if is_partial else [SURF_TOKEN]
+        for mrph_idx, mrph_line in enumerate(mrph_lines):
+            tgt_mrph: Dict[str, str] = tgt_mrphs.get(str(mrph_idx), {})
+            partial_anno_type: str = tgt_mrph.get("partial_annotation_type", "")  # {"", "canon", "norm"}
+
+            if is_partial and partial_anno_type == "canon":
+                special_tokens: List[str] = [self.pad_token, self.pad_token, self.pad_token, SURF_TOKEN]
+                if mrph_idx == len(mrph_lines) - 1:
+                    special_tokens[-1] = self.tokenizer.eos_token
+            elif is_partial and partial_anno_type == "norm":
+                special_tokens = [READING_TOKEN, self.pad_token, CANON_TOKEN, self.pad_token]
+            elif is_partial:
+                special_tokens = [self.pad_token, self.pad_token, self.pad_token, self.pad_token]
+            else:
+                special_tokens = [READING_TOKEN, LEMMA_TOKEN, CANON_TOKEN, SURF_TOKEN]
+                if mrph_idx == len(mrph_lines) - 1:
+                    special_tokens[-1] = self.tokenizer.eos_token
+
+            for idx_in_mrph, mrph in enumerate(mrph_line):
                 for k, v in RARE_TO_SPECIAL.items():
                     mrph = mrph.replace(k, v)
-                tokenized_mrph: List[str] = [x for x in self.tokenizer.tokenize(mrph) if x != "▁"]
-                output.extend([self.mrph_idx_to_token[mrph_idx]] + tokenized_mrph)
+                tokenized: List[str] = [x for x in self.tokenizer.tokenize(mrph) if x != "▁"] + [
+                    special_tokens[idx_in_mrph]
+                ]
+                if is_partial:
+                    if partial_anno_type == "canon" or (partial_anno_type == "norm" and idx_in_mrph in {0, 2}):
+                        output.extend(tokenized)
+                    else:
+                        output.extend([self.pad_token] * len(tokenized))
+                else:
+                    output.extend(tokenized)
         return output
 
     def sent_to_text(self, sentence: Sentence) -> str:

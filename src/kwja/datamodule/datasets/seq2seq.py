@@ -1,7 +1,8 @@
+import json
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List
+from typing import Dict, List, Optional
 
 from rhoknp import Document
 from transformers import BatchEncoding, PreTrainedTokenizerBase
@@ -33,12 +34,19 @@ class Seq2SeqDataset(BaseDataset[Seq2SeqExample, Seq2SeqModuleFeatures]):
         max_src_length: int,
         max_tgt_length: int,
         ext: str = "knp",
+        partial_anno_path: Optional[str] = None,
     ) -> None:
         super().__init__(tokenizer, max_src_length)
         self.path = Path(path)
 
         self.max_src_length: int = max_src_length
         self.max_tgt_length: int = max_tgt_length
+
+        if partial_anno_path is not None:
+            with Path(partial_anno_path).open() as f:
+                self.partial_anno: Dict[str, Dict[str, Dict[str, str]]] = json.load(f)
+        else:
+            self.partial_anno = {}
 
         self.formatter: Seq2SeqFormatter = Seq2SeqFormatter(tokenizer)
 
@@ -71,10 +79,8 @@ class Seq2SeqDataset(BaseDataset[Seq2SeqExample, Seq2SeqModuleFeatures]):
                     logger.warning(f"Length of source sentence is too long: {sentence.text}")
                     continue
                 mrph_lines: List[List[str]] = self.formatter.sent_to_mrph_lines(sentence)
-                tgt_tokens: List[str] = self.formatter.tokenize(mrph_lines)
-                tgt_input_ids: List[int] = self.tokenizer.convert_tokens_to_ids(tgt_tokens) + [
-                    self.tokenizer.eos_token_id
-                ]
+                tgt_tokens: List[str] = self.formatter.tokenize(mrph_lines, self.partial_anno.get(sentence.sid, {}))
+                tgt_input_ids: List[int] = self.tokenizer.convert_tokens_to_ids(tgt_tokens)
                 tgt_input_ids += [self.tokenizer.pad_token_id] * (self.max_tgt_length - len(tgt_input_ids))
                 if len(tgt_input_ids) > self.max_tgt_length:
                     logger.warning(f"Length of target sentence is too long: {sentence.text}")

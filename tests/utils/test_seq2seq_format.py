@@ -1,6 +1,6 @@
 from pathlib import Path
 from textwrap import dedent
-from typing import List
+from typing import Dict, List
 
 import jaconv
 from rhoknp import Sentence
@@ -121,6 +121,7 @@ tokenizeds: List[List[str]] = [
         "する",
         "/",
         "する",
+        "</s>",
     ],
     [
         SURF_TOKEN,
@@ -352,6 +353,7 @@ tokenizeds: List[List[str]] = [
         "。",
         "/",
         "。",
+        "</s>",
     ],
     [
         SURF_TOKEN,
@@ -503,6 +505,7 @@ tokenizeds: List[List[str]] = [
         "。",
         "/",
         "。",
+        "</s>",
     ],
     [
         SURF_TOKEN,
@@ -596,6 +599,7 @@ tokenizeds: List[List[str]] = [
         "C",
         "/",
         "ど",
+        "</s>",
     ],
     [
         SURF_TOKEN,
@@ -644,6 +648,140 @@ tokenizeds: List[List[str]] = [
         HALF_SPACE_TOKEN1,
         CANON_TOKEN,
         "/",
+        "</s>",
+    ],
+    [
+        "<pad>",
+        "う",
+        "ぅ",
+        "〜〜",
+        READING_TOKEN,
+        "<pad>",
+        "<pad>",
+        "う",
+        CANON_TOKEN,
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+    ],
+    [
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "さ",
+        "き",
+        "<pad>",
+        "さ",
+        "き",
+        "<pad>",
+        "さ",
+        "き",
+        "<pad>",
+        "先",
+        "/",
+        "さ",
+        "き",
+        SURF_TOKEN,
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "<pad>",
+        "かん",
+        "<pad>",
+        "かん",
+        "<pad>",
+        "かん",
+        "<pad>",
+        "館",
+        "/",
+        "かん",
+        "</s>",
     ],
 ]
 
@@ -654,6 +792,8 @@ texts: List[str] = [
     f"「核の歴史{TRIPLE_DOT_TOKEN}ヒロシマ、ナガサキを超えて」。",
     "後一日まで!?./°C",
     f"JUMP{FULL_SPACE_TOKEN}COMICS{HALF_SPACE_TOKEN1}",
+    "うぅ〜〜お腹が痛い",
+    "渡航さきの在日大使かん",
 ]
 
 seq2seq_formats: List[str] = [
@@ -731,7 +871,66 @@ seq2seq_formats: List[str] = [
         {HALF_SPACE_TOKEN1} {HALF_SPACE_TOKEN1} {HALF_SPACE_TOKEN1} /
         """
     ),
+    dedent(
+        """\
+        うぅ〜〜 う う 卯/う
+        お腹 おなか お腹 お腹/おなか
+        が が が が/が
+        痛い いたい 痛い 痛い/いたい
+        """
+    ),
+    dedent(
+        """\
+        渡航 とこう 渡航 渡航/とこう
+        さき さき さき 先/さき
+        の の の の/の
+        在 ざい 在 在/ざい
+        日 にち 日 日/にち
+        大使 たいし 大使 大使/たいし
+        かん かん かん 館/かん
+        """
+    ),
 ]
+
+target_morphemes: Dict[str, Dict[str, Dict[str, str]]] = {
+    "0": {},
+    "1": {},
+    "2": {},
+    "3": {},
+    "4": {},
+    "5": {
+        "0": {
+            "partial_annotation_type": "norm",
+            "surf": "うぅ〜〜",
+            "lemma": "う",
+            "conjtype": "*",
+            "conjform": "*",
+            "pseudo_canon_type": "",
+        },
+    },
+    "6": {
+        "1": {
+            "partial_annotation_type": "canon",
+            "surf_before": "先",
+            "lemma_before": "先",
+            "surf_after": "さき",
+            "lemma_after": "さき",
+            "conjtype": "*",
+            "conjform": "*",
+            "pseudo_canon_type": "活用なし",
+        },
+        "6": {
+            "partial_annotation_type": "canon",
+            "surf_before": "館",
+            "lemma_before": "館",
+            "surf_after": "かん",
+            "lemma_after": "かん",
+            "conjtype": "*",
+            "conjform": "*",
+            "pseudo_canon_type": "活用なし",
+        },
+    },
+}
 
 
 def test_tokenize(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
@@ -741,7 +940,7 @@ def test_tokenize(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
         with open(path) as f:
             sent = Sentence.from_jumanpp(f.read())
             mrph_lines: List[List[str]] = seq2seq_formatter.sent_to_mrph_lines(sent)
-            tgt_tokens: List[str] = seq2seq_formatter.tokenize(mrph_lines)
+            tgt_tokens: List[str] = seq2seq_formatter.tokenize(mrph_lines, target_morphemes[str(idx)])
             assert tgt_tokens == tokenizeds[idx]
 
 
