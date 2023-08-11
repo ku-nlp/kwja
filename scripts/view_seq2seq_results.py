@@ -5,7 +5,7 @@ import re
 from argparse import ArgumentParser
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple, cast
+from typing import Dict, List, Set, Tuple, cast
 
 import jaconv
 from rhoknp import Document, Jumanpp, Morpheme, Sentence
@@ -97,26 +97,24 @@ class MorphologicalAnalysisScorer:
         self.sys_sentences: List[Sentence] = sys_sentences
         self.gold_sentences: List[Sentence] = gold_sentences
 
-        with (dataset_dir / Path("canon/changes.json")).open() as f:
-            self.canon_changes: Dict[str, Dict] = json.load(f)
+        with (dataset_dir / Path("canon/info.json")).open() as f:
+            self.canon_info: Dict[str, Dict[str, Dict[str, str]]] = json.load(f)
+        with (dataset_dir / Path("norm/info.json")).open() as f:
+            self.norm_info: Dict[str, Dict[str, Dict[str, str]]] = json.load(f)
 
         self.num_diff_texts: int = 0
         self.norm_types: Set[str] = set()
         self.diffs: List[Diff] = self._search_diffs(sys_sentences, gold_sentences)
 
-    def _convert(
-        self,
-        sentence: Sentence,
-        norm_morphemes: List[Morpheme],
-        canon_morpheme: Optional[Morpheme] = None,
-    ) -> List[str]:
+    def _convert(self, sentence: Sentence, norm_morphemes: List[Morpheme], canon_morpheme: List[Morpheme]) -> List[str]:
         converteds: List[str] = []
         norm_surfs: Set[str] = set(mrph.surf for mrph in norm_morphemes)
+        canon_surfs: Set[str] = set(mrph.surf for mrph in canon_morpheme)
         for mrph in sentence.morphemes:
             surf: str = jaconv.h2z(mrph.surf.replace("<unk>", "$"), ascii=True, digit=True)
             if self.eval_norm and surf not in norm_surfs:
                 continue
-            if self.eval_canon and canon_morpheme is not None and mrph.surf != canon_morpheme.surf:
+            if self.eval_canon and surf not in canon_surfs:
                 continue
             reading: str = mrph.reading.replace("<unk>", "$")
             if "/" in mrph.reading and len(mrph.reading) > 1:
@@ -269,15 +267,14 @@ class MorphologicalAnalysisScorer:
         for sys_sentence, gold_sentence in zip(sys_sentences, gold_sentences):
             norm_morphemes: List[Morpheme] = []
             if self.eval_norm:
-                for gold_morpheme in gold_sentence.morphemes:
-                    if "非標準表記" in gold_morpheme.semantics:
-                        norm_morphemes.append(gold_morpheme)
-            canon_morpheme: Optional[Morpheme] = None
+                for idx in self.norm_info[gold_sentence.sid]:
+                    norm_morphemes.append(gold_sentence.morphemes[int(idx)])
+            canon_morphemes: List[Morpheme] = []
             if self.eval_canon:
-                target_morpheme_index: int = self.canon_changes[gold_sentence.sid]["morpheme_index"]
-                canon_morpheme = gold_sentence.morphemes[target_morpheme_index]
-            sys_converted: List[str] = self._convert(sys_sentence, norm_morphemes, canon_morpheme)
-            gold_converted: List[str] = self._convert(gold_sentence, norm_morphemes, canon_morpheme)
+                for idx in self.canon_info[gold_sentence.sid]:
+                    canon_morphemes.append(gold_sentence.morphemes[int(idx)])
+            sys_converted: List[str] = self._convert(sys_sentence, norm_morphemes, canon_morphemes)
+            gold_converted: List[str] = self._convert(gold_sentence, norm_morphemes, canon_morphemes)
             diff: Diff = self._search_diff(sys_converted, gold_converted)
             diffs.append(diff)
         return diffs
