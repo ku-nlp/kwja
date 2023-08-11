@@ -1,6 +1,6 @@
 import os
 from statistics import mean
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import hydra
 import torch
@@ -63,7 +63,21 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
         for corpus, metrics in metrics_log.items():
             self.log_dict({f"valid_{corpus}/{key}": value for key, value in metrics.items()})
         for key in list(metrics_log.values())[0].keys():
-            mean_score = mean(metrics_log[corpus][key] for corpus in self.valid_corpora if key in metrics_log[corpus])
+            if key == "seq2seq_loss":
+                scores: List[float] = []
+                for corpus in self.valid_corpora:
+                    if key not in metrics_log[corpus]:
+                        continue
+                    scores.append(
+                        metrics_log[corpus][key] * self.hparams.pseudo_lambda
+                        if corpus in {"canon", "norm"}
+                        else metrics_log[corpus][key]
+                    )
+                mean_score: float = mean(scores)
+            else:
+                mean_score = mean(
+                    metrics_log[corpus][key] for corpus in self.valid_corpora if key in metrics_log[corpus]
+                )
             self.log(f"valid/{key}", mean_score)
 
     def test_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
@@ -81,7 +95,21 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
         for corpus, metrics in metrics_log.items():
             self.log_dict({f"test_{corpus}/{key}": value for key, value in metrics.items()})
         for key in list(metrics_log.values())[0].keys():
-            mean_score = mean(metrics_log[corpus][key] for corpus in self.test_corpora if key in metrics_log[corpus])
+            if key == "seq2seq_loss":
+                scores: List[float] = []
+                for corpus in self.test_corpora:
+                    if key not in metrics_log[corpus]:
+                        continue
+                    scores.append(
+                        metrics_log[corpus][key] * self.hparams.pseudo_lambda
+                        if corpus in {"canon", "norm"}
+                        else metrics_log[corpus][key]
+                    )
+                mean_score: float = mean(scores)
+            else:
+                mean_score = mean(
+                    metrics_log[corpus][key] for corpus in self.test_corpora if key in metrics_log[corpus]
+                )
             self.log(f"test/{key}", mean_score)
 
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Any:

@@ -30,6 +30,7 @@ lr: 5e-4
 max_epochs: 1
 warmup_steps: 250
 effective_batch_size: 512
+pseudo_lambda: 0.03
 
 # environment dependent settings
 devices: ${oc.env:DEVICES,1}
