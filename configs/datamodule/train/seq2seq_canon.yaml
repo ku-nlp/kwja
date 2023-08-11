@@ -3,3 +3,4 @@ defaults:
 
 canon:
   path: ${oc.env:DATA_DIR}/canon/train
+  partial_anno_path: ${oc.env:DATA_DIR}/canon/info.json

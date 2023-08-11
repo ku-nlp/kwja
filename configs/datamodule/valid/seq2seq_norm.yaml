@@ -3,3 +3,4 @@ defaults:
 
 norm:
   path: ${oc.env:DATA_DIR}/norm/valid
+  partial_anno_path: ${oc.env:DATA_DIR}/norm/info.json
