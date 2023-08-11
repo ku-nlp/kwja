@@ -72,4 +72,5 @@ class Seq2SeqInferenceDataset(BaseDataset[Seq2SeqInferenceExample, Seq2SeqModule
             input_ids=example.src_encoding.input_ids,
             attention_mask=example.src_encoding.attention_mask,
             seq2seq_labels=[],
+            decoder_attention_mask=[],
         )

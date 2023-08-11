@@ -24,6 +24,7 @@ class Seq2SeqModuleFeatures:
     input_ids: List[int]
     attention_mask: List[int]
     seq2seq_labels: List[int]
+    decoder_attention_mask: List[int]
 
 
 class Seq2SeqDataset(BaseDataset[Seq2SeqExample, Seq2SeqModuleFeatures]):
@@ -79,8 +80,11 @@ class Seq2SeqDataset(BaseDataset[Seq2SeqExample, Seq2SeqModuleFeatures]):
                     logger.warning(f"Length of source sentence is too long: {sentence.text}")
                     continue
                 mrph_lines: List[List[str]] = self.formatter.sent_to_mrph_lines(sentence)
-                tgt_tokens: List[str] = self.formatter.tokenize(mrph_lines, self.partial_anno.get(sentence.sid, {}))
+                tgt_tokens = self.formatter.tokenize(mrph_lines, self.partial_anno.get(sentence.sid, {}))
                 tgt_input_ids: List[int] = self.tokenizer.convert_tokens_to_ids(tgt_tokens)
+                tgt_attention_mask: List[int] = [1] * len(tgt_input_ids) + [0] * (
+                    self.max_tgt_length - len(tgt_input_ids)
+                )
                 tgt_input_ids += [self.tokenizer.pad_token_id] * (self.max_tgt_length - len(tgt_input_ids))
                 if len(tgt_input_ids) > self.max_tgt_length:
                     logger.warning(f"Length of target sentence is too long: {sentence.text}")
@@ -91,6 +95,7 @@ class Seq2SeqDataset(BaseDataset[Seq2SeqExample, Seq2SeqModuleFeatures]):
                         src_text=self.formatter.sent_to_text(sentence),
                         src_encoding=src_encoding,
                         tgt_input_ids=tgt_input_ids,
+                        tgt_attention_mask=tgt_attention_mask,
                         sid=sentence.sid,
                     )
                 )
@@ -114,4 +119,5 @@ class Seq2SeqDataset(BaseDataset[Seq2SeqExample, Seq2SeqModuleFeatures]):
             input_ids=example.src_encoding.input_ids,
             attention_mask=example.src_encoding.attention_mask,
             seq2seq_labels=seq2seq_labels,
+            decoder_attention_mask=example.tgt_attention_mask,
         )

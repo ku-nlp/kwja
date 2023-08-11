@@ -10,6 +10,7 @@ class Seq2SeqExample:
     src_text: str
     src_encoding: BatchEncoding
     tgt_input_ids: List[int]
+    tgt_attention_mask: List[int]
     sid: str
 
 

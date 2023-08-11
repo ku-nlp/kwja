@@ -19,7 +19,6 @@ from kwja.datamodule.datasets import (
     WordDataset,
     WordInferenceDataset,
 )
-from kwja.utils.constants import IGNORE_INDEX
 
 
 class DataModule(pl.LightningDataModule):
@@ -101,8 +100,10 @@ def token_dataclass_data_collator(batch_features: List[Any]) -> Dict[str, Union[
             if value.ndim == 1 or value.size(1) == 0:
                 pass
             elif field.name in {"seq2seq_labels"}:
-                target_indices = torch.arange(value.ne(IGNORE_INDEX).sum(dim=1).max().item())
-                value = value[:, target_indices]
+                tgt_token_indices = torch.arange(
+                    max(sum(getattr(fs, "decoder_attention_mask")) for fs in batch_features)
+                )
+                value = value[:, tgt_token_indices]
             else:
                 value = value[:, token_indices]
             batch[field.name] = value
