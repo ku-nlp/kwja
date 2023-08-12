@@ -38,14 +38,8 @@ class Seq2SeqFormatter:
             tgt_mrph: Dict[str, str] = tgt_mrphs.get(str(mrph_idx), {})
             partial_anno_type: str = tgt_mrph.get("partial_annotation_type", "")  # {"", "canon", "norm"}
 
-            if is_partial and partial_anno_type == "canon":
-                special_tokens: List[str] = [self.pad_token, self.pad_token, self.pad_token, SURF_TOKEN]
-                if mrph_idx == len(mrph_lines) - 1:
-                    special_tokens[-1] = self.tokenizer.eos_token
-            elif is_partial and partial_anno_type == "norm":
-                special_tokens = [READING_TOKEN, self.pad_token, CANON_TOKEN, self.pad_token]
-            elif is_partial:
-                special_tokens = [self.pad_token, self.pad_token, self.pad_token, self.pad_token]
+            if is_partial and partial_anno_type == "":
+                special_tokens: List[str] = [self.pad_token, self.pad_token, self.pad_token, self.pad_token]
             else:
                 special_tokens = [READING_TOKEN, LEMMA_TOKEN, CANON_TOKEN, SURF_TOKEN]
                 if mrph_idx == len(mrph_lines) - 1:
