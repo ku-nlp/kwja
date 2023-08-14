@@ -29,12 +29,21 @@ class Seq2SeqFormatter:
             "…": TRIPLE_DOT_TOKEN,
         }
         self.token_to_word: Dict[str, str] = {v: k for k, v in self.word_to_token.items()}
+        self.mrph_idx_to_token: Dict[int, str] = {
+            0: SURF_TOKEN,
+            1: READING_TOKEN,
+            2: LEMMA_TOKEN,
+            3: CANON_TOKEN,
+        }
 
-    def tokenize(self, texts: List[str]) -> List[str]:
-        concat_text: str = "".join(texts)
-        for k, v in RARE_TO_SPECIAL.items():
-            concat_text = concat_text.replace(k, v)
-        return [token for token in self.tokenizer.tokenize(concat_text) if token != "▁"]
+    def tokenize(self, mrph_lines: List[List[str]]) -> List[str]:
+        seq2seq_format: str = ""
+        for mrph_line in mrph_lines:
+            for mrph_idx, mrph in enumerate(mrph_line):
+                for k, v in RARE_TO_SPECIAL.items():
+                    mrph = mrph.replace(k, v)
+                seq2seq_format += f"{self.mrph_idx_to_token[mrph_idx]}{mrph}"
+        return [x for x in self.tokenizer.tokenize(seq2seq_format) if x != "▁"]
 
     def sent_to_text(self, sentence: Sentence) -> str:
         text: str = sentence.text
@@ -54,64 +63,41 @@ class Seq2SeqFormatter:
         return decoded
 
     @staticmethod
-    def sent_to_format(sentence: Sentence) -> List[str]:
-        outputs: List[str] = []
-        for mrph in sentence.morphemes:
-            if mrph.surf == "\u3000":
-                outputs.extend(
-                    [
-                        SURF_TOKEN,
-                        FULL_SPACE_TOKEN,
-                        READING_TOKEN,
-                        FULL_SPACE_TOKEN,
-                        LEMMA_TOKEN,
-                        FULL_SPACE_TOKEN,
-                        CANON_TOKEN,
-                        "/",
-                    ]
-                )
-            elif mrph.surf == " ":
-                outputs.extend(
-                    [
-                        SURF_TOKEN,
-                        HALF_SPACE_TOKEN1,
-                        READING_TOKEN,
-                        HALF_SPACE_TOKEN1,
-                        LEMMA_TOKEN,
-                        HALF_SPACE_TOKEN1,
-                        CANON_TOKEN,
-                        "/",
-                    ]
-                )
-            elif mrph.surf == "…":
-                outputs.extend(
-                    [
-                        SURF_TOKEN,
-                        TRIPLE_DOT_TOKEN,
-                        READING_TOKEN,
-                        TRIPLE_DOT_TOKEN,
-                        LEMMA_TOKEN,
-                        TRIPLE_DOT_TOKEN,
-                        CANON_TOKEN,
-                        f"{TRIPLE_DOT_TOKEN}/{TRIPLE_DOT_TOKEN}",
-                    ]
-                )
+    def sent_to_mrph_lines(sentence: Sentence) -> List[List[str]]:
+        outputs: List[List[str]] = []
+        for morpheme in sentence.morphemes:
+            if morpheme.surf == "\u3000":
+                surf: str = FULL_SPACE_TOKEN
+                reading: str = FULL_SPACE_TOKEN
+                lemma: str = FULL_SPACE_TOKEN
+                canon: str = "/"
+            elif morpheme.surf == " ":
+                surf = HALF_SPACE_TOKEN1
+                reading = HALF_SPACE_TOKEN1
+                lemma = HALF_SPACE_TOKEN1
+                canon = "/"
+            elif morpheme.surf == "…":
+                surf = TRIPLE_DOT_TOKEN
+                reading = TRIPLE_DOT_TOKEN
+                lemma = TRIPLE_DOT_TOKEN
+                canon = f"{TRIPLE_DOT_TOKEN}/{TRIPLE_DOT_TOKEN}"
             else:
-                if mrph.reading == "\u3000":
-                    reading: str = FULL_SPACE_TOKEN
-                elif "/" in mrph.reading and len(mrph.reading) > 1:
-                    reading = mrph.reading.split("/")[0]
+                surf = morpheme.surf
+                if morpheme.reading == "\u3000":
+                    reading = FULL_SPACE_TOKEN
+                elif "/" in morpheme.reading and len(morpheme.reading) > 1:
+                    reading = morpheme.reading.split("/")[0]
                 else:
-                    reading = mrph.reading
-                lemma: str = FULL_SPACE_TOKEN if mrph.lemma == "\u3000" else mrph.lemma
-                if mrph.canon is not None:
-                    canon: str = mrph.canon
+                    reading = morpheme.reading
+                lemma = FULL_SPACE_TOKEN if morpheme.lemma == "\u3000" else morpheme.lemma
+                if morpheme.canon is not None:
+                    canon = morpheme.canon
                     canon_list: List[str] = canon.split("/")
                     if len(canon_list) > 2 and canon_list[0] and canon_list[1]:
                         canon = f"{canon_list[0]}/{canon_list[1]}"
                 else:
                     canon = NO_CANON_TOKEN
-                outputs.extend([SURF_TOKEN, mrph.surf, READING_TOKEN, reading, LEMMA_TOKEN, lemma, CANON_TOKEN, canon])
+            outputs.append([surf, reading, lemma, canon])
         return outputs
 
     def format_to_sent(self, text: str) -> Sentence:

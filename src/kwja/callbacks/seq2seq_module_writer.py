@@ -58,7 +58,7 @@ class Seq2SeqModuleWriter(BasePredictionWriter):
                 self.tokenizer.decode(
                     [x for x in seq2seq_predictions if x != self.tokenizer.pad_token_id], skip_special_tokens=False
                 )
-                .rstrip(self.tokenizer.eos_token)
+                .replace(self.tokenizer.eos_token, "")
                 .replace(" ", "")
             )
             seq2seq_format: Sentence = self.formatter.format_to_sent(decoded)
