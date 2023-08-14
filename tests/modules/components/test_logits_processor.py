@@ -97,8 +97,8 @@ def test_get_generated_surfs(data_dir: Path) -> None:
                     char2tokens=char2tokens,
                 )
 
-                seq2seq_format: List[str] = formatter.sent_to_format(sentence)
-                tgt_tokens: List[str] = formatter.tokenize(seq2seq_format)
+                mrph_lines: List[List[str]] = formatter.sent_to_mrph_lines(sentence)
+                tgt_tokens: List[str] = formatter.tokenize(mrph_lines)
                 tgt_input_ids: torch.Tensor = torch.LongTensor(
                     [tokenizer.convert_tokens_to_ids(tgt_tokens) + [tokenizer.eos_token_id]]
                 )
