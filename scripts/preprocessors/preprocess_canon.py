@@ -1,3 +1,4 @@
+import copy
 import json
 import logging
 import random
@@ -5,7 +6,7 @@ import re
 import shutil
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Dict, List, Set, Union
+from typing import Dict, List, Set
 
 from jinf import Jinf
 from rhoknp import Jumanpp, Morpheme, Sentence
@@ -39,9 +40,11 @@ def get_canons(morpheme: Morpheme) -> List[str]:
     return canons
 
 
-def set_canon(sentence: Sentence, morpheme_index: int) -> None:
+def set_other_canons(sentence: Sentence, target_morpheme_indexes: Set[int]) -> None:
     for morpheme in sentence.morphemes:
-        if morpheme.index == morpheme_index:
+        if morpheme.index in target_morpheme_indexes:
+            continue
+        if "代表表記" in morpheme.semantics:
             continue
         if morpheme.conjtype == "*" or morpheme.pos == "特殊":
             canon: str = f"{morpheme.lemma}/{morpheme.reading}"
@@ -77,41 +80,49 @@ def main():
 
     jumanpp = Jumanpp()
 
+    input_paths: List[Path] = []
+    for input_dir in args.input_dirs:
+        input_paths.extend(list(Path(input_dir).glob("**/*.txt")))
+
     sentences: List[Sentence] = []
     canon2freq: Dict[str, int] = {}
     excluded_nums: Dict[str, int] = {}
-    for input_dir in args.input_dirs:
-        for input_path in tqdm(Path(input_dir).glob("**/*.txt")):
-            with input_path.open() as f:
-                for knp in chunk_by_sentence(f):
-                    try:
-                        sentence: Sentence = Sentence.from_knp(knp)
-                    except ValueError:
-                        excluded_nums["sent_from_knp"] = excluded_nums.get("sent_from_knp", 0) + 1
+    for input_path in tqdm(input_paths):
+        with input_path.open() as f:
+            for knp in chunk_by_sentence(f):
+                try:
+                    sentence: Sentence = Sentence.from_knp(knp)
+                except ValueError:
+                    excluded_nums["sent_from_knp"] = excluded_nums.get("sent_from_knp", 0) + 1
+                    continue
+
+                juman_sentence: Sentence = jumanpp.apply_to_sentence(sentence.text)
+
+                kwja_words: List[str] = [morpheme.text for morpheme in sentence.morphemes]
+                juman_words: List[str] = [morpheme.text for morpheme in juman_sentence.morphemes]
+                if kwja_words != juman_words:
+                    excluded_nums["word_segmentation"] = excluded_nums.get("word_segmentation", 0) + 1
+                    continue
+
+                for morpheme in sentence.morphemes:
+                    if morpheme.pos not in {"名詞", "動詞", "形容詞", "接頭辞", "接尾辞", "副詞", "連体詞"}:
                         continue
-
-                    juman_sentence: Sentence = jumanpp.apply_to_sentence(sentence.text)
-
-                    kwja_words: List[str] = [morpheme.text for morpheme in sentence.morphemes]
-                    juman_words: List[str] = [morpheme.text for morpheme in juman_sentence.morphemes]
-                    if kwja_words != juman_words:
-                        excluded_nums["word_segmentation"] = excluded_nums.get("word_segmentation", 0) + 1
-                        continue
-
-                    for morpheme in sentence.morphemes:
-                        canons: List[str] = get_canons(morpheme)
-                        if len(canons) > 1:
-                            for canon in canons:
-                                canon2freq[canon] = canon2freq.get(canon, 0) + 1
-                    sentences.append(sentence)
+                    canons: List[str] = get_canons(morpheme)
+                    if len(canons) > 1:
+                        for canon in canons:
+                            canon2freq[canon] = canon2freq.get(canon, 0) + 1
+                sentences.append(sentence)
     print(f"num_sentences: {len(sentences)}")
 
     sid2knp_str: Dict[str, str] = {}
-    sid2changes: Dict[str, Dict[str, Union[int, dict[str, str]]]] = {}
+    sid2info: Dict[str, Dict[int, Dict[str, str]]] = {}
     sampled_canon2freq: Dict[str, int] = {}
     for sentence in sentences:
         if get_is_excluded(sentence):
             continue
+        info: Dict[int, Dict[str, str]] = {}
+        target_canons: Set[str] = set()
+        target_morpheme_indexes: Set[int] = set()
         for morpheme in sentence.morphemes:
             canons: List[str] = get_canons(morpheme)
             if len(canons) > 1 or sampled_canon2freq.get(morpheme.canon, 0) >= args.max_samples:
@@ -130,33 +141,39 @@ def main():
                         continue
                 if surf == morpheme.text and lemma == morpheme.lemma:
                     continue
-                changes: Dict[str, Union[int, dict[str, str]]] = {
-                    "morpheme_index": morpheme.index,
-                    "before": {
-                        "surf": morpheme.text,
-                        "lemma": morpheme.lemma,
-                    },
-                    "after": {
-                        "surf": surf,
-                        "lemma": lemma,
-                    },
-                }
+                surf_before: str = copy.deepcopy(morpheme.text)
+                lemma_before: str = copy.deepcopy(morpheme.lemma)
                 morpheme.text = surf
                 morpheme._text_escaped = surf
                 morpheme.lemma = lemma
-                try:
-                    set_canon(sentence, morpheme_index=morpheme.index)
-                except (ValueError, NotImplementedError):
-                    excluded_nums["set_canon"] = excluded_nums.get("set_canon", 0) + 1
-                    continue
-                try:
-                    sid2knp_str[sentence.sid] = sentence.to_knp()
-                    sampled_canon2freq[morpheme.canon] = sampled_canon2freq.get(morpheme.canon, 0) + 1
-                    sid2changes[sentence.sid] = changes
-                    break
-                except AttributeError:
-                    excluded_nums["to_knp"] = excluded_nums.get("to_knp", 0) + 1
-                    continue
+                info[morpheme.index] = {
+                    "partial_annotation_type": "canon",
+                    "surf_before": surf_before,
+                    "lemma_before": lemma_before,
+                    "surf_after": surf,
+                    "lemma_after": lemma,
+                    "conjtype": morpheme.conjtype,
+                    "conjform": morpheme.conjform,
+                }
+                target_canons.add(morpheme.canon)
+                target_morpheme_indexes.add(morpheme.index)
+        if len(info) == 0:
+            continue
+
+        try:
+            set_other_canons(sentence, target_morpheme_indexes)
+        except (ValueError, NotImplementedError):
+            excluded_nums["set_canon"] = excluded_nums.get("set_canon", 0) + 1
+            continue
+        try:
+            sid2knp_str[sentence.sid] = sentence.to_knp()
+        except AttributeError:
+            excluded_nums["to_knp"] = excluded_nums.get("to_knp", 0) + 1
+            continue
+        sid2info[sentence.sid] = info
+        for target_canon in target_canons:
+            sampled_canon2freq[target_canon] = sampled_canon2freq.get(target_canon, 0) + 1
+
         if len(sid2knp_str) >= 5000:
             break
 
@@ -171,8 +188,14 @@ def main():
     output_dir: Path = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    with open(output_dir / "changes.json", "w") as f:
-        json.dump(sid2changes, f, indent=2, ensure_ascii=False)
+    with open(output_dir / "canon2freq.txt", "w") as f:
+        for canon, freq in canon2freq.items():
+            f.write(f"{canon}\t{freq}\n")
+    with open(output_dir / "sampled2freq.txt", "w") as f:
+        for canon, freq in sampled_canon2freq.items():
+            f.write(f"{canon}\t{freq}\n")
+    with open(output_dir / "info.json", "w") as f:
+        json.dump(sid2info, f, indent=2, ensure_ascii=False)
 
     train_dir: Path = output_dir / "train"
     if train_dir.exists():
