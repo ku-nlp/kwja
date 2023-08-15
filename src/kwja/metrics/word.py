@@ -403,9 +403,7 @@ class WordModuleMetric(BaseModuleMetric):
 
     @staticmethod
     def _to_conll_lines(
-        partly_gold_documents1: List[Document],
-        gold_documents: List[Document],
-        unit: Literal["base_phrase", "morpheme"],
+        partly_gold_documents1: List[Document], gold_documents: List[Document], unit: Literal["base_phrase", "morpheme"]
     ) -> Tuple[List[str], List[str]]:
         gold_lines = []
         system_lines = []
@@ -446,8 +444,6 @@ class WordModuleMetric(BaseModuleMetric):
         assert isinstance(pas_extractor, PasExtractor), "pas utils isn't set correctly"
 
         scorer = CohesionScorer(
-            partly_gold_documents2,
-            gold_documents,
             exophora_referent_types=[er.type for er in self.dataset.exophora_referents],
             pas_cases=pas_extractor.cases if CohesionTask.PAS_ANALYSIS in self.dataset.cohesion_tasks else [],
             pas_verbal=pas_extractor.verbal_predicate,
@@ -455,7 +451,7 @@ class WordModuleMetric(BaseModuleMetric):
             bridging=(CohesionTask.BRIDGING_REFERENCE_RESOLUTION in self.dataset.cohesion_tasks),
             coreference=(CohesionTask.COREFERENCE_RESOLUTION in self.dataset.cohesion_tasks),
         )
-        score: CohesionScore = scorer.run()
+        score: CohesionScore = scorer.run(partly_gold_documents2, gold_documents)
 
         metrics: Dict[str, float] = {}
         for task, analysis2metric in score.to_dict().items():
