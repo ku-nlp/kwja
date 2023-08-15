@@ -177,7 +177,7 @@ def refresh(document: Document) -> None:
         feature_dict = FeatureDict()
         if (
             (feature := base_phrase.features.get("NE"))
-            and type(feature) == str
+            and isinstance(feature, str)
             and feature.startswith("OPTIONAL") is False
         ):
             feature_dict["NE"] = feature
