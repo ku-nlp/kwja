@@ -32,7 +32,7 @@ class SenterDataset(BaseDataset[SenterExample, SenterModuleFeatures], FullAnnota
         max_seq_length: int = 512,
         document_split_stride: int = -1,
     ) -> None:
-        super(SenterDataset, self).__init__(tokenizer, max_seq_length)
+        super().__init__(tokenizer, max_seq_length)
         self.path = Path(path)
         super(BaseDataset, self).__init__(self.path, tokenizer, max_seq_length, document_split_stride)
         self.examples: List[SenterExample] = self._load_examples(self.doc_id2document)

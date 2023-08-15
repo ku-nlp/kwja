@@ -232,7 +232,7 @@ class ReadingAligner:
             node, node_prev, _ = td_holder[node.i][node.j]
         seg.reverse()
         if td_holder[-1][-1][2] >= 1000:
-            logger.warning("{}\t{}\t{}".format(seg, reading, subwords))
+            logger.warning(f"{seg}\t{reading}\t{subwords}")
 
         # dummy
         posI, posJ = 0, 0

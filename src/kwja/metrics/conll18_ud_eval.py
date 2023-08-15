@@ -89,8 +89,6 @@
 # (even partially) any multi-word span are then aligned as tokens.
 
 
-from __future__ import division, print_function
-
 # import argparse  # COMMENT OUT
 # import io  # COMMENT OUT
 import sys
@@ -258,7 +256,7 @@ def load_conllu(lines: List[str]):  # ADD
                 if word.parent is None:
                     head = int(word.columns[HEAD])
                     if head < 0 or head > len(ud.words) - sentence_start:
-                        raise UDError("HEAD '{}' points outside of the sentence".format(_encode(word.columns[HEAD])))
+                        raise UDError(f"HEAD '{_encode(word.columns[HEAD])}' points outside of the sentence")
                     if head:
                         parent = ud.words[sentence_start + head - 1]
                         word.parent = "remapping"
@@ -285,7 +283,7 @@ def load_conllu(lines: List[str]):  # ADD
         # Read next token/word
         columns = line.split("\t")
         if len(columns) != 10:
-            raise UDError("The CoNLL-U line does not contain 10 tab-separated columns: '{}'".format(_encode(line)))
+            raise UDError(f"The CoNLL-U line does not contain 10 tab-separated columns: '{_encode(line)}'")
 
         # Skip empty nodes
         if "." in columns[ID]:
@@ -309,7 +307,7 @@ def load_conllu(lines: List[str]):  # ADD
             try:
                 start, end = map(int, columns[ID].split("-"))
             except Exception:  # FIX
-                raise UDError("Cannot parse multi-word token ID '{}'".format(_encode(columns[ID])))
+                raise UDError(f"Cannot parse multi-word token ID '{_encode(columns[ID])}'")
 
             for _ in range(start, end + 1):
                 # word_line = _decode(file.readline().rstrip("\r\n"))  # COMMENT OUT
@@ -317,16 +315,14 @@ def load_conllu(lines: List[str]):  # ADD
                 line_count += 1  # ADD
                 word_columns = word_line.split("\t")
                 if len(word_columns) != 10:
-                    raise UDError(
-                        "The CoNLL-U line does not contain 10 tab-separated columns: '{}'".format(_encode(word_line))
-                    )
+                    raise UDError(f"The CoNLL-U line does not contain 10 tab-separated columns: '{_encode(word_line)}'")
                 ud.words.append(UDWord(ud.tokens[-1], word_columns, is_multiword=True))
         # Basic tokens/words
         else:
             try:
                 word_id = int(columns[ID])
             except Exception:  # FIX
-                raise UDError("Cannot parse word ID '{}'".format(_encode(columns[ID])))
+                raise UDError(f"Cannot parse word ID '{_encode(columns[ID])}'")
             if word_id != len(ud.words) - sentence_start + 1:
                 raise UDError(
                     "Incorrect word ID '{}' for word '{}', expected '{}'".format(
@@ -339,7 +335,7 @@ def load_conllu(lines: List[str]):  # ADD
             try:
                 head_id = int(columns[HEAD])
             except Exception:  # FIX
-                raise UDError("Cannot parse HEAD '{}'".format(_encode(columns[HEAD])))
+                raise UDError(f"Cannot parse HEAD '{_encode(columns[HEAD])}'")
             if head_id < 0:
                 raise UDError("HEAD cannot be negative")
 
@@ -667,14 +663,12 @@ class TestAlignment(unittest.TestCase):
             parts = w.split(" ")
             if len(parts) == 1:
                 num_words += 1
-                lines.append("{}\t{}\t_\t_\t_\t_\t{}\t_\t_\t_".format(num_words, parts[0], int(num_words > 1)))
+                lines.append(f"{num_words}\t{parts[0]}\t_\t_\t_\t_\t{int(num_words > 1)}\t_\t_\t_")
             else:
-                lines.append(
-                    "{}-{}\t{}\t_\t_\t_\t_\t_\t_\t_\t_".format(num_words + 1, num_words + len(parts) - 1, parts[0])
-                )
+                lines.append(f"{num_words + 1}-{num_words + len(parts) - 1}\t{parts[0]}\t_\t_\t_\t_\t_\t_\t_\t_")
                 for part in parts[1:]:
                     num_words += 1
-                    lines.append("{}\t{}\t_\t_\t_\t_\t{}\t_\t_\t_".format(num_words, part, int(num_words > 1)))
+                    lines.append(f"{num_words}\t{part}\t_\t_\t_\t_\t{int(num_words > 1)}\t_\t_\t_")
         return load_conllu(lines + ["\n"])
         # return load_conllu(  # COMMENT OUT
         #     (io.StringIO if sys.version_info >= (3, 0) else io.BytesIO)(  # COMMENT OUT
@@ -687,8 +681,8 @@ class TestAlignment(unittest.TestCase):
 
     def _test_ok(self, gold, system, correct):
         metrics = evaluate(self._load_words(gold), self._load_words(system))
-        gold_words = sum((max(1, len(word.split(" ")) - 1) for word in gold))
-        system_words = sum((max(1, len(word.split(" ")) - 1) for word in system))
+        gold_words = sum(max(1, len(word.split(" ")) - 1) for word in gold)
+        system_words = sum(max(1, len(word.split(" ")) - 1) for word in system)
         self.assertEqual(
             (metrics["Words"].precision, metrics["Words"].recall, metrics["Words"].f1),
             (

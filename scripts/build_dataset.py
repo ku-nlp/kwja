@@ -428,7 +428,7 @@ def main():
             knp_texts += [knp_text for knp_text in chunk_by_document(f, doc_id_format=args.doc_id_format)]
 
     if args.ne_tags:
-        with open(args.ne_tags, mode="r") as f:
+        with open(args.ne_tags) as f:
             sentences = [Sentence.from_jumanpp(jumanpp_text) for jumanpp_text in chunk_by_sentence(f)]
         sid2tagged_sentence = {sentence.sid: sentence for sentence in sentences}
     else:

@@ -37,8 +37,8 @@ def test_get_char2tokens() -> None:
         "京区": 208641,
         "▁京公网安备": 234066,
     }
-    mt5_underscore_tokens: Set[str] = set([x for x in mt5_tokenizer.get_vocab() if x.startswith("▁")])
-    mt5_non_underscore_tokens: Set[str] = set([x for x in mt5_tokenizer.get_vocab() if not x.startswith("▁")])
+    mt5_underscore_tokens: Set[str] = {x for x in mt5_tokenizer.get_vocab() if x.startswith("▁")}
+    mt5_non_underscore_tokens: Set[str] = {x for x in mt5_tokenizer.get_vocab() if not x.startswith("▁")}
     assert len(mt5_underscore_tokens) == 56369
     assert len(mt5_non_underscore_tokens) == 193831
 
@@ -69,8 +69,8 @@ def test_get_char2tokens() -> None:
         "京阪": 14311,
         "京都市立": 24756,
     }
-    t5_underscore_tokens: Set[str] = set([x for x in t5_tokenizer.get_vocab() if x.startswith("▁")])
-    t5_non_underscore_tokens: Set[str] = set([x for x in t5_tokenizer.get_vocab() if not x.startswith("▁")])
+    t5_underscore_tokens: Set[str] = {x for x in t5_tokenizer.get_vocab() if x.startswith("▁")}
+    t5_non_underscore_tokens: Set[str] = {x for x in t5_tokenizer.get_vocab() if not x.startswith("▁")}
     assert len(t5_underscore_tokens) == 531
     assert len(t5_non_underscore_tokens) == 31569
 
@@ -182,7 +182,7 @@ def test_get_mask(data_dir: Path) -> None:
         )
         vocab_size: int = len(tokenizer.get_vocab())
         reading_candidates: Set[int] = get_reading_candidates(tokenizer)
-        reading_candidate_tokens: Set[str] = set([tokenizer.convert_ids_to_tokens([x])[0] for x in reading_candidates])
+        reading_candidate_tokens: Set[str] = {tokenizer.convert_ids_to_tokens([x])[0] for x in reading_candidates}
         char2tokens = get_char2tokens(tokenizer)
         all_tokens: Set[str] = set(tokenizer.get_vocab().keys())
 

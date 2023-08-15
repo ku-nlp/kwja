@@ -35,6 +35,12 @@ repos:
           - typer==0.9.0
           - types-PyYAML==6.0.12.11
           - git+https://github.com/nobu-g/cohesion-tools.git
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.10.1
+    hooks:
+      - id: pyupgrade
+        args:
+          - --py38-plus
   - repo: https://github.com/jumanjihouse/pre-commit-hooks
     rev: 3.0.0
     hooks:

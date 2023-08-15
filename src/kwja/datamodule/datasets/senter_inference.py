@@ -28,7 +28,7 @@ class SenterInferenceDataset(
         doc_id_prefix: Optional[str] = None,
         **_,
     ) -> None:
-        super(SenterInferenceDataset, self).__init__(tokenizer, max_seq_length)
+        super().__init__(tokenizer, max_seq_length)
         documents = self._build_documents_from_texts(list(texts), doc_id_prefix)
         super(BaseDataset, self).__init__(documents, tokenizer, max_seq_length, document_split_stride)
         self.examples: List[SenterInferenceExample] = self._load_examples(self.doc_id2document)

@@ -26,7 +26,7 @@ class DiffType:
     canon: bool = False
 
 
-class DiffPart(object):
+class DiffPart:
     def __init__(self, diff_text: str):
         self.diff_text = diff_text
         self.has_diff: bool = False
@@ -57,7 +57,7 @@ class DiffPart(object):
         return self.diff_part[3]
 
 
-class Diff(object):
+class Diff:
     __slots__ = ["data"]
 
     def __init__(self):
@@ -108,8 +108,8 @@ class MorphologicalAnalysisScorer:
 
     def _convert(self, sentence: Sentence, norm_morphemes: List[Morpheme], canon_morpheme: List[Morpheme]) -> List[str]:
         converteds: List[str] = []
-        norm_surfs: Set[str] = set(mrph.surf for mrph in norm_morphemes)
-        canon_surfs: Set[str] = set(mrph.surf for mrph in canon_morpheme)
+        norm_surfs: Set[str] = {mrph.surf for mrph in norm_morphemes}
+        canon_surfs: Set[str] = {mrph.surf for mrph in canon_morpheme}
         for mrph in sentence.morphemes:
             surf: str = jaconv.h2z(mrph.surf.replace("<unk>", "$"), ascii=True, digit=True)
             if self.eval_norm and surf not in norm_surfs:

@@ -24,7 +24,7 @@ class CharInferenceDataset(BaseDataset[CharInferenceExample, CharModuleFeatures]
         senter_file: Optional[Path] = None,
         **_,
     ) -> None:
-        super(CharInferenceDataset, self).__init__(tokenizer, max_seq_length)
+        super().__init__(tokenizer, max_seq_length)
         if senter_file is not None:
             with senter_file.open() as f:
                 documents = [

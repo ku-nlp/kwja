@@ -37,7 +37,7 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
         juman_file: Optional[Path] = None,
         knp_file: Optional[Path] = None,
     ) -> None:
-        super(WordInferenceDataset, self).__init__(tokenizer, max_seq_length)
+        super().__init__(tokenizer, max_seq_length)
         if juman_file is not None:
             with juman_file.open() as f:
                 documents = [
