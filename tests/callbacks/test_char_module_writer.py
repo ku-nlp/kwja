@@ -102,7 +102,7 @@ def test_write_on_batch_end(char_tokenizer: PreTrainedTokenizerBase):
 
     with TemporaryDirectory() as tmp_dir:
         writer = CharModuleWriter(destination=tmp_dir / Path("char_prediction.juman"))
-        writer.write_on_batch_end(trainer, ..., prediction, None, ..., 0, 0)
+        writer.write_on_batch_end(trainer, ..., prediction, None, ..., 0, 0)  # type: ignore
         assert isinstance(writer.destination, Path), "destination isn't set"
         assert writer.destination.read_text() == dedent(
             f"""\

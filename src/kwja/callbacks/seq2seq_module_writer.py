@@ -6,7 +6,7 @@ from typing import Any, List, Optional, Sequence, TextIO, Union
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import BasePredictionWriter
 from rhoknp import Sentence
-from transformers import PreTrainedTokenizerBase
+from transformers import PreTrainedTokenizerFast
 
 import kwja
 from kwja.datamodule.datasets import Seq2SeqDataset, Seq2SeqInferenceDataset
@@ -15,7 +15,7 @@ from kwja.utils.seq2seq_format import Seq2SeqFormatter
 
 
 class Seq2SeqModuleWriter(BasePredictionWriter):
-    def __init__(self, tokenizer: PreTrainedTokenizerBase, destination: Optional[Union[str, Path]] = None) -> None:
+    def __init__(self, tokenizer: PreTrainedTokenizerFast, destination: Optional[Union[str, Path]] = None) -> None:
         super().__init__(write_interval="batch")
         if destination is None:
             self.destination: Union[Path, TextIO] = sys.stdout
@@ -26,7 +26,7 @@ class Seq2SeqModuleWriter(BasePredictionWriter):
             self.destination.parent.mkdir(exist_ok=True, parents=True)
             self.destination.unlink(missing_ok=True)
 
-        self.tokenizer: PreTrainedTokenizerBase = tokenizer
+        self.tokenizer: PreTrainedTokenizerFast = tokenizer
         self.formatter: Seq2SeqFormatter = Seq2SeqFormatter(tokenizer)
 
     def write_on_batch_end(

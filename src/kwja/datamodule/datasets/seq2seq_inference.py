@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from rhoknp import Document
-from transformers import BatchEncoding, PreTrainedTokenizerBase
+from transformers import BatchEncoding, PreTrainedTokenizerFast
 from transformers.utils import PaddingStrategy
 
 from kwja.datamodule.datasets.base import BaseDataset
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class Seq2SeqInferenceDataset(BaseDataset[Seq2SeqInferenceExample, Seq2SeqModuleFeatures]):
     def __init__(
         self,
-        tokenizer: PreTrainedTokenizerBase,
+        tokenizer: PreTrainedTokenizerFast,
         max_src_length: int,
         max_tgt_length: int,
         senter_file: Optional[Path] = None,

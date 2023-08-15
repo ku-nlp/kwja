@@ -4,7 +4,7 @@ from typing import Dict, List, Set
 
 import regex
 import torch
-from transformers import PreTrainedTokenizerBase
+from transformers import PreTrainedTokenizerFast
 from transformers.generation import LogitsProcessor
 
 from kwja.utils.constants import (
@@ -30,7 +30,7 @@ class TargetMorpheme:
     canon: bool = False
 
 
-def get_reading_candidates(tokenizer: PreTrainedTokenizerBase) -> Set[int]:
+def get_reading_candidates(tokenizer: PreTrainedTokenizerFast) -> Set[int]:
     candidates: Set[int] = set()
     for token, vocab_id in tokenizer.vocab.items():
         if not bool(regex.search(KANJI_KATAKANA_PATTERN, token)):
@@ -39,7 +39,7 @@ def get_reading_candidates(tokenizer: PreTrainedTokenizerBase) -> Set[int]:
     return candidates
 
 
-def get_char2tokens(tokenizer: PreTrainedTokenizerBase) -> Dict[str, Dict[str, int]]:
+def get_char2tokens(tokenizer: PreTrainedTokenizerFast) -> Dict[str, Dict[str, int]]:
     char2tokens: Dict[str, Dict[str, int]] = {}
     for vocab_token, vocab_id in tokenizer.get_vocab().items():
         if vocab_token.startswith("▁"):
@@ -59,7 +59,7 @@ class ForcedLogitsProcessor(LogitsProcessor):
         self,
         texts: List[str],
         num_beams: int,
-        tokenizer: PreTrainedTokenizerBase,
+        tokenizer: PreTrainedTokenizerFast,
         reading_candidates: Set[int],
         char2tokens: Dict[str, Dict[str, int]],
     ) -> None:

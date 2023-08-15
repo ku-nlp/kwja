@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Set
 import pytest
 import torch
 from rhoknp import Sentence
-from transformers import AutoTokenizer, PreTrainedTokenizerBase
+from transformers import AutoTokenizer, PreTrainedTokenizerFast
 
 from kwja.datamodule.datasets.seq2seq import Seq2SeqFormatter
 from kwja.modules.components.logits_processor import (
@@ -21,7 +21,7 @@ SPECIAL_TOKENS: List[str] = [f"<extra_id_{idx}>" for idx in range(100)]
 
 
 def test_get_char2tokens() -> None:
-    mt5_tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
+    mt5_tokenizer: PreTrainedTokenizerFast = AutoTokenizer.from_pretrained(
         pretrained_model_name_or_path="google/mt5-small",
         additional_special_tokens=SPECIAL_TOKENS,
     )
@@ -42,7 +42,7 @@ def test_get_char2tokens() -> None:
     assert len(mt5_underscore_tokens) == 56369
     assert len(mt5_non_underscore_tokens) == 193831
 
-    t5_tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
+    t5_tokenizer: PreTrainedTokenizerFast = AutoTokenizer.from_pretrained(
         pretrained_model_name_or_path="retrieva-jp/t5-small-short",
         additional_special_tokens=SPECIAL_TOKENS,
     )
@@ -77,7 +77,7 @@ def test_get_char2tokens() -> None:
 
 def test_get_generated_surfs(data_dir: Path) -> None:
     for pretrained_model_name_or_path in ["google/mt5-small", "retrieva-jp/t5-small-short"]:
-        tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
+        tokenizer: PreTrainedTokenizerFast = AutoTokenizer.from_pretrained(
             pretrained_model_name_or_path=pretrained_model_name_or_path,
             additional_special_tokens=SPECIAL_TOKENS,
         )
@@ -118,7 +118,7 @@ def test_get_generated_surfs(data_dir: Path) -> None:
 )
 def test_get_banned_token_ids(input_text: str, permitted_tokens: List[str]) -> None:
     for pretrained_model_name_or_path in ["google/mt5-small", "retrieva-jp/t5-small-short"]:
-        tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
+        tokenizer: PreTrainedTokenizerFast = AutoTokenizer.from_pretrained(
             pretrained_model_name_or_path,
             additional_special_tokens=SPECIAL_TOKENS,
         )
@@ -145,7 +145,7 @@ def test_get_target_morpheme(data_dir: Path) -> None:
         "t5": "retrieva-jp/t5-small-short",
     }
     for model, pretrained_model_name_or_path in model2pretrained_model_name_or_path.items():
-        tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
+        tokenizer: PreTrainedTokenizerFast = AutoTokenizer.from_pretrained(
             pretrained_model_name_or_path,
             additional_special_tokens=SPECIAL_TOKENS,
         )
@@ -176,7 +176,7 @@ def test_get_mask(data_dir: Path) -> None:
         "t5": "retrieva-jp/t5-small-short",
     }
     for model, pretrained_model_name_or_path in model2pretrained_model_name_or_path.items():
-        tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
+        tokenizer: PreTrainedTokenizerFast = AutoTokenizer.from_pretrained(
             pretrained_model_name_or_path,
             additional_special_tokens=SPECIAL_TOKENS,
         )

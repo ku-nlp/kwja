@@ -1,5 +1,5 @@
 import torch
-import torch.nn.functional as F
+import torch.nn as nn
 
 from kwja.utils.constants import IGNORE_INDEX, MASKED
 
@@ -22,7 +22,8 @@ def compute_token_mean_loss(
     batch_size, *_, num_classes = input_.shape
     input_ = input_.view(batch_size, -1, num_classes)  # (b, seq, num_classes)
     target = target.view(batch_size, -1)  # (b, seq)
-    losses = F.cross_entropy(input_.transpose(1, 2), target, ignore_index=IGNORE_INDEX, reduction="none")  # (b, seq)
+    # (b, seq)
+    losses = nn.functional.cross_entropy(input_.transpose(1, 2), target, ignore_index=IGNORE_INDEX, reduction="none")
     return _average_loss(losses, target.ne(IGNORE_INDEX))
 
 
@@ -31,7 +32,7 @@ def compute_multi_label_token_mean_loss(
     target: torch.Tensor,  # (b, seq, num_features)
 ) -> torch.Tensor:  # ()
     # binary_cross_entropy は IGNORE_INDEX を渡せない
-    losses = F.binary_cross_entropy(input_, target.float(), reduction="none")  # (b, seq, num_features)
+    losses = nn.functional.binary_cross_entropy(input_, target.float(), reduction="none")  # (b, seq, num_features)
     mask: torch.Tensor = target.ne(IGNORE_INDEX)  # (b, seq, num_features)
     # features の軸は和をとる
     losses = (losses * mask).sum(dim=2)  # (b, seq)

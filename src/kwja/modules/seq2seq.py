@@ -5,7 +5,7 @@ from typing import Any, Dict
 import hydra
 import torch
 from omegaconf import DictConfig
-from transformers import PreTrainedModel, PreTrainedTokenizerBase
+from transformers import PreTrainedModel, PreTrainedTokenizerFast
 from transformers.generation import LogitsProcessorList
 
 from kwja.modules.base import BaseModule
@@ -21,7 +21,7 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
     def __init__(self, hparams: DictConfig) -> None:
         super().__init__(hparams, Seq2SeqModuleMetric())
 
-        self.tokenizer: PreTrainedTokenizerBase = hydra.utils.call(hparams.module.tokenizer)
+        self.tokenizer: PreTrainedTokenizerFast = hydra.utils.call(hparams.module.tokenizer)
 
         self.encoder_decoder: PreTrainedModel = hydra.utils.call(hparams.encoder.from_config)
         # https://github.com/huggingface/transformers/issues/4875

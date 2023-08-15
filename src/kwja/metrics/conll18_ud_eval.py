@@ -460,7 +460,7 @@ def evaluate(gold_ud, system_ud):
         return gs, ss, gi, si
 
     def compute_lcs(gold_words, system_words, gi, si, gs, ss):
-        lcs = [[0] * (si - ss) for i in range(gi - gs)]
+        lcs = [[0] * (si - ss) for _ in range(gi - gs)]
         for g in reversed(range(gi - gs)):
             for s in reversed(range(si - ss)):
                 if gold_words[gs + g].columns[FORM].lower() == system_words[ss + s].columns[FORM].lower():

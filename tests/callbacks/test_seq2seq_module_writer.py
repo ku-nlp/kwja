@@ -8,7 +8,7 @@ from typing import List, Optional, Union
 import pytest
 import torch
 from torch.utils.data import DataLoader
-from transformers import PreTrainedTokenizerBase
+from transformers import PreTrainedTokenizerFast
 
 from kwja.callbacks.seq2seq_module_writer import Seq2SeqModuleWriter
 from kwja.datamodule.datasets import Seq2SeqInferenceDataset
@@ -28,11 +28,11 @@ class MockTrainer:
         str(Path(TemporaryDirectory().name) / Path("seq2seq_prediction.seq2seq")),
     ],
 )
-def test_init(destination: Optional[Union[str, Path]], seq2seq_tokenizer: PreTrainedTokenizerBase):
+def test_init(destination: Optional[Union[str, Path]], seq2seq_tokenizer: PreTrainedTokenizerFast):
     _ = Seq2SeqModuleWriter(tokenizer=seq2seq_tokenizer, destination=destination)
 
 
-def test_write_on_batch_end(seq2seq_tokenizer: PreTrainedTokenizerBase):
+def test_write_on_batch_end(seq2seq_tokenizer: PreTrainedTokenizerFast):
     max_src_length = 32
     max_tgt_length = 128
     doc_id_prefix = "test"
@@ -77,7 +77,7 @@ def test_write_on_batch_end(seq2seq_tokenizer: PreTrainedTokenizerBase):
             tokenizer=seq2seq_tokenizer,
             destination=tmp_dir / Path("seq2seq_prediction.seq2seq"),
         )
-        writer.write_on_batch_end(trainer, ..., prediction, None, ..., 0, 0)
+        writer.write_on_batch_end(trainer, ..., prediction, None, ..., 0, 0)  # type: ignore
         assert isinstance(writer.destination, Path), "destination isn't set"
         assert writer.destination.read_text() == dedent(
             f"""\

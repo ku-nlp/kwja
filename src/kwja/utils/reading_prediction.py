@@ -106,7 +106,7 @@ class ReadingAligner:
         td_lattice: List[List[List[Node]]] = []
         td_holder: List[List[Tuple[Optional[Node], Optional[Node], float]]] = []
         node: Optional[Node] = None
-        node_prev: Optional[Node] = None
+        node_prev: Optional[Node]
         for i in range(len(surf)):
             td_lattice.append([])
             for j in range(len(reading) + 1):  # +1 for zero-width reading
@@ -183,7 +183,7 @@ class ReadingAligner:
                         break
                     ci2 = surf[i2]
                     if ci2 in CHOON_SET or ci2 in HATSUON_SET or ci2 in LOWER2UPPER:
-                        for basenode in basenode_list:
+                        for _ in basenode_list:
                             assert isinstance(node, Node)
                             node2 = copy.deepcopy(node)
                             node2.cost += 10

@@ -4,7 +4,7 @@ from typing import List
 
 import jaconv
 from rhoknp import Sentence
-from transformers import PreTrainedTokenizerBase
+from transformers import PreTrainedTokenizerFast
 
 from kwja.utils.constants import (
     CANON_TOKEN,
@@ -734,7 +734,7 @@ seq2seq_formats: List[str] = [
 ]
 
 
-def test_tokenize(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
+def test_tokenize(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast):
     seq2seq_formatter = Seq2SeqFormatter(seq2seq_tokenizer)
     juman_dir: Path = data_dir / "modules" / "juman"
     for idx, path in enumerate(sorted(juman_dir.glob("*.juman"))):
@@ -745,7 +745,7 @@ def test_tokenize(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
             assert tgt_tokens == tokenizeds[idx]
 
 
-def test_sent_to_text(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
+def test_sent_to_text(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast):
     seq2seq_formatter = Seq2SeqFormatter(seq2seq_tokenizer)
     juman_dir: Path = data_dir / "modules" / "juman"
     for idx, path in enumerate(sorted(juman_dir.glob("*.juman"))):
@@ -754,7 +754,7 @@ def test_sent_to_text(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase
             assert seq2seq_formatter.sent_to_text(sent) == texts[idx]
 
 
-def test_sent_to_mrph_lines(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
+def test_sent_to_mrph_lines(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast):
     seq2seq_formatter = Seq2SeqFormatter(seq2seq_tokenizer)
     juman_dir: Path = data_dir / "modules" / "juman"
     for idx, path in enumerate(sorted(juman_dir.glob("*.juman"))):
@@ -766,7 +766,7 @@ def test_sent_to_mrph_lines(data_dir: Path, seq2seq_tokenizer: PreTrainedTokeniz
             assert seq2seq_formatter.sent_to_mrph_lines(sent) == expected_mrph_lines
 
 
-def test_format_to_sent(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
+def test_format_to_sent(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast):
     seq2seq_formatter = Seq2SeqFormatter(seq2seq_tokenizer)
     juman_dir: Path = data_dir / "modules" / "juman"
     for idx, path in enumerate(sorted(juman_dir.glob("*.juman"))):

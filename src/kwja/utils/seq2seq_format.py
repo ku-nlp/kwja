@@ -1,7 +1,7 @@
 from typing import Dict, List
 
 from rhoknp import Sentence
-from transformers import PreTrainedTokenizerBase
+from transformers import PreTrainedTokenizerFast
 
 from kwja.utils.constants import (
     CANON_TOKEN,
@@ -19,8 +19,8 @@ from kwja.utils.constants import (
 
 
 class Seq2SeqFormatter:
-    def __init__(self, tokenizer: PreTrainedTokenizerBase):
-        self.tokenizer: PreTrainedTokenizerBase = tokenizer
+    def __init__(self, tokenizer: PreTrainedTokenizerFast) -> None:
+        self.tokenizer: PreTrainedTokenizerFast = tokenizer
 
         self.word_to_token: Dict[str, str] = {
             "\u3000": FULL_SPACE_TOKEN,
