@@ -1,7 +1,8 @@
 import logging
 from abc import ABC
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
-from typing import Dict, Generic, List, TypeVar, Union
+from typing import Dict, Generic, List, Optional, TypeVar, Union
 
 from rhoknp import Document, Sentence
 from torch.utils.data import Dataset
@@ -71,13 +72,25 @@ class FullAnnotatedDocumentLoaderMixin:
     @staticmethod
     def _load_documents(document_dir: Path, ext: str) -> List[Document]:
         documents = []
-        for path in track(sorted(document_dir.glob(f"*.{ext}")), description="Loading documents"):
-            # TODO: fix document files that raise exception
-            try:
-                documents.append(Document.from_knp(path.read_text()))
-            except AssertionError:
-                logger.warning(f"{path} is not a valid knp file.")
+        # Use a ProcessPoolExecutor to parallelize the loading of documents
+        with ProcessPoolExecutor() as executor:
+            paths = sorted(document_dir.glob(f"*.{ext}"))
+            for document in track(
+                executor.map(FullAnnotatedDocumentLoaderMixin._load_document, paths),
+                total=len(paths),
+                description="Loading documents",
+            ):
+                if document is not None:
+                    documents.append(document)
         return documents
+
+    @staticmethod
+    def _load_document(path: Path) -> Optional[Document]:
+        try:
+            return Document.from_knp(path.read_text())
+        except AssertionError:
+            logger.warning(f"{path} is not a valid knp file.")
+            return None
 
     def _postprocess_document(self, document: Document) -> Document:
         return document
