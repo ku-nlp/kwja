@@ -77,7 +77,7 @@ class JumanppAugmenter:
                     augmented_morpheme = aligned[0]
                     # Jumanpp may override reading
                     augmented_morpheme.reading = original_morpheme.reading
-                    if update_original and not original_sentence.need_knp:
+                    if update_original and not original_sentence.is_knp_required():
                         original_morpheme.semantics.update(augmented_morpheme.semantics)
                 keys = []
 

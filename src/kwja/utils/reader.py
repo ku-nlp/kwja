@@ -1,6 +1,7 @@
 from typing import Iterator, List, TextIO
 
 from rhoknp import Sentence
+from rhoknp.utils.comment import is_comment_line
 
 
 def chunk_by_document_for_line_by_line_text(f: TextIO) -> Iterator[str]:
@@ -23,7 +24,7 @@ def chunk_by_sentence_for_line_by_line_text(f: TextIO) -> Iterator[str]:
         if line.strip() == "":
             continue
         buffer.append(line)
-        if not Sentence.is_comment_line(line):
+        if is_comment_line(line) is False:
             yield "".join(buffer)
             buffer = []
     if buffer:
