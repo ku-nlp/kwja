@@ -2167,13 +2167,13 @@ use-chardet-on-py3 = ["chardet (>=3.0.2,<6)"]
 
 [[package]]
 name = "rhoknp"
-version = "1.4.0"
+version = "1.4.1"
 description = "Yet another Python binding for Juman++/KNP/KWJA"
 optional = false
 python-versions = ">=3.7,<4.0"
 files = [
-    {file = "rhoknp-1.4.0-py3-none-any.whl", hash = "sha256:0b78765ad0d70433376b6727a6659cdf9a321e1dcbfe1d696be0cec7ca3e7e0c"},
-    {file = "rhoknp-1.4.0.tar.gz", hash = "sha256:a06af4c2c4a496ecf8922576a424cb26c4e7b58ea4f4c863b14abbc6e6a4406a"},
+    {file = "rhoknp-1.4.1-py3-none-any.whl", hash = "sha256:0d23cfdd0c273e54ec6bb7639be0a8fd1a1068cead8a30db4d6f71ae81935283"},
+    {file = "rhoknp-1.4.1.tar.gz", hash = "sha256:46f31d32db410ae126f22dabe8f1bce4ff8dd8b842012d8c1b0cc3167778b6fa"},
 ]
 
 [package.extras]
