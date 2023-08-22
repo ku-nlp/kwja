@@ -73,7 +73,7 @@ class FullAnnotatedDocumentLoaderMixin:
     def _load_documents(document_dir: Path, ext: str) -> List[Document]:
         documents = []
         # Use a ProcessPoolExecutor to parallelize the loading of documents
-        with ProcessPoolExecutor() as executor:
+        with ProcessPoolExecutor(4) as executor:
             paths = sorted(document_dir.glob(f"*.{ext}"))
             for document in track(
                 executor.map(FullAnnotatedDocumentLoaderMixin._load_document, paths),
