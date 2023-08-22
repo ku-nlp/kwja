@@ -24,8 +24,8 @@ class CohesionBasePhrase:
     rel2tags: Optional[Dict[str, List[str]]] = None
 
     def __getattr__(self, attr_name: str):
-        if attr_name in {"is_target", "antecedent_candidates", "rel2tags"}:
-            return getattr(self, attr_name)
+        if attr_name in {"base_phrase", "is_target", "antecedent_candidates", "rel2tags"}:
+            return getattr(self, attr_name) if attr_name in self.__dict__ else None
         else:
             return getattr(self.base_phrase, attr_name)
 
