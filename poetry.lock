@@ -308,13 +308,13 @@ files = [
 
 [[package]]
 name = "click"
-version = "8.1.6"
+version = "8.1.7"
 description = "Composable command line interface toolkit"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "click-8.1.6-py3-none-any.whl", hash = "sha256:fa244bb30b3b5ee2cae3da8f55c9e5e0c0e86093306301fb418eb9dc40fbded5"},
-    {file = "click-8.1.6.tar.gz", hash = "sha256:48ee849951919527a045bfe3bf7baa8a959c423134e1a5b98c05c20ba75a1cbd"},
+    {file = "click-8.1.7-py3-none-any.whl", hash = "sha256:ae74fb96c20a0277a1d615f1e4d73c8414f5a98db8b799a7931d1582f3390c28"},
+    {file = "click-8.1.7.tar.gz", hash = "sha256:ca9853ad459e787e2192211578cc907e7594e294c7ccc834310722b41b9ca6de"},
 ]
 
 [package.dependencies]
@@ -351,7 +351,7 @@ test = ["coverage (>=4.2)", "flake8 (>=3.0.4)", "path.py (>=11.5.0)", "pytest (>
 
 [[package]]
 name = "cohesion-tools"
-version = "0.4.0"
+version = "0.5.0"
 description = ""
 optional = false
 python-versions = "^3.8"
@@ -360,13 +360,13 @@ develop = false
 
 [package.dependencies]
 pandas = "^2.0"
-rhoknp = "^1.3"
+rhoknp = "~1.4.0"
 
 [package.source]
 type = "git"
 url = "https://github.com/nobu-g/cohesion-tools.git"
 reference = "HEAD"
-resolved_reference = "6f61a79b6e76298d7fba97aecb74056e4424fda2"
+resolved_reference = "76be4a4400367b9f5d14d46a908235581a3c8e40"
 
 [[package]]
 name = "colorama"
@@ -2167,17 +2167,17 @@ use-chardet-on-py3 = ["chardet (>=3.0.2,<6)"]
 
 [[package]]
 name = "rhoknp"
-version = "1.3.2"
+version = "1.4.1"
 description = "Yet another Python binding for Juman++/KNP/KWJA"
 optional = false
 python-versions = ">=3.7,<4.0"
 files = [
-    {file = "rhoknp-1.3.2-py3-none-any.whl", hash = "sha256:4767a91d6efc9a2f8d6805845eb246fd0fe878b31628e57b236a1eb0543c8125"},
-    {file = "rhoknp-1.3.2.tar.gz", hash = "sha256:c5c4441462b7eded852de337a9dd3df1a2a4400d6ed02b5acba3cbf06fa0dc83"},
+    {file = "rhoknp-1.4.1-py3-none-any.whl", hash = "sha256:0d23cfdd0c273e54ec6bb7639be0a8fd1a1068cead8a30db4d6f71ae81935283"},
+    {file = "rhoknp-1.4.1.tar.gz", hash = "sha256:46f31d32db410ae126f22dabe8f1bce4ff8dd8b842012d8c1b0cc3167778b6fa"},
 ]
 
 [package.extras]
-cli = ["PyYAML (>=6.0,<7.0)", "fastapi (>=0.92.0,<1)", "jinja2 (>=3.1,<4.0)", "rich (>=12.6)", "typer (>=0.7)", "typer (>=0.7,<0.9)", "uvicorn (>=0.21.0,<1)"]
+cli = ["PyYAML (>=6.0,<7.0)", "fastapi (>=0.92.0,<1)", "jinja2 (>=3.1,<4.0)", "rich (>=12.6)", "typer (>=0.7)", "typer (>=0.7,<0.9)", "uvicorn (>=0.21.0)", "uvicorn (>=0.21.0,<0.23.0)"]
 
 [[package]]
 name = "rich"
@@ -3164,4 +3164,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "f8d8b4cd03943ad7c1ea82287e8f709412192188c085d16e14fdca4faaa7a6a3"
+content-hash = "796282692d6746fdf6f6da16744d12e51f777e39dadb2f2733e965e3d15b2be5"

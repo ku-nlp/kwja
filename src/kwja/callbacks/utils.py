@@ -493,7 +493,7 @@ def _to_rel_tag(
 
 
 def add_discourse(document: Document, discourse_predictions: List[List[int]]) -> None:
-    if document.need_clause_tag:
+    if document.is_clause_tag_required():
         logger.warning("failed to output clause boundaries")
         return
 
