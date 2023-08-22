@@ -360,13 +360,13 @@ develop = false
 
 [package.dependencies]
 pandas = "^2.0"
-rhoknp = "~1.4.0"
+rhoknp = "~1.4.1"
 
 [package.source]
 type = "git"
 url = "https://github.com/nobu-g/cohesion-tools.git"
 reference = "HEAD"
-resolved_reference = "76be4a4400367b9f5d14d46a908235581a3c8e40"
+resolved_reference = "4a78d7ca3fe679ddcf10a302e6b91011876d3b25"
 
 [[package]]
 name = "colorama"

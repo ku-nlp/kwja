@@ -21,7 +21,7 @@ maintainers = [
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/ku-nlp/kwja"
-keywords = ["natural language processing", "japanese"]
+keywords = ["NLP", "japanese"]
 classifiers = [
     "Environment :: GPU",
     "Environment :: MacOS X",
