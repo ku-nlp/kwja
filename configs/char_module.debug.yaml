@@ -22,6 +22,7 @@ denormalize_probability: 0.5
 monitor: valid/aggregated_char_metrics
 mode: max
 aggregating_metrics:
+#  - sent_segmentation_f1
   - word_segmentation_f1
 #  - word_normalization_f1  # exclude because this metric is unstable
 
