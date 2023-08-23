@@ -41,4 +41,24 @@ compile: ${oc.env:COMPILE,false}
 ignore_hparams_on_save: false
 
 # constants
-hparams_to_ignore_on_save: []
+hparams_to_ignore_on_save:
+  - project
+  - work_dir
+  - seed
+  - name
+  - exp_dir
+  - run_id
+  - run_dir
+  - config_name
+  - callbacks:
+    - early_stopping
+    - model_checkpoint
+    - model_summary
+    - prediction_writer:
+        - destination
+  - datamodule:
+    - train
+    - valid
+    - test
+  - logger
+  - hparams_to_ignore_on_save
