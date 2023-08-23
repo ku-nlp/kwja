@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Tuple
 import torch
 from Levenshtein import opcodes
 
-from kwja.callbacks.utils import apply_edit_operations, convert_predictions_into_typo_corr_op_tags
+from kwja.callbacks.utils import apply_edit_operations, convert_typo_predictions_into_tags
 from kwja.datamodule.datasets import TypoDataset
 from kwja.metrics.base import BaseModuleMetric
 from kwja.metrics.utils import unique
@@ -72,8 +72,8 @@ class TypoModuleMetric(BaseModuleMetric):
                 continue
 
             args = (confidence_threshold, self.dataset.token2token_id, self.dataset.token_id2token)
-            kdr_tags = convert_predictions_into_typo_corr_op_tags(kdr_predictions, kdr_probabilities, "R", *args)
-            ins_tags = convert_predictions_into_typo_corr_op_tags(ins_predictions, ins_probabilities, "I", *args)
+            kdr_tags = convert_typo_predictions_into_tags(kdr_predictions, kdr_probabilities, "R", *args)
+            ins_tags = convert_typo_predictions_into_tags(ins_predictions, ins_probabilities, "I", *args)
 
             # the prediction of the first token (= [CLS]) is excluded.
             # the prediction of the dummy token at the end is used for insertion only.
