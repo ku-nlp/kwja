@@ -1,7 +1,5 @@
 from .char import CharDataset
 from .char_inference import CharInferenceDataset
-from .senter import SenterDataset
-from .senter_inference import SenterInferenceDataset
 from .seq2seq import Seq2SeqDataset
 from .seq2seq_inference import Seq2SeqInferenceDataset
 from .typo import TypoDataset
@@ -18,6 +16,4 @@ __all__ = [
     "Seq2SeqInferenceDataset",
     "WordDataset",
     "WordInferenceDataset",
-    "SenterDataset",
-    "SenterInferenceDataset",
 ]

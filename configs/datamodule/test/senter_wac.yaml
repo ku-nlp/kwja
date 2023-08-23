@@ -1,5 +1,0 @@
-defaults:
-  - /datamodule/base/senter@wac
-
-wac:
-  path: ${oc.env:DATA_DIR}/wac/test
