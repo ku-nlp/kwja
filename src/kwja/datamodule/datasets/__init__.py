@@ -12,10 +12,10 @@ from .word_inference import WordInferenceDataset
 __all__ = [
     "TypoDataset",
     "TypoInferenceDataset",
-    "Seq2SeqDataset",
-    "Seq2SeqInferenceDataset",
     "CharDataset",
     "CharInferenceDataset",
+    "Seq2SeqDataset",
+    "Seq2SeqInferenceDataset",
     "WordDataset",
     "WordInferenceDataset",
     "SenterDataset",

@@ -7,10 +7,10 @@ from .word import SpecialTokenIndexer, WordExample, WordInferenceExample
 __all__ = [
     "TypoExample",
     "TypoInferenceExample",
-    "Seq2SeqExample",
-    "Seq2SeqInferenceExample",
     "CharExample",
     "CharInferenceExample",
+    "Seq2SeqExample",
+    "Seq2SeqInferenceExample",
     "SpecialTokenIndexer",
     "WordExample",
     "WordInferenceExample",
