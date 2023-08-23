@@ -9,7 +9,9 @@ from kwja.utils.constants import CANON_TOKEN, IGNORE_INDEX, LEMMA_TOKEN, NO_CANO
 
 def test_init(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast):
     path = data_dir / "datasets" / "word_files"
-    _ = Seq2SeqDataset(str(path), seq2seq_tokenizer, max_src_length=128, max_tgt_length=512)
+    max_src_length = 128
+    max_tgt_length = 512
+    _ = Seq2SeqDataset(str(path), seq2seq_tokenizer, max_src_length, max_tgt_length)
 
 
 def test_getitem(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast):
@@ -19,8 +21,8 @@ def test_getitem(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast):
     dataset = Seq2SeqDataset(
         str(path),
         seq2seq_tokenizer,
-        max_src_length=max_src_length,
-        max_tgt_length=max_tgt_length,
+        max_src_length,
+        max_tgt_length,
     )
     for i in range(len(dataset)):
         feature = dataset[i]
@@ -37,12 +39,12 @@ def test_encode(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast):
     dataset = Seq2SeqDataset(
         str(path),
         seq2seq_tokenizer,
-        max_src_length=max_src_length,
-        max_tgt_length=max_tgt_length,
+        max_src_length,
+        max_tgt_length,
     )
     num_examples = len(dataset)
 
-    expecteds: List[List[str]] = [
+    expected_tokens: List[List[str]] = [
         [
             SURF_TOKEN,
             "太郎",
@@ -186,6 +188,6 @@ def test_encode(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast):
     ]
     for i in range(num_examples):
         feature = dataset[i]
-        seq2seq_label_ids = [x for x in feature.seq2seq_labels if x != IGNORE_INDEX]
-        seq2seq_labels = seq2seq_tokenizer.convert_ids_to_tokens(seq2seq_label_ids)
-        assert seq2seq_labels == expecteds[i]
+        seq2seq_labels = [x for x in feature.seq2seq_labels if x != IGNORE_INDEX]
+        seq2seq_tokens = seq2seq_tokenizer.convert_ids_to_tokens(seq2seq_labels)
+        assert seq2seq_tokens == expected_tokens[i]
