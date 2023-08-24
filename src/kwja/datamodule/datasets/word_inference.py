@@ -6,7 +6,7 @@ from cohesion_tools.extractors import BridgingExtractor, CoreferenceExtractor, P
 from cohesion_tools.extractors.base import BaseExtractor
 from omegaconf import ListConfig
 from rhoknp import Document, Sentence
-from rhoknp.cohesion import ExophoraReferent
+from rhoknp.cohesion import ExophoraReferent, ExophoraReferentType
 from rhoknp.utils.reader import chunk_by_document
 from tokenizers import Encoding
 from transformers import PreTrainedTokenizerBase
@@ -58,18 +58,18 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
         super(BaseDataset, self).__init__(documents, tokenizer, max_seq_length, document_split_stride)
         # ---------- cohesion analysis ----------
         self.cohesion_tasks: List[CohesionTask] = [task for task in CohesionTask if task.value in cohesion_tasks]
-        self.exophora_referents = [ExophoraReferent(er) for er in exophora_referents]
+        self.exophora_referent_types: List[ExophoraReferentType] = [
+            ExophoraReferent(er).type for er in exophora_referents
+        ]
         self.cohesion_task2extractor: Dict[CohesionTask, BaseExtractor] = {
             CohesionTask.PAS_ANALYSIS: PasExtractor(
                 list(pas_cases),
-                [er.type for er in self.exophora_referents],
+                self.exophora_referent_types,
                 verbal_predicate=True,
                 nominal_predicate=True,
             ),
-            CohesionTask.BRIDGING_REFERENCE_RESOLUTION: BridgingExtractor(
-                list(br_cases), [er.type for er in self.exophora_referents]
-            ),
-            CohesionTask.COREFERENCE_RESOLUTION: CoreferenceExtractor([er.type for er in self.exophora_referents]),
+            CohesionTask.BRIDGING_REFERENCE_RESOLUTION: BridgingExtractor(list(br_cases), self.exophora_referent_types),
+            CohesionTask.COREFERENCE_RESOLUTION: CoreferenceExtractor(self.exophora_referent_types),
         }
         self.cohesion_task2rels: Dict[CohesionTask, List[str]] = {
             CohesionTask.PAS_ANALYSIS: list(pas_cases),
