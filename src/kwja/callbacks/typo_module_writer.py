@@ -7,7 +7,7 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import BasePredictionWriter
 from transformers import PreTrainedTokenizerBase
 
-from kwja.callbacks.utils import apply_edit_operations, convert_predictions_into_typo_corr_op_tags, get_maps
+from kwja.callbacks.utils import apply_edit_operations, convert_typo_predictions_into_tags, get_maps
 from kwja.datamodule.datasets import TypoDataset, TypoInferenceDataset
 from kwja.datamodule.examples import TypoExample, TypoInferenceExample
 from kwja.utils.constants import RESOURCE_PATH
@@ -70,8 +70,8 @@ class TypoModuleWriter(BasePredictionWriter):
                 continue
 
             args = (self.confidence_threshold, self.token2token_id, self.token_id2token)
-            kdr_tags = convert_predictions_into_typo_corr_op_tags(kdr_predictions, kdr_probabilities, "R", *args)
-            ins_tags = convert_predictions_into_typo_corr_op_tags(ins_predictions, ins_probabilities, "I", *args)
+            kdr_tags = convert_typo_predictions_into_tags(kdr_predictions, kdr_probabilities, "R", *args)
+            ins_tags = convert_typo_predictions_into_tags(ins_predictions, ins_probabilities, "I", *args)
 
             # the prediction of the first token (= [CLS]) is excluded.
             # the prediction of the dummy token at the end is used for insertion only.

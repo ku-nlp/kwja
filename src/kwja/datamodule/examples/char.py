@@ -14,6 +14,9 @@ class CharExample:
         self.encoding = encoding
         self.doc_id: Optional[str] = None
 
+        # ---------- sentence segmentation ----------
+        self.char_global_index2sent_segmentation_tag: Dict[int, str] = {}
+
         # ---------- word segmentation ----------
         self.char_global_index2word_segmentation_tag: Dict[int, str] = {}
 
@@ -30,9 +33,16 @@ class CharExample:
                 offset += len(sentence.text)
                 continue
             for morpheme in sentence.morphemes:
+                self._set_sent_segmentation_tag(morpheme, offset)
                 self._set_word_segmentation_tag(morpheme, offset)
                 self._set_word_norm_op_tag(morpheme, offset)
                 offset += len(morpheme.text)
+
+    def _set_sent_segmentation_tag(self, morpheme: Morpheme, offset: int) -> None:
+        for char_index_in_morpheme in range(len(morpheme.text)):
+            self.char_global_index2sent_segmentation_tag[char_index_in_morpheme + offset] = (
+                "B" if char_index_in_morpheme == 0 and morpheme.index == 0 else "I"
+            )
 
     def _set_word_segmentation_tag(self, morpheme: Morpheme, offset: int) -> None:
         for char_index_in_morpheme in range(len(morpheme.text)):

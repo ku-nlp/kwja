@@ -45,25 +45,6 @@ def test_normalization_and_typo_module(text: str, output: str):
     assert ret.stdout == output
 
 
-@pytest.mark.parametrize(
-    "text, output",
-    [
-        # ("", ""),  # TODO
-        ("おはよう", "おはよう"),
-        ("おはよう．", "おはよう."),
-        # ("おはよう　 　", "おはよう　 　"),
-        ("おはようEOD", "おはようEOD"),
-    ],
-)
-def test_senter_module(text: str, output: str):
-    ret = runner.invoke(app, args=["--model-size", "tiny", "--tasks", "senter", "--text", text])
-    assert ret.exception is None
-    assert ret.stdout.endswith("\n")
-    comment, content = ret.stdout[:-1].split("\n")
-    assert comment.startswith("#")
-    assert content == output
-
-
 def test_file_input():
     with tempfile.NamedTemporaryFile("wt") as f:
         f.write(
@@ -115,30 +96,25 @@ def test_task_input():
         "",
         "dummy",
         "typo",
-        "typo,senter",
-        "typo,senter,char",
-        "typo,senter,word",
-        "typo,senter,seq2seq",
-        "typo,senter,seq2seq,char",
-        "typo,senter,seq2seq,word",
-        "senter",
-        "senter,char",
-        "senter,char,word",
-        "senter,seq2seq",
-        "senter,seq2seq,word",
+        "typo,char",
+        "typo,char,seq2seq",
+        "typo,char,word",
+        "typo,char,seq2seq,word",
+        "char",
+        "char,seq2seq",
+        "char,word",
+        "char,seq2seq,word",
     ]
     valid_tasks: Set[Tuple[str, ...]] = {
         ("typo",),
-        ("typo", "senter"),
-        ("typo", "senter", "char"),
-        ("typo", "senter", "char", "word"),
-        ("typo", "senter", "seq2seq"),
-        ("typo", "senter", "seq2seq", "word"),
-        ("senter",),
-        ("senter", "char"),
-        ("senter", "char", "word"),
-        ("senter", "seq2seq"),
-        ("senter", "seq2seq", "word"),
+        ("typo", "char"),
+        ("typo", "char", "seq2seq"),
+        ("typo", "char", "word"),
+        ("typo", "char", "seq2seq", "word"),
+        ("char",),
+        ("char", "seq2seq"),
+        ("char", "word"),
+        ("char", "seq2seq", "word"),
     }
     for task in tasks:
         ret = runner.invoke(app, args=["--model-size", "tiny", "--text", "おはよう", "--task", task])

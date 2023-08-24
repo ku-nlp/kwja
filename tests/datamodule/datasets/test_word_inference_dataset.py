@@ -10,10 +10,14 @@ from kwja.datamodule.datasets import WordInferenceDataset
 
 
 def test_init(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
-    _ = WordInferenceDataset(word_tokenizer, max_seq_length=256, document_split_stride=1, **dataset_kwargs)
+    max_seq_length = 256
+    document_split_stride = 1
+    _ = WordInferenceDataset(word_tokenizer, max_seq_length, document_split_stride, **dataset_kwargs)
 
 
 def test_len(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
+    max_seq_length = 256
+    document_split_stride = 1
     juman_text = dedent(
         """\
         # S-ID:test-0-0
@@ -29,12 +33,14 @@ def test_len(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, 
     juman_file.seek(0)
 
     dataset = WordInferenceDataset(
-        word_tokenizer, max_seq_length=256, document_split_stride=1, juman_file=Path(juman_file.name), **dataset_kwargs
+        word_tokenizer, max_seq_length, document_split_stride, juman_file=Path(juman_file.name), **dataset_kwargs
     )
     assert len(dataset) == 1
 
 
 def test_len_multi_doc(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
+    max_seq_length = 256
+    document_split_stride = 1
     juman_text = dedent(
         """\
         # S-ID:test-0-0
@@ -56,12 +62,14 @@ def test_len_multi_doc(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: 
     juman_file.seek(0)
 
     dataset = WordInferenceDataset(
-        word_tokenizer, max_seq_length=256, document_split_stride=1, juman_file=Path(juman_file.name), **dataset_kwargs
+        word_tokenizer, max_seq_length, document_split_stride, juman_file=Path(juman_file.name), **dataset_kwargs
     )
     assert len(dataset) == 2
 
 
 def test_getitem(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
+    max_seq_length = 256
+    document_split_stride = 1
     juman_text = dedent(
         """\
         # S-ID:test-0-0
@@ -76,11 +84,10 @@ def test_getitem(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[s
     juman_file.write(juman_text)
     juman_file.seek(0)
 
-    max_seq_length = 256
     dataset = WordInferenceDataset(
         word_tokenizer,
-        max_seq_length=max_seq_length,
-        document_split_stride=1,
+        max_seq_length,
+        document_split_stride,
         juman_file=Path(juman_file.name),
         **dataset_kwargs,
     )

@@ -30,13 +30,16 @@ def split_into_words_word_tokenizer(special_tokens: List[str]) -> PreTrainedToke
 
 def test_init(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
     path = data_dir / "datasets" / "word_files"
-    _ = WordDataset(str(path), word_tokenizer, max_seq_length=256, document_split_stride=1, **dataset_kwargs)
+    max_seq_length = 256
+    document_split_stride = 1
+    _ = WordDataset(str(path), word_tokenizer, max_seq_length, document_split_stride, **dataset_kwargs)
 
 
 def test_getitem(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
     path = data_dir / "datasets" / "word_files"
     max_seq_length = 256
-    dataset = WordDataset(str(path), word_tokenizer, max_seq_length, document_split_stride=1, **dataset_kwargs)
+    document_split_stride = 1
+    dataset = WordDataset(str(path), word_tokenizer, max_seq_length, document_split_stride, **dataset_kwargs)
     num_cohesion_rels = len([r for rels in dataset.cohesion_task2rels.values() for r in rels])
     for i in range(len(dataset)):
         doc_id = dataset.examples[i].doc_id
@@ -71,10 +74,9 @@ def test_getitem(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, datase
 
 def test_encode(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
     path = data_dir / "datasets" / "word_files"
-    max_seq_length = 32
-    dataset = WordDataset(
-        str(path), word_tokenizer, max_seq_length=max_seq_length, document_split_stride=1, **dataset_kwargs
-    )
+    max_seq_length = 64
+    document_split_stride = 1
+    dataset = WordDataset(str(path), word_tokenizer, max_seq_length, document_split_stride, **dataset_kwargs)
     assert dataset.tokenizer_input_format == "text"
     dataset.examples[1].load_discourse_document(Document.from_knp(path.joinpath("1.knp").read_text()))
     num_examples = len(dataset)
@@ -360,13 +362,10 @@ def test_split_into_words_encode(
     data_dir: Path, split_into_words_word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]
 ):
     path = data_dir / "datasets" / "word_files"
-    max_seq_length = 32
+    max_seq_length = 256
+    document_split_stride = 1
     dataset = WordDataset(
-        str(path),
-        split_into_words_word_tokenizer,
-        max_seq_length,
-        document_split_stride=1,
-        **dataset_kwargs,
+        str(path), split_into_words_word_tokenizer, max_seq_length, document_split_stride, **dataset_kwargs
     )
     assert dataset.tokenizer_input_format == "words"
     dataset.examples[1].load_discourse_document(Document.from_knp(path.joinpath("1.knp").read_text()))
