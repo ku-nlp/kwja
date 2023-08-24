@@ -3,6 +3,7 @@ import tempfile
 import textwrap
 from typing import List, Set, Tuple
 
+import pytest
 from rhoknp import Document
 from rhoknp.utils.reader import chunk_by_document
 from typer.testing import CliRunner
@@ -24,6 +25,43 @@ def test_device():
 def test_text_input():
     ret = runner.invoke(app, args=["--model-size", "tiny", "--text", "おはよう"])
     assert ret.exception is None
+
+
+@pytest.mark.parametrize(
+    "text, output",
+    [
+        ("", "EOD\n"),
+        # ("EOD", "EOD\nEOD\n"),  # TODO
+        ("おはよう", "おはよう\nEOD\n"),
+        ("おはよう．", "おはよう.\nEOD\n"),
+        ("おはよう #今日も一日", "おはよう␣＃今日も一日\nEOD\n"),
+        ("おはよう。\nこんにちは。\nこんばんわ。\n", "おはよう。こんにちは。こんばんわ。\nEOD\n"),
+        ("おはよう。EOD", "おはよう。EOD\nEOD\n"),
+    ],
+)
+def test_normalization_and_typo_module(text: str, output: str):
+    ret = runner.invoke(app, args=["--model-size", "tiny", "--tasks", "typo", "--text", text])
+    assert ret.exception is None
+    assert ret.stdout == output
+
+
+@pytest.mark.parametrize(
+    "text, output",
+    [
+        # ("", ""),  # TODO
+        ("おはよう", "おはよう"),
+        ("おはよう．", "おはよう."),
+        # ("おはよう　 　", "おはよう　 　"),
+        ("おはようEOD", "おはようEOD"),
+    ],
+)
+def test_senter_module(text: str, output: str):
+    ret = runner.invoke(app, args=["--model-size", "tiny", "--tasks", "senter", "--text", text])
+    assert ret.exception is None
+    assert ret.stdout.endswith("\n")
+    comment, content = ret.stdout[:-1].split("\n")
+    assert comment.startswith("#")
+    assert content == output
 
 
 def test_file_input():

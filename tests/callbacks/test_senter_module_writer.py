@@ -90,7 +90,7 @@ def test_write_on_batch_end(char_tokenizer: PreTrainedTokenizerBase) -> None:
         dataset = SenterInferenceDataset(ListConfig(texts), char_tokenizer, max_seq_length, doc_id_prefix=doc_id_prefix)
         trainer = MockTrainer([DataLoader(dataset, batch_size=num_examples)])
         writer = SenterModuleWriter(destination=destination)
-        writer.write_on_batch_end(trainer, ..., prediction, None, ..., 0, 0)
-        writer.on_predict_epoch_end(trainer, ...)
+        writer.write_on_batch_end(trainer, ..., prediction, None, ..., 0, 0)  # type: ignore
+        writer.on_predict_epoch_end(trainer, ...)  # type: ignore
         assert isinstance(writer.destination, Path), "destination isn't set"
         assert writer.destination.read_text() == expected_texts[0]

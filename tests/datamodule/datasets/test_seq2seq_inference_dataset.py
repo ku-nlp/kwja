@@ -2,16 +2,16 @@ import tempfile
 from pathlib import Path
 from textwrap import dedent
 
-from transformers import PreTrainedTokenizerBase
+from transformers import PreTrainedTokenizerFast
 
 from kwja.datamodule.datasets import Seq2SeqInferenceDataset
 
 
-def test_init(seq2seq_tokenizer: PreTrainedTokenizerBase):
+def test_init(seq2seq_tokenizer: PreTrainedTokenizerFast):
     _ = Seq2SeqInferenceDataset(seq2seq_tokenizer, max_src_length=128, max_tgt_length=512)
 
 
-def test_len(seq2seq_tokenizer: PreTrainedTokenizerBase):
+def test_len(seq2seq_tokenizer: PreTrainedTokenizerFast):
     senter_text = dedent(
         """\
         # S-ID:test-0-0
@@ -37,7 +37,7 @@ def test_len(seq2seq_tokenizer: PreTrainedTokenizerBase):
     assert len(dataset) == 4
 
 
-def test_getitem(seq2seq_tokenizer: PreTrainedTokenizerBase):
+def test_getitem(seq2seq_tokenizer: PreTrainedTokenizerFast):
     max_src_length = 64
     max_tgt_length = 512
     texts = ["今日は晴れだ", "散歩に行こう", "今日は雨だ", "家でゆっくりしよう"]

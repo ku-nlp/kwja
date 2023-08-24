@@ -22,7 +22,7 @@ def test_init() -> None:
     _ = WordModule(cfg)
 
 
-def test_steps(fixture_data_dir: Path) -> None:
+def test_steps(data_dir: Path) -> None:
     trainer: pl.Trainer = hydra.utils.instantiate(
         cfg.trainer,
         logger=False,
@@ -31,7 +31,7 @@ def test_steps(fixture_data_dir: Path) -> None:
         accelerator="cpu",
     )
 
-    path = fixture_data_dir / "datasets" / "word_files"
+    path = data_dir / "datasets" / "word_files"
     word_tokenizer = hydra.utils.instantiate(cfg.datamodule.train.kyoto.tokenizer)
     dataset = WordDataset(
         str(path),

@@ -6,17 +6,16 @@ from typing import Any, List, Optional, Sequence, TextIO, Union
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import BasePredictionWriter
 from rhoknp import Sentence
-from transformers import PreTrainedTokenizerBase
+from transformers import PreTrainedTokenizerFast
 
 import kwja
 from kwja.datamodule.datasets import Seq2SeqDataset, Seq2SeqInferenceDataset
 from kwja.datamodule.examples import Seq2SeqExample, Seq2SeqInferenceExample
-from kwja.utils.constants import NEW_LINE_TOKEN
-from kwja.utils.seq2seq_format import get_sent_from_seq2seq_format
+from kwja.utils.seq2seq_format import Seq2SeqFormatter
 
 
 class Seq2SeqModuleWriter(BasePredictionWriter):
-    def __init__(self, tokenizer: PreTrainedTokenizerBase, destination: Optional[Union[str, Path]] = None) -> None:
+    def __init__(self, tokenizer: PreTrainedTokenizerFast, destination: Optional[Union[str, Path]] = None) -> None:
         super().__init__(write_interval="batch")
         if destination is None:
             self.destination: Union[Path, TextIO] = sys.stdout
@@ -27,14 +26,8 @@ class Seq2SeqModuleWriter(BasePredictionWriter):
             self.destination.parent.mkdir(exist_ok=True, parents=True)
             self.destination.unlink(missing_ok=True)
 
-        self.tokenizer: PreTrainedTokenizerBase = tokenizer
-
-    @staticmethod
-    def shape(input_text: str) -> str:
-        output_lines: List[str] = []
-        for line in input_text.replace("</s>", "EOS\n").replace(NEW_LINE_TOKEN, "\n").split("\n"):
-            output_lines.append(line.lstrip().rstrip())
-        return "\n".join(output_lines)
+        self.tokenizer: PreTrainedTokenizerFast = tokenizer
+        self.formatter: Seq2SeqFormatter = Seq2SeqFormatter(tokenizer)
 
     def write_on_batch_end(
         self,
@@ -61,10 +54,14 @@ class Seq2SeqModuleWriter(BasePredictionWriter):
             if seq_len == 0:
                 continue
 
-            decoded: str = self.tokenizer.decode(
-                [x for x in seq2seq_predictions if x != self.tokenizer.pad_token_id], skip_special_tokens=False
+            decoded: str = (
+                self.tokenizer.decode(
+                    [x for x in seq2seq_predictions if x != self.tokenizer.pad_token_id], skip_special_tokens=False
+                )
+                .replace(self.tokenizer.eos_token, "")
+                .replace(" ", "")
             )
-            seq2seq_format: Sentence = get_sent_from_seq2seq_format(self.shape(decoded))
+            seq2seq_format: Sentence = self.formatter.format_to_sent(decoded)
             seq2seq_format.sid = example.sid
             seq2seq_format.misc_comment = f"kwja:{kwja.__version__}"
             outputs.append(seq2seq_format.to_jumanpp())

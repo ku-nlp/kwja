@@ -1,4 +1,0 @@
-[flake8]
-per-file-ignores =
-	*:E501
-	E203

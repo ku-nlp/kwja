@@ -77,7 +77,7 @@ class JumanppAugmenter:
                     augmented_morpheme = aligned[0]
                     # Jumanpp may override reading
                     augmented_morpheme.reading = original_morpheme.reading
-                    if update_original and not original_sentence.need_knp:
+                    if update_original and not original_sentence.is_knp_required():
                         original_morpheme.semantics.update(augmented_morpheme.semantics)
                 keys = []
 
@@ -177,7 +177,7 @@ def refresh(document: Document) -> None:
         feature_dict = FeatureDict()
         if (
             (feature := base_phrase.features.get("NE"))
-            and type(feature) == str
+            and isinstance(feature, str)
             and feature.startswith("OPTIONAL") is False
         ):
             feature_dict["NE"] = feature
@@ -428,7 +428,7 @@ def main():
             knp_texts += [knp_text for knp_text in chunk_by_document(f, doc_id_format=args.doc_id_format)]
 
     if args.ne_tags:
-        with open(args.ne_tags, mode="r") as f:
+        with open(args.ne_tags) as f:
             sentences = [Sentence.from_jumanpp(jumanpp_text) for jumanpp_text in chunk_by_sentence(f)]
         sid2tagged_sentence = {sentence.sid: sentence for sentence in sentences}
     else:

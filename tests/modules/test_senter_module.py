@@ -22,7 +22,7 @@ def test_init() -> None:
     _ = SenterModule(cfg)
 
 
-def test_steps(fixture_data_dir: Path) -> None:
+def test_steps(data_dir: Path) -> None:
     trainer: pl.Trainer = hydra.utils.instantiate(
         cfg.trainer,
         logger=False,
@@ -31,7 +31,7 @@ def test_steps(fixture_data_dir: Path) -> None:
         accelerator="cpu",
     )
 
-    path = fixture_data_dir / "datasets" / "char_files"
+    path = data_dir / "datasets" / "char_files"
     char_tokenizer = hydra.utils.instantiate(cfg.datamodule.train.kyoto.tokenizer)
     dataset = SenterDataset(str(path), char_tokenizer, cfg.max_seq_length)
     data_loader = DataLoader(dataset, batch_size=len(dataset), collate_fn=token_dataclass_data_collator)

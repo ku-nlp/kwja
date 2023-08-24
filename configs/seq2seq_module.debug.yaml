@@ -10,18 +10,15 @@ defaults:
   - trainer: debug
   - _self_
 
-max_src_length: 256
+max_src_length: 128
 max_tgt_length: 1024
 do_predict_after_train: false
 checkpoint_path: ""
 
 # For decoding settings
-use_forced_surf_decoding: true
+use_forced_decoding: true
 decoding:
   max_length: ${max_tgt_length}
-  min_length: 1
-  return_dict_in_generate: True
-  output_scores: True
   num_beams: 3
 
 # set monitor and mode for early_stopping and model_checkpoint

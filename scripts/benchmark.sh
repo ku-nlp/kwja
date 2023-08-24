@@ -44,6 +44,7 @@ while getopts h-: opt; do
     OPTARG=$(echo "${OPTARG}" | awk -F "=" '{print $2}')
   fi
 
+  # shellcheck disable=SC2214
   case "$opt" in
   input)
     INPUT=$OPTARG
@@ -96,15 +97,15 @@ if [[ -z "$INPUT" ]] || [[ -z "$WORK_DIR" ]] || [[ -z "$TYPO_MODULE" ]] || [[ -z
 fi
 
 echo "Juman++"
-(time -p cat "$INPUT" | jumanpp > "$WORK_DIR/benchmark.jumanpp.juman") 2> "$WORK_DIR/benchmark.stderr"
+(time -p jumanpp < "$INPUT" > "$WORK_DIR/benchmark.jumanpp.juman") 2> "$WORK_DIR/benchmark.stderr"
 grep -c '^EOS$' "$WORK_DIR/benchmark.jumanpp.juman" > "$WORK_DIR/count.txt"
 
 echo "Juman++ & KNP (NER + Dependency parsing)"
-(time -p cat "$INPUT" | jumanpp | knp -tab -ne-crf -dpnd > "$WORK_DIR/benchmark.knp_ne_dpnd.knp") 2>> "$WORK_DIR/benchmark.stderr"
+(time -p jumanpp < "$INPUT" | knp -tab -ne-crf -dpnd > "$WORK_DIR/benchmark.knp_ne_dpnd.knp") 2>> "$WORK_DIR/benchmark.stderr"
 grep "# S-ID:" "$WORK_DIR/benchmark.knp_ne_dpnd.knp" | grep -cv "ERROR:" >> "$WORK_DIR/count.txt"
 
 echo "Juman++ & KNP (NER + Dependency parsing + Case analysis)"
-(time -p cat "$INPUT" | jumanpp | knp -tab -ne-crf > "$WORK_DIR/benchmark.knp_ne.knp") 2>> "$WORK_DIR/benchmark.stderr"
+(time -p jumanpp < "$INPUT" | knp -tab -ne-crf > "$WORK_DIR/benchmark.knp_ne.knp") 2>> "$WORK_DIR/benchmark.stderr"
 grep "# S-ID:" "$WORK_DIR/benchmark.knp_ne.knp" | grep -cv "ERROR:" >> "$WORK_DIR/count.txt"
 
 echo "Juman++ & KNP (NER + Dependency parsing + PAS analysis)"

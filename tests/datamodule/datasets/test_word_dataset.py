@@ -23,21 +23,21 @@ from kwja.utils.constants import (
 )
 
 
-@pytest.fixture()
+@pytest.fixture
 def split_into_words_word_tokenizer(special_tokens: List[str]) -> PreTrainedTokenizerBase:
     return AutoTokenizer.from_pretrained("nlp-waseda/roberta-base-japanese", additional_special_tokens=special_tokens)
 
 
-def test_init(fixture_data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
-    path = fixture_data_dir / "datasets" / "word_files"
+def test_init(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
+    path = data_dir / "datasets" / "word_files"
     _ = WordDataset(str(path), word_tokenizer, max_seq_length=256, document_split_stride=1, **dataset_kwargs)
 
 
-def test_getitem(fixture_data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
-    path = fixture_data_dir / "datasets" / "word_files"
+def test_getitem(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
+    path = data_dir / "datasets" / "word_files"
     max_seq_length = 256
     dataset = WordDataset(str(path), word_tokenizer, max_seq_length, document_split_stride=1, **dataset_kwargs)
-    num_cohesion_rels = len([r for utils in dataset.cohesion_task2utils.values() for r in utils.rels])
+    num_cohesion_rels = len([r for rels in dataset.cohesion_task2rels.values() for r in rels])
     for i in range(len(dataset)):
         doc_id = dataset.examples[i].doc_id
         assert doc_id is not None, "doc_id isn't set"
@@ -69,8 +69,8 @@ def test_getitem(fixture_data_dir: Path, word_tokenizer: PreTrainedTokenizerBase
         assert np.array(feature.discourse_labels).shape == (max_seq_length, max_seq_length)
 
 
-def test_encode(fixture_data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
-    path = fixture_data_dir / "datasets" / "word_files"
+def test_encode(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
+    path = data_dir / "datasets" / "word_files"
     max_seq_length = 32
     dataset = WordDataset(
         str(path), word_tokenizer, max_seq_length=max_seq_length, document_split_stride=1, **dataset_kwargs
@@ -318,7 +318,7 @@ def test_encode(fixture_data_dir: Path, word_tokenizer: PreTrainedTokenizerBase,
     assert dependency_type_labels[0].tolist() == dataset[0].dependency_type_labels
     assert dependency_type_labels[1].tolist() == dataset[1].dependency_type_labels
 
-    flatten_rels = [r for cohesion_utils in dataset.cohesion_task2utils.values() for r in cohesion_utils.rels]
+    flatten_rels = [r for rels in dataset.cohesion_task2rels.values() for r in rels]
     cohesion_labels = torch.zeros((num_examples, len(flatten_rels), max_seq_length, max_seq_length), dtype=torch.long)
     _alias = dataset.examples[0].special_token_indexer.get_morpheme_level_index
     cohesion_labels[0, flatten_rels.index("ノ"), 0, _alias("[NULL]")] = 1  # φ ノ 太郎
@@ -357,9 +357,9 @@ def test_encode(fixture_data_dir: Path, word_tokenizer: PreTrainedTokenizerBase,
 
 
 def test_split_into_words_encode(
-    fixture_data_dir: Path, split_into_words_word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]
+    data_dir: Path, split_into_words_word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]
 ):
-    path = fixture_data_dir / "datasets" / "word_files"
+    path = data_dir / "datasets" / "word_files"
     max_seq_length = 32
     dataset = WordDataset(
         str(path),
@@ -611,7 +611,7 @@ def test_split_into_words_encode(
     assert dependency_type_labels[0].tolist() == dataset[0].dependency_type_labels
     assert dependency_type_labels[1].tolist() == dataset[1].dependency_type_labels
 
-    flatten_rels = [r for cohesion_utils in dataset.cohesion_task2utils.values() for r in cohesion_utils.rels]
+    flatten_rels = [r for rels in dataset.cohesion_task2rels.values() for r in rels]
     cohesion_labels = torch.zeros((num_examples, len(flatten_rels), max_seq_length, max_seq_length), dtype=torch.long)
     _alias = dataset.examples[0].special_token_indexer.get_morpheme_level_index
     cohesion_labels[0, flatten_rels.index("ノ"), 0, _alias("[NULL]")] = 1  # φ ノ 太郎

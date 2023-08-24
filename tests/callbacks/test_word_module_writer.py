@@ -339,7 +339,7 @@ def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwa
     dependency_type_logits[1, 6, 0, DEPENDENCY_TYPES.index(DepType.DEPENDENCY)] = 1.0  # ました -> 頼み
 
     # (b, rel, src, tgt)
-    flatten_rels = [r for cohesion_utils in dataset.cohesion_task2utils.values() for r in cohesion_utils.rels]
+    flatten_rels = [r for rels in dataset.cohesion_task2rels.values() for r in rels]
     cohesion_logits = torch.zeros((num_examples, len(flatten_rels), max_seq_length, max_seq_length), dtype=torch.float)
     for i in range(num_examples):
         for j, rel in enumerate(flatten_rels):

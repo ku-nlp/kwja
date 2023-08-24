@@ -24,7 +24,6 @@ from kwja.modules.functions.loss import (
     compute_token_mean_loss,
     mask_logits,
 )
-from kwja.utils.cohesion_analysis import BridgingUtils, CoreferenceUtils, PasUtils
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TAGS,
@@ -101,14 +100,13 @@ class WordModule(BaseModule[WordModuleMetric]):
     @staticmethod
     def _get_num_cohesion_rels(hparams: DictConfig) -> int:
         cohesion_tasks = [CohesionTask(ct) for ct in hparams.cohesion_tasks]
-        num_cohesion_rels: int = 0
-        cohesion_utils_args = (hparams.exophora_referents, hparams.restrict_cohesion_target)
+        num_cohesion_rels = 0
         if CohesionTask.PAS_ANALYSIS in cohesion_tasks:
-            num_cohesion_rels += len(PasUtils(hparams.pas_cases, "all", *cohesion_utils_args).rels)
+            num_cohesion_rels += len(hparams.pas_cases)
         if CohesionTask.BRIDGING_REFERENCE_RESOLUTION in cohesion_tasks:
-            num_cohesion_rels += len(BridgingUtils(hparams.br_cases, *cohesion_utils_args).rels)
+            num_cohesion_rels += len(hparams.br_cases)
         if CohesionTask.COREFERENCE_RESOLUTION in cohesion_tasks:
-            num_cohesion_rels += len(CoreferenceUtils(*cohesion_utils_args).rels)
+            num_cohesion_rels += 1
         return num_cohesion_rels
 
     def setup(self, stage: str) -> None:
