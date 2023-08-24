@@ -94,7 +94,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         )
 
         # ---------- cohesion analysis ----------
-        self.cohesion_tasks: List[CohesionTask] = [CohesionTask(ct) for ct in cohesion_tasks]
+        self.cohesion_tasks: List[CohesionTask] = [task for task in CohesionTask if task.value in cohesion_tasks]
         self.exophora_referents = [ExophoraReferent(er) for er in exophora_referents]
         self.cohesion_task2extractor: Dict[CohesionTask, BaseExtractor] = {
             CohesionTask.PAS_ANALYSIS: PasExtractor(
@@ -257,7 +257,8 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         # ---------- cohesion analysis ----------
         cohesion_labels: List[List[List[int]]] = []  # (rel, seq, seq)
         cohesion_mask: List[List[List[bool]]] = []  # (rel, seq, seq)
-        for cohesion_task, cohesion_rels in self.cohesion_task2rels.items():
+        for cohesion_task in self.cohesion_tasks:
+            cohesion_rels = self.cohesion_task2rels[cohesion_task]
             cohesion_base_phrases = example.cohesion_task2base_phrases[cohesion_task]
             for rel in cohesion_rels:
                 rel_labels = self._convert_cohesion_base_phrases_into_rel_labels(

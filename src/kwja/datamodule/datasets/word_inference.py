@@ -57,7 +57,7 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
 
         super(BaseDataset, self).__init__(documents, tokenizer, max_seq_length, document_split_stride)
         # ---------- cohesion analysis ----------
-        self.cohesion_tasks = [CohesionTask(ct) for ct in cohesion_tasks]
+        self.cohesion_tasks: List[CohesionTask] = [task for task in CohesionTask if task.value in cohesion_tasks]
         self.exophora_referents = [ExophoraReferent(er) for er in exophora_referents]
         self.cohesion_task2extractor: Dict[CohesionTask, BaseExtractor] = {
             CohesionTask.PAS_ANALYSIS: PasExtractor(
@@ -158,8 +158,9 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
         # ---------- cohesion analysis ----------
         cohesion_mask: List[List[List[bool]]] = []  # (rel, seq, seq)
         morphemes = document.morphemes
-        for cohesion_task, cohesion_extractor in self.cohesion_task2extractor.items():
+        for cohesion_task in self.cohesion_tasks:
             cohesion_rels = self.cohesion_task2rels[cohesion_task]
+            cohesion_extractor = self.cohesion_task2extractor[cohesion_task]
             rel_mask: List[List[bool]] = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
             for morpheme in morphemes:
                 for antecedent_candidate_morpheme in cohesion_extractor.get_candidates(morpheme, morphemes):
