@@ -121,7 +121,7 @@ def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwa
         WordTask.BASE_PHRASE_FEATURE_TAGGING,
         WordTask.DEPENDENCY_PARSING,
         WordTask.COHESION_ANALYSIS,
-        WordTask.DISCOURSE_PARSING,
+        WordTask.DISCOURSE_RELATION_ANALYSIS,
     ]
 
     reading_resource_path = RESOURCE_PATH / "reading_prediction"

@@ -129,10 +129,10 @@ class WordModuleMetric(BaseModuleMetric):
             metrics.update(self.compute_dependency_parsing_metrics(partly_gold_document1, gold_documents))
         if WordTask.COHESION_ANALYSIS in self.training_tasks:
             metrics.update(self.compute_cohesion_analysis_metrics(partly_gold_document2, gold_documents))
-        if WordTask.DISCOURSE_PARSING in self.training_tasks:
+        if WordTask.DISCOURSE_RELATION_ANALYSIS in self.training_tasks:
             predictions = self.discourse_predictions.view(-1)
             labels = self.discourse_labels.view(-1)
-            metrics.update(self.compute_discourse_parsing_metrics(predictions, labels))
+            metrics.update(self.compute_discourse_relation_analysis_metrics(predictions, labels))
         return metrics
 
     def _build_documents(self) -> Tuple[List[Document], ...]:
@@ -473,7 +473,10 @@ class WordModuleMetric(BaseModuleMetric):
         return metrics
 
     @staticmethod
-    def compute_discourse_parsing_metrics(predictions: torch.Tensor, labels: torch.Tensor) -> Dict[str, float]:
+    def compute_discourse_relation_analysis_metrics(
+        predictions: torch.Tensor,
+        labels: torch.Tensor,
+    ) -> Dict[str, float]:
         ignored_indices = labels.eq(IGNORE_INDEX)
         predictions = predictions[~ignored_indices]
         labels = labels[~ignored_indices]
@@ -503,8 +506,8 @@ class WordModuleMetric(BaseModuleMetric):
             f1 = (2 * precision * recall) / (precision + recall)
 
         return {
-            "discourse_parsing_accuracy": accuracy,
-            "discourse_parsing_precision": precision,
-            "discourse_parsing_recall": recall,
-            "discourse_parsing_f1": f1,
+            "discourse_relation_analysis_accuracy": accuracy,
+            "discourse_relation_analysis_precision": precision,
+            "discourse_relation_analysis_recall": recall,
+            "discourse_relation_analysis_f1": f1,
         }

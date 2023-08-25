@@ -41,7 +41,7 @@ def test_word_module_metric(
         WordTask.BASE_PHRASE_FEATURE_TAGGING,
         WordTask.DEPENDENCY_PARSING,
         WordTask.COHESION_ANALYSIS,
-        WordTask.DISCOURSE_PARSING,
+        WordTask.DISCOURSE_RELATION_ANALYSIS,
     ]
 
     metric = WordModuleMetric(max_seq_length)
@@ -359,4 +359,4 @@ def test_word_module_metric(
     assert metrics["coreference_f1"] == pytest.approx(0.0)
     assert metrics["cohesion_analysis_f1"] == pytest.approx(1 / 3)
 
-    assert metrics["discourse_parsing_f1"] == pytest.approx(1.0)
+    assert metrics["discourse_relation_analysis_f1"] == pytest.approx(1.0)
