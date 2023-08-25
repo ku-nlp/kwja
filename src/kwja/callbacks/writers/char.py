@@ -15,7 +15,7 @@ class CharModuleWriter(BaseModuleWriter):
     def __init__(self, destination: Optional[Union[str, Path]] = None) -> None:
         super().__init__(destination=destination)
         self.prev_doc_id = ""
-        self.prev_sid: int = 0
+        self.prev_sid = 0
 
     def write_on_batch_end(
         self,
