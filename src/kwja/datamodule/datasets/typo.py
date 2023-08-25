@@ -2,16 +2,25 @@ import json
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 from transformers import BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
-from kwja.callbacks.utils import get_maps
 from kwja.datamodule.datasets.base import BaseDataset
 from kwja.datamodule.examples import TypoExample
 from kwja.utils.constants import DUMMY_TOKEN, IGNORE_INDEX, RESOURCE_PATH, TYPO_CORR_OP_TAG2TOKEN
 from kwja.utils.logging_util import track
+
+
+def get_maps(tokenizer: PreTrainedTokenizerBase, extended_vocab_path: Path) -> Tuple[Dict[str, int], Dict[int, str]]:
+    token2token_id = tokenizer.get_vocab()
+    with extended_vocab_path.open() as f:
+        for line in f:
+            if line := line.strip():
+                token2token_id[line] = len(token2token_id.keys())
+    token_id2token = {v: k for k, v in token2token_id.items()}
+    return token2token_id, token_id2token
 
 
 @dataclass(frozen=True)

@@ -25,7 +25,4 @@ class Seq2SeqModuleMetric(BaseModuleMetric):
             if state_name != "loss":
                 setattr(self, state_name, state[sorted_indices])
 
-        metrics: Dict[str, float] = {
-            "seq2seq_loss": self.loss.mean().item(),
-        }
-        return metrics
+        return {"seq2seq_loss": self.loss.mean().item()}

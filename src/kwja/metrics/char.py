@@ -6,7 +6,7 @@ from rhoknp import Document, Sentence
 from seqeval.metrics import accuracy_score, f1_score
 from seqeval.scheme import IOB2
 
-from kwja.callbacks.utils import convert_char_predictions_into_tags, set_morphemes, set_sentences
+from kwja.callbacks.writers.utils import convert_char_predictions_into_tags, set_morphemes, set_sentences
 from kwja.datamodule.datasets import CharDataset
 from kwja.metrics.base import BaseModuleMetric
 from kwja.metrics.utils import unique
@@ -68,12 +68,13 @@ class CharModuleMetric(BaseModuleMetric):
         doc_id2partly_gold_sentences: Dict[str, List[Sentence]] = defaultdict(list)
         doc_id2gold_sentences: Dict[str, List[Sentence]] = defaultdict(list)
         special_ids = set(self.dataset.tokenizer.all_special_ids) - {self.dataset.tokenizer.unk_token_id}
-        for example_id, sent_segmentation_predictions, word_segmentation_predictions, word_norm_op_predictions in zip(
-            self.example_ids.tolist(),
-            self.sent_segmentation_predictions.tolist(),
-            self.word_segmentation_predictions.tolist(),
-            self.word_norm_op_predictions.tolist(),
-        ):
+        for (
+            example_id,
+            sent_segmentation_predictions,
+            word_segmentation_predictions,
+            word_norm_op_predictions,
+            _,  # word_norm_op_labels
+        ) in zip(*[getattr(self, state_name).tolist() for state_name in self.STATE_NAMES]):
             example = self.dataset.examples[example_id]
             gold_document = self.dataset.doc_id2document[example.doc_id]
             predicted_document = Document(gold_document.text)
@@ -91,8 +92,7 @@ class CharModuleMetric(BaseModuleMetric):
                 sent_segmentation_predictions,
                 word_segmentation_predictions,
                 word_norm_op_predictions,
-                example.encoding.input_ids,
-                special_ids,
+                [i for i, input_id in enumerate(example.encoding.input_ids) if input_id not in special_ids],
             )
             set_sentences(predicted_document, sent_segmentation_tags)
             set_morphemes(partly_gold_document, word_segmentation_tags, word_norm_op_tags)

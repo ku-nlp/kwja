@@ -1,5 +1,5 @@
 prediction_writer:
-  _target_: kwja.callbacks.typo_module_writer.TypoModuleWriter
+  _target_: kwja.callbacks.writers.TypoModuleWriter
   confidence_threshold: ${confidence_threshold}
   destination: ${run_dir}/typo_prediction.txt
   tokenizer:

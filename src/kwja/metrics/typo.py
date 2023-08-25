@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Tuple
 import torch
 from Levenshtein import opcodes
 
-from kwja.callbacks.utils import apply_edit_operations, convert_typo_predictions_into_tags
+from kwja.callbacks.writers.utils import apply_edit_operations, convert_typo_predictions_into_tags
 from kwja.datamodule.datasets import TypoDataset
 from kwja.metrics.base import BaseModuleMetric
 from kwja.metrics.utils import unique
@@ -58,11 +58,7 @@ class TypoModuleMetric(BaseModuleMetric):
     def _build_texts(self, confidence_threshold: float) -> List[Tuple[str, str, str]]:
         example_id2texts = {}
         for example_id, kdr_predictions, kdr_probabilities, ins_predictions, ins_probabilities in zip(
-            self.example_ids.tolist(),
-            self.kdr_predictions.tolist(),
-            self.kdr_probabilities.tolist(),
-            self.ins_predictions.tolist(),
-            self.ins_probabilities.tolist(),
+            *[getattr(self, state_name).tolist() for state_name in self.STATE_NAMES]
         ):
             assert self.dataset is not None, "typo dataset isn't set"
 

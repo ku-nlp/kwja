@@ -11,7 +11,7 @@ from rhoknp.props import DepType
 from seqeval.metrics import accuracy_score, f1_score
 from seqeval.scheme import IOB2
 
-from kwja.callbacks.utils import (  # add_discourse,
+from kwja.callbacks.writers.utils import (  # add_discourse,
     add_base_phrase_features,
     add_cohesion,
     add_dependency,
@@ -19,7 +19,6 @@ from kwja.callbacks.utils import (  # add_discourse,
     build_morphemes,
     chunk_morphemes,
     get_morpheme_attribute_predictions,
-    get_word_reading_predictions,
 )
 from kwja.datamodule.datasets import WordDataset
 from kwja.metrics.base import BaseModuleMetric
@@ -38,6 +37,7 @@ from kwja.utils.constants import (
     CohesionTask,
     WordTask,
 )
+from kwja.utils.reading_prediction import get_word_level_readings
 from kwja.utils.sub_document import extract_target_sentences, to_orig_doc_id
 
 
@@ -160,18 +160,15 @@ class WordModuleMetric(BaseModuleMetric):
         ) in zip(*[getattr(self, state_name).tolist() for state_name in self.STATE_NAMES]):
             example = self.dataset.examples[example_id]
             gold_document = self.dataset.doc_id2document[example.doc_id]
-            num_morphemes = len(gold_document.morphemes)
             orig_doc_id = to_orig_doc_id(gold_document.doc_id)
 
-            word_reading_predictions = get_word_reading_predictions(
-                example.encoding.ids,
-                reading_predictions,
-                self.reading_id2reading,
-                self.dataset.tokenizer,
+            word_reading_predictions = get_word_level_readings(
+                [self.reading_id2reading[reading_id] for reading_id in reading_predictions],
+                [self.dataset.tokenizer.decode(input_id) for input_id in example.encoding.ids],
                 reading_subword_map,
             )
             morpheme_attribute_predictions = get_morpheme_attribute_predictions(
-                *(logits[:num_morphemes] for logits in morpheme_attribute_logits)
+                *(logits[: len(gold_document.morphemes)] for logits in morpheme_attribute_logits)
             )
             morphemes = build_morphemes(
                 [m.surf for m in gold_document.morphemes],
