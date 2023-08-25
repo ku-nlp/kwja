@@ -12,7 +12,7 @@ from typing_extensions import Self
 
 
 class DummyModuleMetric:
-    def __init__(self) -> None:
+    def __init__(self, _: int) -> None:
         pass
 
     def update(self, *args: Any, **kwargs: Any) -> None:

@@ -23,8 +23,8 @@ class CharModuleMetric(BaseModuleMetric):
         "word_norm_op_labels",
     )
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, max_seq_length: int) -> None:
+        super().__init__(max_seq_length)
         self.dataset: Optional[CharDataset] = None
         self.example_ids: torch.Tensor
         self.sent_segmentation_predictions: torch.Tensor
@@ -32,15 +32,14 @@ class CharModuleMetric(BaseModuleMetric):
         self.word_norm_op_predictions: torch.Tensor
         self.word_norm_op_labels: torch.Tensor
 
-    @staticmethod
-    def pad(kwargs: Dict[str, torch.Tensor], max_seq_length: int) -> None:
+    def _pad(self, kwargs: Dict[str, torch.Tensor]) -> None:
         for key, value in kwargs.items():
-            if key in {"example_ids"}:
+            if key in {"example_ids"} or value.numel() == 0:  # value.numel() == 0はtest用
                 continue
             else:
                 dims = [1]
             for dim in dims:
-                size = [max_seq_length - s if i == dim else s for i, s in enumerate(value.size())]
+                size = [self.max_seq_length - s if i == dim else s for i, s in enumerate(value.size())]
                 if size[dim] == 0:
                     continue
                 padding = torch.zeros(size, dtype=value.dtype, device=value.device)

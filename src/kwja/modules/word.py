@@ -48,7 +48,7 @@ else:
 
 class WordModule(BaseModule[WordModuleMetric]):
     def __init__(self, hparams: DictConfig) -> None:
-        super().__init__(hparams, WordModuleMetric())
+        super().__init__(hparams, WordModuleMetric(hparams.max_seq_length))
 
         self.training_tasks: List[WordTask] = list(map(WordTask, self.hparams.training_tasks))
 
@@ -207,7 +207,6 @@ class WordModule(BaseModule[WordModuleMetric]):
         kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
         kwargs.update({"discourse_labels": batch["discourse_labels"]})
         metric = self.valid_corpus2metric[self.valid_corpora[dataloader_idx]]
-        metric.pad(kwargs, self.hparams.max_seq_length)
         metric.update(kwargs)
 
     def on_validation_epoch_end(self) -> None:
@@ -241,7 +240,6 @@ class WordModule(BaseModule[WordModuleMetric]):
         kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
         kwargs.update({"discourse_labels": batch["discourse_labels"]})
         metric = self.test_corpus2metric[self.test_corpora[dataloader_idx]]
-        metric.pad(kwargs, self.hparams.max_seq_length)
         metric.update(kwargs)
 
     def on_test_epoch_end(self) -> None:

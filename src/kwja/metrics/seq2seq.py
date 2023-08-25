@@ -12,11 +12,13 @@ class Seq2SeqModuleMetric(BaseModuleMetric):
         "loss",
     )
 
-    def __init__(self):
-        super().__init__()
-
+    def __init__(self, max_seq_length: int) -> None:
+        super().__init__(max_seq_length)
         self.example_ids: torch.Tensor
         self.loss: torch.Tensor
+
+    def _pad(self, kwargs: Dict[str, torch.Tensor]) -> None:
+        pass
 
     def compute(self) -> Dict[str, float]:
         sorted_indices = unique(self.example_ids)

@@ -60,8 +60,8 @@ class WordModuleMetric(BaseModuleMetric):
         "discourse_labels",
     )
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, max_seq_length: int) -> None:
+        super().__init__(max_seq_length)
         self.dataset: Optional[WordDataset] = None
         self.reading_id2reading: Optional[Dict[int, str]] = None
         self.training_tasks: Optional[List[WordTask]] = None
@@ -82,17 +82,16 @@ class WordModuleMetric(BaseModuleMetric):
         self.discourse_predictions: torch.Tensor
         self.discourse_labels: torch.Tensor
 
-    @staticmethod
-    def pad(kwargs: Dict[str, torch.Tensor], max_seq_length: int) -> None:
+    def _pad(self, kwargs: Dict[str, torch.Tensor]) -> None:
         for key, value in kwargs.items():
-            if key in {"example_ids"}:
+            if key in {"example_ids"} or value.numel() == 0:
                 continue
             elif key in {"reading_subword_map", "cohesion_logits", "discourse_predictions", "discourse_labels"}:
                 dims = [value.ndim - 2, value.ndim - 1]
             else:
                 dims = [1]
             for dim in dims:
-                size = [max_seq_length - s if i == dim else s for i, s in enumerate(value.size())]
+                size = [self.max_seq_length - s if i == dim else s for i, s in enumerate(value.size())]
                 if size[dim] == 0:
                     continue
                 if key in {"discourse_labels"}:

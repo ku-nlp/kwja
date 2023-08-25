@@ -20,7 +20,7 @@ else:
 
 class TypoModule(BaseModule[TypoModuleMetric]):
     def __init__(self, hparams: DictConfig) -> None:
-        super().__init__(hparams, TypoModuleMetric())
+        super().__init__(hparams, TypoModuleMetric(hparams.max_seq_length))
 
         self.encoder: PreTrainedModel = hydra.utils.call(hparams.encoder.from_config)
         if hasattr(hparams, "special_tokens"):
@@ -56,7 +56,6 @@ class TypoModule(BaseModule[TypoModuleMetric]):
         kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
         kwargs.update({"kdr_labels": batch["kdr_labels"], "ins_labels": batch["ins_labels"]})
         metric = self.valid_corpus2metric[self.valid_corpora[dataloader_idx]]
-        metric.pad(kwargs, self.hparams.max_seq_length)
         metric.update(kwargs)
 
     def on_validation_epoch_end(self) -> None:
@@ -77,7 +76,6 @@ class TypoModule(BaseModule[TypoModuleMetric]):
         kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
         kwargs.update({"kdr_labels": batch["kdr_labels"], "ins_labels": batch["ins_labels"]})
         metric = self.test_corpus2metric[self.test_corpora[dataloader_idx]]
-        metric.pad(kwargs, self.hparams.max_seq_length)
         metric.update(kwargs)
 
     def on_test_epoch_end(self) -> None:
