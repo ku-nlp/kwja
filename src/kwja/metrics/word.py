@@ -7,7 +7,7 @@ import torch
 from cohesion_tools.evaluation import CohesionScore, CohesionScorer
 from cohesion_tools.extractors import PasExtractor
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
-from rhoknp.props import DepType
+from rhoknp.props import DepType, MemoTag
 from seqeval.metrics import accuracy_score, f1_score
 from seqeval.scheme import IOB2
 
@@ -183,7 +183,7 @@ class WordModuleMetric(BaseModuleMetric):
             # goldの基本句区切り・基本句主辞を使用
             partly_gold_document1 = gold_document.reparse()
             partly_gold_document1.doc_id = gold_document.doc_id
-            self._refresh(partly_gold_document1, level=1)
+            self.refresh(partly_gold_document1, level=1)
             for sentence in extract_target_sentences(partly_gold_document1):
                 add_named_entities(sentence, ne_predictions)
                 add_base_phrase_features(sentence, base_phrase_feature_probabilities)
@@ -195,7 +195,7 @@ class WordModuleMetric(BaseModuleMetric):
             # goldの基本句区切り・基本句主辞・基本句素性を使用
             partly_gold_document2 = gold_document.reparse()
             partly_gold_document2.doc_id = gold_document.doc_id
-            self._refresh(partly_gold_document2, level=2)
+            self.refresh(partly_gold_document2, level=2)
             add_cohesion(
                 partly_gold_document2,
                 cohesion_logits,
@@ -216,7 +216,7 @@ class WordModuleMetric(BaseModuleMetric):
         return predicted_documents, partly_gold_documents1, partly_gold_documents2, gold_documents
 
     @staticmethod
-    def _refresh(document: Document, level: int = 1) -> None:
+    def refresh(document: Document, level: int = 1) -> None:
         """Refresh document
 
         NOTE:
@@ -230,8 +230,15 @@ class WordModuleMetric(BaseModuleMetric):
         except AttributeError:
             pass
 
+        for phrase in document.phrases:
+            if level == 1:
+                phrase.features.clear()
+                phrase.parent_index = None
+                phrase.dep_type = None
+
         for base_phrase in document.base_phrases:
             base_phrase.rel_tags.clear()
+            base_phrase.memo_tag = MemoTag()
             if level == 1:
                 base_phrase.features.clear()
                 base_phrase.parent_index = None
