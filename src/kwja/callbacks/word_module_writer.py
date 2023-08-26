@@ -9,8 +9,8 @@ from jinf import Jinf
 from rhoknp import Document, Morpheme, Sentence
 from rhoknp.props import SemanticsDict
 
-from kwja.callbacks.writers.base import BaseModuleWriter
-from kwja.callbacks.writers.utils import (
+from kwja.callbacks.base_module_writer import BaseModuleWriter
+from kwja.callbacks.utils import (
     add_base_phrase_features,
     add_cohesion,
     add_dependency,

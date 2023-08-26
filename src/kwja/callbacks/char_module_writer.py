@@ -4,8 +4,8 @@ from typing import Any, Optional, Sequence, Union
 import pytorch_lightning as pl
 
 import kwja
-from kwja.callbacks.writers.base import BaseModuleWriter
-from kwja.callbacks.writers.utils import convert_char_predictions_into_tags, set_morphemes, set_sentences
+from kwja.callbacks.base_module_writer import BaseModuleWriter
+from kwja.callbacks.utils import convert_char_predictions_into_tags, set_morphemes, set_sentences
 from kwja.datamodule.datasets import CharDataset, CharInferenceDataset
 from kwja.datamodule.examples import CharExample, CharInferenceExample
 from kwja.utils.sub_document import to_orig_doc_id

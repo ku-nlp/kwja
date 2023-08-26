@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Tuple
 import torch
 from Levenshtein import opcodes
 
-from kwja.callbacks.writers.utils import apply_edit_operations, convert_typo_predictions_into_tags
+from kwja.callbacks.utils import apply_edit_operations, convert_typo_predictions_into_tags
 from kwja.datamodule.datasets import TypoDataset
 from kwja.metrics.base import BaseModuleMetric
 from kwja.metrics.utils import unique

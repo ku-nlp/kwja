@@ -4,8 +4,8 @@ from typing import Any, Optional, Sequence, Union
 import pytorch_lightning as pl
 from transformers import PreTrainedTokenizerBase
 
-from kwja.callbacks.writers.base import BaseModuleWriter
-from kwja.callbacks.writers.utils import apply_edit_operations, convert_typo_predictions_into_tags
+from kwja.callbacks.base_module_writer import BaseModuleWriter
+from kwja.callbacks.utils import apply_edit_operations, convert_typo_predictions_into_tags
 from kwja.datamodule.datasets import TypoDataset, TypoInferenceDataset
 from kwja.datamodule.datasets.typo import get_maps
 from kwja.datamodule.examples import TypoExample, TypoInferenceExample

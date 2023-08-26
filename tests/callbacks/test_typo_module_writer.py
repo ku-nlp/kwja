@@ -9,7 +9,7 @@ from omegaconf import ListConfig
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
 
-from kwja.callbacks.writers import TypoModuleWriter
+from kwja.callbacks import TypoModuleWriter
 from kwja.datamodule.datasets import TypoInferenceDataset
 from kwja.datamodule.datasets.typo import get_maps
 from kwja.utils.constants import RESOURCE_PATH

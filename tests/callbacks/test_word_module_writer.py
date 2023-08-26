@@ -11,7 +11,7 @@ from rhoknp.props import DepType
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
 
-from kwja.callbacks.writers import WordModuleWriter
+from kwja.callbacks import WordModuleWriter
 from kwja.datamodule.datasets import WordInferenceDataset
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,

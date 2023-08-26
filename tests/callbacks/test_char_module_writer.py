@@ -10,7 +10,7 @@ from omegaconf import ListConfig
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
 
-from kwja.callbacks.writers import CharModuleWriter
+from kwja.callbacks import CharModuleWriter
 from kwja.datamodule.datasets import CharInferenceDataset
 from kwja.utils.constants import SENT_SEGMENTATION_TAGS, WORD_NORM_OP_TAGS, WORD_SEGMENTATION_TAGS
 

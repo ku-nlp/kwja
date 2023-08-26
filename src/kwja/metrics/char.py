@@ -6,7 +6,7 @@ from rhoknp import Document, Sentence
 from seqeval.metrics import accuracy_score, f1_score
 from seqeval.scheme import IOB2
 
-from kwja.callbacks.writers.utils import convert_char_predictions_into_tags, set_morphemes, set_sentences
+from kwja.callbacks.utils import convert_char_predictions_into_tags, set_morphemes, set_sentences
 from kwja.datamodule.datasets import CharDataset
 from kwja.metrics.base import BaseModuleMetric
 from kwja.metrics.utils import unique

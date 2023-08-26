@@ -6,7 +6,7 @@ from rhoknp import Sentence
 from transformers import PreTrainedTokenizerFast
 
 import kwja
-from kwja.callbacks.writers.base import BaseModuleWriter
+from kwja.callbacks.base_module_writer import BaseModuleWriter
 from kwja.datamodule.datasets import Seq2SeqDataset, Seq2SeqInferenceDataset
 from kwja.datamodule.examples import Seq2SeqExample, Seq2SeqInferenceExample
 from kwja.utils.seq2seq_format import Seq2SeqFormatter

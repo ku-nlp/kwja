@@ -11,7 +11,7 @@ from rhoknp.props import DepType, MemoTag
 from seqeval.metrics import accuracy_score, f1_score
 from seqeval.scheme import IOB2
 
-from kwja.callbacks.writers.utils import (  # add_discourse,
+from kwja.callbacks.utils import (  # add_discourse,
     add_base_phrase_features,
     add_cohesion,
     add_dependency,
