@@ -7,7 +7,7 @@ from cohesion_tools.extractors import BridgingExtractor, CoreferenceExtractor, P
 from cohesion_tools.extractors.base import BaseExtractor
 from omegaconf import ListConfig
 from rhoknp import Document, Sentence
-from rhoknp.cohesion import ExophoraReferent
+from rhoknp.cohesion import ExophoraReferent, ExophoraReferentType
 from tokenizers import Encoding
 from transformers import PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
@@ -94,19 +94,19 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         )
 
         # ---------- cohesion analysis ----------
-        self.cohesion_tasks: List[CohesionTask] = [CohesionTask(ct) for ct in cohesion_tasks]
-        self.exophora_referents = [ExophoraReferent(er) for er in exophora_referents]
+        self.cohesion_tasks: List[CohesionTask] = [task for task in CohesionTask if task.value in cohesion_tasks]
+        self.exophora_referent_types: List[ExophoraReferentType] = [
+            ExophoraReferent(er).type for er in exophora_referents
+        ]
         self.cohesion_task2extractor: Dict[CohesionTask, BaseExtractor] = {
             CohesionTask.PAS_ANALYSIS: PasExtractor(
                 list(pas_cases),
-                [er.type for er in self.exophora_referents],
+                self.exophora_referent_types,
                 verbal_predicate=True,
                 nominal_predicate=True,
             ),
-            CohesionTask.BRIDGING_REFERENCE_RESOLUTION: BridgingExtractor(
-                list(br_cases), [er.type for er in self.exophora_referents]
-            ),
-            CohesionTask.COREFERENCE_RESOLUTION: CoreferenceExtractor([er.type for er in self.exophora_referents]),
+            CohesionTask.BRIDGING_REFERENCE_RESOLUTION: BridgingExtractor(list(br_cases), self.exophora_referent_types),
+            CohesionTask.COREFERENCE_RESOLUTION: CoreferenceExtractor(self.exophora_referent_types),
         }
         self.cohesion_task2rels: Dict[CohesionTask, List[str]] = {
             CohesionTask.PAS_ANALYSIS: list(pas_cases),
@@ -257,7 +257,8 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         # ---------- cohesion analysis ----------
         cohesion_labels: List[List[List[int]]] = []  # (rel, seq, seq)
         cohesion_mask: List[List[List[bool]]] = []  # (rel, seq, seq)
-        for cohesion_task, cohesion_rels in self.cohesion_task2rels.items():
+        for cohesion_task in self.cohesion_tasks:
+            cohesion_rels = self.cohesion_task2rels[cohesion_task]
             cohesion_base_phrases = example.cohesion_task2base_phrases[cohesion_task]
             for rel in cohesion_rels:
                 rel_labels = self._convert_cohesion_base_phrases_into_rel_labels(

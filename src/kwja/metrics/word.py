@@ -444,7 +444,7 @@ class WordModuleMetric(BaseModuleMetric):
         assert isinstance(pas_extractor, PasExtractor), "pas utils isn't set correctly"
 
         scorer = CohesionScorer(
-            exophora_referent_types=[er.type for er in self.dataset.exophora_referents],
+            exophora_referent_types=self.dataset.exophora_referent_types,
             pas_cases=pas_extractor.cases if CohesionTask.PAS_ANALYSIS in self.dataset.cohesion_tasks else [],
             pas_verbal=pas_extractor.verbal_predicate,
             pas_nominal=pas_extractor.nominal_predicate,

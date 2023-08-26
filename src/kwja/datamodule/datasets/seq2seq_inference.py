@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from rhoknp import Document
+from rhoknp.utils.reader import chunk_by_document
 from transformers import BatchEncoding, PreTrainedTokenizerFast
 from transformers.utils import PaddingStrategy
 
@@ -10,7 +11,6 @@ from kwja.datamodule.datasets.base import BaseDataset
 from kwja.datamodule.datasets.seq2seq import Seq2SeqModuleFeatures
 from kwja.datamodule.examples import Seq2SeqInferenceExample
 from kwja.utils.logging_util import track
-from kwja.utils.reader import chunk_by_document_for_line_by_line_text
 from kwja.utils.seq2seq_format import Seq2SeqFormatter
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ class Seq2SeqInferenceDataset(BaseDataset[Seq2SeqInferenceExample, Seq2SeqModule
         tokenizer: PreTrainedTokenizerFast,
         max_src_length: int,
         max_tgt_length: int,
-        senter_file: Optional[Path] = None,
+        juman_file: Optional[Path] = None,
         **_,
     ) -> None:
         super().__init__(tokenizer, max_src_length)
@@ -31,11 +31,10 @@ class Seq2SeqInferenceDataset(BaseDataset[Seq2SeqInferenceExample, Seq2SeqModule
 
         self.formatter: Seq2SeqFormatter = Seq2SeqFormatter(tokenizer)
 
-        if senter_file is not None:
-            with senter_file.open() as f:
+        if juman_file is not None:
+            with juman_file.open() as f:
                 documents = [
-                    Document.from_line_by_line_text(c)
-                    for c in track(chunk_by_document_for_line_by_line_text(f), description="Loading documents")
+                    Document.from_jumanpp(c) for c in track(chunk_by_document(f), description="Loading documents")
                 ]
         else:
             documents = []

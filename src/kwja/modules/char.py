@@ -10,7 +10,7 @@ from transformers import PreTrainedModel
 from kwja.modules.base import BaseModule
 from kwja.modules.components.head import SequenceLabelingHead
 from kwja.modules.functions.loss import compute_token_mean_loss
-from kwja.utils.constants import WORD_NORM_OP_TAGS, WORD_SEGMENTATION_TAGS
+from kwja.utils.constants import SENT_SEGMENTATION_TAGS, WORD_NORM_OP_TAGS, WORD_SEGMENTATION_TAGS
 
 if os.environ.get("KWJA_CLI_MODE") == "1":
     from kwja.modules.base import DummyModuleMetric as CharModuleMetric  # dummy class for faster loading
@@ -27,6 +27,9 @@ class CharModule(BaseModule[CharModuleMetric]):
             self.encoder.resize_token_embeddings(self.encoder.config.vocab_size + len(hparams.special_tokens))
         head_kwargs: Dict[str, Any] = dict(hidden_size=self.encoder.config.hidden_size, hidden_dropout_prob=0.05)
 
+        # ---------- sentence segmentation ----------
+        self.sent_segmentation_tagger = SequenceLabelingHead(len(SENT_SEGMENTATION_TAGS), **head_kwargs)
+
         # ---------- word segmentation ----------
         self.word_segmentation_tagger = SequenceLabelingHead(len(WORD_SEGMENTATION_TAGS), **head_kwargs)
 
@@ -42,19 +45,24 @@ class CharModule(BaseModule[CharModuleMetric]):
     def forward(self, batch: Any) -> Dict[str, torch.Tensor]:
         encoded = self.encoder(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"])
         return {
+            "sent_segmentation_logits": self.sent_segmentation_tagger(encoded.last_hidden_state),
             "word_segmentation_logits": self.word_segmentation_tagger(encoded.last_hidden_state),
             "word_norm_op_logits": self.word_norm_op_tagger(encoded.last_hidden_state),
         }
 
     def training_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
         ret: Dict[str, torch.Tensor] = self(batch)
+        sent_segmentation_loss = compute_token_mean_loss(
+            ret["sent_segmentation_logits"], batch["sent_segmentation_labels"]
+        )
+        self.log("train/sent_segmentation_loss", sent_segmentation_loss)
         word_segmentation_loss = compute_token_mean_loss(
             ret["word_segmentation_logits"], batch["word_segmentation_labels"]
         )
         self.log("train/word_segmentation_loss", word_segmentation_loss)
         word_normalization_loss = compute_token_mean_loss(ret["word_norm_op_logits"], batch["word_norm_op_labels"])
         self.log("train/word_normalization_loss", word_normalization_loss)
-        return word_segmentation_loss + word_normalization_loss
+        return sent_segmentation_loss + word_segmentation_loss + word_normalization_loss
 
     def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
         kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
@@ -110,6 +118,7 @@ class CharModule(BaseModule[CharModuleMetric]):
         ret: Dict[str, torch.Tensor] = self(batch)
         return {
             "example_ids": batch["example_ids"],
+            "sent_segmentation_predictions": ret["sent_segmentation_logits"].argmax(dim=2),
             "word_segmentation_predictions": ret["word_segmentation_logits"].argmax(dim=2),
             "word_norm_op_predictions": ret["word_norm_op_logits"].argmax(dim=2),
         }

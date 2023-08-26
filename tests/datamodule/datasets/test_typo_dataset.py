@@ -9,7 +9,8 @@ from kwja.utils.constants import IGNORE_INDEX
 
 def test_init(data_dir: Path, typo_tokenizer: PreTrainedTokenizerBase):
     path = data_dir / "datasets" / "typo_files"
-    _ = TypoDataset(str(path), typo_tokenizer, max_seq_length=256)
+    max_seq_length = 256
+    _ = TypoDataset(str(path), typo_tokenizer, max_seq_length)
 
 
 def test_getitem(data_dir: Path, typo_tokenizer: PreTrainedTokenizerBase):

@@ -3,4 +3,5 @@ defaults:
   - _self_
 
 _target_: kwja.datamodule.datasets.Seq2SeqInferenceDataset
-senter_file: null
+texts: []
+doc_id_prefix: null
