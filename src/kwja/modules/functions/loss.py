@@ -30,10 +30,10 @@ def compute_multi_label_token_mean_loss(
     input_: torch.Tensor,  # (b, seq, num_features)
     target: torch.Tensor,  # (b, seq, num_features)
 ) -> torch.Tensor:  # ()
-    # binary_cross_entropy doesn't accept input containing nan
-    input_ = torch.where(input_.isnan(), torch.full_like(input_, 0.5), input_)
-    losses = nn.functional.binary_cross_entropy(input_, target.float(), reduction="none")  # (b, seq, num_features)
     mask = target.ne(IGNORE_INDEX)  # (b, seq, num_features)
+    # binary_cross_entropy doesn't accept input containing nan
+    input_ = torch.where(input_.isnan(), target.float() * mask, input_)
+    losses = nn.functional.binary_cross_entropy(input_, target.float(), reduction="none")  # (b, seq, num_features)
     # features の軸は和をとる
     losses = (losses * mask).sum(dim=2)  # (b, seq)
     return _average_loss(losses, mask[:, :, 0])
