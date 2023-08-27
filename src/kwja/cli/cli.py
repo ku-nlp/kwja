@@ -15,6 +15,7 @@ import typer
 from pytorch_lightning.trainer.states import TrainerFn
 from rhoknp import Sentence
 from rhoknp.utils.reader import chunk_by_sentence
+from typing_extensions import Annotated
 
 import kwja
 from kwja.cli.config import CLIConfig, Device, ModelSize, get_kwja_config_file
@@ -272,17 +273,20 @@ def tasks_callback(value: str) -> str:
 
 @app.command()
 def main(
-    text: Optional[str] = typer.Option(None, help="Text to be analyzed."),
+    text: Annotated[Optional[str], typer.Option(help="Text to be analyzed.")] = None,
     filename: List[Path] = typer.Option([], dir_okay=False, help="Files to be analyzed."),
-    model_size: Optional[ModelSize] = typer.Option(None, help="Model size to be used."),
-    device: Optional[Device] = typer.Option(None, help="Device to be used."),
-    typo_batch_size: Optional[int] = typer.Option(None, help="Batch size for typo module."),
-    char_batch_size: Optional[int] = typer.Option(None, help="Batch size for char module."),
-    seq2seq_batch_size: Optional[int] = typer.Option(None, help="Batch size for seq2seq module."),
-    word_batch_size: Optional[int] = typer.Option(None, help="Batch size for word module."),
-    tasks: str = typer.Option("char,word", callback=tasks_callback, help="Tasks to be performed."),
-    _: Optional[bool] = typer.Option(None, "--version", callback=version_callback, is_eager=True),
-    config_file: Optional[Path] = typer.Option(None, help="Path to KWJA config file."),
+    model_size: Annotated[Optional[ModelSize], typer.Option(help="Model size to be used.")] = None,
+    device: Annotated[Optional[Device], typer.Option(help="Device to be used.")] = None,
+    typo_batch_size: Annotated[Optional[int], typer.Option(help="Batch size for typo module.")] = None,
+    char_batch_size: Annotated[Optional[int], typer.Option(help="Batch size for char module.")] = None,
+    seq2seq_batch_size: Annotated[Optional[int], typer.Option(help="Batch size for seq2seq module.")] = None,
+    word_batch_size: Annotated[Optional[int], typer.Option(help="Batch size for word module.")] = None,
+    tasks: Annotated[str, typer.Option(callback=tasks_callback, help="Tasks to be performed.")] = "char,word",
+    _: Annotated[
+        Optional[bool],
+        typer.Option("--version", callback=version_callback, is_eager=True, help="Show version and exit."),
+    ] = None,
+    config_file: Annotated[Optional[Path], typer.Option(help="Path to KWJA config file.")] = None,
 ) -> None:
     input_text: Optional[str] = None
     if text is not None and len(filename) > 0:
