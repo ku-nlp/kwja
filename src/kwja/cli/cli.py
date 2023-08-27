@@ -303,7 +303,9 @@ def tasks_callback(value: str) -> str:
 def main(
     text: Annotated[Optional[str], typer.Option(help="Text to be analyzed.")] = None,
     filename: List[Path] = typer.Option([], dir_okay=False, help="Files to be analyzed."),
-    model_size: Annotated[Optional[ModelSize], typer.Option(help="Model size to be used.")] = None,
+    model_size: Annotated[
+        Optional[ModelSize], typer.Option(case_sensitive=False, help="Model size to be used.")
+    ] = None,
     device: Annotated[Optional[Device], typer.Option(case_sensitive=False, help="Device to be used.")] = None,
     typo_batch_size: Annotated[Optional[int], typer.Option(help="Batch size for typo module.")] = None,
     char_batch_size: Annotated[Optional[int], typer.Option(help="Batch size for char module.")] = None,
