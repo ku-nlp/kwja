@@ -32,11 +32,13 @@ def compute_multi_label_token_mean_loss(
 ) -> torch.Tensor:  # ()
     mask = target.ne(IGNORE_INDEX)  # (b, seq, num_features)
     # binary_cross_entropy doesn't accept input containing nan
-    input_ = torch.where(input_.isnan(), target.float() * mask, input_)
-    losses = nn.functional.binary_cross_entropy(input_, target.float(), reduction="none")  # (b, seq, num_features)
-    # features の軸は和をとる
-    losses = (losses * mask).sum(dim=2)  # (b, seq)
-    return _average_loss(losses, mask[:, :, 0])
+    if input_.isnan().any().item() is True:
+        return torch.tensor(float("nan"), dtype=input_.dtype, device=input_.device)
+    else:
+        losses = nn.functional.binary_cross_entropy(input_, target.float(), reduction="none")  # (b, seq, num_features)
+        # features の軸は和をとる
+        losses = (losses * mask).sum(dim=2)  # (b, seq)
+        return _average_loss(losses, mask[:, :, 0])
 
 
 def compute_cohesion_analysis_loss(

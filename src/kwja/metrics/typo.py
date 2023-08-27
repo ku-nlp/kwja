@@ -36,8 +36,6 @@ class TypoModuleMetric(BaseModuleMetric):
                 dims = [1]
             for dim in dims:
                 size = [self.max_seq_length - s if i == dim else s for i, s in enumerate(value.size())]
-                if size[dim] == 0:
-                    continue
                 padding = torch.zeros(size, dtype=value.dtype, device=value.device)
                 value = torch.cat([value, padding], dim=dim)
             kwargs[key] = value

@@ -34,14 +34,12 @@ class CharModuleMetric(BaseModuleMetric):
 
     def _pad(self, kwargs: Dict[str, torch.Tensor]) -> None:
         for key, value in kwargs.items():
-            if key in {"example_ids"} or value.numel() == 0:  # value.numel() == 0はtest用
+            if key in {"example_ids"} or value.numel() == 0:
                 continue
             else:
                 dims = [1]
             for dim in dims:
                 size = [self.max_seq_length - s if i == dim else s for i, s in enumerate(value.size())]
-                if size[dim] == 0:
-                    continue
                 padding = torch.zeros(size, dtype=value.dtype, device=value.device)
                 value = torch.cat([value, padding], dim=dim)
             kwargs[key] = value
