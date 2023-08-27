@@ -279,23 +279,6 @@ def tasks_callback(value: str) -> str:
         raise typer.BadParameter(f"invalid tasks are specified: {', '.join(repr(v) for v in values)}")
     if len(tasks) == 0:
         raise typer.BadParameter("task must be specified")
-    valid_task_combinations: Set[Tuple[str, ...]] = {
-        ("typo",),
-        ("typo", "char"),
-        ("typo", "char", "seq2seq"),
-        ("typo", "char", "word"),
-        ("typo", "char", "seq2seq", "word"),
-        ("char",),
-        ("char", "seq2seq"),
-        ("char", "word"),
-        ("char", "seq2seq", "word"),
-    }
-
-    if tuple(tasks) not in valid_task_combinations:
-        raise typer.BadParameter(
-            "task combination is invalid. "
-            f"Please specify one of {', '.join(repr(','.join(ts)) for ts in valid_task_combinations)}."
-        )
     return ",".join(tasks)
 
 
@@ -319,6 +302,31 @@ def main(
     config_file: Annotated[Optional[Path], typer.Option(help="Path to KWJA config file.")] = None,
     input_format: Annotated[InputFormat, typer.Option(case_sensitive=False, help="Input format.")] = InputFormat.RAW,
 ) -> None:
+    # validate task combination
+    specified_tasks: List[str] = tasks.split(",")
+    valid_task_combinations: Set[Tuple[str, ...]] = {
+        ("typo",),
+        ("typo", "char"),
+        ("typo", "char", "seq2seq"),
+        ("typo", "char", "word"),
+        ("typo", "char", "seq2seq", "word"),
+        ("char",),
+        ("char", "seq2seq"),
+        ("char", "word"),
+        ("char", "seq2seq", "word"),
+    }
+    if input_format in (InputFormat.JUMANPP, InputFormat.KNP):
+        valid_task_combinations |= {
+            ("seq2seq",),
+            ("seq2seq", "word"),
+            ("word",),
+        }
+    if tuple(specified_tasks) not in valid_task_combinations:
+        raise typer.BadParameter(
+            "task combination is invalid. "
+            f"Please specify one of {', '.join(repr(','.join(ts)) for ts in valid_task_combinations)}."
+        )
+
     input_documents: Optional[List[Document]] = None
     if text is not None and len(filename) > 0:
         logger.error("ERROR: Please provide text or filename, not both")
@@ -351,8 +359,6 @@ def main(
                 raise AssertionError  # unreachable
     else:
         pass  # interactive mode
-
-    specified_tasks: List[str] = tasks.split(",")
 
     if config_file is None:
         config_file = get_kwja_config_file()
