@@ -37,9 +37,9 @@ app = typer.Typer(pretty_exceptions_show_locals=False)
 
 
 class InputFormat(str, Enum):
-    raw = "raw"
-    jumanpp = "jumanpp"
-    knp = "knp"
+    RAW = "raw"
+    JUMANPP = "jumanpp"
+    KNP = "knp"
 
 
 class BaseModuleProcessor(ABC):
@@ -92,7 +92,7 @@ class BaseModuleProcessor(ABC):
 
 
 class TypoModuleProcessor(BaseModuleProcessor):
-    input_format = InputFormat.raw
+    input_format = InputFormat.RAW
 
     def _load_module(self) -> pl.LightningModule:
         logger.info("Loading typo module")
@@ -111,7 +111,7 @@ class TypoModuleProcessor(BaseModuleProcessor):
 
 
 class CharModuleProcessor(BaseModuleProcessor):
-    input_format = InputFormat.raw
+    input_format = InputFormat.RAW
 
     def _load_module(self) -> pl.LightningModule:
         logger.info("Loading char module")
@@ -137,7 +137,7 @@ class CharModuleProcessor(BaseModuleProcessor):
 
 
 class Seq2SeqModuleProcessor(BaseModuleProcessor):
-    input_format = InputFormat.raw
+    input_format = InputFormat.RAW
 
     def _load_module(self):
         logger.info("Loading seq2seq module")
@@ -156,7 +156,7 @@ class Seq2SeqModuleProcessor(BaseModuleProcessor):
 
 
 class WordModuleProcessor(BaseModuleProcessor):
-    input_format = InputFormat.jumanpp
+    input_format = InputFormat.JUMANPP
 
     def __init__(self, config: CLIConfig, batch_size: int, from_seq2seq: bool) -> None:
         super().__init__(config, batch_size)
@@ -209,11 +209,11 @@ class CLIProcessor:
         input_documents = [document for document in input_documents if document.text != ""]
         if len(input_documents) == 0:
             return ""
-        if self.processors[0].input_format == InputFormat.raw:
+        if self.processors[0].input_format == InputFormat.RAW:
             self.initial_destination.write_text(
                 "".join(normalize_text(input_document.text) + "\nEOD\n" for input_document in input_documents)
             )
-        elif self.processors[0].input_format == InputFormat.jumanpp:
+        elif self.processors[0].input_format == InputFormat.JUMANPP:
             self.initial_destination.write_text("".join(document.to_jumanpp() + "\n" for document in input_documents))
         # elif self.processors[0].input_format == InputFormat.knp:
         #     self.initial_destination.write_text("".join(document.to_knp() + "\n" for document in input_documents))
@@ -317,7 +317,7 @@ def main(
         typer.Option("--version", callback=version_callback, is_eager=True, help="Show version and exit."),
     ] = None,
     config_file: Annotated[Optional[Path], typer.Option(help="Path to KWJA config file.")] = None,
-    input_format: Annotated[InputFormat, typer.Option(case_sensitive=False, help="Input format.")] = InputFormat.raw,
+    input_format: Annotated[InputFormat, typer.Option(case_sensitive=False, help="Input format.")] = InputFormat.RAW,
 ) -> None:
     input_documents: Optional[List[Document]] = None
     if text is not None and len(filename) > 0:
@@ -331,7 +331,7 @@ def main(
             if path.exists() is False:
                 logger.error(f"ERROR: {path} does not exist")
                 raise typer.Abort()
-            if input_format == InputFormat.raw:
+            if input_format == InputFormat.RAW:
                 buff: str = ""
                 for line in path.read_text().split("\n"):
                     if line == "EOD":
@@ -341,10 +341,10 @@ def main(
                         buff += f"{line}\n"
                 if buff.rstrip() != "":
                     input_documents.append(Document.from_raw_text(buff.rstrip()))
-            elif input_format == InputFormat.jumanpp:
+            elif input_format == InputFormat.JUMANPP:
                 with path.open() as f:
                     input_documents += [Document.from_jumanpp(c) for c in chunk_by_document(f)]
-            elif input_format == InputFormat.knp:
+            elif input_format == InputFormat.KNP:
                 with path.open() as f:
                     input_documents += [Document.from_knp(c) for c in chunk_by_document(f)]
             else:
@@ -394,11 +394,11 @@ def main(
         if input_ == "EOD":
             processor.refresh()
             input_document: Document
-            if input_format == InputFormat.raw:
+            if input_format == InputFormat.RAW:
                 input_document = Document.from_raw_text(input_text)
-            elif input_format == InputFormat.jumanpp:
+            elif input_format == InputFormat.JUMANPP:
                 input_document = Document.from_jumanpp(input_text)
-            elif input_format == InputFormat.knp:
+            elif input_format == InputFormat.KNP:
                 input_document = Document.from_knp(input_text)
             else:
                 raise AssertionError  # unreachable

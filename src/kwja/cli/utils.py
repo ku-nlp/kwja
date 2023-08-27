@@ -18,19 +18,19 @@ DEFAULT_CACHE_DIR = Path.home() / ".cache"
 
 _CHECKPOINT_BASE_URL = "https://lotus.kuee.kyoto-u.ac.jp"
 _CHECKPOINT_FILE_NAMES: Dict[ModelSize, Dict[str, str]] = {
-    ModelSize.tiny: {
+    ModelSize.TINY: {
         "typo": "typo_deberta-v2-tiny-wwm.ckpt",
         "char": "char_deberta-v2-tiny-wwm.ckpt",
         "seq2seq": "seq2seq_t5-small.ckpt",
         "word": "word_deberta-v2-tiny.ckpt",
     },
-    ModelSize.base: {
+    ModelSize.BASE: {
         "typo": "typo_deberta-v2-base-wwm.ckpt",
         "char": "char_deberta-v2-base-wwm.ckpt",
         "seq2seq": "seq2seq_t5-base.ckpt",
         "word": "word_deberta-v2-base.ckpt",
     },
-    ModelSize.large: {
+    ModelSize.LARGE: {
         "typo": "typo_deberta-v2-large-wwm.ckpt",
         "char": "char_deberta-v2-large-wwm.ckpt",
         "seq2seq": "seq2seq_t5-large.ckpt",
