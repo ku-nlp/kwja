@@ -6,7 +6,7 @@ from abc import ABC
 from enum import Enum
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, Iterator, List, Optional, Set, TextIO, Tuple
 from unicodedata import normalize
 
 import hydra
@@ -101,7 +101,8 @@ class TypoModuleProcessor(BaseModuleProcessor):
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
-        self.module.hparams.datamodule.predict.texts = _split_into_documents(input_file.read_text())
+        with input_file.open() as f:
+            self.module.hparams.datamodule.predict.texts = list(_chunk_by_document(f, self.input_format))
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
         datamodule.setup(stage=TrainerFn.PREDICTING)
         return datamodule
@@ -120,7 +121,8 @@ class CharModuleProcessor(BaseModuleProcessor):
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
-        self.module.hparams.datamodule.predict.texts = _split_into_documents(input_file.read_text())
+        with input_file.open() as f:
+            self.module.hparams.datamodule.predict.texts = list(_chunk_by_document(f, self.input_format))
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
         datamodule.setup(stage=TrainerFn.PREDICTING)
         return datamodule
@@ -211,7 +213,7 @@ class CLIProcessor:
             return ""
         if self.processors[0].input_format == InputFormat.RAW:
             self.initial_destination.write_text(
-                "".join(normalize_text(input_document.text) + "\nEOD\n" for input_document in input_documents)
+                "".join(_normalize_text(input_document.text) + "\nEOD\n" for input_document in input_documents)
             )
         elif self.processors[0].input_format == InputFormat.JUMANPP:
             self.initial_destination.write_text("".join(document.to_jumanpp() + "\n" for document in input_documents))
@@ -231,7 +233,7 @@ class CLIProcessor:
         return self.processors[-1].export_prediction()
 
 
-def normalize_text(text: str) -> str:
+def _normalize_text(text: str) -> str:
     # Tokenizers (BertJapaneseTokenizer, DebertaV2Tokenizer, etc.) apply NFKC normalization internally, so
     # there may be inconsistency in number of characters if not applying NFKC normalization in advance
     normalized = normalize("NFKC", text)
@@ -244,28 +246,41 @@ def normalize_text(text: str) -> str:
     return normalized
 
 
-def _split_into_documents(input_text: str) -> List[str]:
-    documents: List[str] = []
-    document: str = ""
-    for line in input_text.split("\n"):
-        if line == "EOD":
-            documents.append(document.rstrip())
-            document = ""
-        else:
-            document += f"{line}\n"
+def _chunk_by_document(f: TextIO, input_format: InputFormat) -> Iterator[str]:
+    if input_format in (InputFormat.JUMANPP, InputFormat.KNP):
+        yield from chunk_by_document(f)
+    elif input_format == InputFormat.RAW:
+        buff: str = ""
+        for line in f:
+            if line.strip() == "EOD":
+                yield buff.rstrip()
+                buff = ""
+            else:
+                buff += line
+        if buff.rstrip() != "":
+            yield buff.rstrip()
     else:
-        if document.rstrip() != "":
-            documents.append(document.rstrip())
-    return documents
+        raise AssertionError  # unreachable
 
 
-def version_callback(value: bool) -> None:
+def _load_document_from_text(text: str, input_format: InputFormat) -> Document:
+    if input_format == InputFormat.RAW:
+        return Document.from_raw_text(text)
+    elif input_format == InputFormat.JUMANPP:
+        return Document.from_jumanpp(text)
+    elif input_format == InputFormat.KNP:
+        return Document.from_knp(text)
+    else:
+        raise AssertionError  # unreachable
+
+
+def _version_callback(value: bool) -> None:
     if value is True:
         print(f"KWJA {kwja.__version__}")
         raise typer.Exit()
 
 
-def tasks_callback(value: str) -> str:
+def _tasks_callback(value: str) -> str:
     """sort and validate specified tasks"""
     values: List[str] = [v for v in value.split(",") if v]
     tasks: List[str] = []
@@ -294,10 +309,10 @@ def main(
     char_batch_size: Annotated[Optional[int], typer.Option(help="Batch size for char module.")] = None,
     seq2seq_batch_size: Annotated[Optional[int], typer.Option(help="Batch size for seq2seq module.")] = None,
     word_batch_size: Annotated[Optional[int], typer.Option(help="Batch size for word module.")] = None,
-    tasks: Annotated[str, typer.Option(callback=tasks_callback, help="Tasks to be performed.")] = "char,word",
+    tasks: Annotated[str, typer.Option(callback=_tasks_callback, help="Tasks to be performed.")] = "char,word",
     _: Annotated[
         Optional[bool],
-        typer.Option("--version", callback=version_callback, is_eager=True, help="Show version and exit."),
+        typer.Option("--version", callback=_version_callback, is_eager=True, help="Show version and exit."),
     ] = None,
     config_file: Annotated[Optional[Path], typer.Option(help="Path to KWJA config file.")] = None,
     input_format: Annotated[InputFormat, typer.Option(case_sensitive=False, help="Input format.")] = InputFormat.RAW,
@@ -339,24 +354,9 @@ def main(
             if path.exists() is False:
                 logger.error(f"ERROR: {path} does not exist")
                 raise typer.Abort()
-            if input_format == InputFormat.RAW:
-                buff: str = ""
-                for line in path.read_text().split("\n"):
-                    if line == "EOD":
-                        input_documents.append(Document.from_raw_text(buff.rstrip()))
-                        buff = ""
-                    else:
-                        buff += f"{line}\n"
-                if buff.rstrip() != "":
-                    input_documents.append(Document.from_raw_text(buff.rstrip()))
-            elif input_format == InputFormat.JUMANPP:
-                with path.open() as f:
-                    input_documents += [Document.from_jumanpp(c) for c in chunk_by_document(f)]
-            elif input_format == InputFormat.KNP:
-                with path.open() as f:
-                    input_documents += [Document.from_knp(c) for c in chunk_by_document(f)]
-            else:
-                raise AssertionError  # unreachable
+            with path.open() as f:
+                for document_text in _chunk_by_document(f, input_format):
+                    input_documents.append(_load_document_from_text(document_text, input_format))
     else:
         pass  # interactive mode
 
@@ -399,15 +399,7 @@ def main(
             break
         if input_ == "EOD":
             processor.refresh()
-            input_document: Document
-            if input_format == InputFormat.RAW:
-                input_document = Document.from_raw_text(input_text)
-            elif input_format == InputFormat.JUMANPP:
-                input_document = Document.from_jumanpp(input_text)
-            elif input_format == InputFormat.KNP:
-                input_document = Document.from_knp(input_text)
-            else:
-                raise AssertionError  # unreachable
+            input_document: Document = _load_document_from_text(input_text, input_format)
             output = processor.run([input_document], interactive=True)
             print(output, end="")
             if specified_tasks != ["typo"] or output == "":
