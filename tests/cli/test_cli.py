@@ -63,6 +63,19 @@ def test_file_input():
         assert ret.exception is None
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        "EOD\n",
+        "おはよう\nEOD\n",
+        "KWJAは日本語の統合解析ツールです。\n汎用言語モデルを利用し、様々な言語解析を統一的な方法で解いています。\nEOD\n",
+    ],
+)
+def test_interactive_mode(text: str):
+    ret = runner.invoke(app, args=["--model-size", "tiny", "--tasks", "char,word"], input=text)
+    assert ret.exception is None
+
+
 def test_sanity():
     with tempfile.NamedTemporaryFile("wt") as f:
         f.write(
