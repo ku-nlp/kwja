@@ -3,6 +3,7 @@ import os
 import re
 import sys
 from abc import ABC
+from enum import Enum
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Dict, List, Optional, Set, Tuple
@@ -13,8 +14,8 @@ import pytorch_lightning as pl
 import torch
 import typer
 from pytorch_lightning.trainer.states import TrainerFn
-from rhoknp import Sentence
-from rhoknp.utils.reader import chunk_by_sentence
+from rhoknp import Document, Sentence
+from rhoknp.utils.reader import chunk_by_document, chunk_by_sentence
 from typing_extensions import Annotated
 
 import kwja
@@ -35,7 +36,15 @@ logger.setLevel(logging.INFO)
 app = typer.Typer(pretty_exceptions_show_locals=False)
 
 
+class InputFormat(str, Enum):
+    raw = "raw"
+    jumanpp = "jumanpp"
+    knp = "knp"
+
+
 class BaseModuleProcessor(ABC):
+    input_format: InputFormat
+
     def __init__(self, config: CLIConfig, batch_size: int) -> None:
         self.config: CLIConfig = config
         self.device_name, self.device = prepare_device(config.device.value)
@@ -83,6 +92,8 @@ class BaseModuleProcessor(ABC):
 
 
 class TypoModuleProcessor(BaseModuleProcessor):
+    input_format = InputFormat.raw
+
     def _load_module(self) -> pl.LightningModule:
         logger.info("Loading typo module")
         checkpoint_path: Path = download_checkpoint(module="typo", model_size=self.model_size)
@@ -100,6 +111,8 @@ class TypoModuleProcessor(BaseModuleProcessor):
 
 
 class CharModuleProcessor(BaseModuleProcessor):
+    input_format = InputFormat.raw
+
     def _load_module(self) -> pl.LightningModule:
         logger.info("Loading char module")
         checkpoint_path: Path = download_checkpoint(module="char", model_size=self.model_size)
@@ -124,6 +137,8 @@ class CharModuleProcessor(BaseModuleProcessor):
 
 
 class Seq2SeqModuleProcessor(BaseModuleProcessor):
+    input_format = InputFormat.raw
+
     def _load_module(self):
         logger.info("Loading seq2seq module")
         checkpoint_path: Path = download_checkpoint(module="seq2seq", model_size=self.model_size)
@@ -141,6 +156,8 @@ class Seq2SeqModuleProcessor(BaseModuleProcessor):
 
 
 class WordModuleProcessor(BaseModuleProcessor):
+    input_format = InputFormat.jumanpp
+
     def __init__(self, config: CLIConfig, batch_size: int, from_seq2seq: bool) -> None:
         super().__init__(config, batch_size)
         self.from_seq2seq = from_seq2seq
@@ -166,7 +183,7 @@ class WordModuleProcessor(BaseModuleProcessor):
 
 class CLIProcessor:
     def __init__(self, config: CLIConfig, tasks: List[str]) -> None:
-        self.raw_destination = Path(NamedTemporaryFile(suffix=".txt", delete=False).name)
+        self.initial_destination = Path(NamedTemporaryFile(delete=False).name)
         self._task2processors: Dict[str, BaseModuleProcessor] = {
             "typo": TypoModuleProcessor(config, config.typo_batch_size),
             "char": CharModuleProcessor(config, config.char_batch_size),
@@ -184,17 +201,28 @@ class CLIProcessor:
             processor.load()
 
     def refresh(self) -> None:
-        self.raw_destination.unlink(missing_ok=True)
+        self.initial_destination.unlink(missing_ok=True)
         for processor in self._task2processors.values():
             processor.destination.unlink(missing_ok=True)
 
-    def run(self, input_documents: List[str], interactive: bool = False) -> str:
-        self.raw_destination.write_text(
-            "".join(normalize_text(input_document) + "\nEOD\n" for input_document in input_documents)
-        )
-        input_file = self.raw_destination
+    def run(self, input_documents: List[Document], interactive: bool = False) -> str:
+        input_documents = [document for document in input_documents if document.text != ""]
+        if len(input_documents) == 0:
+            return ""
+        if self.processors[0].input_format == InputFormat.raw:
+            self.initial_destination.write_text(
+                "".join(normalize_text(input_document.text) + "\nEOD\n" for input_document in input_documents)
+            )
+        elif self.processors[0].input_format == InputFormat.jumanpp:
+            self.initial_destination.write_text("".join(document.to_jumanpp() + "\n" for document in input_documents))
+        # elif self.processors[0].input_format == InputFormat.knp:
+        #     self.initial_destination.write_text("".join(document.to_knp() + "\n" for document in input_documents))
+        else:
+            raise AssertionError  # unreachable
+
+        input_file = self.initial_destination
         for processor in self.processors:
-            if interactive is False:
+            if processor.module is None or processor.trainer is None:
                 processor.load()
             processor.apply_module(input_file)
             input_file = processor.destination
@@ -287,15 +315,38 @@ def main(
         typer.Option("--version", callback=version_callback, is_eager=True, help="Show version and exit."),
     ] = None,
     config_file: Annotated[Optional[Path], typer.Option(help="Path to KWJA config file.")] = None,
+    input_format: Annotated[InputFormat, typer.Option(case_sensitive=False, help="Input format.")] = InputFormat.raw,
 ) -> None:
-    input_text: Optional[str] = None
+    input_documents: Optional[List[Document]] = None
     if text is not None and len(filename) > 0:
         logger.error("ERROR: Please provide text or filename, not both")
         raise typer.Abort()
     elif text is not None:
-        input_text = text
+        input_documents = [Document.from_raw_text(text)]
     elif len(filename) > 0:
-        input_text = "".join(path.read_text().rstrip("\n").rstrip("EOD").rstrip() + "\nEOD\n" for path in filename)
+        input_documents = []
+        for path in filename:
+            if path.exists() is False:
+                logger.error(f"ERROR: {path} does not exist")
+                raise typer.Abort()
+            if input_format == InputFormat.raw:
+                buff: str = ""
+                for line in path.read_text().split("\n"):
+                    if line == "EOD":
+                        input_documents.append(Document.from_raw_text(buff.rstrip()))
+                        buff = ""
+                    else:
+                        buff += f"{line}\n"
+                if buff.rstrip() != "":
+                    input_documents.append(Document.from_raw_text(buff.rstrip()))
+            elif input_format == InputFormat.jumanpp:
+                with path.open() as f:
+                    input_documents += [Document.from_jumanpp(c) for c in chunk_by_document(f)]
+            elif input_format == InputFormat.knp:
+                with path.open() as f:
+                    input_documents += [Document.from_knp(c) for c in chunk_by_document(f)]
+            else:
+                raise AssertionError  # unreachable
     else:
         pass  # interactive mode
 
@@ -323,12 +374,10 @@ def main(
     processor = CLIProcessor(config, specified_tasks)
 
     # Batch mode
-    if input_text is not None:
-        if input_text.strip() != "":
-            print(processor.run(_split_into_documents(input_text)), end="")
-            processor.refresh()
-        else:
-            print("EOD")
+    if input_documents is not None:
+        output: str = processor.run(input_documents)
+        print(output or "EOD\n", end="")
+        processor.refresh()
         raise typer.Exit()
 
     # Interactive mode
@@ -341,14 +390,21 @@ def main(
         except EOFError:
             break
         if input_ == "EOD":
-            if input_text.strip() != "":
-                processor.refresh()
-                print(processor.run([input_text], interactive=True), end="")
-                if specified_tasks != ["typo"]:
-                    print("EOD")  # To indicate the end of the output.
-                input_text = ""
+            processor.refresh()
+            input_document: Document
+            if input_format == InputFormat.raw:
+                input_document = Document.from_raw_text(input_text)
+            elif input_format == InputFormat.jumanpp:
+                input_document = Document.from_jumanpp(input_text)
+            elif input_format == InputFormat.knp:
+                input_document = Document.from_knp(input_text)
             else:
-                print("EOD")
+                raise AssertionError  # unreachable
+            output = processor.run([input_document], interactive=True)
+            print(output, end="")
+            if specified_tasks != ["typo"] or output == "":
+                print("EOD")  # To indicate the end of the output.
+            input_text = ""
         else:
             input_text += input_ + "\n"
 
