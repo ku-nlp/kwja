@@ -35,7 +35,6 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
         br_cases: ListConfig,
         special_tokens: ListConfig,
         juman_file: Optional[Path] = None,
-        knp_file: Optional[Path] = None,
     ) -> None:
         super().__init__(tokenizer, max_seq_length)
         if juman_file is not None:
@@ -43,9 +42,6 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
                 documents = [
                     Document.from_jumanpp(c) for c in track(chunk_by_document(f), description="Loading documents")
                 ]
-        elif knp_file is not None:
-            with knp_file.open() as f:
-                documents = [Document.from_knp(c) for c in track(chunk_by_document(f), description="Loading documents")]
         else:
             # do_predict_after_train
             documents = []
