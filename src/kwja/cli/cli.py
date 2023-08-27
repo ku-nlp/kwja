@@ -213,7 +213,7 @@ class CLIProcessor:
             return ""
         if self.processors[0].input_format == InputFormat.RAW:
             self.initial_destination.write_text(
-                "".join(_normalize_text(input_document.text) + "\nEOD\n" for input_document in input_documents)
+                "".join(normalize_text(input_document.text) + "\nEOD\n" for input_document in input_documents)
             )
         elif self.processors[0].input_format == InputFormat.JUMANPP:
             self.initial_destination.write_text("".join(document.to_jumanpp() + "\n" for document in input_documents))
@@ -233,7 +233,7 @@ class CLIProcessor:
         return self.processors[-1].export_prediction()
 
 
-def _normalize_text(text: str) -> str:
+def normalize_text(text: str) -> str:
     # Tokenizers (BertJapaneseTokenizer, DebertaV2Tokenizer, etc.) apply NFKC normalization internally, so
     # there may be inconsistency in number of characters if not applying NFKC normalization in advance
     normalized = normalize("NFKC", text)
