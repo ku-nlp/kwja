@@ -18,8 +18,8 @@ class TypoModuleMetric(BaseModuleMetric):
         "ins_probabilities",
     )
 
-    def __init__(self, confidence_thresholds: Tuple[float, ...] = (0.0, 0.8, 0.9)) -> None:
-        super().__init__()
+    def __init__(self, max_seq_length: int, confidence_thresholds: Tuple[float, ...] = (0.0, 0.8, 0.9)) -> None:
+        super().__init__(max_seq_length)
         self.confidence_thresholds = confidence_thresholds
         self.dataset: Optional[TypoDataset] = None
         self.example_ids: torch.Tensor
@@ -28,17 +28,14 @@ class TypoModuleMetric(BaseModuleMetric):
         self.ins_predictions: torch.Tensor
         self.ins_probabilities: torch.Tensor
 
-    @staticmethod
-    def pad(kwargs: Dict[str, torch.Tensor], max_seq_length: int) -> None:
+    def _pad(self, kwargs: Dict[str, torch.Tensor]) -> None:
         for key, value in kwargs.items():
-            if key in {"example_ids"}:
+            if key in {"example_ids"} or value.numel() == 0:
                 continue
             else:
                 dims = [1]
             for dim in dims:
-                size = [max_seq_length - s if i == dim else s for i, s in enumerate(value.size())]
-                if size[dim] == 0:
-                    continue
+                size = [self.max_seq_length - s if i == dim else s for i, s in enumerate(value.size())]
                 padding = torch.zeros(size, dtype=value.dtype, device=value.device)
                 value = torch.cat([value, padding], dim=dim)
             kwargs[key] = value
@@ -58,11 +55,7 @@ class TypoModuleMetric(BaseModuleMetric):
     def _build_texts(self, confidence_threshold: float) -> List[Tuple[str, str, str]]:
         example_id2texts = {}
         for example_id, kdr_predictions, kdr_probabilities, ins_predictions, ins_probabilities in zip(
-            self.example_ids.tolist(),
-            self.kdr_predictions.tolist(),
-            self.kdr_probabilities.tolist(),
-            self.ins_predictions.tolist(),
-            self.ins_probabilities.tolist(),
+            *[getattr(self, state_name).tolist() for state_name in self.STATE_NAMES]
         ):
             assert self.dataset is not None, "typo dataset isn't set"
 

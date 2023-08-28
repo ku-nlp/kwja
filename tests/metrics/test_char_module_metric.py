@@ -10,14 +10,13 @@ from kwja.utils.constants import IGNORE_INDEX, SENT_SEGMENTATION_TAGS, WORD_NORM
 
 
 def test_char_module_metric(data_dir: Path, char_tokenizer: PreTrainedTokenizerBase) -> None:
-    metric = CharModuleMetric()
-
     path = data_dir / "datasets" / "char_files"
     max_seq_length = 20
     denormalize_probability = 0.0
     dataset = CharDataset(str(path), char_tokenizer, max_seq_length, denormalize_probability)
-    metric.set_properties({"dataset": dataset})
 
+    metric = CharModuleMetric(max_seq_length)
+    metric.set_properties({"dataset": dataset})
     metric.update(
         {
             "example_ids": torch.empty(0),  # dummy

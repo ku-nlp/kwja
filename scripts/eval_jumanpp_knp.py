@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 
 from rhoknp import KNP, Document, Sentence
-from rhoknp.props import MemoTag
 
 from kwja.metrics.word import WordModuleMetric
 
@@ -11,7 +10,7 @@ CORPORA: Tuple[str, ...] = ("kwdlc", "kyoto", "fuman", "wac")
 
 
 def evaluate_docs(documents: List[Document]):
-    word_module_metric = WordModuleMetric()
+    word_module_metric = WordModuleMetric(-1)
     knp = KNP(options=["-tab", "-dpnd"])
     (
         gold_documents,
@@ -38,7 +37,7 @@ def evaluate_docs(documents: List[Document]):
 
         partly_gold_document1 = document.reparse()
         partly_gold_document1.did = document.did
-        refresh(partly_gold_document1, level=1)
+        WordModuleMetric.refresh(partly_gold_document1, level=1)
         try:
             partly_gold_document1 = knp.apply_to_document(partly_gold_document1)
         except ValueError:
@@ -46,7 +45,7 @@ def evaluate_docs(documents: List[Document]):
 
         partly_gold_document2 = document.reparse()
         partly_gold_document2.did = document.did
-        refresh(partly_gold_document2, level=2)
+        WordModuleMetric.refresh(partly_gold_document2, level=2)
         partly_gold_document2 = knp.apply_to_document(partly_gold_document2)
 
         gold_documents.append(document)
@@ -65,35 +64,6 @@ def evaluate_docs(documents: List[Document]):
     metrics.update(word_module_metric.compute_dependency_parsing_metrics(partly_gold_documents1, gold_documents))
     # metrics.update(word_module_metric.compute_cohesion_analysis_metrics(partly_gold_documents2, gold_documents))
     return metrics, len(gold_documents)
-
-
-def refresh(document: Document, level: int = 1) -> None:
-    """Refresh document
-
-    NOTE:
-        level1: clear discourse relations, rel tags, dependencies, and base phrase features.
-        level2: clear discourse relations and rel tags.
-    """
-    assert level in (1, 2), f"invalid level: {level}"
-    try:
-        for clause in document.clauses:
-            clause.discourse_relations.clear()
-    except AttributeError:
-        pass
-
-    for base_phrase in document.base_phrases:
-        base_phrase.rel_tags.clear()
-        base_phrase.memo_tag = MemoTag()
-        if level == 1:
-            base_phrase.features.clear()
-            base_phrase.parent_index = None
-            base_phrase.dep_type = None
-
-    for phrase in document.phrases:
-        if level == 1:
-            phrase.features.clear()
-            phrase.parent_index = None
-            phrase.dep_type = None
 
 
 def main():

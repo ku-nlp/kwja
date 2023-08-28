@@ -26,7 +26,7 @@ from kwja.utils.logging_util import filter_logs
 
 filter_logs(environment="production")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
-OMEGACONF_VARIABLE_INTERPOLATION = re.compile(r"\$(?P<variable>\{.+?})")
+OMEGACONF_VARIABLE_INTERPOLATION = re.compile(r"\$(?P<variable>\{.*?})")
 logging.basicConfig(format="")
 
 logger = logging.getLogger("kwja_cli")

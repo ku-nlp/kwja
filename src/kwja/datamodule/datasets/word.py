@@ -270,7 +270,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             )
             cohesion_mask.extend([rel_mask] * len(cohesion_rels))
 
-        # ---------- discourse parsing ----------
+        # ---------- discourse relation analysis ----------
         discourse_labels = [[IGNORE_INDEX] * self.max_seq_length for _ in range(self.max_seq_length)]
         if self.skip_cohesion_ne_discourse is False:
             for (

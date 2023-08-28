@@ -56,9 +56,7 @@ def main(eval_cfg: DictConfig):
         devices=cfg.devices,
     )
 
-    if getattr(cfg.datamodule.predict, "knp_file", None):
-        cfg.datamodule.predict.knp_file = Path(cfg.datamodule.predict.knp_file)
-    elif getattr(cfg.datamodule.predict, "juman_file", None):
+    if getattr(cfg.datamodule.predict, "juman_file", None):
         cfg.datamodule.predict.juman_file = Path(cfg.datamodule.predict.juman_file)
     elif getattr(cfg.datamodule.predict, "texts", None) is not None:
         cfg.datamodule.predict.texts = [normalize_text(line) for line in sys.stdin.readlines()]

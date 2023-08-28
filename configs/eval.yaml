@@ -21,8 +21,8 @@ denormalize_probability: 0.0
 # for dependency parsing
 dependency_topk: 4
 
-# discourse parsing
-discourse_parsing_threshold: 0.0
+# discourse relation analysis
+discourse_threshold: 0.0
 
 # environment dependent settings
 num_workers: -1

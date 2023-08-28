@@ -23,8 +23,8 @@ class CharModuleMetric(BaseModuleMetric):
         "word_norm_op_labels",
     )
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, max_seq_length: int) -> None:
+        super().__init__(max_seq_length)
         self.dataset: Optional[CharDataset] = None
         self.example_ids: torch.Tensor
         self.sent_segmentation_predictions: torch.Tensor
@@ -32,17 +32,14 @@ class CharModuleMetric(BaseModuleMetric):
         self.word_norm_op_predictions: torch.Tensor
         self.word_norm_op_labels: torch.Tensor
 
-    @staticmethod
-    def pad(kwargs: Dict[str, torch.Tensor], max_seq_length: int) -> None:
+    def _pad(self, kwargs: Dict[str, torch.Tensor]) -> None:
         for key, value in kwargs.items():
-            if key in {"example_ids"}:
+            if key in {"example_ids"} or value.numel() == 0:
                 continue
             else:
                 dims = [1]
             for dim in dims:
-                size = [max_seq_length - s if i == dim else s for i, s in enumerate(value.size())]
-                if size[dim] == 0:
-                    continue
+                size = [self.max_seq_length - s if i == dim else s for i, s in enumerate(value.size())]
                 padding = torch.zeros(size, dtype=value.dtype, device=value.device)
                 value = torch.cat([value, padding], dim=dim)
             kwargs[key] = value
@@ -68,12 +65,13 @@ class CharModuleMetric(BaseModuleMetric):
         doc_id2partly_gold_sentences: Dict[str, List[Sentence]] = defaultdict(list)
         doc_id2gold_sentences: Dict[str, List[Sentence]] = defaultdict(list)
         special_ids = set(self.dataset.tokenizer.all_special_ids) - {self.dataset.tokenizer.unk_token_id}
-        for example_id, sent_segmentation_predictions, word_segmentation_predictions, word_norm_op_predictions in zip(
-            self.example_ids.tolist(),
-            self.sent_segmentation_predictions.tolist(),
-            self.word_segmentation_predictions.tolist(),
-            self.word_norm_op_predictions.tolist(),
-        ):
+        for (
+            example_id,
+            sent_segmentation_predictions,
+            word_segmentation_predictions,
+            word_norm_op_predictions,
+            _,  # word_norm_op_labels
+        ) in zip(*[getattr(self, state_name).tolist() for state_name in self.STATE_NAMES]):
             example = self.dataset.examples[example_id]
             gold_document = self.dataset.doc_id2document[example.doc_id]
             predicted_document = Document(gold_document.text)
@@ -91,8 +89,7 @@ class CharModuleMetric(BaseModuleMetric):
                 sent_segmentation_predictions,
                 word_segmentation_predictions,
                 word_norm_op_predictions,
-                example.encoding.input_ids,
-                special_ids,
+                [i for i, input_id in enumerate(example.encoding.input_ids) if input_id not in special_ids],
             )
             set_sentences(predicted_document, sent_segmentation_tags)
             set_morphemes(partly_gold_document, word_segmentation_tags, word_norm_op_tags)

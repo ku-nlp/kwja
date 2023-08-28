@@ -48,7 +48,7 @@ else:
 
 class WordModule(BaseModule[WordModuleMetric]):
     def __init__(self, hparams: DictConfig) -> None:
-        super().__init__(hparams, WordModuleMetric())
+        super().__init__(hparams, WordModuleMetric(hparams.max_seq_length))
 
         self.training_tasks: List[WordTask] = list(map(WordTask, self.hparams.training_tasks))
 
@@ -92,9 +92,9 @@ class WordModule(BaseModule[WordModuleMetric]):
         # ---------- cohesion analysis ----------
         self.cohesion_analyzer = RelationWiseWordSelectionHead(self._get_num_cohesion_rels(hparams), **head_kwargs)
 
-        # ---------- discourse parsing ----------
-        self.discourse_parsing_threshold: float = hparams.discourse_parsing_threshold
-        self.discourse_parser = WordSelectionHead(len(DISCOURSE_RELATIONS), **head_kwargs)
+        # ---------- discourse relation analysis ----------
+        self.discourse_threshold: float = hparams.discourse_threshold
+        self.discourse_relation_analyzer = WordSelectionHead(len(DISCOURSE_RELATIONS), **head_kwargs)
 
     @staticmethod
     def _get_num_cohesion_rels(hparams: DictConfig) -> int:
@@ -146,18 +146,16 @@ class WordModule(BaseModule[WordModuleMetric]):
                 torch.cat([unsqueezed.expand(head_hidden_states.shape), head_hidden_states], dim=3)
             ),
             "cohesion_logits": masked_cohesion_logits,
-            "discourse_logits": self.discourse_parser(pooled),
+            "discourse_logits": self.discourse_relation_analyzer(pooled),
         }
 
     def training_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
         ret: Dict[str, torch.Tensor] = self(batch)
         loss_log: Dict[str, torch.Tensor] = {}
-
         if WordTask.READING_PREDICTION in self.training_tasks:
             loss_log["reading_prediction_loss"] = compute_token_mean_loss(
                 ret["reading_logits"], batch["reading_labels"]
             )
-
         if WordTask.MORPHOLOGICAL_ANALYSIS in self.training_tasks:
             morphological_analysis_losses = [
                 compute_token_mean_loss(ret["pos_logits"], batch["pos_labels"]),
@@ -166,48 +164,39 @@ class WordModule(BaseModule[WordModuleMetric]):
                 compute_token_mean_loss(ret["conjform_logits"], batch["conjform_labels"]),
             ]
             loss_log["morphological_analysis_loss"] = torch.stack(morphological_analysis_losses).mean()
-
         if WordTask.WORD_FEATURE_TAGGING in self.training_tasks:
             loss_log["word_feature_tagging_loss"] = compute_multi_label_token_mean_loss(
                 ret["word_feature_probabilities"],
                 batch["word_feature_labels"],
             )
-
         if WordTask.NER in self.training_tasks:
             loss_log["ner_loss"] = self.crf(ret["ne_logits"], batch["ne_labels"], mask=batch["ne_mask"])
-
         if WordTask.BASE_PHRASE_FEATURE_TAGGING in self.training_tasks:
             loss_log["base_phrase_feature_tagging_loss"] = compute_multi_label_token_mean_loss(
                 ret["base_phrase_feature_probabilities"],
                 batch["base_phrase_feature_labels"],
             )
-
         if WordTask.DEPENDENCY_PARSING in self.training_tasks:
             loss_log["dependency_parsing_loss"] = compute_token_mean_loss(
                 ret["dependency_logits"], batch["dependency_labels"]
             )
             top1 = ret["dependency_type_logits"][:, :, 0]
             loss_log["dependency_type_parsing_loss"] = compute_token_mean_loss(top1, batch["dependency_type_labels"])
-
         if WordTask.COHESION_ANALYSIS in self.training_tasks:
             loss_log["cohesion_analysis_loss"] = compute_cohesion_analysis_loss(
                 ret["cohesion_logits"], batch["cohesion_labels"]
             )
-
-        if WordTask.DISCOURSE_PARSING in self.training_tasks:
-            loss_log["discourse_parsing_loss"] = compute_token_mean_loss(
+        if WordTask.DISCOURSE_RELATION_ANALYSIS in self.training_tasks:
+            loss_log["discourse_relation_analysis_loss"] = compute_token_mean_loss(
                 ret["discourse_logits"], batch["discourse_labels"]
             )
-
         self.log_dict({f"train/{key}": value for key, value in loss_log.items()})
-
         return torch.stack(list(loss_log.values())).sum()
 
     def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
         kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
         kwargs.update({"discourse_labels": batch["discourse_labels"]})
         metric = self.valid_corpus2metric[self.valid_corpora[dataloader_idx]]
-        metric.pad(kwargs, self.hparams.max_seq_length)
         metric.update(kwargs)
 
     def on_validation_epoch_end(self) -> None:
@@ -223,8 +212,10 @@ class WordModule(BaseModule[WordModuleMetric]):
             )
             metrics = metric.compute()
             if corpus != "kwdlc":
-                # discourse parsing labels are available only for KWDLC
-                metrics = {key: value for key, value in metrics.items() if not key.startswith("discourse_parsing")}
+                # discourse labels are available only for KWDLC
+                metrics = {
+                    key: value for key, value in metrics.items() if not key.startswith("discourse_relation_analysis")
+                }
             metrics["aggregated_word_metrics"] = mean(
                 metrics[key] for key in self.hparams.aggregating_metrics if key in metrics
             )
@@ -241,7 +232,6 @@ class WordModule(BaseModule[WordModuleMetric]):
         kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
         kwargs.update({"discourse_labels": batch["discourse_labels"]})
         metric = self.test_corpus2metric[self.test_corpora[dataloader_idx]]
-        metric.pad(kwargs, self.hparams.max_seq_length)
         metric.update(kwargs)
 
     def on_test_epoch_end(self) -> None:
@@ -257,8 +247,10 @@ class WordModule(BaseModule[WordModuleMetric]):
             )
             metrics = metric.compute()
             if corpus != "kwdlc":
-                # discourse parsing labels are available only for KWDLC
-                metrics = {key: value for key, value in metrics.items() if not key.startswith("discourse_parsing")}
+                # discourse labels are available only for KWDLC
+                metrics = {
+                    key: value for key, value in metrics.items() if not key.startswith("discourse_relation_analysis")
+                }
             metrics["aggregated_word_metrics"] = mean(
                 metrics[key] for key in self.hparams.aggregating_metrics if key in metrics
             )
@@ -276,7 +268,7 @@ class WordModule(BaseModule[WordModuleMetric]):
         ne_predictions = self.crf.viterbi_decode(ret["ne_logits"], batch["ne_mask"])
         discourse_probabilities = ret["discourse_logits"].softmax(dim=3)
         discourse_max_probabilities, discourse_predictions = discourse_probabilities.max(dim=3)
-        discourse_unconfident_indices = discourse_max_probabilities < self.discourse_parsing_threshold
+        discourse_unconfident_indices = discourse_max_probabilities < self.discourse_threshold
         discourse_predictions[discourse_unconfident_indices] = DISCOURSE_RELATIONS.index("談話関係なし")
         return {
             "example_ids": batch["example_ids"],

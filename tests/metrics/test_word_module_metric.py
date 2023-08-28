@@ -28,13 +28,10 @@ def test_word_module_metric(
     word_tokenizer: PreTrainedTokenizerBase,
     dataset_kwargs: Dict[str, Any],
 ) -> None:
-    metric = WordModuleMetric()
-
     path = data_dir / "datasets" / "word_files"
     max_seq_length = 20
     dataset = WordDataset(str(path), word_tokenizer, max_seq_length, document_split_stride=1, **dataset_kwargs)
     dataset.examples[1].load_discourse_document(Document.from_knp(path.joinpath("1.knp").read_text()))
-
     reading_id2reading = {v: k for k, v in dataset.reading2reading_id.items()}
     training_tasks = [
         WordTask.READING_PREDICTION,
@@ -44,8 +41,10 @@ def test_word_module_metric(
         WordTask.BASE_PHRASE_FEATURE_TAGGING,
         WordTask.DEPENDENCY_PARSING,
         WordTask.COHESION_ANALYSIS,
-        WordTask.DISCOURSE_PARSING,
+        WordTask.DISCOURSE_RELATION_ANALYSIS,
     ]
+
+    metric = WordModuleMetric(max_seq_length)
     metric.set_properties(
         {
             "dataset": dataset,
@@ -53,7 +52,6 @@ def test_word_module_metric(
             "training_tasks": training_tasks,
         }
     )
-
     metric.update(
         {
             "example_ids": torch.empty(0),  # dummy
@@ -361,4 +359,4 @@ def test_word_module_metric(
     assert metrics["coreference_f1"] == pytest.approx(0.0)
     assert metrics["cohesion_analysis_f1"] == pytest.approx(1 / 3)
 
-    assert metrics["discourse_parsing_f1"] == pytest.approx(1.0)
+    assert metrics["discourse_relation_analysis_f1"] == pytest.approx(1.0)

@@ -1,17 +1,15 @@
 import logging
-import sys
 from collections import defaultdict
-from io import TextIOBase
 from itertools import product
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, TextIO, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import pytorch_lightning as pl
 from jinf import Jinf
-from pytorch_lightning.callbacks import BasePredictionWriter
 from rhoknp import Document, Morpheme, Sentence
 from rhoknp.props import SemanticsDict
 
+from kwja.callbacks.base_module_writer import BaseModuleWriter
 from kwja.callbacks.utils import (
     add_base_phrase_features,
     add_cohesion,
@@ -20,7 +18,6 @@ from kwja.callbacks.utils import (
     add_named_entities,
     chunk_morphemes,
     get_morpheme_attribute_predictions,
-    get_word_reading_predictions,
 )
 from kwja.datamodule.datasets import WordDataset, WordInferenceDataset
 from kwja.datamodule.examples import WordExample, WordInferenceExample
@@ -35,29 +32,20 @@ from kwja.utils.constants import (
     SUBPOS_TAGS,
 )
 from kwja.utils.jumandic import JumanDic
-from kwja.utils.reading_prediction import get_reading2reading_id
+from kwja.utils.reading_prediction import get_reading2reading_id, get_word_level_readings
 from kwja.utils.sub_document import extract_target_sentences, to_orig_doc_id
 
 logger = logging.getLogger(__name__)
 
 
-class WordModuleWriter(BasePredictionWriter):
+class WordModuleWriter(BaseModuleWriter):
     def __init__(
         self,
         ambig_surf_specs: List[Dict[str, str]],
         preserve_reading_lemma_canon: bool = False,
         destination: Optional[Union[str, Path]] = None,
     ) -> None:
-        super().__init__(write_interval="batch")
-        if destination is None:
-            self.destination: Union[Path, TextIO] = sys.stdout
-        else:
-            if isinstance(destination, str):
-                destination = Path(destination)
-            self.destination = destination
-            self.destination.parent.mkdir(exist_ok=True, parents=True)
-            self.destination.unlink(missing_ok=True)
-
+        super().__init__(destination=destination)
         reading2reading_id = get_reading2reading_id(RESOURCE_PATH / "reading_prediction" / "vocab.txt")
         self.reading_id2reading = {v: k for k, v in reading2reading_id.items()}
 
@@ -67,8 +55,8 @@ class WordModuleWriter(BasePredictionWriter):
 
         self.preserve_reading_lemma_canon: bool = preserve_reading_lemma_canon
 
-        self.prev_doc_id: Optional[str] = None
         self.doc_id_sid2predicted_sentence: Dict[str, Dict[str, Sentence]] = defaultdict(dict)
+        self.prev_doc_id = ""
 
     def write_on_batch_end(
         self,
@@ -80,11 +68,11 @@ class WordModuleWriter(BasePredictionWriter):
         batch_idx: int,
         dataloader_idx: int,
     ) -> None:
-        dataloaders = trainer.predict_dataloaders
         if isinstance(trainer.predict_dataloaders, dict):
-            dataloaders = list(trainer.predict_dataloaders.values())
-        dataset: Union[WordDataset, WordInferenceDataset] = dataloaders[dataloader_idx].dataset
-
+            dataloader = list(trainer.predict_dataloaders.values())[dataloader_idx]
+        else:
+            dataloader = trainer.predict_dataloaders[dataloader_idx]
+        dataset: Union[WordDataset, WordInferenceDataset] = dataloader.dataset
         for (
             example_id,
             reading_predictions,
@@ -97,40 +85,23 @@ class WordModuleWriter(BasePredictionWriter):
             dependency_type_predictions,
             cohesion_logits,
             discourse_predictions,
-        ) in zip(
-            prediction["example_ids"].tolist(),
-            prediction["reading_predictions"].tolist(),
-            prediction["reading_subword_map"].tolist(),
-            prediction["pos_logits"].tolist(),
-            prediction["subpos_logits"].tolist(),
-            prediction["conjtype_logits"].tolist(),
-            prediction["conjform_logits"].tolist(),
-            prediction["word_feature_probabilities"].tolist(),
-            prediction["ne_predictions"].tolist(),
-            prediction["base_phrase_feature_probabilities"].tolist(),
-            prediction["dependency_predictions"].tolist(),
-            prediction["dependency_type_predictions"].tolist(),
-            prediction["cohesion_logits"].tolist(),
-            prediction["discourse_predictions"].tolist(),
-        ):
+        ) in zip(*[v.tolist() for v in prediction.values()]):
             example: Union[WordExample, WordInferenceExample] = dataset.examples[example_id]
             assert example.doc_id is not None, "doc_id isn't set"
             document = dataset.doc_id2document.pop(example.doc_id)
-            num_morphemes = len(document.morphemes)
+
             if self.preserve_reading_lemma_canon is True:
                 word_reading_predictions = [m.reading for m in document.morphemes]
                 canons = [m.canon for m in document.morphemes]
             else:
-                word_reading_predictions = get_word_reading_predictions(
-                    example.encoding.ids,
-                    reading_predictions,
-                    self.reading_id2reading,
-                    dataset.tokenizer,
+                word_reading_predictions = get_word_level_readings(
+                    [self.reading_id2reading[reading_id] for reading_id in reading_predictions],
+                    [dataset.tokenizer.decode(input_id) for input_id in example.encoding.ids],
                     reading_subword_map,
                 )
-                canons = ["" for _ in document.morphemes]
+                canons = [None for _ in document.morphemes]
             morpheme_attribute_predictions = get_morpheme_attribute_predictions(
-                *(logits[:num_morphemes] for logits in morpheme_attribute_logits)
+                *(logits[: len(document.morphemes)] for logits in morpheme_attribute_logits)
             )
             morphemes = self._build_morphemes(
                 [m.surf for m in document.morphemes],
@@ -171,15 +142,18 @@ class WordModuleWriter(BasePredictionWriter):
             ):
                 predicted_sentence.comment = sentence.comment
                 self.doc_id_sid2predicted_sentence[orig_doc_id][predicted_sentence.sid] = predicted_sentence
-            self.prev_doc_id = self.prev_doc_id or orig_doc_id
+
             if orig_doc_id != self.prev_doc_id:
-                self._write_document(self.doc_id_sid2predicted_sentence[self.prev_doc_id])
+                sid2predicted_sentence = self.doc_id_sid2predicted_sentence[self.prev_doc_id]
+                output_string = "".join(s.to_knp() for s in sid2predicted_sentence.values())
+                self.write_output_string(output_string)
                 self.doc_id_sid2predicted_sentence[self.prev_doc_id].clear()
                 self.prev_doc_id = orig_doc_id
 
-        if batch_idx == len(dataloaders[dataloader_idx]) - 1:
+        if batch_idx == len(dataloader) - 1:
             for sid2predicted_sentence in self.doc_id_sid2predicted_sentence.values():
-                self._write_document(sid2predicted_sentence)
+                output_string = "".join(s.to_knp() for s in sid2predicted_sentence.values())
+                self.write_output_string(output_string)
             self.doc_id_sid2predicted_sentence.clear()
 
     def _build_morphemes(
@@ -271,10 +245,10 @@ class WordModuleWriter(BasePredictionWriter):
         pos: str,
         subpos: str,
         conjtype: str,
-        canon: str,
+        canon: Optional[str],
         homograph_ops: List[Dict[str, Any]],
     ) -> SemanticsDict:
-        if canon:
+        if canon is not None:
             matched = [
                 entry
                 for entry in self.jumandic.lookup_by_canon(canon)
@@ -347,20 +321,3 @@ class WordModuleWriter(BasePredictionWriter):
             )
             # rhoknp converts homographs into KNP's ALT features
             morpheme.homographs.append(homograph)
-
-    def _write_document(self, sid2sentence: Dict[str, Sentence]) -> None:
-        output_string = "".join(s.to_knp() for s in sid2sentence.values())
-        if isinstance(self.destination, Path):
-            with self.destination.open(mode="a") as f:
-                f.write(output_string)
-        elif isinstance(self.destination, TextIOBase):
-            self.destination.write(output_string)
-
-    def write_on_epoch_end(
-        self,
-        trainer: pl.Trainer,
-        pl_module: pl.LightningModule,
-        predictions: Sequence[Any],
-        batch_indices: Optional[Sequence[Any]] = None,
-    ) -> None:
-        pass  # pragma: no cover
