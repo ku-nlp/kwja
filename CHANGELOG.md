@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
-- Support `jumanpp` and `knp` input formats. This functionality allows you to partly use `jumanpp` and `knp` in the pipeline.
+- Support `jumanpp` and `knp` input formats. This functionality allows you to partly use tokenization results of `jumanpp` as input.
   ```shell
   kwja --tasks word --text <(echo "外国人参政権" | jumanpp) --input-format jumanpp
   ```

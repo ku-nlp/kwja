@@ -341,6 +341,11 @@ def main(
             "task combination is invalid. "
             f"Please specify one of {', '.join(repr(','.join(ts)) for ts in valid_task_combinations)}."
         )
+    if input_format in (InputFormat.JUMANPP, InputFormat.KNP):
+        if specified_tasks[0] in ("typo", "char"):
+            logger.warning("WARNING: with typo or char task, your input text will be treated as raw text.")
+        elif specified_tasks[0] in ("seq2seq", "word"):
+            logger.warning("WARNING: with seq2seq or word task, your input text will be treated as a word sequence.")
 
     input_documents: Optional[List[Document]] = None
     if text is not None and len(filename) > 0:
