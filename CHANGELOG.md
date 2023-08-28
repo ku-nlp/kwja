@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Version specification of `rhoknp` in `pyproject.toml`.
 
+## [v2.1.3] - 2023-08-28
+### Fixed
+- Fix a bug caused by the latest version of `rhoknp`.
+
 ## [v2.1.2] - 2023-06-07
 ### Added
 - Support executing kwja with `python -m kwja`.
