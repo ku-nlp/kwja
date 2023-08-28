@@ -3,9 +3,10 @@ import os
 import re
 import sys
 from abc import ABC
+from enum import Enum
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, Iterator, List, Optional, Set, TextIO, Tuple
 from unicodedata import normalize
 
 import hydra
@@ -13,8 +14,9 @@ import pytorch_lightning as pl
 import torch
 import typer
 from pytorch_lightning.trainer.states import TrainerFn
-from rhoknp import Sentence
-from rhoknp.utils.reader import chunk_by_sentence
+from rhoknp import Document, Sentence
+from rhoknp.utils.reader import chunk_by_document, chunk_by_sentence
+from typing_extensions import Annotated
 
 import kwja
 from kwja.cli.config import CLIConfig, Device, ModelSize, get_kwja_config_file
@@ -34,7 +36,15 @@ logger.setLevel(logging.INFO)
 app = typer.Typer(pretty_exceptions_show_locals=False)
 
 
+class InputFormat(str, Enum):
+    RAW = "raw"
+    JUMANPP = "jumanpp"
+    KNP = "knp"
+
+
 class BaseModuleProcessor(ABC):
+    input_format: InputFormat
+
     def __init__(self, config: CLIConfig, batch_size: int) -> None:
         self.config: CLIConfig = config
         self.device_name, self.device = prepare_device(config.device.value)
@@ -82,6 +92,8 @@ class BaseModuleProcessor(ABC):
 
 
 class TypoModuleProcessor(BaseModuleProcessor):
+    input_format = InputFormat.RAW
+
     def _load_module(self) -> pl.LightningModule:
         logger.info("Loading typo module")
         checkpoint_path: Path = download_checkpoint(module="typo", model_size=self.model_size)
@@ -89,7 +101,8 @@ class TypoModuleProcessor(BaseModuleProcessor):
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
-        self.module.hparams.datamodule.predict.texts = _split_into_documents(input_file.read_text())
+        with input_file.open() as f:
+            self.module.hparams.datamodule.predict.texts = list(_chunk_by_document(f, self.input_format))
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
         datamodule.setup(stage=TrainerFn.PREDICTING)
         return datamodule
@@ -99,6 +112,8 @@ class TypoModuleProcessor(BaseModuleProcessor):
 
 
 class CharModuleProcessor(BaseModuleProcessor):
+    input_format = InputFormat.RAW
+
     def _load_module(self) -> pl.LightningModule:
         logger.info("Loading char module")
         checkpoint_path: Path = download_checkpoint(module="char", model_size=self.model_size)
@@ -106,7 +121,8 @@ class CharModuleProcessor(BaseModuleProcessor):
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
-        self.module.hparams.datamodule.predict.texts = _split_into_documents(input_file.read_text())
+        with input_file.open() as f:
+            self.module.hparams.datamodule.predict.texts = list(_chunk_by_document(f, self.input_format))
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
         datamodule.setup(stage=TrainerFn.PREDICTING)
         return datamodule
@@ -123,6 +139,8 @@ class CharModuleProcessor(BaseModuleProcessor):
 
 
 class Seq2SeqModuleProcessor(BaseModuleProcessor):
+    input_format = InputFormat.JUMANPP
+
     def _load_module(self):
         logger.info("Loading seq2seq module")
         checkpoint_path: Path = download_checkpoint(module="seq2seq", model_size=self.model_size)
@@ -140,6 +158,8 @@ class Seq2SeqModuleProcessor(BaseModuleProcessor):
 
 
 class WordModuleProcessor(BaseModuleProcessor):
+    input_format = InputFormat.JUMANPP
+
     def __init__(self, config: CLIConfig, batch_size: int, from_seq2seq: bool) -> None:
         super().__init__(config, batch_size)
         self.from_seq2seq = from_seq2seq
@@ -165,7 +185,7 @@ class WordModuleProcessor(BaseModuleProcessor):
 
 class CLIProcessor:
     def __init__(self, config: CLIConfig, tasks: List[str]) -> None:
-        self.raw_destination = Path(NamedTemporaryFile(suffix=".txt", delete=False).name)
+        self.initial_destination = Path(NamedTemporaryFile(delete=False).name)
         self._task2processors: Dict[str, BaseModuleProcessor] = {
             "typo": TypoModuleProcessor(config, config.typo_batch_size),
             "char": CharModuleProcessor(config, config.char_batch_size),
@@ -183,17 +203,28 @@ class CLIProcessor:
             processor.load()
 
     def refresh(self) -> None:
-        self.raw_destination.unlink(missing_ok=True)
+        self.initial_destination.unlink(missing_ok=True)
         for processor in self._task2processors.values():
             processor.destination.unlink(missing_ok=True)
 
-    def run(self, input_documents: List[str], interactive: bool = False) -> str:
-        self.raw_destination.write_text(
-            "".join(normalize_text(input_document) + "\nEOD\n" for input_document in input_documents)
-        )
-        input_file = self.raw_destination
+    def run(self, input_documents: List[Document], interactive: bool = False) -> str:
+        input_documents = [document for document in input_documents if document.text != ""]
+        if len(input_documents) == 0:
+            return ""
+        if self.processors[0].input_format == InputFormat.RAW:
+            self.initial_destination.write_text(
+                "".join(normalize_text(input_document.text) + "\nEOD\n" for input_document in input_documents)
+            )
+        elif self.processors[0].input_format == InputFormat.JUMANPP:
+            self.initial_destination.write_text("".join(document.to_jumanpp() + "\n" for document in input_documents))
+        # elif self.processors[0].input_format == InputFormat.knp:
+        #     self.initial_destination.write_text("".join(document.to_knp() + "\n" for document in input_documents))
+        else:
+            raise AssertionError  # unreachable
+
+        input_file = self.initial_destination
         for processor in self.processors:
-            if interactive is False:
+            if processor.module is None or processor.trainer is None:
                 processor.load()
             processor.apply_module(input_file)
             input_file = processor.destination
@@ -215,28 +246,41 @@ def normalize_text(text: str) -> str:
     return normalized
 
 
-def _split_into_documents(input_text: str) -> List[str]:
-    documents: List[str] = []
-    document: str = ""
-    for line in input_text.split("\n"):
-        if line == "EOD":
-            documents.append(document.rstrip())
-            document = ""
-        else:
-            document += f"{line}\n"
+def _chunk_by_document(f: TextIO, input_format: InputFormat) -> Iterator[str]:
+    if input_format in (InputFormat.JUMANPP, InputFormat.KNP):
+        yield from chunk_by_document(f)
+    elif input_format == InputFormat.RAW:
+        buff: str = ""
+        for line in f:
+            if line.strip() == "EOD":
+                yield buff.rstrip()
+                buff = ""
+            else:
+                buff += line
+        if buff.rstrip() != "":
+            yield buff.rstrip()
     else:
-        if document.rstrip() != "":
-            documents.append(document.rstrip())
-    return documents
+        raise AssertionError  # unreachable
 
 
-def version_callback(value: bool) -> None:
+def _load_document_from_text(text: str, input_format: InputFormat) -> Document:
+    if input_format == InputFormat.RAW:
+        return Document.from_raw_text(text)
+    elif input_format == InputFormat.JUMANPP:
+        return Document.from_jumanpp(text)
+    elif input_format == InputFormat.KNP:
+        return Document.from_knp(text)
+    else:
+        raise AssertionError  # unreachable
+
+
+def _version_callback(value: bool) -> None:
     if value is True:
         print(f"KWJA {kwja.__version__}")
         raise typer.Exit()
 
 
-def tasks_callback(value: str) -> str:
+def _tasks_callback(value: str) -> str:
     """sort and validate specified tasks"""
     values: List[str] = [v for v in value.split(",") if v]
     tasks: List[str] = []
@@ -250,6 +294,31 @@ def tasks_callback(value: str) -> str:
         raise typer.BadParameter(f"invalid tasks are specified: {', '.join(repr(v) for v in values)}")
     if len(tasks) == 0:
         raise typer.BadParameter("task must be specified")
+    return ",".join(tasks)
+
+
+@app.command()
+def main(
+    text: Annotated[Optional[str], typer.Option(help="Text to be analyzed.")] = None,
+    filename: List[Path] = typer.Option([], dir_okay=False, help="Files to be analyzed."),
+    model_size: Annotated[
+        Optional[ModelSize], typer.Option(case_sensitive=False, help="Model size to be used.")
+    ] = None,
+    device: Annotated[Optional[Device], typer.Option(case_sensitive=False, help="Device to be used.")] = None,
+    typo_batch_size: Annotated[Optional[int], typer.Option(help="Batch size for typo module.")] = None,
+    char_batch_size: Annotated[Optional[int], typer.Option(help="Batch size for char module.")] = None,
+    seq2seq_batch_size: Annotated[Optional[int], typer.Option(help="Batch size for seq2seq module.")] = None,
+    word_batch_size: Annotated[Optional[int], typer.Option(help="Batch size for word module.")] = None,
+    tasks: Annotated[str, typer.Option(callback=_tasks_callback, help="Tasks to be performed.")] = "char,word",
+    _: Annotated[
+        Optional[bool],
+        typer.Option("--version", callback=_version_callback, is_eager=True, help="Show version and exit."),
+    ] = None,
+    config_file: Annotated[Optional[Path], typer.Option(help="Path to KWJA config file.")] = None,
+    input_format: Annotated[InputFormat, typer.Option(case_sensitive=False, help="Input format.")] = InputFormat.RAW,
+) -> None:
+    # validate task combination
+    specified_tasks: List[str] = tasks.split(",")
     valid_task_combinations: Set[Tuple[str, ...]] = {
         ("typo",),
         ("typo", "char"),
@@ -261,41 +330,40 @@ def tasks_callback(value: str) -> str:
         ("char", "word"),
         ("char", "seq2seq", "word"),
     }
-
-    if tuple(tasks) not in valid_task_combinations:
+    if input_format in (InputFormat.JUMANPP, InputFormat.KNP):
+        valid_task_combinations |= {
+            ("seq2seq",),
+            ("seq2seq", "word"),
+            ("word",),
+        }
+    if tuple(specified_tasks) not in valid_task_combinations:
         raise typer.BadParameter(
             "task combination is invalid. "
             f"Please specify one of {', '.join(repr(','.join(ts)) for ts in valid_task_combinations)}."
         )
-    return ",".join(tasks)
+    if input_format in (InputFormat.JUMANPP, InputFormat.KNP):
+        if specified_tasks[0] in ("typo", "char"):
+            logger.warning("WARNING: with typo or char task, your input text will be treated as raw text.")
+        elif specified_tasks[0] in ("seq2seq", "word"):
+            logger.warning("WARNING: with seq2seq or word task, your input text will be treated as a word sequence.")
 
-
-@app.command()
-def main(
-    text: Optional[str] = typer.Option(None, help="Text to be analyzed."),
-    filename: List[Path] = typer.Option([], dir_okay=False, help="Files to be analyzed."),
-    model_size: Optional[ModelSize] = typer.Option(None, help="Model size to be used."),
-    device: Optional[Device] = typer.Option(None, help="Device to be used."),
-    typo_batch_size: Optional[int] = typer.Option(None, help="Batch size for typo module."),
-    char_batch_size: Optional[int] = typer.Option(None, help="Batch size for char module."),
-    seq2seq_batch_size: Optional[int] = typer.Option(None, help="Batch size for seq2seq module."),
-    word_batch_size: Optional[int] = typer.Option(None, help="Batch size for word module."),
-    tasks: str = typer.Option("char,word", callback=tasks_callback, help="Tasks to be performed."),
-    _: Optional[bool] = typer.Option(None, "--version", callback=version_callback, is_eager=True),
-    config_file: Optional[Path] = typer.Option(None, help="Path to KWJA config file."),
-) -> None:
-    input_text: Optional[str] = None
+    input_documents: Optional[List[Document]] = None
     if text is not None and len(filename) > 0:
         logger.error("ERROR: Please provide text or filename, not both")
         raise typer.Abort()
     elif text is not None:
-        input_text = text
+        input_documents = [_load_document_from_text(text, input_format)]
     elif len(filename) > 0:
-        input_text = "".join(path.read_text().rstrip("\n").rstrip("EOD").rstrip() + "\nEOD\n" for path in filename)
+        input_documents = []
+        for path in filename:
+            if path.exists() is False:
+                logger.error(f"ERROR: {path} does not exist")
+                raise typer.Abort()
+            with path.open() as f:
+                for document_text in _chunk_by_document(f, input_format):
+                    input_documents.append(_load_document_from_text(document_text, input_format))
     else:
         pass  # interactive mode
-
-    specified_tasks: List[str] = tasks.split(",")
 
     if config_file is None:
         config_file = get_kwja_config_file()
@@ -319,12 +387,10 @@ def main(
     processor = CLIProcessor(config, specified_tasks)
 
     # Batch mode
-    if input_text is not None:
-        if input_text.strip() != "":
-            print(processor.run(_split_into_documents(input_text)), end="")
-            processor.refresh()
-        else:
-            print("EOD")
+    if input_documents is not None:
+        output: str = processor.run(input_documents)
+        print(output or "EOD\n", end="")
+        processor.refresh()
         raise typer.Exit()
 
     # Interactive mode
@@ -337,14 +403,13 @@ def main(
         except EOFError:
             break
         if input_ == "EOD":
-            if input_text.strip() != "":
-                processor.refresh()
-                print(processor.run([input_text], interactive=True), end="")
-                if specified_tasks != ["typo"]:
-                    print("EOD")  # To indicate the end of the output.
-                input_text = ""
-            else:
-                print("EOD")
+            processor.refresh()
+            input_document: Document = _load_document_from_text(input_text, input_format)
+            output = processor.run([input_document], interactive=True)
+            print(output, end="")
+            if specified_tasks != ["typo"] or output == "":
+                print("EOD")  # To indicate the end of the output.
+            input_text = ""
         else:
             input_text += input_ + "\n"
 

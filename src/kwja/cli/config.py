@@ -20,21 +20,21 @@ def get_kwja_config_file() -> Path:
 
 
 class Device(str, Enum):
-    auto = "auto"
-    cpu = "cpu"
-    gpu = "gpu"
+    AUTO = "auto"
+    CPU = "cpu"
+    GPU = "gpu"
 
 
 class ModelSize(str, Enum):
-    tiny = "tiny"
-    base = "base"
-    large = "large"
+    TINY = "tiny"
+    BASE = "base"
+    LARGE = "large"
 
 
 @dataclass
 class CLIConfig:
-    model_size: ModelSize = ModelSize.base
-    device: Device = Device.auto
+    model_size: ModelSize = ModelSize.BASE
+    device: Device = Device.AUTO
     num_workers: int = 0
     torch_compile: bool = False
     typo_batch_size: int = 1
