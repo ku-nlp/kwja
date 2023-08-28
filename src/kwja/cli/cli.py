@@ -347,7 +347,7 @@ def main(
         logger.error("ERROR: Please provide text or filename, not both")
         raise typer.Abort()
     elif text is not None:
-        input_documents = [Document.from_raw_text(text)]
+        input_documents = [_load_document_from_text(text, input_format)]
     elif len(filename) > 0:
         input_documents = []
         for path in filename:
