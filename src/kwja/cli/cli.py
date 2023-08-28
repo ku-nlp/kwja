@@ -139,7 +139,7 @@ class CharModuleProcessor(BaseModuleProcessor):
 
 
 class Seq2SeqModuleProcessor(BaseModuleProcessor):
-    input_format = InputFormat.RAW
+    input_format = InputFormat.JUMANPP
 
     def _load_module(self):
         logger.info("Loading seq2seq module")
