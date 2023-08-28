@@ -9,12 +9,17 @@ class BaseModuleMetric(Metric, ABC):
     full_state_update = False
     STATE_NAMES: Tuple[str, ...]
 
-    def __init__(self) -> None:
+    def __init__(self, max_seq_length: int) -> None:
         super().__init__()
+        self.max_seq_length = max_seq_length
         for state_name in self.STATE_NAMES:
             self.add_state(state_name, default=[], dist_reduce_fx="cat")
 
+    def _pad(self, kwargs: Dict[str, torch.Tensor]) -> None:
+        raise NotImplementedError()
+
     def update(self, kwargs: Dict[str, torch.Tensor]) -> None:
+        self._pad(kwargs)
         for state_name in self.STATE_NAMES:
             state = getattr(self, state_name)
             value = kwargs[state_name]
@@ -35,3 +40,6 @@ class BaseModuleMetric(Metric, ABC):
     def set_properties(self, kwargs: Dict[str, Any]) -> None:
         for key, value in kwargs.items():
             setattr(self, key, value)
+
+    def plot(self, *_: Any, **__: Any) -> Any:
+        pass  # pragma: no cover

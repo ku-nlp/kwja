@@ -83,7 +83,7 @@ class WordExample:
         # wrapされた基本句のリスト
         self.cohesion_task2base_phrases: Dict[CohesionTask, List[CohesionBasePhrase]] = {}
 
-        # ---------- discourse parsing ----------
+        # ---------- discourse relation analysis ----------
         # (modifier morpheme global index, head morpheme global index) -> 談話関係
         self.morpheme_global_indices2discourse_relation: Dict[Tuple[int, int], str] = {}
 

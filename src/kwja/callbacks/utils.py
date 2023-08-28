@@ -1,14 +1,11 @@
 from logging import getLogger
-from pathlib import Path
 from typing import Dict, List, Literal, Optional, Set, Tuple
 
 import numpy as np
-import torch
 from cohesion_tools.extractors.base import BaseExtractor
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
 from rhoknp.cohesion import ExophoraReferent, ExophoraReferentType, RelTag
 from rhoknp.props import DepType, NamedEntity, NamedEntityCategory
-from transformers import PreTrainedTokenizerBase
 
 from kwja.datamodule.examples import SpecialTokenIndexer
 from kwja.utils.constants import (
@@ -33,23 +30,12 @@ from kwja.utils.constants import (
     CohesionTask,
 )
 from kwja.utils.dependency_parsing import DependencyManager
-from kwja.utils.reading_prediction import get_word_level_readings
 from kwja.utils.word_normalization import get_normalized
 
 logger = getLogger(__name__)
 
 
 # ---------- typo module writer ----------
-def get_maps(tokenizer: PreTrainedTokenizerBase, extended_vocab_path: Path) -> Tuple[Dict[str, int], Dict[int, str]]:
-    token2token_id = tokenizer.get_vocab()
-    with extended_vocab_path.open() as f:
-        for line in f:
-            if line := line.strip():
-                token2token_id[line] = len(token2token_id.keys())
-    token_id2token = {v: k for k, v in token2token_id.items()}
-    return token2token_id, token_id2token
-
-
 def convert_typo_predictions_into_tags(
     predictions: List[int],  # kdr_predictions or ins_predictions
     probabilities: List[float],
@@ -92,10 +78,8 @@ def convert_char_predictions_into_tags(
     sent_segmentation_predictions: List[int],
     word_segmentation_predictions: List[int],
     word_norm_op_predictions: List[int],
-    input_ids: List[int],
-    special_ids: Set[int],
+    indices: List[int],
 ) -> Tuple[List[str], List[str], List[str]]:
-    indices = [i for i, input_id in enumerate(input_ids) if input_id not in special_ids]
     sent_segmentation_tags = [SENT_SEGMENTATION_TAGS[sent_segmentation_predictions[i]] for i in indices]
     word_segmentation_tags = [WORD_SEGMENTATION_TAGS[word_segmentation_predictions[i]] for i in indices]
     word_norm_op_tags = [WORD_NORM_OP_TAGS[word_norm_op_predictions[i]] for i in indices]
@@ -154,19 +138,6 @@ def _build_morpheme(surf: str, norm: str) -> Morpheme:
 
 
 # ---------- word module writer ----------
-def get_word_reading_predictions(
-    input_ids: torch.Tensor,
-    reading_predictions: List[int],
-    reading_id2reading: Dict[int, str],
-    tokenizer: PreTrainedTokenizerBase,
-    reading_subword_map: List[List[bool]],
-) -> List[str]:
-    readings: List[str] = [reading_id2reading[reading_id] for reading_id in reading_predictions]
-    tokens: List[str] = [tokenizer.decode(input_id) for input_id in input_ids]
-    word_reading_predictions: List[str] = get_word_level_readings(readings, tokens, reading_subword_map)
-    return word_reading_predictions
-
-
 def get_morpheme_attribute_predictions(
     pos_logits: List[List[float]],
     subpos_logits: List[List[float]],
@@ -414,7 +385,7 @@ def _resolve_dependency(base_phrase: BasePhrase, dependency_manager: DependencyM
             base_phrase.dep_type = DepType.DEPENDENCY
             return
 
-    raise RuntimeError("couldn't resolve dependency")
+    raise RuntimeError("couldn't resolve dependency")  # pragma: no cover
 
 
 def add_cohesion(

@@ -1,6 +1,6 @@
 defaults:
   - base
-  - callbacks: [early_stopping, model_checkpoint, model_summary, typo_module_writer, progress_bar]
+  - callbacks: [typo_module_writer, early_stopping, model_checkpoint, model_summary, progress_bar]
   - datamodule: typo
   - logger: null
   - encoder: char_deberta_tiny

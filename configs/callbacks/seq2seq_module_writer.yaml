@@ -1,5 +1,5 @@
 prediction_writer:
-  _target_: kwja.callbacks.seq2seq_module_writer.Seq2SeqModuleWriter
+  _target_: kwja.callbacks.Seq2SeqModuleWriter
   destination: ${run_dir}/seq2seq_prediction.txt
   tokenizer:
     _target_: transformers.AutoTokenizer.from_pretrained

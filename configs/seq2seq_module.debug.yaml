@@ -1,6 +1,6 @@
 defaults:
   - base
-  - callbacks: [early_stopping, model_checkpoint, model_summary, seq2seq_module_writer, progress_bar]
+  - callbacks: [seq2seq_module_writer, early_stopping, model_checkpoint, model_summary, progress_bar]
   - datamodule: seq2seq
   - logger: null
   - encoder: seq2seq_mt5_small

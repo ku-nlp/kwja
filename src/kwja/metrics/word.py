@@ -7,7 +7,7 @@ import torch
 from cohesion_tools.evaluation import CohesionScore, CohesionScorer
 from cohesion_tools.extractors import PasExtractor
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
-from rhoknp.props import DepType
+from rhoknp.props import DepType, MemoTag
 from seqeval.metrics import accuracy_score, f1_score
 from seqeval.scheme import IOB2
 
@@ -19,7 +19,6 @@ from kwja.callbacks.utils import (  # add_discourse,
     build_morphemes,
     chunk_morphemes,
     get_morpheme_attribute_predictions,
-    get_word_reading_predictions,
 )
 from kwja.datamodule.datasets import WordDataset
 from kwja.metrics.base import BaseModuleMetric
@@ -38,6 +37,7 @@ from kwja.utils.constants import (
     CohesionTask,
     WordTask,
 )
+from kwja.utils.reading_prediction import get_word_level_readings
 from kwja.utils.sub_document import extract_target_sentences, to_orig_doc_id
 
 
@@ -60,8 +60,8 @@ class WordModuleMetric(BaseModuleMetric):
         "discourse_labels",
     )
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, max_seq_length: int) -> None:
+        super().__init__(max_seq_length)
         self.dataset: Optional[WordDataset] = None
         self.reading_id2reading: Optional[Dict[int, str]] = None
         self.training_tasks: Optional[List[WordTask]] = None
@@ -82,19 +82,16 @@ class WordModuleMetric(BaseModuleMetric):
         self.discourse_predictions: torch.Tensor
         self.discourse_labels: torch.Tensor
 
-    @staticmethod
-    def pad(kwargs: Dict[str, torch.Tensor], max_seq_length: int) -> None:
+    def _pad(self, kwargs: Dict[str, torch.Tensor]) -> None:
         for key, value in kwargs.items():
-            if key in {"example_ids"}:
+            if key in {"example_ids"} or value.numel() == 0:
                 continue
             elif key in {"reading_subword_map", "cohesion_logits", "discourse_predictions", "discourse_labels"}:
                 dims = [value.ndim - 2, value.ndim - 1]
             else:
                 dims = [1]
             for dim in dims:
-                size = [max_seq_length - s if i == dim else s for i, s in enumerate(value.size())]
-                if size[dim] == 0:
-                    continue
+                size = [self.max_seq_length - s if i == dim else s for i, s in enumerate(value.size())]
                 if key in {"discourse_labels"}:
                     fill_value: Union[float, int] = IGNORE_INDEX
                 else:
@@ -130,10 +127,10 @@ class WordModuleMetric(BaseModuleMetric):
             metrics.update(self.compute_dependency_parsing_metrics(partly_gold_document1, gold_documents))
         if WordTask.COHESION_ANALYSIS in self.training_tasks:
             metrics.update(self.compute_cohesion_analysis_metrics(partly_gold_document2, gold_documents))
-        if WordTask.DISCOURSE_PARSING in self.training_tasks:
+        if WordTask.DISCOURSE_RELATION_ANALYSIS in self.training_tasks:
             predictions = self.discourse_predictions.view(-1)
             labels = self.discourse_labels.view(-1)
-            metrics.update(self.compute_discourse_parsing_metrics(predictions, labels))
+            metrics.update(self.compute_discourse_relation_analysis_metrics(predictions, labels))
         return metrics
 
     def _build_documents(self) -> Tuple[List[Document], ...]:
@@ -160,18 +157,15 @@ class WordModuleMetric(BaseModuleMetric):
         ) in zip(*[getattr(self, state_name).tolist() for state_name in self.STATE_NAMES]):
             example = self.dataset.examples[example_id]
             gold_document = self.dataset.doc_id2document[example.doc_id]
-            num_morphemes = len(gold_document.morphemes)
             orig_doc_id = to_orig_doc_id(gold_document.doc_id)
 
-            word_reading_predictions = get_word_reading_predictions(
-                example.encoding.ids,
-                reading_predictions,
-                self.reading_id2reading,
-                self.dataset.tokenizer,
+            word_reading_predictions = get_word_level_readings(
+                [self.reading_id2reading[reading_id] for reading_id in reading_predictions],
+                [self.dataset.tokenizer.decode(input_id) for input_id in example.encoding.ids],
                 reading_subword_map,
             )
             morpheme_attribute_predictions = get_morpheme_attribute_predictions(
-                *(logits[:num_morphemes] for logits in morpheme_attribute_logits)
+                *(logits[: len(gold_document.morphemes)] for logits in morpheme_attribute_logits)
             )
             morphemes = build_morphemes(
                 [m.surf for m in gold_document.morphemes],
@@ -187,7 +181,7 @@ class WordModuleMetric(BaseModuleMetric):
             # goldの基本句区切り・基本句主辞を使用
             partly_gold_document1 = gold_document.reparse()
             partly_gold_document1.doc_id = gold_document.doc_id
-            self._refresh(partly_gold_document1, level=1)
+            self.refresh(partly_gold_document1, level=1)
             for sentence in extract_target_sentences(partly_gold_document1):
                 add_named_entities(sentence, ne_predictions)
                 add_base_phrase_features(sentence, base_phrase_feature_probabilities)
@@ -199,7 +193,7 @@ class WordModuleMetric(BaseModuleMetric):
             # goldの基本句区切り・基本句主辞・基本句素性を使用
             partly_gold_document2 = gold_document.reparse()
             partly_gold_document2.doc_id = gold_document.doc_id
-            self._refresh(partly_gold_document2, level=2)
+            self.refresh(partly_gold_document2, level=2)
             add_cohesion(
                 partly_gold_document2,
                 cohesion_logits,
@@ -220,7 +214,7 @@ class WordModuleMetric(BaseModuleMetric):
         return predicted_documents, partly_gold_documents1, partly_gold_documents2, gold_documents
 
     @staticmethod
-    def _refresh(document: Document, level: int = 1) -> None:
+    def refresh(document: Document, level: int = 1) -> None:
         """Refresh document
 
         NOTE:
@@ -234,8 +228,15 @@ class WordModuleMetric(BaseModuleMetric):
         except AttributeError:
             pass
 
+        for phrase in document.phrases:
+            if level == 1:
+                phrase.features.clear()
+                phrase.parent_index = None
+                phrase.dep_type = None
+
         for base_phrase in document.base_phrases:
             base_phrase.rel_tags.clear()
+            base_phrase.memo_tag = MemoTag()
             if level == 1:
                 base_phrase.features.clear()
                 base_phrase.parent_index = None
@@ -477,7 +478,10 @@ class WordModuleMetric(BaseModuleMetric):
         return metrics
 
     @staticmethod
-    def compute_discourse_parsing_metrics(predictions: torch.Tensor, labels: torch.Tensor) -> Dict[str, float]:
+    def compute_discourse_relation_analysis_metrics(
+        predictions: torch.Tensor,
+        labels: torch.Tensor,
+    ) -> Dict[str, float]:
         ignored_indices = labels.eq(IGNORE_INDEX)
         predictions = predictions[~ignored_indices]
         labels = labels[~ignored_indices]
@@ -507,8 +511,8 @@ class WordModuleMetric(BaseModuleMetric):
             f1 = (2 * precision * recall) / (precision + recall)
 
         return {
-            "discourse_parsing_accuracy": accuracy,
-            "discourse_parsing_precision": precision,
-            "discourse_parsing_recall": recall,
-            "discourse_parsing_f1": f1,
+            "discourse_relation_analysis_accuracy": accuracy,
+            "discourse_relation_analysis_precision": precision,
+            "discourse_relation_analysis_recall": recall,
+            "discourse_relation_analysis_f1": f1,
         }

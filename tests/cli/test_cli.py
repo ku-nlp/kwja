@@ -63,6 +63,19 @@ def test_file_input():
         assert ret.exception is None
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        "EOD\n",
+        "おはよう\nEOD\n",
+        "KWJAは日本語の統合解析ツールです。\n汎用言語モデルを利用し、様々な言語解析を統一的な方法で解いています。\nEOD\n",
+    ],
+)
+def test_interactive_mode(text: str):
+    ret = runner.invoke(app, args=["--model-size", "tiny", "--tasks", "char,word"], input=text)
+    assert ret.exception is None
+
+
 def test_sanity():
     with tempfile.NamedTemporaryFile("wt") as f:
         f.write(
@@ -91,7 +104,7 @@ def test_sanity():
         )
 
 
-def test_task_input():
+def test_task_combination_validation():
     tasks: List[str] = [
         "",
         "dummy",
@@ -104,8 +117,11 @@ def test_task_input():
         "char,seq2seq",
         "char,word",
         "char,seq2seq,word",
+        "seq2seq",
+        "seq2seq,word",
+        "word",
     ]
-    valid_tasks: Set[Tuple[str, ...]] = {
+    valid_tasks_raw_input: Set[Tuple[str, ...]] = {
         ("typo",),
         ("typo", "char"),
         ("typo", "char", "seq2seq"),
@@ -116,7 +132,16 @@ def test_task_input():
         ("char", "word"),
         ("char", "seq2seq", "word"),
     }
+    valid_tasks_jumanpp_input: Set[Tuple[str, ...]] = valid_tasks_raw_input | {
+        ("seq2seq",),
+        ("seq2seq", "word"),
+        ("word",),
+    }
+    base_args: List[str] = ["--model-size", "tiny", "--text", "おはよう"]
     for task in tasks:
-        ret = runner.invoke(app, args=["--model-size", "tiny", "--text", "おはよう", "--task", task])
-        if tuple(task.split(",")) not in valid_tasks:
+        ret = runner.invoke(app, args=base_args + ["--task", task, "--input-format", "raw"])
+        if tuple(task.split(",")) not in valid_tasks_raw_input:
+            assert isinstance(ret.exception, SystemExit)
+        ret = runner.invoke(app, args=base_args + ["--task", task, "--input-format", "jumanpp"])
+        if tuple(task.split(",")) not in valid_tasks_jumanpp_input:
             assert isinstance(ret.exception, SystemExit)

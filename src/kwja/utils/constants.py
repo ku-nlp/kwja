@@ -254,7 +254,7 @@ class WordTask(Enum):
     BASE_PHRASE_FEATURE_TAGGING = "base_phrase_feature_tagging"
     DEPENDENCY_PARSING = "dependency_parsing"
     COHESION_ANALYSIS = "cohesion_analysis"
-    DISCOURSE_PARSING = "discourse_parsing"
+    DISCOURSE_RELATION_ANALYSIS = "discourse_relation_analysis"
 
 
 class CohesionTask(Enum):
@@ -1179,7 +1179,7 @@ IGNORE_VALUE_FEATURE_PAT = re.compile(r"節-(前向き)?機能疑?")
 DEPENDENCY_TYPES: Tuple[DepType, ...] = tuple(DepType)
 
 
-# ---------- word module|discourse parsing ----------
+# ---------- word module|discourse relation analysis ----------
 DISCOURSE_RELATION_MAP = {
     # Labels annotated by experts.
     "その他根拠(逆方向)": "根拠",

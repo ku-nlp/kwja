@@ -10,7 +10,7 @@ import torch
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerFast
 
-from kwja.callbacks.seq2seq_module_writer import Seq2SeqModuleWriter
+from kwja.callbacks import Seq2SeqModuleWriter
 from kwja.datamodule.datasets import Seq2SeqInferenceDataset
 from kwja.utils.constants import CANON_TOKEN, LEMMA_TOKEN, READING_TOKEN, SURF_TOKEN
 

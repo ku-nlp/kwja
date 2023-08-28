@@ -19,7 +19,7 @@ else:
 
 class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
     def __init__(self, hparams: DictConfig) -> None:
-        super().__init__(hparams, Seq2SeqModuleMetric())
+        super().__init__(hparams, Seq2SeqModuleMetric(hparams.max_src_length))
 
         self.tokenizer: PreTrainedTokenizerFast = hydra.utils.call(hparams.module.tokenizer)
 

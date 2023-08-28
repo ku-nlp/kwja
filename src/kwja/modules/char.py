@@ -20,7 +20,7 @@ else:
 
 class CharModule(BaseModule[CharModuleMetric]):
     def __init__(self, hparams: DictConfig) -> None:
-        super().__init__(hparams, CharModuleMetric())
+        super().__init__(hparams, CharModuleMetric(hparams.max_seq_length))
 
         self.encoder: PreTrainedModel = hydra.utils.call(hparams.encoder.from_config)
         if hasattr(hparams, "special_tokens"):
@@ -68,7 +68,6 @@ class CharModule(BaseModule[CharModuleMetric]):
         kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
         kwargs.update({"word_norm_op_labels": batch["word_norm_op_labels"]})
         metric = self.valid_corpus2metric[self.valid_corpora[dataloader_idx]]
-        metric.pad(kwargs, self.hparams.max_seq_length)
         metric.update(kwargs)
 
     def on_validation_epoch_end(self) -> None:
@@ -93,7 +92,6 @@ class CharModule(BaseModule[CharModuleMetric]):
         kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
         kwargs.update({"word_norm_op_labels": batch["word_norm_op_labels"]})
         metric = self.test_corpus2metric[self.test_corpora[dataloader_idx]]
-        metric.pad(kwargs, self.hparams.max_seq_length)
         metric.update(kwargs)
 
     def on_test_epoch_end(self) -> None:

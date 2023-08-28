@@ -4,4 +4,3 @@ defaults:
 
 _target_: kwja.datamodule.datasets.WordInferenceDataset
 juman_file: null
-knp_file: null
