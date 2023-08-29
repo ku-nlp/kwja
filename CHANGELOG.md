@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   kwja --tasks word --text <(echo "外国人参政権" | jumanpp) --input-format jumanpp
   ```
 
+### Changed
+- Merge senter module into char module
+
 ## [v2.1.2] - 2023-06-07
 ### Added
 - Support executing kwja with `python -m kwja`.
