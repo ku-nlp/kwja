@@ -25,7 +25,6 @@ from kwja.utils.logging_util import track
 
 logging.getLogger("rhoknp").setLevel(logging.ERROR)
 
-
 UNSUPPORTED_CONJUGATE_FALLBACK_TABLE = {
     ("ナ形容詞", "ダ列文語基本形"): ("ナ形容詞", "ダ列基本連体形"),
     ("文語助動詞", "連体形"): ("子音動詞ラ行", "基本形"),
@@ -292,27 +291,28 @@ def test_jumanpp_version():
 def test_jumanpp_augmenter():
     jumanpp_augmenter = JumanppAugmenter()
 
-    knp_text = textwrap.dedent(
-        """\
-        # S-ID:w201106-0000060050-1 JUMAN:6.1-20101108 KNP:3.1-20101107 DATE:2011/06/21 SCORE:-44.94406 MOD:2017/10/15 MEMO:
-        * 2D
-        + 1D
-        コイン こいん コイン 名詞 6 普通名詞 1 * 0 * 0
-        + 3D <rel type="ガ" target="不特定:人"/><rel type="ヲ" target="コイン" sid="w201106-0000060050-1" id="0"/>
-        トス とす トス 名詞 6 サ変名詞 2 * 0 * 0
-        を を を 助詞 9 格助詞 1 * 0 * 0
-        * 2D
-        + 3D
-        ３ さん ３ 名詞 6 数詞 7 * 0 * 0
-        回 かい 回 接尾辞 14 名詞性名詞助数辞 3 * 0 * 0
-        * -1D
-        + -1D <rel type="ガ" target="不特定:人"/><rel type="ガ" mode="？" target="読者"/><rel type="ガ" mode="？" target="著者"/><rel type="ヲ" target="トス" sid="w201106-0000060050-1" id="1"/>
-        行う おこなう 行う 動詞 2 * 0 子音動詞ワ行 12 基本形 2
-        。 。 。 特殊 1 句点 1 * 0 * 0
-        EOS
-        """
+    sentence = Sentence.from_knp(
+        textwrap.dedent(
+            """\
+            # S-ID:w201106-0000060050-1 JUMAN:6.1-20101108 KNP:3.1-20101107 DATE:2011/06/21 SCORE:-44.94406 MOD:2017/10/15 MEMO:
+            * 2D
+            + 1D
+            コイン こいん コイン 名詞 6 普通名詞 1 * 0 * 0
+            + 3D <rel type="ガ" target="不特定:人"/><rel type="ヲ" target="コイン" sid="w201106-0000060050-1" id="0"/>
+            トス とす トス 名詞 6 サ変名詞 2 * 0 * 0
+            を を を 助詞 9 格助詞 1 * 0 * 0
+            * 2D
+            + 3D
+            ３ さん ３ 名詞 6 数詞 7 * 0 * 0
+            回 かい 回 接尾辞 14 名詞性名詞助数辞 3 * 0 * 0
+            * -1D
+            + -1D <rel type="ガ" target="不特定:人"/><rel type="ガ" mode="？" target="読者"/><rel type="ガ" mode="？" target="著者"/><rel type="ヲ" target="トス" sid="w201106-0000060050-1" id="1"/>
+            行う おこなう 行う 動詞 2 * 0 子音動詞ワ行 12 基本形 2
+            。 。 。 特殊 1 句点 1 * 0 * 0
+            EOS
+            """
+        )
     )
-    sentence = Sentence.from_knp(knp_text)
     _ = jumanpp_augmenter.augment_sentence(sentence)
     expected = textwrap.dedent(
         """\
@@ -336,55 +336,56 @@ def test_jumanpp_augmenter():
     )
     assert sentence.to_knp() == expected
 
-    knp_text = textwrap.dedent(
-        """\
-        # S-ID:w201106-0000060050-1 JUMAN:6.1-20101108 KNP:3.1-20101107 DATE:2011/06/21 SCORE:-44.94406 MOD:2017/10/15 MEMO:
-        * 2D
-        + 1D
-        コイン こいん コイン 名詞 6 普通名詞 1 * 0 * 0
-        + 3D <rel type="ガ" target="不特定:人"/><rel type="ヲ" target="コイン" sid="w201106-0000060050-1" id="0"/>
-        トス とす トス 名詞 6 サ変名詞 2 * 0 * 0
-        を を を 助詞 9 格助詞 1 * 0 * 0
-        * 2D
-        + 3D
-        ３ さん ３ 名詞 6 数詞 7 * 0 * 0
-        回 かい 回 接尾辞 14 名詞性名詞助数辞 3 * 0 * 0
-        * -1D
-        + -1D <rel type="ガ" target="不特定:人"/><rel type="ガ" mode="？" target="読者"/><rel type="ガ" mode="？" target="著者"/><rel type="ヲ" target="トス" sid="w201106-0000060050-1" id="1"/>
-        行う おこなう 行う 動詞 2 * 0 子音動詞ワ行 12 基本形 2
-        。 。 。 特殊 1 句点 1 * 0 * 0
-        EOS
-        # S-ID:w201106-0000060050-2 JUMAN:6.1-20101108 KNP:3.1-20101107 DATE:2011/06/21 SCORE:-64.95916 MOD:2013/04/13
-        * 1D
-        + 1D <rel type="ノ" target="コイン" sid="w201106-0000060050-1" id="0"/>
-        表 おもて 表 名詞 6 普通名詞 1 * 0 * 0
-        が が が 助詞 9 格助詞 1 * 0 * 0
-        * 2D
-        + 2D <rel type="ガ" target="表" sid="w201106-0000060050-2" id="0"/><rel type="外の関係" target="数" sid="w201106-0000060050-2" id="2"/>
-        出た でた 出る 動詞 2 * 0 母音動詞 1 タ形 10
-        * 5D
-        + 5D <rel type="ノ" target="出た" sid="w201106-0000060050-2" id="1"/>
-        数 かず 数 名詞 6 普通名詞 1 * 0 * 0
-        だけ だけ だけ 助詞 9 副助詞 2 * 0 * 0
-        、 、 、 特殊 1 読点 2 * 0 * 0
-        * 4D
-        + 4D
-        フィールド ふぃーるど フィールド 名詞 6 普通名詞 1 * 0 * 0
-        上 じょう 上 接尾辞 14 名詞性名詞接尾辞 2 * 0 * 0
-        の の の 助詞 9 接続助詞 3 * 0 * 0
-        * 5D
-        + 5D <rel type="修飾" target="フィールド上" sid="w201106-0000060050-2" id="3"/><rel type="修飾" mode="AND" target="数" sid="w201106-0000060050-2" id="2"/>
-        モンスター もんすたー モンスター 名詞 6 普通名詞 1 * 0 * 0
-        を を を 助詞 9 格助詞 1 * 0 * 0
-        * -1D
-        + -1D <rel type="ヲ" target="モンスター" sid="w201106-0000060050-2" id="4"/><rel type="ガ" target="不特定:状況"/>
-        破壊 はかい 破壊 名詞 6 サ変名詞 2 * 0 * 0
-        する する する 動詞 2 * 0 サ変動詞 16 基本形 2
-        。 。 。 特殊 1 句点 1 * 0 * 0
-        EOS
-        """
+    document = Document.from_knp(
+        textwrap.dedent(
+            """\
+            # S-ID:w201106-0000060050-1 JUMAN:6.1-20101108 KNP:3.1-20101107 DATE:2011/06/21 SCORE:-44.94406 MOD:2017/10/15 MEMO:
+            * 2D
+            + 1D
+            コイン こいん コイン 名詞 6 普通名詞 1 * 0 * 0
+            + 3D <rel type="ガ" target="不特定:人"/><rel type="ヲ" target="コイン" sid="w201106-0000060050-1" id="0"/>
+            トス とす トス 名詞 6 サ変名詞 2 * 0 * 0
+            を を を 助詞 9 格助詞 1 * 0 * 0
+            * 2D
+            + 3D
+            ３ さん ３ 名詞 6 数詞 7 * 0 * 0
+            回 かい 回 接尾辞 14 名詞性名詞助数辞 3 * 0 * 0
+            * -1D
+            + -1D <rel type="ガ" target="不特定:人"/><rel type="ガ" mode="？" target="読者"/><rel type="ガ" mode="？" target="著者"/><rel type="ヲ" target="トス" sid="w201106-0000060050-1" id="1"/>
+            行う おこなう 行う 動詞 2 * 0 子音動詞ワ行 12 基本形 2
+            。 。 。 特殊 1 句点 1 * 0 * 0
+            EOS
+            # S-ID:w201106-0000060050-2 JUMAN:6.1-20101108 KNP:3.1-20101107 DATE:2011/06/21 SCORE:-64.95916 MOD:2013/04/13
+            * 1D
+            + 1D <rel type="ノ" target="コイン" sid="w201106-0000060050-1" id="0"/>
+            表 おもて 表 名詞 6 普通名詞 1 * 0 * 0
+            が が が 助詞 9 格助詞 1 * 0 * 0
+            * 2D
+            + 2D <rel type="ガ" target="表" sid="w201106-0000060050-2" id="0"/><rel type="外の関係" target="数" sid="w201106-0000060050-2" id="2"/>
+            出た でた 出る 動詞 2 * 0 母音動詞 1 タ形 10
+            * 5D
+            + 5D <rel type="ノ" target="出た" sid="w201106-0000060050-2" id="1"/>
+            数 かず 数 名詞 6 普通名詞 1 * 0 * 0
+            だけ だけ だけ 助詞 9 副助詞 2 * 0 * 0
+            、 、 、 特殊 1 読点 2 * 0 * 0
+            * 4D
+            + 4D
+            フィールド ふぃーるど フィールド 名詞 6 普通名詞 1 * 0 * 0
+            上 じょう 上 接尾辞 14 名詞性名詞接尾辞 2 * 0 * 0
+            の の の 助詞 9 接続助詞 3 * 0 * 0
+            * 5D
+            + 5D <rel type="修飾" target="フィールド上" sid="w201106-0000060050-2" id="3"/><rel type="修飾" mode="AND" target="数" sid="w201106-0000060050-2" id="2"/>
+            モンスター もんすたー モンスター 名詞 6 普通名詞 1 * 0 * 0
+            を を を 助詞 9 格助詞 1 * 0 * 0
+            * -1D
+            + -1D <rel type="ヲ" target="モンスター" sid="w201106-0000060050-2" id="4"/><rel type="ガ" target="不特定:状況"/>
+            破壊 はかい 破壊 名詞 6 サ変名詞 2 * 0 * 0
+            する する する 動詞 2 * 0 サ変動詞 16 基本形 2
+            。 。 。 特殊 1 句点 1 * 0 * 0
+            EOS
+            """
+        )
     )
-    document = Document.from_knp(knp_text)
     _ = jumanpp_augmenter.augment_document(document)
     expected = textwrap.dedent(
         """\
