@@ -1,7 +1,7 @@
 import copy
 import logging
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from cohesion_tools.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
 from cohesion_tools.extractors.base import BaseExtractor
@@ -28,6 +28,15 @@ class CohesionBasePhrase:
             return getattr(self, attr_name) if attr_name in self.__dict__ else None
         else:
             return getattr(self.base_phrase, attr_name)
+
+    def __getstate__(self) -> Dict[str, Any]:
+        # the attributes are not set after unpickling unless this method is defined, which causes an error when num_workers > 0.
+        return {
+            "base_phrase": self.base_phrase,
+            "is_target": self.is_target,
+            "antecedent_candidates": self.antecedent_candidates,
+            "rel2tags": self.rel2tags,
+        }
 
 
 def wrap_base_phrase(
