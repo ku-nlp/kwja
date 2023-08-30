@@ -1,6 +1,8 @@
+import logging
 import multiprocessing as mp
 import re
 import subprocess
+import sys
 import textwrap
 from argparse import ArgumentParser
 from itertools import product
@@ -12,8 +14,28 @@ from rhoknp import KNP, Document, Jumanpp, Morpheme, Sentence
 from rhoknp.props import FeatureDict, NamedEntity, NamedEntityCategory
 from rhoknp.utils.reader import chunk_by_document, chunk_by_sentence
 
-from kwja.utils.constants import BASE_PHRASE_FEATURES, IGNORE_VALUE_FEATURE_PAT, SUB_WORD_FEATURES
+from kwja.utils.constants import (
+    BASE_PHRASE_FEATURES,
+    CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID,
+    CONJTYPE_TAGS,
+    IGNORE_VALUE_FEATURE_PAT,
+    SUB_WORD_FEATURES,
+)
 from kwja.utils.logging_util import track
+
+logging.getLogger("rhoknp").setLevel(logging.ERROR)
+
+
+UNSUPPORTED_CONJUGATE_FALLBACK_TABLE = {
+    ("ナ形容詞", "ダ列文語基本形"): ("ナ形容詞", "ダ列基本連体形"),
+    ("文語助動詞", "連体形"): ("子音動詞ラ行", "基本形"),
+    ("助動詞たり型", "文語連体形"): ("子音動詞ラ行", "基本形"),
+    ("助動詞たり文語", "連体形"): ("子音動詞ラ行", "基本形"),
+    ("助動詞たり", "文語連体形(たる)"): ("子音動詞ラ行", "基本形"),
+    ("助動詞たり", "文語連体形"): ("子音動詞ラ行", "基本形"),
+    ("文語", "連体形たる"): ("子音動詞ラ行", "基本形"),
+    ("なり列", "古語基本形(なり)"): ("判定詞", "基本形"),
+}
 
 
 class JumanppAugmenter:
@@ -221,29 +243,34 @@ def assign_features_and_save(
         try:
             document = Document.from_knp(knp_text)
         except ValueError:
-            print("ignore broken knp file")
+            print("ignore broken knp file", file=sys.stderr)
             continue
         if document.doc_id not in doc_id2split:
             continue
 
-        buf = []
+        morpheme_features = []
         for morpheme in document.morphemes:
-            buf.append({**morpheme.features})
+            morpheme_features.append(morpheme.features.copy())
             morpheme.features.clear()
+            if conjugate := UNSUPPORTED_CONJUGATE_FALLBACK_TABLE.get((morpheme.conjtype, morpheme.conjform)):
+                conjtype, conjform = conjugate
+                morpheme.conjtype = conjtype
+                morpheme.conjtype_id = CONJTYPE_TAGS.index(conjtype)
+                morpheme.conjform = conjform
+                morpheme.conjform_id = CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID[conjtype][conjform]
 
         # 形態素意味情報付与 (引数に渡したdocumentをupdateする)
         _ = jumanpp_augmenter.augment_document(document)
 
         # 素性付与
-        with Popen(knp.run_command, stdout=PIPE, stdin=PIPE, encoding="utf-8", errors="replace") as p:
-            assigned_knp_text, _ = p.communicate(input=document.to_knp())
-        # ダ列文語連体形など
-        if len(assigned_knp_text.split("\n")) != len(knp_text.split("\n")):
-            continue
-        document = Document.from_knp(assigned_knp_text)
+        document = knp.apply_to_document(document)
+
+        assert len(document.to_knp().split("\n")) == len(
+            knp_text.split("\n")
+        ), f"knp text length mismatch: {document.doc_id}"
 
         # 初めから付いていた素性の付与
-        for morpheme, features in zip(document.morphemes, buf):
+        for morpheme, features in zip(document.morphemes, morpheme_features):
             morpheme.features.update(features)
 
         if sid2tagged_sentence is not None:
