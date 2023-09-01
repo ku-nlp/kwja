@@ -45,9 +45,13 @@ class CharModuleMetric(BaseModuleMetric):
             kwargs[key] = value
 
     def compute(self) -> Dict[str, float]:
+        if isinstance(self.example_ids, torch.Tensor) is False:
+            self.example_ids = torch.cat(self.example_ids, dim=0)  # type: ignore
         sorted_indices = unique(self.example_ids)
         for state_name in self.STATE_NAMES:
             state = getattr(self, state_name)
+            if isinstance(state, torch.Tensor) is False:
+                state = torch.cat(state, dim=0)
             setattr(self, state_name, state[sorted_indices])
 
         predicted_documents, partly_gold_documents, gold_documents = self._build_documents()

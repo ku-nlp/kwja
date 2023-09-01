@@ -47,14 +47,20 @@ fi
 
 WORK_DIR="$(mktemp -d)"
 
-mkdir -p "$WORK_DIR" "$OUT_DIR"/{kwdlc,fuman}
+mkdir -p "$WORK_DIR" "$OUT_DIR"/{kwdlc,fuman,wac}
 git clone --depth 1 git@github.com:ku-nlp/KWDLC.git "$WORK_DIR"/KWDLC
 git clone --depth 1 git@github.com:ku-nlp/AnnotatedFKCCorpus.git "$WORK_DIR"/AnnotatedFKCCorpus
+git clone --depth 1 git@github.com:ku-nlp/WikipediaAnnotatedCorpus.git "$WORK_DIR"/WikipediaAnnotatedCorpus
 poetry run python ./scripts/build_dataset.py "$WORK_DIR"/KWDLC/knp "$OUT_DIR"/kwdlc \
   --id "$WORK_DIR"/KWDLC/id/split_for_pas \
+  --doc-id-format kwdlc \
   -j "$JOBS"
 poetry run python ./scripts/build_dataset.py "$WORK_DIR"/AnnotatedFKCCorpus/knp "$OUT_DIR"/fuman \
   --id "$WORK_DIR"/AnnotatedFKCCorpus/id/split_for_pas \
+  -j "$JOBS"
+poetry run python ./scripts/build_dataset.py "$WORK_DIR"/WikipediaAnnotatedCorpus/knp "$OUT_DIR"/wac \
+  --id "$WORK_DIR"/WikipediaAnnotatedCorpus/id \
+  --doc-id-format wac \
   -j "$JOBS"
 
 rm -rf "$WORK_DIR"
