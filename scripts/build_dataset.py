@@ -19,6 +19,8 @@ from kwja.utils.constants import (
     CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID,
     CONJTYPE_TAGS,
     IGNORE_VALUE_FEATURE_PAT,
+    POS_TAG2POS_ID,
+    POS_TAG_SUBPOS_TAG2SUBPOS_ID,
     SUB_WORD_FEATURES,
 )
 from kwja.utils.logging_util import track
@@ -34,6 +36,10 @@ UNSUPPORTED_CONJUGATE_FALLBACK_TABLE = {
     ("助動詞たり", "文語連体形"): ("子音動詞ラ行", "基本形"),
     ("文語", "連体形たる"): ("子音動詞ラ行", "基本形"),
     ("なり列", "古語基本形(なり)"): ("判定詞", "基本形"),
+}
+
+UNSUPPORTED_POS_SUBPOS_FALLBACK_TABLE = {
+    ("未定義語", "未対応表現"): ("副詞", "*"),
 }
 
 
@@ -257,6 +263,12 @@ def assign_features_and_save(
                 morpheme.conjtype_id = CONJTYPE_TAGS.index(conjtype)
                 morpheme.conjform = conjform
                 morpheme.conjform_id = CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID[conjtype][conjform]
+            if pos_subpos := UNSUPPORTED_POS_SUBPOS_FALLBACK_TABLE.get((morpheme.pos, morpheme.subpos)):
+                pos, subpos = pos_subpos
+                morpheme.pos = pos
+                morpheme.pos_id = POS_TAG2POS_ID[pos]
+                morpheme.subpos = subpos
+                morpheme.subpos_id = POS_TAG_SUBPOS_TAG2SUBPOS_ID[pos][subpos]
 
         # 形態素意味情報付与 (引数に渡したdocumentをupdateする)
         _ = jumanpp_augmenter.augment_document(document)
