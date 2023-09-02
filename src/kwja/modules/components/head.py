@@ -25,8 +25,7 @@ class LoRASequenceMultiLabelingHead(nn.Module):
     def __init__(self, num_labels: int, hidden_size: int, hidden_dropout_prob: float, rank: int = 4) -> None:
         super().__init__()
         self.dense = nn.Linear(hidden_size, hidden_size)
-        self.dense_a = nn.Parameter(torch.Tensor(hidden_size, rank, num_labels))
-        self.dense_b = nn.Parameter(torch.Tensor(rank, hidden_size, num_labels))
+        self.delta = LoRADelta(num_labels, hidden_size, rank)
         self.activation = nn.GELU()
         self.dropout = nn.Dropout(hidden_dropout_prob)
         self.classifier_weight = nn.Parameter(torch.Tensor(hidden_size, num_labels))
@@ -34,15 +33,13 @@ class LoRASequenceMultiLabelingHead(nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self) -> None:
-        nn.init.kaiming_uniform_(self.dense_a, a=math.sqrt(5))
-        nn.init.zeros_(self.dense_b)
         nn.init.kaiming_uniform_(self.classifier_weight, a=math.sqrt(5))
         bound = 1 / math.sqrt(self.classifier_weight.size(0))
         nn.init.uniform_(self.classifier_bias, -bound, bound)
 
     def forward(self, pooled: torch.Tensor) -> torch.Tensor:
         dense_out = self.dense(pooled)  # (b, seq, hid)
-        dense_delta = torch.einsum("hrl,ril->hil", self.dense_a, self.dense_b)  # (hid, hid, label)
+        dense_delta = self.delta()  # (hid, hid, label)
         dense_delta_out = torch.einsum("bsh,hil->bsil", pooled, dense_delta)  # (b, seq, hid, label)
         hidden = self.dropout(self.activation(dense_out.unsqueeze(dim=3) + dense_delta_out))  # (b, seq, hid, label)
         # (b, seq, label), (1, 1, label) -> (b, seq, label)
