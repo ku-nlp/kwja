@@ -2,7 +2,6 @@ import logging
 import multiprocessing as mp
 import re
 import subprocess
-import sys
 import textwrap
 from argparse import ArgumentParser
 from itertools import product
@@ -26,9 +25,11 @@ from kwja.utils.constants import (
 from kwja.utils.logging_util import track
 
 logging.getLogger("rhoknp").setLevel(logging.ERROR)
+logger = logging.getLogger(__name__)
 
 UNSUPPORTED_CONJUGATE_FALLBACK_TABLE = {
     ("ナ形容詞", "ダ列文語基本形"): ("ナ形容詞", "ダ列基本連体形"),
+    ("判定詞", "ダ列文語連体形"): ("子音動詞ラ行", "基本形"),  # 950112215-023
     ("文語助動詞", "連体形"): ("子音動詞ラ行", "基本形"),
     ("助動詞たり型", "文語連体形"): ("子音動詞ラ行", "基本形"),
     ("助動詞たり文語", "連体形"): ("子音動詞ラ行", "基本形"),
@@ -36,6 +37,11 @@ UNSUPPORTED_CONJUGATE_FALLBACK_TABLE = {
     ("助動詞たり", "文語連体形"): ("子音動詞ラ行", "基本形"),
     ("文語", "連体形たる"): ("子音動詞ラ行", "基本形"),
     ("なり列", "古語基本形(なり)"): ("判定詞", "基本形"),
+    ("方言", "基本形"): ("判定詞", "基本形"),  # 950114251-001
+    ("判定詞", "ヤ列基本形"): ("判定詞", "*"),  # 950115185-003
+    ("サ変動詞", "文語已然形"): ("サ変動詞", "*"),  # 950114053-007
+    ("ナ形容詞", "語幹異形"): ("ナ形容詞", "語幹"),  # 950115169-035
+    ("助動詞そうだ型", "デアル列連用形"): ("助動詞そうだ型", "デアル列基本形"),  # 950115157-027
 }
 
 UNSUPPORTED_POS_SUBPOS_FALLBACK_TABLE = {
@@ -161,7 +167,7 @@ def set_named_entities(document: Document, sid2tagged_sentence: Dict[str, Senten
             tagged_sentence = sid2tagged_sentence[sentence.sid]
             alignment = align_morphemes(tagged_sentence.morphemes, sentence.morphemes)
             if alignment is None:
-                print(
+                logger.warning(
                     f'alignment ({" ".join(morpheme.surf for morpheme in tagged_sentence.morphemes)} | '
                     f'{" ".join(morpheme.surf for morpheme in sentence.morphemes)}) not found'
                 )
@@ -179,7 +185,7 @@ def set_named_entities(document: Document, sid2tagged_sentence: Dict[str, Senten
                     named_entity = NamedEntity(category=NamedEntityCategory(category), morphemes=morphemes)
                     morphemes[-1].base_phrase.features["NE"] = f"{named_entity.category.value}:{named_entity.text}"
                 else:
-                    print(
+                    logger.warning(
                         f'morpheme span of {" ".join(morpheme.surf for morpheme in morphemes_buff)} not found in '
                         f'{" ".join(morpheme.surf for morpheme in sentence.morphemes)}'
                     )
@@ -227,7 +233,7 @@ def refresh(document: Document) -> None:
                 span2 = {morpheme.index for morpheme in ne2.morphemes}
                 # あるnamed entityの一部もまたnamed entityである場合、外側だけ残す
                 if len(span1 & span2) > 0 and len(span1) < len(span2):
-                    print(
+                    logger.warning(
                         f'NE tag {" ".join(morpheme.surf for morpheme in ne1.morphemes)} removed '
                         f'due to the named entity {" ".join(morpheme.surf for morpheme in ne2.morphemes)} '
                         f"({sentence.sid}:{sentence.text})"
@@ -248,7 +254,7 @@ def assign_features_and_save(
         try:
             document = Document.from_knp(knp_text)
         except ValueError:
-            print("ignore broken knp file", file=sys.stderr)
+            logger.warning("ignore broken knp file")
             continue
         if document.doc_id not in doc_id2split:
             continue
@@ -273,8 +279,20 @@ def assign_features_and_save(
         # 形態素意味情報付与 (引数に渡したdocumentをupdateする)
         _ = jumanpp_augmenter.augment_document(document)
 
+        # Juman++ によって意味情報フィールド設定されなかった場合は、 KNP で segmentation fault が出ないように NIL を付与
+        for morpheme in document.morphemes:
+            if not morpheme.semantics:
+                morpheme.semantics.is_nil = True
+
         # 素性付与
-        document = knp.apply_to_document(document)
+        try:
+            # TODO: remove "type: ignore" after upgrading rhoknp to >= 1.5.0
+            document = knp.apply_to_document(document, timeout=120)  # type: ignore
+        except (RuntimeError, TimeoutError, UnicodeDecodeError) as e:
+            logger.warning(f"{type(e).__name__}: {e}, {document.doc_id}")
+            knp = KNP(options=["-tab", "-dpnd-fast", "-read-feature"])
+            Path(f"knp_error_{document.doc_id}.knp").write_text(document.to_knp())
+            continue
 
         assert len(document.to_knp().split("\n")) == len(
             knp_text.split("\n")
