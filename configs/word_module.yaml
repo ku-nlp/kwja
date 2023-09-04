@@ -35,7 +35,7 @@ discourse_threshold: 0.0
 cohesion_tasks: [pas_analysis, bridging_reference_resolution, coreference_resolution]
 exophora_referents: ["著者", "読者", "不特定:人", "不特定:物"]
 restrict_cohesion_target: true
-pas_cases: ["ガ", "ヲ", "ニ", "ガ２"]
+pas_cases: ["ガ", "ヲ", "ニ", "ガ２", "デ", "ト", "時間"]
 br_cases: ["ノ"]
 
 # set monitor and mode for early_stopping and model_checkpoint
