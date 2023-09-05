@@ -49,6 +49,7 @@ def test_getitem(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, datase
         assert feature.example_ids == i
         assert len(feature.input_ids) == max_seq_length
         assert len(feature.attention_mask) == max_seq_length
+        assert len(feature.special_token_indices) == len(dataset.special_tokens)
         assert np.array(feature.subword_map).shape == (max_seq_length, max_seq_length)
         assert (np.array(feature.subword_map).sum(axis=1) != 0).sum() == len(document.morphemes) + len(
             dataset.special_tokens

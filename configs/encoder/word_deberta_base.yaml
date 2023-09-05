@@ -3,3 +3,7 @@ defaults:
   - _self_
 
 pretrained_model_name_or_path: ku-nlp/deberta-v2-base-japanese
+from_config:
+  _target_: kwja.modules.components.deberta_v2.DebertaV2Model
+from_pretrained:
+  _target_: kwja.modules.components.deberta_v2.DebertaV2Model.from_pretrained

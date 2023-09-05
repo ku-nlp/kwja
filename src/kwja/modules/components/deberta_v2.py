@@ -150,7 +150,13 @@ class DebertaV2Encoder(nn.Module):
 
         return attention_mask
 
-    def get_rel_pos(self, hidden_states, query_states=None, relative_pos=None):
+    def get_rel_pos(
+        self,
+        hidden_states: torch.Tensor,  # (b, seq, hid)
+        special_token_indices: torch.Tensor,  # (b, special_token_indices)
+        query_states: Optional[torch.Tensor] = None,
+        relative_pos: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
         if self.relative_attention and relative_pos is None:
             q = query_states.size(-2) if query_states is not None else hidden_states.size(-2)
             relative_pos = build_relative_position(
@@ -159,13 +165,24 @@ class DebertaV2Encoder(nn.Module):
                 bucket_size=self.position_buckets,
                 max_position=self.max_relative_positions,
                 device=hidden_states.device,
+            )  # (1, query, key)
+            batch_size = hidden_states.size(0)
+            # (b, query, key)
+            special_token_mask = torch.zeros_like(relative_pos, dtype=torch.bool).repeat(batch_size, 1, 1)
+            special_token_mask[torch.arange(0, batch_size), special_token_indices.t(), :] = True
+            special_token_mask[torch.arange(0, batch_size), :, special_token_indices.t()] = True
+            special_token_pos = torch.triu(torch.full_like(relative_pos, 4096), diagonal=1) + torch.tril(
+                torch.full_like(relative_pos, -4096), diagonal=-1
             )
+            return torch.where(special_token_mask, special_token_pos, relative_pos)  # (b, query, key)
+        assert relative_pos is not None
         return relative_pos
 
     def forward(
         self,
         hidden_states,
         attention_mask,
+        special_token_indices,
         output_hidden_states=True,
         output_attentions=False,
         query_states=None,
@@ -177,7 +194,9 @@ class DebertaV2Encoder(nn.Module):
         else:
             input_mask = attention_mask.sum(-2) > 0
         attention_mask = self.get_attention_mask(attention_mask)
-        relative_pos = self.get_rel_pos(hidden_states, query_states, relative_pos)
+        relative_pos = self.get_rel_pos(
+            hidden_states, special_token_indices, query_states, relative_pos
+        )  # (b, query, key)
 
         all_hidden_states = () if output_hidden_states else None
         all_attentions = () if output_attentions else None
@@ -428,19 +447,21 @@ class DisentangledSelfAttention(nn.Module):
         score = 0
         # content->position
         if "c2p" in self.pos_att_type:
-            scale = torch.sqrt(torch.tensor(pos_key_layer.size(-1), dtype=torch.float) * scale_factor)
-            c2p_att = torch.bmm(query_layer, pos_key_layer.transpose(-1, -2))
-            c2p_pos = torch.clamp(relative_pos + att_span, 0, att_span * 2 - 1)
+            scale = torch.sqrt(torch.tensor(pos_key_layer.size(-1), dtype=torch.float) * scale_factor)  # ()
+            c2p_att = torch.bmm(query_layer, pos_key_layer.transpose(-1, -2))  # (b*num_heads, seq, max_rel_seq)
+            c2p_pos = torch.clamp(relative_pos + att_span, 0, att_span * 2 - 1)  # (b, 1, seq, seq)
             c2p_att = torch.gather(
                 c2p_att,
                 dim=-1,
-                index=c2p_pos.squeeze(0).expand([query_layer.size(0), query_layer.size(1), relative_pos.size(-1)]),
-            )
+                index=c2p_pos.expand([-1, self.num_attention_heads, -1, -1]).reshape(
+                    -1, c2p_pos.size(-2), c2p_pos.size(-1)
+                ),  # (b, 1, seq, seq) -> (b, num_heads, seq, seq) -> (b*num_heads, seq, seq)
+            )  # (b*num_heads, seq, seq)
             score += c2p_att / scale.to(dtype=c2p_att.dtype)
 
         # position->content
         if "p2c" in self.pos_att_type:
-            scale = torch.sqrt(torch.tensor(pos_query_layer.size(-1), dtype=torch.float) * scale_factor)
+            scale = torch.sqrt(torch.tensor(pos_query_layer.size(-1), dtype=torch.float) * scale_factor)  # ()
             if key_layer.size(-2) != query_layer.size(-2):
                 r_pos = build_relative_position(
                     key_layer.size(-2),
@@ -453,16 +474,18 @@ class DisentangledSelfAttention(nn.Module):
             else:
                 r_pos = relative_pos
 
-            p2c_pos = torch.clamp(-r_pos + att_span, 0, att_span * 2 - 1)
+            p2c_pos = torch.clamp(-r_pos + att_span, 0, att_span * 2 - 1)  # (b, 1, seq, seq)
             p2c_att = torch.bmm(key_layer, pos_query_layer.transpose(-1, -2))
             p2c_att = torch.gather(
                 p2c_att,
                 dim=-1,
-                index=p2c_pos.squeeze(0).expand([query_layer.size(0), key_layer.size(-2), key_layer.size(-2)]),
+                index=p2c_pos.expand([-1, self.num_attention_heads, -1, -1]).reshape(
+                    -1, p2c_pos.size(-2), p2c_pos.size(-1)
+                ),  # (b, 1, seq, seq) -> (b, num_heads, seq, seq) -> (b*num_heads, seq, seq)
             ).transpose(-1, -2)
             score += p2c_att / scale.to(dtype=p2c_att.dtype)
 
-        return score
+        return score  # (b*num_heads, seq, seq)
 
 
 @add_start_docstrings(
@@ -504,6 +527,7 @@ class DebertaV2Model(DebertaV2PreTrainedModel):
         self,
         input_ids: Optional[torch.Tensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
+        special_token_indices: Optional[torch.Tensor] = None,
         token_type_ids: Optional[torch.Tensor] = None,
         position_ids: Optional[torch.Tensor] = None,
         inputs_embeds: Optional[torch.Tensor] = None,
@@ -547,6 +571,7 @@ class DebertaV2Model(DebertaV2PreTrainedModel):
         encoder_outputs = self.encoder(
             embedding_output,
             attention_mask,
+            special_token_indices,
             output_hidden_states=True,
             output_attentions=output_attentions,
             return_dict=return_dict,
@@ -559,7 +584,7 @@ class DebertaV2Model(DebertaV2PreTrainedModel):
             query_states = encoded_layers[-1]
             rel_embeddings = self.encoder.get_rel_embedding()
             attention_mask = self.encoder.get_attention_mask(attention_mask)
-            rel_pos = self.encoder.get_rel_pos(embedding_output)
+            rel_pos = self.encoder.get_rel_pos(embedding_output, special_token_indices)
             for layer in layers[1:]:
                 query_states = layer(
                     hidden_states,
