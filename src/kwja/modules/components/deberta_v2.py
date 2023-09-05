@@ -10,7 +10,8 @@ from transformers.models.deberta_v2.modeling_deberta_v2 import (
     BaseModelOutput,
     ConvLayer,
     DebertaV2Embeddings,
-    DebertaV2Layer,
+    DebertaV2Intermediate,
+    DebertaV2Output,
     DebertaV2PreTrainedModel,
     DebertaV2SelfOutput,
     LayerNorm,
@@ -67,6 +68,41 @@ class DebertaV2Attention(nn.Module):
             return (attention_output, att_matrix)
         else:
             return attention_output
+
+
+# Copied from transformers.models.deberta.modeling_deberta.DebertaLayer with Deberta->DebertaV2
+class DebertaV2Layer(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.attention = DebertaV2Attention(config)
+        self.intermediate = DebertaV2Intermediate(config)
+        self.output = DebertaV2Output(config)
+
+    def forward(
+        self,
+        hidden_states,
+        attention_mask,
+        query_states=None,
+        relative_pos=None,
+        rel_embeddings=None,
+        output_attentions=False,
+    ):
+        attention_output = self.attention(
+            hidden_states,
+            attention_mask,
+            output_attentions=output_attentions,
+            query_states=query_states,
+            relative_pos=relative_pos,
+            rel_embeddings=rel_embeddings,
+        )
+        if output_attentions:
+            attention_output, att_matrix = attention_output
+        intermediate_output = self.intermediate(attention_output)
+        layer_output = self.output(intermediate_output, attention_output)
+        if output_attentions:
+            return (layer_output, att_matrix)
+        else:
+            return layer_output
 
 
 class DebertaV2Encoder(nn.Module):
