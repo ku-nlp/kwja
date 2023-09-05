@@ -12,6 +12,7 @@ from transformers.models.deberta_v2.modeling_deberta_v2 import (
     DebertaV2Embeddings,
     DebertaV2Layer,
     DebertaV2PreTrainedModel,
+    DebertaV2SelfOutput,
     LayerNorm,
     Sequence,
     StableDropout,
@@ -29,6 +30,43 @@ logger = logging.get_logger(__name__)
 
 _CONFIG_FOR_DOC = "DebertaV2Config"
 _CHECKPOINT_FOR_DOC = "microsoft/deberta-v2-xlarge"
+
+
+# Copied from transformers.models.deberta.modeling_deberta.DebertaAttention with Deberta->DebertaV2
+class DebertaV2Attention(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.self = DisentangledSelfAttention(config)
+        self.output = DebertaV2SelfOutput(config)
+        self.config = config
+
+    def forward(
+        self,
+        hidden_states,
+        attention_mask,
+        output_attentions=False,
+        query_states=None,
+        relative_pos=None,
+        rel_embeddings=None,
+    ):
+        self_output = self.self(
+            hidden_states,
+            attention_mask,
+            output_attentions,
+            query_states=query_states,
+            relative_pos=relative_pos,
+            rel_embeddings=rel_embeddings,
+        )
+        if output_attentions:
+            self_output, att_matrix = self_output
+        if query_states is None:
+            query_states = hidden_states
+        attention_output = self.output(self_output, query_states)
+
+        if output_attentions:
+            return (attention_output, att_matrix)
+        else:
+            return attention_output
 
 
 class DebertaV2Encoder(nn.Module):
