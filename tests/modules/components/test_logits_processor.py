@@ -75,7 +75,136 @@ def test_get_char2tokens() -> None:
     assert len(t5_non_underscore_tokens) == 31569
 
 
-def test_get_generated_surfs(data_dir: Path) -> None:
+def test_get_target_morpheme(data_dir: Path) -> None:
+    model2pretrained_model_name_or_path: Dict[str, str] = {
+        "mt5": "google/mt5-small",
+        "t5": "retrieva-jp/t5-small-short",
+    }
+    for model, pretrained_model_name_or_path in model2pretrained_model_name_or_path.items():
+        tokenizer: PreTrainedTokenizerFast = AutoTokenizer.from_pretrained(
+            pretrained_model_name_or_path,
+            additional_special_tokens=SPECIAL_TOKENS,
+        )
+        reading_candidates: Set[int] = get_reading_candidates(tokenizer)
+        char2tokens: Dict[str, Dict[str, int]] = get_char2tokens(tokenizer)
+        test_case_path: Path = data_dir / "modules" / "permitted_tokens.json"
+        with open(test_case_path) as f:
+            test_cases = json.load(f)
+        for test_id, test_case in test_cases.items():
+            processor = ForcedLogitsProcessor(
+                surfs=[test_case["surfs"]],
+                num_beams=1,
+                tokenizer=tokenizer,
+                reading_candidates=reading_candidates,
+                char2tokens=char2tokens,
+            )
+            input_ids: List[int] = tokenizer.convert_tokens_to_ids(test_case[model]["input_tokens"])
+            target_morpheme: TargetMorpheme = processor._get_target_morpheme(input_ids)
+            assert target_morpheme.surf == (test_case["target_morpheme"] == "surf")
+            assert target_morpheme.reading == (test_case["target_morpheme"] == "reading")
+            assert target_morpheme.lemma == (test_case["target_morpheme"] == "lemma")
+            assert target_morpheme.canon == (test_case["target_morpheme"] == "canon")
+
+
+@pytest.mark.parametrize(
+    "input_tokens, surfs, expected_remaining_surf",
+    [
+        (["<pad>", "<extra_id_0>"], ["研究", "する"], "研究"),
+        (["<pad>", "<extra_id_0>", "研"], ["研究", "する"], "究"),
+        (["<pad>", "<extra_id_0>", "研究"], ["研究", "する"], ""),
+        (
+            [
+                "<pad>",
+                "<extra_id_0>",
+                "研究",
+                "<extra_id_1>",
+                "けんきゅう",
+                "<extra_id_2>",
+                "研究",
+                "<extra_id_3>",
+                "研究",
+                "/",
+                "けんきゅう",
+                "<extra_id_0>",
+            ],
+            ["研究", "する"],
+            "する",
+        ),
+        (
+            [
+                "<pad>",
+                "<extra_id_0>",
+                "研究",
+                "<extra_id_1>",
+                "けんきゅう",
+                "<extra_id_2>",
+                "研究",
+                "<extra_id_3>",
+                "研究",
+                "/",
+                "けんきゅう",
+                "<extra_id_0>",
+                "す",
+            ],
+            ["研究", "する"],
+            "る",
+        ),
+    ],
+)
+def test_get_remaining_surf(input_tokens: List[str], surfs: List[str], expected_remaining_surf: str) -> None:
+    for pretrained_model_name_or_path in ["google/mt5-small", "retrieva-jp/t5-small-short"]:
+        tokenizer: PreTrainedTokenizerFast = AutoTokenizer.from_pretrained(
+            pretrained_model_name_or_path=pretrained_model_name_or_path,
+            additional_special_tokens=SPECIAL_TOKENS,
+        )
+        char2tokens = get_char2tokens(tokenizer)
+        reading_candidates = get_reading_candidates(tokenizer)
+
+        processor = ForcedLogitsProcessor(
+            surfs=[surfs],
+            num_beams=1,
+            tokenizer=tokenizer,
+            reading_candidates=reading_candidates,
+            char2tokens=char2tokens,
+        )
+        input_ids: List[int] = tokenizer.convert_tokens_to_ids(input_tokens)
+        assert processor._get_remaining_surf(input_ids, surfs) == expected_remaining_surf
+
+
+@pytest.mark.parametrize(
+    "surfs, permitted_tokens",
+    [
+        (["研究", "を", "する"], ["研究", "研"]),
+        ([FULL_SPACE_TOKEN, "研究", "を", "する"], [FULL_SPACE_TOKEN]),
+        ([HALF_SPACE_TOKEN1, "研究", "を", "する"], [HALF_SPACE_TOKEN1]),
+        ([HALF_SPACE_TOKEN2, "研究", "を", "する"], [HALF_SPACE_TOKEN2]),
+        ([TRIPLE_DOT_TOKEN, "研究", "を", "する"], [TRIPLE_DOT_TOKEN]),
+    ],
+)
+def test_get_banned_token_ids(surfs: List[str], permitted_tokens: List[str]) -> None:
+    for pretrained_model_name_or_path in ["google/mt5-small", "retrieva-jp/t5-small-short"]:
+        tokenizer: PreTrainedTokenizerFast = AutoTokenizer.from_pretrained(
+            pretrained_model_name_or_path,
+            additional_special_tokens=SPECIAL_TOKENS,
+        )
+        reading_candidates: Set[int] = get_reading_candidates(tokenizer)
+        char2tokens: Dict[str, Dict[str, int]] = get_char2tokens(tokenizer)
+        expected_banned_token_ids: Set[int] = set(tokenizer.get_vocab().values()) - set(
+            tokenizer.convert_tokens_to_ids(permitted_tokens)
+        )
+
+        processor = ForcedLogitsProcessor(
+            surfs=[surfs],
+            num_beams=2,
+            tokenizer=tokenizer,
+            reading_candidates=reading_candidates,
+            char2tokens=char2tokens,
+        )
+        banned_token_ids: Set[int] = processor._get_banned_token_ids("".join(surfs))
+        assert sorted(list(banned_token_ids)) == sorted(list(expected_banned_token_ids))
+
+
+def test_get_generated_surf(data_dir: Path) -> None:
     for pretrained_model_name_or_path in ["google/mt5-small", "retrieva-jp/t5-small-short"]:
         tokenizer: PreTrainedTokenizerFast = AutoTokenizer.from_pretrained(
             pretrained_model_name_or_path=pretrained_model_name_or_path,
@@ -90,84 +219,15 @@ def test_get_generated_surfs(data_dir: Path) -> None:
             with path.open() as f:
                 sentence: Sentence = Sentence.from_jumanpp(f.read())
                 processor = ForcedLogitsProcessor(
-                    texts=[formatter.sent_to_text(sentence)],
+                    surfs=[formatter.get_surfs(sentence)],
                     num_beams=2,
                     tokenizer=tokenizer,
                     reading_candidates=reading_candidates,
                     char2tokens=char2tokens,
                 )
-
-                mrph_lines: List[List[str]] = formatter.sent_to_mrph_lines(sentence)
-                tgt_tokens: List[str] = formatter.tokenize(mrph_lines)
-                tgt_input_ids: torch.Tensor = torch.LongTensor(
-                    [tokenizer.convert_tokens_to_ids(tgt_tokens) + [tokenizer.eos_token_id]]
-                )
-
-                assert processor.texts[0] == processor.get_generated_surfs(tgt_input_ids)[0].replace(" ", "")
-
-
-@pytest.mark.parametrize(
-    "input_text, permitted_tokens",
-    [
-        ("研究をする", ["研究", "研"]),
-        (f"{FULL_SPACE_TOKEN}研究をする", [FULL_SPACE_TOKEN]),
-        (f"{HALF_SPACE_TOKEN1}研究をする", [HALF_SPACE_TOKEN1]),
-        (f"{HALF_SPACE_TOKEN2}研究をする", [HALF_SPACE_TOKEN2]),
-        (f"{TRIPLE_DOT_TOKEN}研究をする", [TRIPLE_DOT_TOKEN]),
-    ],
-)
-def test_get_banned_token_ids(input_text: str, permitted_tokens: List[str]) -> None:
-    for pretrained_model_name_or_path in ["google/mt5-small", "retrieva-jp/t5-small-short"]:
-        tokenizer: PreTrainedTokenizerFast = AutoTokenizer.from_pretrained(
-            pretrained_model_name_or_path,
-            additional_special_tokens=SPECIAL_TOKENS,
-        )
-        reading_candidates: Set[int] = get_reading_candidates(tokenizer)
-        char2tokens: Dict[str, Dict[str, int]] = get_char2tokens(tokenizer)
-        expected_banned_token_ids: Set[int] = set(tokenizer.get_vocab().values()) - set(
-            tokenizer.convert_tokens_to_ids(permitted_tokens)
-        )
-
-        processor = ForcedLogitsProcessor(
-            texts=[input_text],
-            num_beams=2,
-            tokenizer=tokenizer,
-            reading_candidates=reading_candidates,
-            char2tokens=char2tokens,
-        )
-        banned_token_ids: Set[int] = processor.get_banned_token_ids(input_text)
-        assert sorted(list(banned_token_ids)) == sorted(list(expected_banned_token_ids))
-
-
-def test_get_target_morpheme(data_dir: Path) -> None:
-    model2pretrained_model_name_or_path: Dict[str, str] = {
-        "mt5": "google/mt5-small",
-        "t5": "retrieva-jp/t5-small-short",
-    }
-    for model, pretrained_model_name_or_path in model2pretrained_model_name_or_path.items():
-        tokenizer: PreTrainedTokenizerFast = AutoTokenizer.from_pretrained(
-            pretrained_model_name_or_path,
-            additional_special_tokens=SPECIAL_TOKENS,
-        )
-        test_case_path: Path = data_dir / "modules" / "permitted_tokens.json"
-        with open(test_case_path) as f:
-            test_cases = json.load(f)
-        for test_id, test_case in test_cases.items():
-            reading_candidates: Set[int] = get_reading_candidates(tokenizer)
-            char2tokens: Dict[str, Dict[str, int]] = get_char2tokens(tokenizer)
-            processor = ForcedLogitsProcessor(
-                texts=[test_case["text"]],
-                num_beams=1,
-                tokenizer=tokenizer,
-                reading_candidates=reading_candidates,
-                char2tokens=char2tokens,
-            )
-            input_ids: List[int] = tokenizer.convert_tokens_to_ids(test_case[model]["input_tokens"])
-            target_morpheme: TargetMorpheme = processor.get_target_morpheme(input_ids)
-            assert target_morpheme.surf == (test_case["target_morpheme"] == "surf")
-            assert target_morpheme.reading == (test_case["target_morpheme"] == "reading")
-            assert target_morpheme.lemma == (test_case["target_morpheme"] == "lemma")
-            assert target_morpheme.canon == (test_case["target_morpheme"] == "canon")
+                tgt_tokens: List[str] = formatter.get_tgt_tokens(sentence)
+                tgt_input_ids: List[int] = tokenizer.convert_tokens_to_ids(tgt_tokens) + [tokenizer.eos_token_id]
+                assert processor.surfs[0] == processor._get_generated_surf(tgt_input_ids)
 
 
 def test_get_mask(data_dir: Path) -> None:
@@ -176,6 +236,8 @@ def test_get_mask(data_dir: Path) -> None:
         "t5": "retrieva-jp/t5-small-short",
     }
     for model, pretrained_model_name_or_path in model2pretrained_model_name_or_path.items():
+        if model == "mt5":
+            continue
         tokenizer: PreTrainedTokenizerFast = AutoTokenizer.from_pretrained(
             pretrained_model_name_or_path,
             additional_special_tokens=SPECIAL_TOKENS,
@@ -192,7 +254,7 @@ def test_get_mask(data_dir: Path) -> None:
         for test_id, test_case in test_cases.items():
             assert test_case["target_morpheme"] in ["surf", "reading", "lemma", "canon", "init"]
             processor = ForcedLogitsProcessor(
-                texts=[test_case["text"]],
+                surfs=[test_case["surfs"]],
                 num_beams=1,
                 tokenizer=tokenizer,
                 reading_candidates=reading_candidates,

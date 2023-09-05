@@ -91,7 +91,7 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
             logits_processor=LogitsProcessorList(
                 [
                     ForcedLogitsProcessor(
-                        texts=batch["src_text"],
+                        surfs=batch["surfs"],
                         num_beams=self.hparams.decoding.num_beams,
                         tokenizer=self.tokenizer,
                         reading_candidates=self.reading_candidates,

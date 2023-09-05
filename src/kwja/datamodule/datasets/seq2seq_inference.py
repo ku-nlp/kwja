@@ -4,8 +4,7 @@ from typing import List, Optional
 
 from rhoknp import Document
 from rhoknp.utils.reader import chunk_by_document
-from transformers import BatchEncoding, PreTrainedTokenizerFast
-from transformers.utils import PaddingStrategy
+from transformers import PreTrainedTokenizerFast
 
 from kwja.datamodule.datasets.base import BaseDataset
 from kwja.datamodule.datasets.seq2seq import Seq2SeqModuleFeatures
@@ -45,17 +44,19 @@ class Seq2SeqInferenceDataset(BaseDataset[Seq2SeqInferenceExample, Seq2SeqModule
         example_id: int = 0
         for document in track(documents, description="Loading examples"):
             for sentence in document.sentences:
-                src_encoding: BatchEncoding = self.tokenizer(
-                    sentence.text.strip(),
-                    padding=PaddingStrategy.MAX_LENGTH,
-                    truncation=True,
-                    max_length=self.max_src_length,
-                )
+                src_tokens: List[str] = self.formatter.get_src_tokens(sentence)
+                src_input_ids: List[int] = self.tokenizer.convert_tokens_to_ids(src_tokens) + [
+                    self.tokenizer.eos_token_id
+                ]
+                src_attention_mask: List[int] = [1] * len(src_input_ids)
+                src_input_ids += [self.tokenizer.pad_token_id] * (self.max_src_length - len(src_input_ids))
+                src_attention_mask += [0] * (self.max_src_length - len(src_attention_mask))
                 examples.append(
                     Seq2SeqInferenceExample(
                         example_id=example_id,
-                        src_text=self.formatter.sent_to_text(sentence),
-                        src_encoding=src_encoding,
+                        surfs=self.formatter.get_surfs(sentence),
+                        src_input_ids=src_input_ids,
+                        src_attention_mask=src_attention_mask,
                         sid=sentence.sid,
                     )
                 )
@@ -67,8 +68,8 @@ class Seq2SeqInferenceDataset(BaseDataset[Seq2SeqInferenceExample, Seq2SeqModule
     def encode(self, example: Seq2SeqInferenceExample) -> Seq2SeqModuleFeatures:
         return Seq2SeqModuleFeatures(
             example_ids=example.example_id,
-            src_text=example.src_text,
-            input_ids=example.src_encoding.input_ids,
-            attention_mask=example.src_encoding.attention_mask,
+            surfs=example.surfs,
+            input_ids=example.src_input_ids,
+            attention_mask=example.src_attention_mask,
             seq2seq_labels=[],
         )
