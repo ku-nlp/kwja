@@ -60,7 +60,7 @@ pure-cdb = "^4.0"
 rich = ">=12.4"
 pyyaml = "^6.0"
 regex = "^2023.8"
-cohesion-tools = { git = "https://github.com/nobu-g/cohesion-tools.git" }
+cohesion-tools = { git = "https://github.com/nobu-g/cohesion-tools.git", tag = "v0.5.1" }
 importlib-resources = { version = "^6.0", python = "<3.9" }
 
 [tool.poetry.group.dev.dependencies]

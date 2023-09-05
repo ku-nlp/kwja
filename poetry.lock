@@ -351,7 +351,7 @@ test = ["coverage (>=4.2)", "flake8 (>=3.0.4)", "path.py (>=11.5.0)", "pytest (>
 
 [[package]]
 name = "cohesion-tools"
-version = "0.5.0"
+version = "0.5.1"
 description = ""
 optional = false
 python-versions = "^3.8"
@@ -359,14 +359,16 @@ files = []
 develop = false
 
 [package.dependencies]
-pandas = "^2.0"
 rhoknp = "~1.4.1"
+
+[package.extras]
+eval = ["pandas (>=2.0.3,<2.1.0)", "pandas (>=2.1,<3.0)"]
 
 [package.source]
 type = "git"
 url = "https://github.com/nobu-g/cohesion-tools.git"
-reference = "HEAD"
-resolved_reference = "78f1b8a5e9c76d8dccc6d92664a539442aa663c2"
+reference = "v0.5.1"
+resolved_reference = "8bd7c9d3a8135f00fa2723fe4f4b874aadd5c3ef"
 
 [[package]]
 name = "colorama"
@@ -3169,4 +3171,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "9ed0d97b6b13d374d507a303e93bca58f0a3ff483718682874cf11ac8bcdb4ea"
+content-hash = "87a741d6cc5362bef88ec1bd892a4a91ae35e502edb2a7a9f9ad4e70c396eae5"
