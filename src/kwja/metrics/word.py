@@ -8,8 +8,9 @@ from cohesion_tools.evaluation import CohesionScore, CohesionScorer
 from cohesion_tools.extractors import PasExtractor
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
 from rhoknp.props import DepType, MemoTag
-from seqeval.metrics import accuracy_score, f1_score
+from seqeval.metrics import f1_score as seqeval_f1_score
 from seqeval.scheme import IOB2
+from sklearn.metrics import accuracy_score, f1_score, precision_recall_fscore_support
 
 from kwja.callbacks.utils import (  # add_discourse,
     add_base_phrase_features,
@@ -266,32 +267,31 @@ class WordModuleMetric(BaseModuleMetric):
         predicted_documents: List[Document], gold_documents: List[Document]
     ) -> Dict[str, float]:
         metrics: Dict[str, float] = {}
-
-        # m.pos not in POS_TAGS ... 未定義語、その他など
-        pos_labels = [[f"B-{m.pos}" if m.pos in POS_TAGS else "B-" for m in d.morphemes] for d in gold_documents]
-        pos_predictions = [[f"B-{m.pos}" for m in d.morphemes] for d in predicted_documents]
-        metrics["pos_f1"] = f1_score(y_true=pos_labels, y_pred=pos_predictions).item()
-
-        subpos_labels = [
-            [f"B-{m.subpos}" if m.subpos in SUBPOS_TAGS else "B-" for m in d.morphemes] for d in gold_documents
-        ]
-        subpos_predictions = [[f"B-{m.subpos}" for m in d.morphemes] for d in predicted_documents]
-        metrics["subpos_f1"] = f1_score(y_true=subpos_labels, y_pred=subpos_predictions).item()
-
-        conjtype_labels = [
-            [f"B-{m.conjtype}" if m.conjtype in CONJTYPE_TAGS else "B-" for m in d.morphemes] for d in gold_documents
-        ]
-        conjtype_predictions = [[f"B-{m.conjtype}" for m in d.morphemes] for d in predicted_documents]
-        metrics["conjtype_f1"] = f1_score(y_true=conjtype_labels, y_pred=conjtype_predictions).item()
-
-        conjform_labels = [
-            [f"B-{m.conjform}" if m.conjform in CONJFORM_TAGS else "B-" for m in d.morphemes] for d in gold_documents
-        ]
-        conjform_predictions = [[f"B-{m.conjform}" for m in d.morphemes] for d in predicted_documents]
-        metrics["conjform_f1"] = f1_score(y_true=conjform_labels, y_pred=conjform_predictions).item()
-
+        for attribute_name, supported_attribute_values in zip(
+            ("pos", "subpos", "conjtype", "conjform"), (POS_TAGS, SUBPOS_TAGS, CONJTYPE_TAGS, CONJFORM_TAGS)
+        ):
+            metrics[f"{attribute_name}_f1"] = WordModuleMetric._calc_morpheme_attribute_f1_score(
+                [m for d in predicted_documents for m in d.morphemes],
+                [m for d in gold_documents for m in d.morphemes],
+                attribute_name,
+                supported_attribute_values,
+            )
         metrics["morphological_analysis_f1"] = mean(metrics.values())
         return metrics
+
+    @staticmethod
+    def _calc_morpheme_attribute_f1_score(
+        predicted_morphemes: List[Morpheme],
+        gold_morphemes: List[Morpheme],
+        attribute_name: str,
+        supported_attribute_values: Tuple[str, ...],
+    ) -> float:
+        labels: List[str] = []
+        for morpheme in gold_morphemes:
+            attribute_value = getattr(morpheme, attribute_name)
+            labels.append(attribute_value if attribute_value in supported_attribute_values else "UNKNOWN")
+        predictions: List[str] = [getattr(morpheme, attribute_name) for morpheme in predicted_morphemes]
+        return f1_score(y_true=labels, y_pred=predictions, average="micro").item()
 
     def compute_word_feature_tagging_metrics(
         self, predicted_documents: List[Document], gold_documents: List[Document]
@@ -315,20 +315,20 @@ class WordModuleMetric(BaseModuleMetric):
                     [self._convert_feature_to_bo_tag(m.features.get(word_feature)) for m in d.morphemes]
                     for d in predicted_documents
                 ]
-            metrics[f"{word_feature}_f1"] = f1_score(
-                y_true=labels, y_pred=predictions, mode="strict", scheme=IOB2
+            metrics[f"{word_feature}_f1"] = seqeval_f1_score(
+                y_true=labels, y_pred=predictions, mode="strict", scheme=IOB2, average="micro"
             ).item()
             concatenated_labels += labels
             concatenated_predictions += predictions
         metrics["macro_word_feature_tagging_f1"] = mean(metrics.values())
-        metrics["micro_word_feature_tagging_f1"] = f1_score(
-            y_true=concatenated_labels, y_pred=concatenated_predictions, mode="strict", scheme=IOB2
+        metrics["micro_word_feature_tagging_f1"] = seqeval_f1_score(
+            y_true=concatenated_labels, y_pred=concatenated_predictions, mode="strict", scheme=IOB2, average="micro"
         ).item()
         return metrics
 
     @staticmethod
     def _convert_units_into_segmentation_tags(units: Union[List[Phrase], List[BasePhrase]]) -> List[str]:
-        return ["B" if m == u.morphemes[-1] else "I" for u in units for m in u.morphemes]
+        return ["B" if idx == 0 else "I" for u in units for idx in range(len(u.morphemes))]
 
     @staticmethod
     def compute_ner_metrics(predicted_documents: List[Document], gold_documents: List[Document]) -> Dict[str, float]:
@@ -339,8 +339,11 @@ class WordModuleMetric(BaseModuleMetric):
                     morpheme.features["NE"] = f"{bi}-{named_entity.category.value}"
         labels = [[m.features.get("NE") or "O" for m in d.morphemes] for d in gold_documents]
         predictions = [[m.features.get("NE") or "O" for m in d.morphemes] for d in predicted_documents]
-        # `f1_score` function calculates micro average by default
-        return {"ner_f1": f1_score(y_true=labels, y_pred=predictions, mode="strict", scheme=IOB2).item()}
+        return {
+            "ner_f1": seqeval_f1_score(
+                y_true=labels, y_pred=predictions, mode="strict", scheme=IOB2, average="micro"
+            ).item()
+        }
 
     @staticmethod
     def compute_base_phrase_feature_tagging_metrics(
@@ -367,14 +370,14 @@ class WordModuleMetric(BaseModuleMetric):
             # 正解ラベルがない基本句素性は評価対象外
             if "B" not in set(chain.from_iterable(labels)):
                 continue
-            metrics[f"{base_phrase_feature}_f1"] = f1_score(
-                y_true=labels, y_pred=predictions, mode="strict", scheme=IOB2
+            metrics[f"{base_phrase_feature}_f1"] = seqeval_f1_score(
+                y_true=labels, y_pred=predictions, mode="strict", scheme=IOB2, average="micro"
             ).item()
             concatenated_labels += labels
             concatenated_predictions += predictions
         metrics["macro_base_phrase_feature_tagging_f1"] = mean(metrics.values())
-        metrics["micro_base_phrase_feature_tagging_f1"] = f1_score(
-            y_true=concatenated_labels, y_pred=concatenated_predictions, mode="strict", scheme=IOB2
+        metrics["micro_base_phrase_feature_tagging_f1"] = seqeval_f1_score(
+            y_true=concatenated_labels, y_pred=concatenated_predictions, mode="strict", scheme=IOB2, average="micro"
         ).item()
         return metrics
 
@@ -387,36 +390,32 @@ class WordModuleMetric(BaseModuleMetric):
         partly_gold_documents1: List[Document], gold_documents: List[Document]
     ) -> Dict[str, float]:
         metrics: Dict[str, float] = {}
-        metrics.update(
-            {
-                f"base_phrase_{k}": v
-                for k, v in conll18_ud_eval(
-                    *WordModuleMetric._to_conll_lines(partly_gold_documents1, gold_documents, "base_phrase")
-                ).items()
-            }
-        )
-        metrics.update(
-            {
-                f"morpheme_{k}": v
-                for k, v in conll18_ud_eval(
-                    *WordModuleMetric._to_conll_lines(partly_gold_documents1, gold_documents, "morpheme")
-                ).items()
-            }
-        )
+        unit_names: List[Literal["base_phrase", "morpheme"]] = ["base_phrase", "morpheme"]
+        for unit_name in unit_names:
+            metrics.update(
+                {
+                    f"{unit_name}_{k}": v
+                    for k, v in conll18_ud_eval(
+                        *WordModuleMetric._to_conll_lines(partly_gold_documents1, gold_documents, unit_name)
+                    ).items()
+                }
+            )
         return metrics
 
     @staticmethod
     def _to_conll_lines(
-        partly_gold_documents1: List[Document], gold_documents: List[Document], unit: Literal["base_phrase", "morpheme"]
+        partly_gold_documents1: List[Document],
+        gold_documents: List[Document],
+        unit_name: Literal["base_phrase", "morpheme"],
     ) -> Tuple[List[str], List[str]]:
         gold_lines = []
         system_lines = []
         for gold_document, partly_gold_document1 in zip(gold_documents, partly_gold_documents1):
             for sentence in gold_document.sentences:
-                gold_lines += [WordModuleMetric._to_conll_line(u) for u in getattr(sentence, f"{unit}s")]
+                gold_lines += [WordModuleMetric._to_conll_line(u) for u in getattr(sentence, f"{unit_name}s")]
                 gold_lines.append("\n")
             for sentence in partly_gold_document1.sentences:
-                system_lines += [WordModuleMetric._to_conll_line(u) for u in getattr(sentence, f"{unit}s")]
+                system_lines += [WordModuleMetric._to_conll_line(u) for u in getattr(sentence, f"{unit_name}s")]
                 system_lines.append("\n")
         return gold_lines, system_lines
 
@@ -482,40 +481,29 @@ class WordModuleMetric(BaseModuleMetric):
 
     @staticmethod
     def compute_discourse_relation_analysis_metrics(
-        predictions: torch.Tensor,
-        labels: torch.Tensor,
+        predictions: torch.Tensor,  # (N)
+        labels: torch.Tensor,  # (N)
     ) -> Dict[str, float]:
-        ignored_indices = labels.eq(IGNORE_INDEX)
-        predictions = predictions[~ignored_indices]
-        labels = labels[~ignored_indices]
+        mask = labels.ne(IGNORE_INDEX)
+        predictions = predictions[mask]
+        labels = labels[mask]
 
-        if (~ignored_indices).sum().item() == 0:
+        if labels.numel() == 0:
             accuracy = 0.0
         else:
-            accuracy = accuracy_score(y_true=labels, y_pred=predictions).item()
+            accuracy = accuracy_score(y_true=labels, y_pred=predictions)
 
-        no_relation_index = DISCOURSE_RELATIONS.index("談話関係なし")
-
-        ignored_indices = predictions.eq(no_relation_index)
-        if (~ignored_indices).sum().item() == 0:
-            precision = 0.0
-        else:
-            precision = accuracy_score(y_true=labels[~ignored_indices], y_pred=predictions[~ignored_indices]).item()
-
-        ignored_indices = labels.eq(no_relation_index)
-        if (~ignored_indices).sum().item() == 0:
-            recall = 0.0
-        else:
-            recall = accuracy_score(y_true=labels[~ignored_indices], y_pred=predictions[~ignored_indices]).item()
-
-        if (precision + recall) == 0.0:
-            f1 = 0.0
-        else:
-            f1 = (2 * precision * recall) / (precision + recall)
+        precision, recall, f1, _ = precision_recall_fscore_support(
+            y_true=labels,
+            y_pred=predictions,
+            labels=[idx for idx, relation in enumerate(DISCOURSE_RELATIONS) if relation != "談話関係なし"],
+            average="micro",
+            zero_division=0.0,
+        )
 
         return {
             "discourse_relation_analysis_accuracy": accuracy,
-            "discourse_relation_analysis_precision": precision,
-            "discourse_relation_analysis_recall": recall,
-            "discourse_relation_analysis_f1": f1,
+            "discourse_relation_analysis_precision": precision.item(),
+            "discourse_relation_analysis_recall": recall.item(),
+            "discourse_relation_analysis_f1": f1.item(),
         }
