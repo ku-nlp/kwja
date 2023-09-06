@@ -1,13 +1,12 @@
 from collections import defaultdict
-from itertools import chain
 from statistics import mean
-from typing import Dict, List, Literal, Optional, Tuple, Union
+from typing import Dict, List, Literal, Optional, Set, Tuple, Union
 
 import torch
 from cohesion_tools.evaluation import CohesionScore, CohesionScorer
 from cohesion_tools.extractors import PasExtractor
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
-from rhoknp.props import DepType, MemoTag
+from rhoknp.props import DepType, FeatureDict, MemoTag
 from seqeval.metrics import f1_score as seqeval_f1_score
 from seqeval.scheme import IOB2
 from sklearn.metrics import accuracy_score, f1_score, precision_recall_fscore_support
@@ -31,6 +30,7 @@ from kwja.utils.constants import (
     CONJTYPE_TAGS,
     DISCOURSE_RELATIONS,
     IGNORE_INDEX,
+    IGNORE_VALUE_FEATURE_PAT,
     MASKED,
     POS_TAGS,
     SUBPOS_TAGS,
@@ -327,6 +327,10 @@ class WordModuleMetric(BaseModuleMetric):
         return metrics
 
     @staticmethod
+    def _convert_feature_to_bo_tag(feature: Optional[Union[bool, str]]) -> str:
+        return "B" if feature not in (None, False) else "O"
+
+    @staticmethod
     def _convert_units_into_segmentation_tags(units: Union[List[Phrase], List[BasePhrase]]) -> List[str]:
         return ["B" if idx == 0 else "I" for u in units for idx in range(len(u.morphemes))]
 
@@ -350,40 +354,43 @@ class WordModuleMetric(BaseModuleMetric):
         partly_gold_documents1: List[Document], gold_documents: List[Document]
     ) -> Dict[str, float]:
         metrics: Dict[str, float] = {}
-        concatenated_labels = []
-        concatenated_predictions = []
-        for base_phrase_feature in BASE_PHRASE_FEATURES:
-            labels = [
-                [
-                    WordModuleMetric._convert_feature_to_bo_tag(base_phrase.features.get(base_phrase_feature))
-                    for base_phrase in d.base_phrases
+        all_labels: List[bool] = []
+        all_predictions: List[bool] = []
+        for feature_label in BASE_PHRASE_FEATURES:
+            labels: List[bool] = []
+            predictions: List[bool] = []
+            gold_document: Document
+            predicted_document: Document
+            for gold_document, predicted_document in zip(gold_documents, partly_gold_documents1):
+                labels += [
+                    feature_label in WordModuleMetric._convert_features_to_labels(base_phrase.features)
+                    for base_phrase in gold_document.base_phrases
                 ]
-                for d in gold_documents
-            ]
-            predictions = [
-                [
-                    WordModuleMetric._convert_feature_to_bo_tag(base_phrase.features.get(base_phrase_feature))
-                    for base_phrase in d.base_phrases
+                predictions += [
+                    feature_label in WordModuleMetric._convert_features_to_labels(base_phrase.features)
+                    for base_phrase in predicted_document.base_phrases
                 ]
-                for d in partly_gold_documents1
-            ]
-            # 正解ラベルがない基本句素性は評価対象外
-            if "B" not in set(chain.from_iterable(labels)):
-                continue
-            metrics[f"{base_phrase_feature}_f1"] = seqeval_f1_score(
-                y_true=labels, y_pred=predictions, mode="strict", scheme=IOB2, average="micro"
+            metrics[f"{feature_label}_f1"] = f1_score(
+                y_true=labels, y_pred=predictions, pos_label=True, average="binary"
             ).item()
-            concatenated_labels += labels
-            concatenated_predictions += predictions
-        metrics["macro_base_phrase_feature_tagging_f1"] = mean(metrics.values())
-        metrics["micro_base_phrase_feature_tagging_f1"] = seqeval_f1_score(
-            y_true=concatenated_labels, y_pred=concatenated_predictions, mode="strict", scheme=IOB2, average="micro"
+            all_labels += labels
+            all_predictions += predictions
+        metrics["macro_base_phrase_feature_tagging_f1"] = mean(
+            metrics[f"{feature_label}_f1"] for feature_label in BASE_PHRASE_FEATURES
+        )
+        metrics["micro_base_phrase_feature_tagging_f1"] = f1_score(
+            y_true=all_labels, y_pred=all_predictions, pos_label=True, average="binary"
         ).item()
         return metrics
 
     @staticmethod
-    def _convert_feature_to_bo_tag(feature: Optional[Union[bool, str]]) -> str:
-        return "B" if feature not in (None, False) else "O"
+    def _convert_features_to_labels(features: FeatureDict) -> Set[str]:
+        # {"用言": "動", "体言": True, "節-機能-原因・理由": "ので"} -> {"用言:動", "体言", "節-機能-原因・理由"}
+        return {
+            k + (f":{v}" if isinstance(v, str) and IGNORE_VALUE_FEATURE_PAT.match(k) is None else "")
+            for k, v in features.items()
+            if v not in (None, False)
+        }
 
     @staticmethod
     def compute_dependency_parsing_metrics(
