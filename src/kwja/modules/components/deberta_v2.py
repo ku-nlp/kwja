@@ -171,6 +171,7 @@ class DebertaV2Encoder(nn.Module):
             special_token_mask = torch.zeros_like(relative_pos, dtype=torch.bool).repeat(batch_size, 1, 1)
             special_token_mask[torch.arange(0, batch_size), special_token_indices.t(), :] = True
             special_token_mask[torch.arange(0, batch_size), :, special_token_indices.t()] = True
+            # 4096 (enough large number, which is clamped to max or min relative position) or -256 (unused relative position)
             special_token_pos = torch.triu(torch.full_like(relative_pos, 4096), diagonal=1) + torch.tril(
                 torch.full_like(relative_pos, -4096), diagonal=-1
             )
