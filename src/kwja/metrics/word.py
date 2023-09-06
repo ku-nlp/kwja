@@ -352,17 +352,15 @@ class WordModuleMetric(BaseModuleMetric):
         for base_phrase_feature in BASE_PHRASE_FEATURES:
             labels = [
                 [
-                    WordModuleMetric._convert_feature_to_bo_tag(m.base_phrase.features.get(base_phrase_feature))
-                    for m in d.morphemes
-                    if m == m.base_phrase.head
+                    WordModuleMetric._convert_feature_to_bo_tag(base_phrase.features.get(base_phrase_feature))
+                    for base_phrase in d.base_phrases
                 ]
                 for d in gold_documents
             ]
             predictions = [
                 [
-                    WordModuleMetric._convert_feature_to_bo_tag(m.base_phrase.features.get(base_phrase_feature))
-                    for m in d.morphemes
-                    if m == m.base_phrase.head
+                    WordModuleMetric._convert_feature_to_bo_tag(base_phrase.features.get(base_phrase_feature))
+                    for base_phrase in d.base_phrases
                 ]
                 for d in partly_gold_documents1
             ]
@@ -382,7 +380,7 @@ class WordModuleMetric(BaseModuleMetric):
 
     @staticmethod
     def _convert_feature_to_bo_tag(feature: Optional[Union[bool, str]]) -> str:
-        return "B" if feature is not None else "O"
+        return "B" if feature not in (None, False) else "O"
 
     @staticmethod
     def compute_dependency_parsing_metrics(
