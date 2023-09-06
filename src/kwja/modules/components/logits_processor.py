@@ -163,7 +163,7 @@ class ForcedLogitsProcessor(LogitsProcessor):
             elif target_morpheme.canon:
                 if input_ids[-1] != self.canon_token_id:
                     generated_surf: List[str] = self._get_generated_surf(input_ids)
-                    if len(generated_surf) == len(self.surfs[hypo_idx]):
+                    if len(generated_surf) == len(self.surfs[hypo_idx // self.num_beams]):
                         banned_token_ids.discard(self.eos_token_id)
                     else:
                         banned_token_ids.discard(self.surf_token_id)
