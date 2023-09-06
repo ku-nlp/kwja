@@ -256,11 +256,9 @@ class WordModuleMetric(BaseModuleMetric):
     def compute_reading_prediction_metrics(
         predicted_documents: List[Document], gold_documents: List[Document]
     ) -> Dict[str, float]:
-        reading_predictions = [m.reading for d in predicted_documents for m in d.morphemes]
-        reading_labels = [m.reading for d in gold_documents for m in d.morphemes]
-        num_correct = sum(p == l for p, l in zip(reading_predictions, reading_labels))
-        # 単語単位の読みの正解率
-        return {"reading_prediction_accuracy": num_correct / len(reading_labels)}
+        predictions = [m.reading for d in predicted_documents for m in d.morphemes]
+        labels = [m.reading for d in gold_documents for m in d.morphemes]
+        return {"reading_prediction_accuracy": accuracy_score(y_true=labels, y_pred=predictions)}
 
     @staticmethod
     def compute_morphological_analysis_metrics(
@@ -293,42 +291,48 @@ class WordModuleMetric(BaseModuleMetric):
         predictions: List[str] = [getattr(morpheme, attribute_name) for morpheme in predicted_morphemes]
         return f1_score(y_true=labels, y_pred=predictions, average="micro").item()
 
+    @staticmethod
     def compute_word_feature_tagging_metrics(
-        self, predicted_documents: List[Document], gold_documents: List[Document]
+        predicted_documents: List[Document], gold_documents: List[Document]
     ) -> Dict[str, float]:
         metrics: Dict[str, float] = {}
-        concatenated_labels = []
-        concatenated_predictions = []
-        for word_feature in WORD_FEATURES:
-            if word_feature == "基本句-区切":
-                labels = [self._convert_units_into_segmentation_tags(d.base_phrases) for d in gold_documents]
-                predictions = [self._convert_units_into_segmentation_tags(d.base_phrases) for d in predicted_documents]
-            elif word_feature == "文節-区切":
-                labels = [self._convert_units_into_segmentation_tags(d.phrases) for d in gold_documents]
-                predictions = [self._convert_units_into_segmentation_tags(d.phrases) for d in predicted_documents]
-            else:
-                labels = [
-                    [self._convert_feature_to_bo_tag(m.features.get(word_feature)) for m in d.morphemes]
-                    for d in gold_documents
-                ]
-                predictions = [
-                    [self._convert_feature_to_bo_tag(m.features.get(word_feature)) for m in d.morphemes]
-                    for d in predicted_documents
-                ]
-            metrics[f"{word_feature}_f1"] = seqeval_f1_score(
+        all_labels = []
+        all_predictions = []
+        for feature_label in WORD_FEATURES:
+            labels: List[List[str]] = []
+            predictions: List[List[str]] = []
+            gold_document: Document
+            predicted_document: Document
+            for gold_document, predicted_document in zip(gold_documents, predicted_documents):
+                if feature_label == "基本句-区切":
+                    label = WordModuleMetric._convert_units_into_segmentation_tags(gold_document.base_phrases)
+                    prediction = WordModuleMetric._convert_units_into_segmentation_tags(predicted_document.base_phrases)
+                elif feature_label == "文節-区切":
+                    label = WordModuleMetric._convert_units_into_segmentation_tags(gold_document.phrases)
+                    prediction = WordModuleMetric._convert_units_into_segmentation_tags(predicted_document.phrases)
+                else:
+                    label = [
+                        ("B" if feature_label in WordModuleMetric._convert_features_to_labels(m.features) else "O")
+                        for m in gold_document.morphemes
+                    ]
+                    prediction = [
+                        ("B" if feature_label in WordModuleMetric._convert_features_to_labels(m.features) else "O")
+                        for m in predicted_document.morphemes
+                    ]
+                labels.append(label)
+                predictions.append(prediction)
+            metrics[f"{feature_label}_f1"] = seqeval_f1_score(
                 y_true=labels, y_pred=predictions, mode="strict", scheme=IOB2, average="micro"
             ).item()
-            concatenated_labels += labels
-            concatenated_predictions += predictions
-        metrics["macro_word_feature_tagging_f1"] = mean(metrics.values())
+            all_labels += labels
+            all_predictions += predictions
+        metrics["macro_word_feature_tagging_f1"] = mean(
+            metrics[f"{feature_label}_f1"] for feature_label in WORD_FEATURES
+        )
         metrics["micro_word_feature_tagging_f1"] = seqeval_f1_score(
-            y_true=concatenated_labels, y_pred=concatenated_predictions, mode="strict", scheme=IOB2, average="micro"
+            y_true=all_labels, y_pred=all_predictions, mode="strict", scheme=IOB2, average="micro"
         ).item()
         return metrics
-
-    @staticmethod
-    def _convert_feature_to_bo_tag(feature: Optional[Union[bool, str]]) -> str:
-        return "B" if feature not in (None, False) else "O"
 
     @staticmethod
     def _convert_units_into_segmentation_tags(units: Union[List[Phrase], List[BasePhrase]]) -> List[str]:
