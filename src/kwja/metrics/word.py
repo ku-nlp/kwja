@@ -370,13 +370,15 @@ class WordModuleMetric(BaseModuleMetric):
                     feature_label in WordModuleMetric._convert_features_to_labels(base_phrase.features)
                     for base_phrase in predicted_document.base_phrases
                 ]
-            metrics[f"{feature_label}_f1"] = f1_score(
-                y_true=labels, y_pred=predictions, pos_label=True, average="binary"
-            ).item()
+            # 正解ラベルがない基本句素性は評価対象外
+            if any(labels):
+                metrics[f"{feature_label}_f1"] = f1_score(
+                    y_true=labels, y_pred=predictions, pos_label=True, average="binary"
+                ).item()
             all_labels += labels
             all_predictions += predictions
         metrics["macro_base_phrase_feature_tagging_f1"] = mean(
-            metrics[f"{feature_label}_f1"] for feature_label in BASE_PHRASE_FEATURES
+            metrics[f"{feature_label}_f1"] for feature_label in BASE_PHRASE_FEATURES if f"{feature_label}_f1" in metrics
         )
         metrics["micro_base_phrase_feature_tagging_f1"] = f1_score(
             y_true=all_labels, y_pred=all_predictions, pos_label=True, average="binary"
