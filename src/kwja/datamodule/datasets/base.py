@@ -48,15 +48,15 @@ class FullAnnotatedDocumentLoaderMixin:
     ) -> None:
         self.tokenizer: PreTrainedTokenizerBase = tokenizer
 
-        self.orig_documents: List[Document]
+        orig_documents: List[Document]
         if isinstance(source, Path):
             assert source.is_dir()
-            self.orig_documents = self._load_documents(source, ext)
+            orig_documents = self._load_documents(source, ext)
         else:
-            self.orig_documents = source
+            orig_documents = source
 
         self.doc_id2document: Dict[str, Document] = {}
-        for orig_document in track(self.orig_documents, description="Splitting documents"):
+        for orig_document in track(orig_documents, description="Splitting documents"):
             orig_document = self._postprocess_document(orig_document)
             self.doc_id2document.update(
                 {
