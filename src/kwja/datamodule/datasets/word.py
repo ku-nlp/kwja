@@ -247,8 +247,8 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             dependency_labels[morpheme_global_index] = root_index if dependency == -1 else dependency
         dependency_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
         for morpheme_global_index, head_candidates in example.morpheme_global_index2head_candidates.items():
-            for head_candidate in head_candidates:
-                dependency_mask[morpheme_global_index][head_candidate.global_index] = True
+            for head_candidate_global_index in head_candidates:
+                dependency_mask[morpheme_global_index][head_candidate_global_index] = True
             dependency_mask[morpheme_global_index][root_index] = True
         dependency_type_labels: List[int] = [IGNORE_INDEX] * self.max_seq_length
         for morpheme_global_index, dependency_type in example.morpheme_global_index2dependency_type.items():
@@ -355,8 +355,8 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
                     target_morpheme_global_index = special_token_indexer.get_morpheme_level_index(tag)
                 else:
                     # int(tag) is the base phrase global index of an endophora argument
-                    target_morpheme_global_index = cohesion_base_phrases[int(tag)].head.global_index
-                rel_labels[cohesion_base_phrase.head.global_index][target_morpheme_global_index] = 1
+                    target_morpheme_global_index = cohesion_base_phrases[int(tag)].head_morpheme_global_index
+                rel_labels[cohesion_base_phrase.head_morpheme_global_index][target_morpheme_global_index] = 1
         return rel_labels
 
     def _convert_cohesion_base_phrases_into_rel_mask(
@@ -369,9 +369,9 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             if cohesion_base_phrase.is_target is False:
                 continue
             assert cohesion_base_phrase.antecedent_candidates is not None, "antecedent_candidates isn't set"
-            for morpheme in cohesion_base_phrase.morphemes:
+            for morpheme_global_index in cohesion_base_phrase.morpheme_global_indices:
                 for antecedent_candidate in cohesion_base_phrase.antecedent_candidates:
-                    rel_mask[morpheme.global_index][antecedent_candidate.head.global_index] = True
-                for morpheme_global_index in special_token_indexer.get_morpheme_level_indices(only_cohesion=True):
-                    rel_mask[morpheme.global_index][morpheme_global_index] = True
+                    rel_mask[morpheme_global_index][antecedent_candidate.head_morpheme_global_index] = True
+                for special_token_global_index in special_token_indexer.get_morpheme_level_indices(only_cohesion=True):
+                    rel_mask[morpheme_global_index][special_token_global_index] = True
         return rel_mask
