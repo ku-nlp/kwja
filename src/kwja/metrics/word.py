@@ -498,8 +498,8 @@ class WordModuleMetric(BaseModuleMetric):
         labels: torch.Tensor,  # (N)
     ) -> Dict[str, float]:
         mask = labels.ne(IGNORE_INDEX)
-        predictions = predictions[mask]
-        labels = labels[mask]
+        predictions = predictions[mask].cpu()
+        labels = labels[mask].cpu()
 
         if labels.numel() == 0:
             accuracy = 0.0
