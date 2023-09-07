@@ -85,6 +85,7 @@ class ForcedLogitsProcessor(LogitsProcessor):
             self.token_to_ids_except_token[special_token] = set(self.tokenizer.get_vocab().values()) - {
                 self.tokenizer.convert_tokens_to_ids(special_token)
             }
+        self.is_finished: List[bool] = [False] * len(self.surfs)
 
     def _get_target_morpheme(self, input_ids: List[int]) -> TargetMorpheme:
         target_morpheme: TargetMorpheme = TargetMorpheme()
@@ -139,6 +140,8 @@ class ForcedLogitsProcessor(LogitsProcessor):
             return mask
 
         for hypo_idx, input_ids in enumerate(prev_input_ids.tolist()):
+            if self.is_finished[hypo_idx // self.num_beams]:
+                continue
             target_morpheme: TargetMorpheme = self._get_target_morpheme(input_ids)
 
             banned_token_ids: Set[int] = {
@@ -165,6 +168,7 @@ class ForcedLogitsProcessor(LogitsProcessor):
                     generated_surf: List[str] = self._get_generated_surf(input_ids)
                     if len(generated_surf) == len(self.surfs[hypo_idx // self.num_beams]):
                         banned_token_ids.discard(self.eos_token_id)
+                        self.is_finished[hypo_idx // self.num_beams] = True
                     else:
                         banned_token_ids.discard(self.surf_token_id)
             mask[hypo_idx, list(banned_token_ids)] = True

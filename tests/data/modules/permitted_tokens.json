@@ -176,12 +176,12 @@
     "t5": {
       "input_tokens": ["<pad>", "<extra_id_0>", "計算", "<extra_id_1>", "けい", "さん", "<extra_id_2>", "計算", "<extra_id_3>", "計算", "/", "けい", "さん"],
       "permitted_tokens": [],
-      "banned_tokens": ["<extra_id_0>", "<extra_id_1>", "<extra_id_2>", "<extra_id_3>"]
+      "banned_tokens": []
     },
     "mt5": {
       "input_tokens": ["<pad>", "<extra_id_0>", "計算", "<extra_id_1>", "けい", "さん", "<extra_id_2>", "計算", "<extra_id_3>", "計算", "/", "けい", "さん"],
       "permitted_tokens": [],
-      "banned_tokens": ["<extra_id_0>", "<extra_id_1>", "<extra_id_2>", "<extra_id_3>"]
+      "banned_tokens": []
     },
     "target_morpheme": "canon"
   }

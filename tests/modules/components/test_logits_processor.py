@@ -236,8 +236,6 @@ def test_get_mask(data_dir: Path) -> None:
         "t5": "retrieva-jp/t5-small-short",
     }
     for model, pretrained_model_name_or_path in model2pretrained_model_name_or_path.items():
-        if model == "mt5":
-            continue
         tokenizer: PreTrainedTokenizerFast = AutoTokenizer.from_pretrained(
             pretrained_model_name_or_path,
             additional_special_tokens=SPECIAL_TOKENS,
