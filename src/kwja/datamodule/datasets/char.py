@@ -51,6 +51,8 @@ class CharDataset(BaseDataset[CharExample, CharModuleFeatures], FullAnnotatedDoc
         self.denormalize_probability: float = denormalize_probability if is_training else 0.0
         super(BaseDataset, self).__init__(self.path, tokenizer, max_seq_length, -1)  # document_split_stride must be -1
         self.examples: List[CharExample] = self._load_examples(self.doc_id2document)
+        if is_training is True:
+            del self.doc_id2document  # for saving memory
 
     def _load_examples(self, doc_id2document: Dict[str, Document]) -> List[CharExample]:
         examples = []
