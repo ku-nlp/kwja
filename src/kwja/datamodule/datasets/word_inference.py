@@ -118,12 +118,17 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
 
             special_token_indexer = SpecialTokenIndexer(self.special_tokens, len(encoding.ids), len(document.morphemes))
 
+            analysis_target_morpheme_indices = []
+            for sentence in extract_target_sentences(document):
+                analysis_target_morpheme_indices += [m.global_index for m in sentence.morphemes]
+
             examples.append(
                 WordInferenceExample(
                     example_id=example_id,
                     encoding=merged_encoding,
                     special_token_indexer=special_token_indexer,
                     doc_id=document.doc_id,
+                    analysis_target_morpheme_indices=analysis_target_morpheme_indices,
                 )
             )
             example_id += 1
@@ -135,11 +140,9 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
         document = self.doc_id2document[example.doc_id]
 
         # ---------- ner ----------
-        # True/False = keep/mask
-        ne_mask = [False] * self.max_seq_length
-        for sentence in extract_target_sentences(document):
-            for morpheme in sentence.morphemes:
-                ne_mask[morpheme.global_index] = True
+        target_mask = [False] * self.max_seq_length
+        for global_index in example.analysis_target_morpheme_indices:
+            target_mask[global_index] = True
 
         # ---------- dependency parsing ----------
         dependency_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
@@ -181,7 +184,7 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
             conjform_labels=[],
             word_feature_labels=[],
             ne_labels=[],
-            ne_mask=ne_mask,
+            ne_mask=target_mask,
             base_phrase_feature_labels=[],
             dependency_labels=[],
             dependency_mask=dependency_mask,

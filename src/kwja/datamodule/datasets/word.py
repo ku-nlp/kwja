@@ -33,7 +33,6 @@ from kwja.utils.constants import (
 from kwja.utils.kanjidic import KanjiDic
 from kwja.utils.logging_util import track
 from kwja.utils.reading_prediction import ReadingAligner, get_reading2reading_id
-from kwja.utils.sub_document import extract_target_sentences
 
 logger = logging.getLogger(__name__)
 
@@ -181,12 +180,10 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
 
     def encode(self, example: WordExample) -> WordModuleFeatures:
         assert example.doc_id is not None, "doc_id isn't set"
-        document = self.doc_id2document[example.doc_id]
 
         target_mask = [False] * self.max_seq_length
-        for sentence in extract_target_sentences(document):
-            for morpheme in sentence.morphemes:
-                target_mask[morpheme.global_index] = True
+        for global_index in example.analysis_target_morpheme_indices:
+            target_mask[global_index] = True
 
         # ---------- reading prediction ----------
         reading_labels = [IGNORE_INDEX] * self.max_seq_length

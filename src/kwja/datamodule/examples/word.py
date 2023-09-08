@@ -57,6 +57,7 @@ class WordExample:
         self.encoding = encoding
         self.special_token_indexer = special_token_indexer
         self.doc_id: Optional[str] = None
+        self.analysis_target_morpheme_indices: List[int] = []
 
         # ---------- reading prediction ----------
         self.readings: Optional[List[str]] = None
@@ -100,6 +101,7 @@ class WordExample:
         for sentence in extract_target_sentences(document):
             morphemes = sentence.morphemes
             base_phrases = sentence.base_phrases
+            self.analysis_target_morpheme_indices += [m.global_index for m in morphemes]
             self._set_morpheme_attributes(morphemes)
             self._set_word_feature_set(sentence.phrases, base_phrases, morphemes)
             self._set_named_entities(sentence.named_entities)
@@ -205,3 +207,4 @@ class WordInferenceExample:
     encoding: Encoding
     special_token_indexer: SpecialTokenIndexer
     doc_id: str
+    analysis_target_morpheme_indices: List[int]
