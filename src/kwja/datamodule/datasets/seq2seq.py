@@ -42,7 +42,8 @@ class Seq2SeqDataset(BaseDataset[Seq2SeqExample, Seq2SeqModuleFeatures]):
         self.formatter: Seq2SeqFormatter = Seq2SeqFormatter(tokenizer)
 
         self.documents: List[Document] = self._load_documents(self.path, ext)
-        self.examples: List[Seq2SeqExample] = self._load_examples(self.documents)
+        is_train: bool = self.path.name == "train"
+        self.examples: List[Seq2SeqExample] = self._load_examples(self.documents, is_train)
 
     @staticmethod
     def _load_documents(document_dir: Path, ext: str = "knp") -> List[Document]:
@@ -55,7 +56,7 @@ class Seq2SeqDataset(BaseDataset[Seq2SeqExample, Seq2SeqModuleFeatures]):
                 logger.warning(f"{path} is not a valid knp file.")
         return documents
 
-    def _load_examples(self, documents: List[Document]) -> List[Seq2SeqExample]:
+    def _load_examples(self, documents: List[Document], is_train: bool) -> List[Seq2SeqExample]:
         examples: List[Seq2SeqExample] = []
         example_id: int = 0
         for document in track(documents, description="Loading examples"):
@@ -93,6 +94,11 @@ class Seq2SeqDataset(BaseDataset[Seq2SeqExample, Seq2SeqModuleFeatures]):
             logger.error(
                 f"No examples to process. Make sure there exist any documents in {self.path} and they are not too long."
             )
+        if not is_train:
+            # sort by length of input sentences for efficient inference in validation and test
+            examples = sorted(examples, key=lambda x: len(x.surfs))
+            for i, example in enumerate(examples):
+                examples[i].example_id = i
         return examples
 
     def encode(self, example: Seq2SeqExample) -> Seq2SeqModuleFeatures:

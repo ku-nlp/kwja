@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import List
 
 
-@dataclass(frozen=True)
+@dataclass
 class Seq2SeqExample:
     example_id: int
     surfs: List[str]
