@@ -1116,7 +1116,7 @@ SUB_BASE_PHRASE_FEATURES = (  # メンテナンスしない基本句素性
     "時間",
     "節-区切:補文",
     "節-区切:連体修飾",
-    # cf. https://github.com/ ku-nlp/KWDLC/blob/master/doc/clause_feature_manual.pdf
+    # cf. https://github.com/ku-nlp/KWDLC/blob/master/doc/clause_feature_manual.pdf
     "節-機能-原因・理由",
     "節-機能疑-原因・理由",
     "節-前向き機能-原因・理由",
