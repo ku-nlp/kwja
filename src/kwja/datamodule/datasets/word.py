@@ -125,6 +125,11 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         ).encodings[0]
 
         self.examples: List[WordExample] = self._load_examples(self.doc_id2document)
+        is_training = self.path.parts[-1] == "train" or (
+            self.path.parts[-2] == "kyoto_ed" and self.path.parts[-1] == "all"
+        )
+        if is_training is True:
+            del self.doc_id2document  # for saving memory
 
     def _get_tokenized_len(self, document_or_sentence: Union[Document, Sentence]) -> int:
         tokenizer_input: Union[List[str], str] = [m.text for m in document_or_sentence.morphemes]
