@@ -9,6 +9,7 @@ from kwja.utils.constants import (
     HALF_SPACE_TOKEN1,
     HALF_SPACE_TOKEN2,
     LEMMA_TOKEN,
+    MORPHEME_SPLIT_TOKEN,
     NO_CANON_TOKEN,
     RARE_TO_SPECIAL,
     READING_TOKEN,
@@ -29,42 +30,36 @@ class Seq2SeqFormatter:
             "…": TRIPLE_DOT_TOKEN,
         }
         self.token_to_word: Dict[str, str] = {v: k for k, v in self.word_to_token.items()}
-        self.mrph_idx_to_token: Dict[int, str] = {
-            0: SURF_TOKEN,
-            1: READING_TOKEN,
-            2: LEMMA_TOKEN,
-            3: CANON_TOKEN,
-        }
 
-    def tokenize(self, mrph_lines: List[List[str]]) -> List[str]:
-        seq2seq_format: str = ""
-        for mrph_line in mrph_lines:
-            for mrph_idx, mrph in enumerate(mrph_line):
-                for k, v in RARE_TO_SPECIAL.items():
-                    mrph = mrph.replace(k, v)
-                seq2seq_format += f"{self.mrph_idx_to_token[mrph_idx]}{mrph}"
-        return [x for x in self.tokenizer.tokenize(seq2seq_format) if x != "▁"]
+    def get_surfs(self, sentence: Sentence) -> List[str]:
+        surfs: List[str] = []
+        for morpheme in sentence.morphemes:
+            surf: str = morpheme.surf
+            for k, v in self.word_to_token.items():
+                surf = surf.replace(k, v)
+            surf = surf.replace(HALF_SPACE_TOKEN2, HALF_SPACE_TOKEN1)
+            for k, v in RARE_TO_SPECIAL.items():
+                surf = surf.replace(k, v)
+            tokenized_surf: List[str] = [x for x in self.tokenizer.tokenize(surf) if x != "▁"]
+            decoded: str = self.tokenizer.decode(self.tokenizer.convert_tokens_to_ids(tokenized_surf))
+            for token in self.word_to_token.values():
+                decoded = decoded.replace(f"{token} ", token)
+            for token in SPECIAL_TO_RARE:
+                decoded = decoded.replace(f"{token} ", token)
+            surfs.append(decoded.replace(" ", HALF_SPACE_TOKEN1))
+        return surfs
 
-    def sent_to_text(self, sentence: Sentence) -> str:
-        text: str = sentence.text
+    def get_src_tokens(self, sentence: Sentence) -> List[str]:
+        src_text: str = MORPHEME_SPLIT_TOKEN.join(m.surf for m in sentence.morphemes)
         for k, v in self.word_to_token.items():
-            text = text.replace(k, v)
-        text = text.replace(HALF_SPACE_TOKEN2, HALF_SPACE_TOKEN1)
+            src_text = src_text.replace(k, v)
+        src_text = src_text.replace(HALF_SPACE_TOKEN2, HALF_SPACE_TOKEN1)
         for k, v in RARE_TO_SPECIAL.items():
-            text = text.replace(k, v)
+            src_text = src_text.replace(k, v)
+        return [x for x in self.tokenizer.tokenize(src_text) if x != "▁"]
 
-        tokenized: List[str] = [token for token in self.tokenizer.tokenize(text) if token != "▁"]
-        decoded: str = self.tokenizer.decode(self.tokenizer.convert_tokens_to_ids(tokenized))
-        for token in [FULL_SPACE_TOKEN, HALF_SPACE_TOKEN1, HALF_SPACE_TOKEN2, TRIPLE_DOT_TOKEN]:
-            decoded = decoded.replace(f"{token} ", token)
-        for token in SPECIAL_TO_RARE:
-            decoded = decoded.replace(f"{token} ", token)
-        decoded = decoded.replace(" ", HALF_SPACE_TOKEN1)
-        return decoded
-
-    @staticmethod
-    def sent_to_mrph_lines(sentence: Sentence) -> List[List[str]]:
-        outputs: List[List[str]] = []
+    def get_tgt_tokens(self, sentence: Sentence) -> List[str]:
+        seq2seq_format: str = ""
         for morpheme in sentence.morphemes:
             if morpheme.surf == "\u3000":
                 surf: str = FULL_SPACE_TOKEN
@@ -97,13 +92,14 @@ class Seq2SeqFormatter:
                         canon = f"{canon_list[0]}/{canon_list[1]}"
                 else:
                     canon = NO_CANON_TOKEN
-            outputs.append([surf, reading, lemma, canon])
-        return outputs
+            seq2seq_format += f"{SURF_TOKEN}{surf}{READING_TOKEN}{reading}{LEMMA_TOKEN}{lemma}{CANON_TOKEN}{canon}"
+        for k, v in RARE_TO_SPECIAL.items():
+            seq2seq_format = seq2seq_format.replace(k, v)
+        return [x for x in self.tokenizer.tokenize(seq2seq_format) if x != "▁"]
 
     def format_to_sent(self, text: str) -> Sentence:
-        lines: List[str] = text.split(SURF_TOKEN)
         formatted: str = ""
-        for line in lines:
+        for line in text.split(SURF_TOKEN):
             if not line:
                 continue
             try:
