@@ -18,11 +18,7 @@ FeatureType = TypeVar("FeatureType")
 
 
 class BaseDataset(Dataset[FeatureType], Generic[ExampleType, FeatureType], ABC):
-    def __init__(
-        self,
-        tokenizer: PreTrainedTokenizerBase,
-        max_seq_length: int,
-    ) -> None:
+    def __init__(self, tokenizer: PreTrainedTokenizerBase, max_seq_length: int) -> None:
         self.tokenizer: PreTrainedTokenizerBase = tokenizer
         self.max_seq_length: int = max_seq_length
         self.examples: List[ExampleType] = []
