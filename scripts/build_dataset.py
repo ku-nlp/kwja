@@ -27,7 +27,7 @@ from kwja.utils.logging_util import track
 logging.getLogger("rhoknp").setLevel(logging.ERROR)
 logger = logging.getLogger(__name__)
 
-UNSUPPORTED_CONJUGATE_FALLBACK_TABLE = {
+UNSUPPORTED_CONJUGATION_FALLBACK_TABLE = {
     ("ナ形容詞", "ダ列文語基本形"): ("ナ形容詞", "ダ列基本連体形"),
     ("判定詞", "ダ列文語連体形"): ("子音動詞ラ行", "基本形"),  # 950112215-023
     ("文語助動詞", "連体形"): ("子音動詞ラ行", "基本形"),
@@ -260,16 +260,20 @@ def assign_features_and_save(
             continue
 
         morpheme_features = []
+        unsupported_conjugations: Dict[int, Tuple[str, str]] = {}
+        unsupported_pos_subpos: Dict[int, Tuple[str, str]] = {}
         for morpheme in document.morphemes:
             morpheme_features.append(morpheme.features.copy())
             morpheme.features.clear()
-            if conjugate := UNSUPPORTED_CONJUGATE_FALLBACK_TABLE.get((morpheme.conjtype, morpheme.conjform)):
-                conjtype, conjform = conjugate
+            if conjugation := UNSUPPORTED_CONJUGATION_FALLBACK_TABLE.get((morpheme.conjtype, morpheme.conjform)):
+                unsupported_conjugations[morpheme.global_index] = conjugation
+                conjtype, conjform = conjugation
                 morpheme.conjtype = conjtype
                 morpheme.conjtype_id = CONJTYPE_TAGS.index(conjtype)
                 morpheme.conjform = conjform
                 morpheme.conjform_id = CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID[conjtype][conjform]
             if pos_subpos := UNSUPPORTED_POS_SUBPOS_FALLBACK_TABLE.get((morpheme.pos, morpheme.subpos)):
+                unsupported_pos_subpos[morpheme.global_index] = pos_subpos
                 pos, subpos = pos_subpos
                 morpheme.pos = pos
                 morpheme.pos_id = POS_TAG2POS_ID[pos]
@@ -298,9 +302,21 @@ def assign_features_and_save(
             knp_text.split("\n")
         ), f"knp text length mismatch: {document.doc_id}"
 
-        # 初めから付いていた素性の付与
+        # 初めから付いていた素性およびKNPサポート外の活用・品詞の付与
         for morpheme, features in zip(document.morphemes, morpheme_features):
             morpheme.features.update(features)
+            if conjugation := unsupported_conjugations.get(morpheme.global_index):
+                conjtype, conjform = conjugation
+                morpheme.conjtype = conjtype
+                morpheme.conjtype_id = CONJTYPE_TAGS.index(conjtype)
+                morpheme.conjform = conjform
+                morpheme.conjform_id = CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID[conjtype][conjform]
+            if pos_subpos := unsupported_pos_subpos.get(morpheme.global_index):
+                pos, subpos = pos_subpos
+                morpheme.pos = pos
+                morpheme.pos_id = POS_TAG2POS_ID[pos]
+                morpheme.subpos = subpos
+                morpheme.subpos_id = POS_TAG_SUBPOS_TAG2SUBPOS_ID[pos][subpos]
 
         if sid2tagged_sentence is not None:
             set_named_entities(document, sid2tagged_sentence)

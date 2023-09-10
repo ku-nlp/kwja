@@ -4,8 +4,7 @@ from pathlib import Path
 from typing import List
 
 from rhoknp import Document
-from transformers import BatchEncoding, PreTrainedTokenizerFast
-from transformers.utils import PaddingStrategy
+from transformers import PreTrainedTokenizerFast
 
 from kwja.datamodule.datasets.base import BaseDataset
 from kwja.datamodule.examples import Seq2SeqExample
@@ -19,7 +18,7 @@ logger = logging.getLogger(__name__)
 @dataclass(frozen=True)
 class Seq2SeqModuleFeatures:
     example_ids: int
-    src_text: str
+    surfs: List[str]
     input_ids: List[int]
     attention_mask: List[int]
     seq2seq_labels: List[int]
@@ -43,7 +42,8 @@ class Seq2SeqDataset(BaseDataset[Seq2SeqExample, Seq2SeqModuleFeatures]):
         self.formatter: Seq2SeqFormatter = Seq2SeqFormatter(tokenizer)
 
         self.documents: List[Document] = self._load_documents(self.path, ext)
-        self.examples: List[Seq2SeqExample] = self._load_examples(self.documents)
+        is_train: bool = self.path.name == "train"
+        self.examples: List[Seq2SeqExample] = self._load_examples(self.documents, is_train)
 
     @staticmethod
     def _load_documents(document_dir: Path, ext: str = "knp") -> List[Document]:
@@ -56,22 +56,22 @@ class Seq2SeqDataset(BaseDataset[Seq2SeqExample, Seq2SeqModuleFeatures]):
                 logger.warning(f"{path} is not a valid knp file.")
         return documents
 
-    def _load_examples(self, documents: List[Document]) -> List[Seq2SeqExample]:
+    def _load_examples(self, documents: List[Document], is_train: bool) -> List[Seq2SeqExample]:
         examples: List[Seq2SeqExample] = []
         example_id: int = 0
         for document in track(documents, description="Loading examples"):
             for sentence in document.sentences:
-                src_encoding: BatchEncoding = self.tokenizer(
-                    sentence.text,
-                    padding=PaddingStrategy.MAX_LENGTH,
-                    truncation=False,
-                    max_length=self.max_src_length,
-                )
-                if len(src_encoding.input_ids) > self.max_src_length:
+                src_tokens: List[str] = self.formatter.get_src_tokens(sentence)
+                src_input_ids: List[int] = self.tokenizer.convert_tokens_to_ids(src_tokens) + [
+                    self.tokenizer.eos_token_id
+                ]
+                src_attention_mask: List[int] = [1] * len(src_input_ids)
+                src_input_ids += [self.tokenizer.pad_token_id] * (self.max_src_length - len(src_input_ids))
+                src_attention_mask += [0] * (self.max_src_length - len(src_attention_mask))
+                if len(src_input_ids) > self.max_src_length:
                     logger.warning(f"Length of source sentence is too long: {sentence.text}")
                     continue
-                mrph_lines: List[List[str]] = self.formatter.sent_to_mrph_lines(sentence)
-                tgt_tokens: List[str] = self.formatter.tokenize(mrph_lines)
+                tgt_tokens: List[str] = self.formatter.get_tgt_tokens(sentence)
                 tgt_input_ids: List[int] = self.tokenizer.convert_tokens_to_ids(tgt_tokens) + [
                     self.tokenizer.eos_token_id
                 ]
@@ -82,8 +82,9 @@ class Seq2SeqDataset(BaseDataset[Seq2SeqExample, Seq2SeqModuleFeatures]):
                 examples.append(
                     Seq2SeqExample(
                         example_id=example_id,
-                        src_text=self.formatter.sent_to_text(sentence),
-                        src_encoding=src_encoding,
+                        surfs=self.formatter.get_surfs(sentence),
+                        src_input_ids=src_input_ids,
+                        src_attention_mask=src_attention_mask,
                         tgt_input_ids=tgt_input_ids,
                         sid=sentence.sid,
                     )
@@ -93,6 +94,11 @@ class Seq2SeqDataset(BaseDataset[Seq2SeqExample, Seq2SeqModuleFeatures]):
             logger.error(
                 f"No examples to process. Make sure there exist any documents in {self.path} and they are not too long."
             )
+        if not is_train:
+            # sort by length of input sentences for efficient inference in validation and test
+            examples = sorted(examples, key=lambda x: len(x.surfs))
+            for i, example in enumerate(examples):
+                examples[i].example_id = i
         return examples
 
     def encode(self, example: Seq2SeqExample) -> Seq2SeqModuleFeatures:
@@ -104,8 +110,8 @@ class Seq2SeqDataset(BaseDataset[Seq2SeqExample, Seq2SeqModuleFeatures]):
 
         return Seq2SeqModuleFeatures(
             example_ids=example.example_id,
-            src_text=example.src_text,
-            input_ids=example.src_encoding.input_ids,
-            attention_mask=example.src_encoding.attention_mask,
+            surfs=example.surfs,
+            input_ids=example.src_input_ids,
+            attention_mask=example.src_attention_mask,
             seq2seq_labels=seq2seq_labels,
         )

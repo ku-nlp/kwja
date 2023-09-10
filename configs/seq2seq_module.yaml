@@ -10,7 +10,7 @@ defaults:
   - trainer: default
   - _self_
 
-max_src_length: 128
+max_src_length: 256
 max_tgt_length: 1024
 do_predict_after_train: false
 checkpoint_path: ""

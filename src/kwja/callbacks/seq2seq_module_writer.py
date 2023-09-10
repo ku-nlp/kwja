@@ -37,7 +37,7 @@ class Seq2SeqModuleWriter(BaseModuleWriter):
         output_string = ""
         for example_id, seq2seq_predictions in zip(*[v.tolist() for v in prediction.values()]):
             example: Union[Seq2SeqExample, Seq2SeqInferenceExample] = dataset.examples[example_id]
-            if len(example.src_text) == 0:
+            if len(example.surfs) == 0:
                 continue
 
             decoded: str = self.tokenizer.decode(
