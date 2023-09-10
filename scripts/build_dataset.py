@@ -26,6 +26,7 @@ from kwja.utils.logging_util import track
 
 logging.getLogger("rhoknp").setLevel(logging.ERROR)
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 UNSUPPORTED_CONJUGATION_FALLBACK_TABLE = {
     ("ナ形容詞", "ダ列文語基本形"): ("ナ形容詞", "ダ列基本連体形"),
@@ -260,25 +261,43 @@ def assign_features_and_save(
             continue
 
         morpheme_features = []
-        unsupported_conjugations: Dict[int, Tuple[str, str]] = {}
-        unsupported_pos_subpos: Dict[int, Tuple[str, str]] = {}
+        unsupported_conjugations: Dict[int, Tuple[str, int, str, int]] = {}
+        unsupported_pos_subpos: Dict[int, Tuple[str, int, str, int]] = {}
         for morpheme in document.morphemes:
             morpheme_features.append(morpheme.features.copy())
             morpheme.features.clear()
-            if conjugation := UNSUPPORTED_CONJUGATION_FALLBACK_TABLE.get((morpheme.conjtype, morpheme.conjform)):
-                unsupported_conjugations[morpheme.global_index] = conjugation
-                conjtype, conjform = conjugation
+            if fallback_conjugation := UNSUPPORTED_CONJUGATION_FALLBACK_TABLE.get(
+                (morpheme.conjtype, morpheme.conjform)
+            ):
+                unsupported_conjugations[morpheme.global_index] = (
+                    morpheme.conjtype,
+                    morpheme.conjtype_id,
+                    morpheme.conjform,
+                    morpheme.conjform_id,
+                )
+                conjtype, conjform = fallback_conjugation
                 morpheme.conjtype = conjtype
                 morpheme.conjtype_id = CONJTYPE_TAGS.index(conjtype)
                 morpheme.conjform = conjform
                 morpheme.conjform_id = CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID[conjtype][conjform]
-            if pos_subpos := UNSUPPORTED_POS_SUBPOS_FALLBACK_TABLE.get((morpheme.pos, morpheme.subpos)):
-                unsupported_pos_subpos[morpheme.global_index] = pos_subpos
-                pos, subpos = pos_subpos
+                logger.info(
+                    f"{morpheme.sentence.sid}: replaced unsupported conjugation (type: {morpheme.conjtype}, form: {morpheme.conjform}) with ({conjtype}, {conjform})"
+                )
+            if fallback_pos_subpos := UNSUPPORTED_POS_SUBPOS_FALLBACK_TABLE.get((morpheme.pos, morpheme.subpos)):
+                unsupported_pos_subpos[morpheme.global_index] = (
+                    morpheme.pos,
+                    morpheme.pos_id,
+                    morpheme.subpos,
+                    morpheme.subpos_id,
+                )
+                pos, subpos = fallback_pos_subpos
                 morpheme.pos = pos
                 morpheme.pos_id = POS_TAG2POS_ID[pos]
                 morpheme.subpos = subpos
                 morpheme.subpos_id = POS_TAG_SUBPOS_TAG2SUBPOS_ID[pos][subpos]
+                logger.info(
+                    f"{morpheme.sentence.sid}: replaced unsupported pos/subpos (pos: {morpheme.pos}, subpos: {morpheme.subpos}) with ({pos}, {subpos})"
+                )
 
         # 形態素意味情報付与 (引数に渡したdocumentをupdateする)
         _ = jumanpp_augmenter.augment_document(document)
@@ -292,7 +311,7 @@ def assign_features_and_save(
         try:
             # TODO: remove "type: ignore" after upgrading rhoknp to >= 1.5.0
             document = knp.apply_to_document(document, timeout=120)  # type: ignore
-        except (RuntimeError, TimeoutError, UnicodeDecodeError) as e:
+        except Exception as e:
             logger.warning(f"{type(e).__name__}: {e}, {document.doc_id}")
             knp = KNP(options=["-tab", "-dpnd-fast", "-read-feature"])
             Path(f"knp_error_{document.doc_id}.knp").write_text(document.to_knp())
@@ -306,17 +325,15 @@ def assign_features_and_save(
         for morpheme, features in zip(document.morphemes, morpheme_features):
             morpheme.features.update(features)
             if conjugation := unsupported_conjugations.get(morpheme.global_index):
-                conjtype, conjform = conjugation
-                morpheme.conjtype = conjtype
-                morpheme.conjtype_id = CONJTYPE_TAGS.index(conjtype)
-                morpheme.conjform = conjform
-                morpheme.conjform_id = CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID[conjtype][conjform]
+                morpheme.conjtype, morpheme.conjtype_id, morpheme.conjform, morpheme.conjform_id = conjugation
+                logger.info(
+                    f"{morpheme.sentence.sid}: unsupported cojugation (type: {conjugation[0]}, form: {conjugation[2]}) restored"
+                )
             if pos_subpos := unsupported_pos_subpos.get(morpheme.global_index):
-                pos, subpos = pos_subpos
-                morpheme.pos = pos
-                morpheme.pos_id = POS_TAG2POS_ID[pos]
-                morpheme.subpos = subpos
-                morpheme.subpos_id = POS_TAG_SUBPOS_TAG2SUBPOS_ID[pos][subpos]
+                morpheme.pos, morpheme.pos_id, morpheme.subpos, morpheme.subpos_id = pos_subpos
+                logger.info(
+                    f"{morpheme.sentence.sid}: unsupported pos/subpos (pos: {pos_subpos[0]}, subpos: {pos_subpos[2]}) restored"
+                )
 
         if sid2tagged_sentence is not None:
             set_named_entities(document, sid2tagged_sentence)
@@ -522,13 +539,16 @@ def main():
         for doc_id in id_file.read_text().splitlines():
             doc_id2split[doc_id] = split
 
-    chunk_size = len(knp_texts) // args.j + int(len(knp_texts) % args.j > 0)
-    iterable = [
-        (knp_texts[slice(start, start + chunk_size)], output_root, doc_id2split, sid2tagged_sentence)
-        for start in range(0, len(knp_texts), chunk_size)
-    ]
-    with mp.Pool(args.j) as pool:
-        pool.starmap(assign_features_and_save, iterable)
+    if args.j > 0:
+        chunk_size = len(knp_texts) // args.j + int(len(knp_texts) % args.j > 0)
+        iterable = [
+            (knp_texts[slice(start, start + chunk_size)], output_root, doc_id2split, sid2tagged_sentence)
+            for start in range(0, len(knp_texts), chunk_size)
+        ]
+        with mp.Pool(args.j) as pool:
+            pool.starmap(assign_features_and_save, iterable)
+    else:
+        assign_features_and_save(knp_texts, output_root, doc_id2split, sid2tagged_sentence)
 
 
 if __name__ == "__main__":
