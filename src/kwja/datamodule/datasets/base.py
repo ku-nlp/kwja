@@ -2,7 +2,7 @@ import logging
 from abc import ABC
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
-from typing import Dict, Generic, List, Optional, TypeVar, Union
+from typing import Dict, Generic, List, TypeVar, Union
 
 from rhoknp import Document, Sentence
 from torch.utils.data import Dataset
@@ -76,17 +76,12 @@ class FullAnnotatedDocumentLoaderMixin:
                 total=len(paths),
                 description="Loading documents",
             ):
-                if document is not None:
-                    documents.append(document)
+                documents.append(document)
         return documents
 
     @staticmethod
-    def _load_document(path: Path) -> Optional[Document]:
-        try:
-            return Document.from_knp(path.read_text())
-        except AssertionError:
-            logger.warning(f"{path} is not a valid knp file.")
-            return None
+    def _load_document(path: Path) -> Document:
+        return Document.from_knp(path.read_text())
 
     def _postprocess_document(self, document: Document) -> Document:
         return document

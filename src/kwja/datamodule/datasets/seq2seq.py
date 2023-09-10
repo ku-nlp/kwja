@@ -49,11 +49,7 @@ class Seq2SeqDataset(BaseDataset[Seq2SeqExample, Seq2SeqModuleFeatures]):
     def _load_documents(document_dir: Path, ext: str = "knp") -> List[Document]:
         documents = []
         for path in track(sorted(document_dir.glob(f"*.{ext}")), description="Loading documents"):
-            # TODO: fix document files that raise exception
-            try:
-                documents.append(Document.from_knp(path.read_text()))
-            except AssertionError:
-                logger.warning(f"{path} is not a valid knp file.")
+            documents.append(Document.from_knp(path.read_text()))
         return documents
 
     def _load_examples(self, documents: List[Document], is_train: bool) -> List[Seq2SeqExample]:
