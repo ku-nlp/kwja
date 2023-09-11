@@ -59,7 +59,12 @@ def test_len(seq2seq_tokenizer: PreTrainedTokenizerFast):
 def test_getitem(seq2seq_tokenizer: PreTrainedTokenizerFast):
     max_src_length = 128
     max_tgt_length = 512
-    texts = ["今日は晴れだ", "散歩に行こう", "今日は雨だ", "家でゆっくりしよう"]
+    surfs = [
+        ["今日", "は", "晴れ", "だ"],
+        ["散歩", "に", "行こう"],
+        ["今日", "は", "雨", "だ"],
+        ["家", "で", "ゆっくり", "しよう"],
+    ]
     juman_text = dedent(
         """\
         # S-ID:test-0-1
@@ -100,7 +105,7 @@ def test_getitem(seq2seq_tokenizer: PreTrainedTokenizerFast):
     for i in range(len(dataset)):
         feature = dataset[i]
         assert feature.example_ids == i
-        assert feature.src_text == texts[i]
+        assert feature.surfs == surfs[i]
         assert len(feature.input_ids) == max_src_length
         assert len(feature.attention_mask) == max_src_length
         assert len(feature.seq2seq_labels) == 0

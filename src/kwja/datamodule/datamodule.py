@@ -94,7 +94,7 @@ def token_dataclass_data_collator(batch_features: List[Any]) -> Dict[str, Union[
     batch: Dict[str, Union[Tensor, List[str]]] = {}
     for field in fields(first_features):
         features = [getattr(fs, field.name) for fs in batch_features]
-        if field.name in {"src_text"}:
+        if field.name in {"surfs"}:
             batch[field.name] = features
         else:
             value = torch.as_tensor(features)
