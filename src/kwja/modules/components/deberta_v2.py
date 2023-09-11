@@ -171,9 +171,12 @@ class DebertaV2Encoder(nn.Module):
             special_token_mask = torch.zeros_like(relative_pos, dtype=torch.bool).repeat(batch_size, 1, 1)
             special_token_mask[torch.arange(0, batch_size), special_token_indices.t(), :] = True
             special_token_mask[torch.arange(0, batch_size), :, special_token_indices.t()] = True
-            special_token_pos = torch.triu(torch.full_like(relative_pos, 4096), diagonal=1) + torch.tril(
-                torch.full_like(relative_pos, -4096), diagonal=-1
-            )
+            assert self.position_buckets > 0
+            # relative position of -self.position_buckets is not used in pre-training and is used to represent the
+            #  position of special tokens
+            special_token_pos = torch.triu(
+                torch.full_like(relative_pos, -self.position_buckets), diagonal=1
+            ) + torch.tril(torch.full_like(relative_pos, -self.position_buckets), diagonal=-1)
             return torch.where(special_token_mask, special_token_pos, relative_pos)  # (b, query, key)
         assert relative_pos is not None
         return relative_pos
