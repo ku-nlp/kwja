@@ -305,12 +305,11 @@ def assign_features_and_save(
         # Juman++ によって意味情報フィールド設定されなかった場合は、 KNP で segmentation fault が出ないように NIL を付与
         for morpheme in document.morphemes:
             if not morpheme.semantics:
-                morpheme.semantics.is_nil = True
+                morpheme.semantics.nil = True
 
         # 素性付与
         try:
-            # TODO: remove "type: ignore" after upgrading rhoknp to >= 1.5.0
-            document = knp.apply_to_document(document, timeout=120)  # type: ignore
+            document = knp.apply_to_document(document, timeout=120)
         except Exception as e:
             logger.warning(f"{type(e).__name__}: {e}, {document.doc_id}")
             knp = KNP(options=["-tab", "-dpnd-fast", "-read-feature"])
