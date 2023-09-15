@@ -351,7 +351,7 @@ test = ["coverage (>=4.2)", "flake8 (>=3.0.4)", "path.py (>=11.5.0)", "pytest (>
 
 [[package]]
 name = "cohesion-tools"
-version = "0.5.1"
+version = "0.5.2"
 description = ""
 optional = false
 python-versions = "^3.8"
@@ -359,7 +359,7 @@ files = []
 develop = false
 
 [package.dependencies]
-rhoknp = "~1.4.1"
+rhoknp = "~1.5.0"
 
 [package.extras]
 eval = ["pandas (>=2.0.3,<2.1.0)", "pandas (>=2.1,<3.0)"]
@@ -367,8 +367,8 @@ eval = ["pandas (>=2.0.3,<2.1.0)", "pandas (>=2.1,<3.0)"]
 [package.source]
 type = "git"
 url = "https://github.com/nobu-g/cohesion-tools.git"
-reference = "v0.5.1"
-resolved_reference = "8bd7c9d3a8135f00fa2723fe4f4b874aadd5c3ef"
+reference = "v0.5.2"
+resolved_reference = "5920ac30b4c486da2906d3f5c81e9197af1b87ec"
 
 [[package]]
 name = "colorama"
@@ -2174,13 +2174,13 @@ use-chardet-on-py3 = ["chardet (>=3.0.2,<6)"]
 
 [[package]]
 name = "rhoknp"
-version = "1.4.1"
+version = "1.5.0"
 description = "Yet another Python binding for Juman++/KNP/KWJA"
 optional = false
 python-versions = ">=3.7,<4.0"
 files = [
-    {file = "rhoknp-1.4.1-py3-none-any.whl", hash = "sha256:0d23cfdd0c273e54ec6bb7639be0a8fd1a1068cead8a30db4d6f71ae81935283"},
-    {file = "rhoknp-1.4.1.tar.gz", hash = "sha256:46f31d32db410ae126f22dabe8f1bce4ff8dd8b842012d8c1b0cc3167778b6fa"},
+    {file = "rhoknp-1.5.0-py3-none-any.whl", hash = "sha256:9a39bce3d652959f69d2c9ae9d226318c679f30f515b5b10aa1364a880ea9128"},
+    {file = "rhoknp-1.5.0.tar.gz", hash = "sha256:bbc7f9824818a6b8df875d966c8a305ccce7a99188035dd3b485ee2328d41db2"},
 ]
 
 [package.extras]
@@ -3187,4 +3187,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "b68ca82b8a87a2d9c228a8302f5e33d661959d7caea113496dc1f37828a8c022"
+content-hash = "e36331e49438a641637eb303ee5ce7d5513d983208095177c74ef910167aee68"
