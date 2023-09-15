@@ -117,7 +117,11 @@ class WordModule(BaseModule[WordModuleMetric]):
                 self.encoder.resize_token_embeddings(self.encoder.config.vocab_size + len(self.hparams.special_tokens))
 
     def forward(self, batch: Any) -> Dict[str, torch.Tensor]:
-        encoded = self.encoder(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"])  # (b, seq, hid)
+        encoded = self.encoder(
+            input_ids=batch["input_ids"],
+            attention_mask=batch["attention_mask"],
+            special_token_indices=batch["special_token_indices"],
+        )  # (b, seq, hid)
         pooled = pool_subwords(encoded.last_hidden_state, batch["subword_map"], PoolingStrategy.FIRST)  # (b, seq, hid)
 
         dependency_logits = self.dependency_parser(pooled)  # (b, seq, seq, 1)

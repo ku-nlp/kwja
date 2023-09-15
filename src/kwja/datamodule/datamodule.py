@@ -128,6 +128,8 @@ def word_dataclass_data_collator(batch_features: List[Any]) -> Dict[str, Union[T
             value = value[:, word_indices.unsqueeze(1), token_indices]
         elif field.name in {"dependency_mask", "cohesion_mask", "cohesion_labels", "discourse_labels"}:
             value = value[..., word_indices.unsqueeze(1), word_indices]
+        elif field.name == "special_token_indices":
+            pass
         else:
             value = value[:, word_indices]
         batch[field.name] = value

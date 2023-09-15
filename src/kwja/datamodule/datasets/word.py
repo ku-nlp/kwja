@@ -42,6 +42,7 @@ class WordModuleFeatures:
     example_ids: int
     input_ids: List[int]
     attention_mask: List[int]
+    special_token_indices: List[int]
     subword_map: List[List[bool]]
     reading_labels: List[int]
     reading_subword_map: List[List[bool]]
@@ -289,6 +290,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             example_ids=example.example_id,
             input_ids=example.encoding.ids,
             attention_mask=example.encoding.attention_mask,
+            special_token_indices=example.special_token_indexer.token_level_indices,
             subword_map=self._generate_subword_map(example.encoding.word_ids, example.special_token_indexer),
             reading_labels=reading_labels,
             reading_subword_map=self._generate_subword_map(

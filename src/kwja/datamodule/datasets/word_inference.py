@@ -173,6 +173,7 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
             example_ids=example.example_id,
             input_ids=example.encoding.ids,
             attention_mask=example.encoding.attention_mask,
+            special_token_indices=example.special_token_indexer.token_level_indices,
             subword_map=self._generate_subword_map(example.encoding.word_ids, example.special_token_indexer),
             reading_labels=[],
             reading_subword_map=self._generate_subword_map(
