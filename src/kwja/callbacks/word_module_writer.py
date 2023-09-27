@@ -122,7 +122,7 @@ class WordModuleWriter(BaseModuleWriter):
             orig_doc_id = to_orig_doc_id(document.doc_id)
             # 解析済みの文とマージ
             sentences: List[Sentence] = [
-                self.doc_id_sid2predicted_sentence[orig_doc_id].get(s.sid) or s for s in predicted_document.sentences
+                self.doc_id_sid2predicted_sentence[orig_doc_id].get(s.sid, s) for s in predicted_document.sentences
             ]
             predicted_document = Document.from_sentences(sentences)
             predicted_document.doc_id = document.doc_id
