@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ```shell
   kwja --tasks word --text <(echo "外国人参政権" | jumanpp) --input-format jumanpp
   ```
+- Analyze `デ`, `ト`, and `時間` cases in addition to `ガ`, `ヲ`, `ニ`, and `ガ２` cases in predicate-argument structure analysis.
 
 ### Changed
 - Merge senter module into char module
