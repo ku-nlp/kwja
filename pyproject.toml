@@ -46,7 +46,7 @@ exclude = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = ">=3.8,<3.12"
 torch = ">=1.11,!=2.0.1,!=2.1.0"  # https://github.com/pytorch/pytorch/issues/100974
 transformers = { version = "~4.32.1", extras = ["sentencepiece"] }
 tokenizers = "^0.13.2"
