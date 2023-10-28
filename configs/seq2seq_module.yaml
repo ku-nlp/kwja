@@ -1,6 +1,6 @@
 defaults:
   - base
-  - callbacks: [early_stopping, model_checkpoint, model_summary, seq2seq_module_writer, progress_bar, lr_monitor]
+  - callbacks: [seq2seq_module_writer, early_stopping, lr_monitor, model_checkpoint, model_summary, progress_bar]
   - datamodule: seq2seq
   - logger: wandb
   - encoder: seq2seq_mt5_large
@@ -16,12 +16,9 @@ do_predict_after_train: false
 checkpoint_path: ""
 
 # For decoding settings
-use_forced_surf_decoding: true
+use_forced_decoding: true
 decoding:
   max_length: ${max_tgt_length}
-  min_length: 1
-  return_dict_in_generate: True
-  output_scores: True
   num_beams: 3
 
 # set monitor and mode for early_stopping and model_checkpoint

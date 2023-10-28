@@ -15,13 +15,6 @@ IGNORE_INDEX = -100
 MASKED = -1024.0
 RESOURCE_PATH = resource_files(kwja) / "resource"
 
-# ---------- senter module ----------
-SENT_SEGMENTATION_TAGS = ("B", "I")
-
-# ---------- seq2seq module----------
-NEW_LINE_TOKEN: str = "<extra_id_0>"  # "<br>"
-FULL_SPACE_TOKEN: str = "<extra_id_1>"  # "<full_space>"
-NO_CANON_TOKEN: str = "<extra_id_2>"  # "<no_canon>"
 
 # ---------- word (inference) dataset ----------
 SPLIT_INTO_WORDS_MODEL_NAMES = [
@@ -39,6 +32,10 @@ TYPO_CORR_OP_TAG2TOKEN = {
 }
 TOKEN2TYPO_CORR_OP_TAG: Dict[str, str] = {v: k for k, v in TYPO_CORR_OP_TAG2TOKEN.items()}
 DUMMY_TOKEN = "<dummy>"
+
+
+# ---------- char module|sentence segmentation ----------
+SENT_SEGMENTATION_TAGS = ("B", "I")
 
 
 # ---------- char module|word segmentation ----------
@@ -212,6 +209,45 @@ TRANSLATION_TABLE: Dict[int, Optional[int]] = str.maketrans(
 )
 
 
+# ---------- seq2seq module----------
+# tokens to separate surface, reading, lemma, and canonical form
+SURF_TOKEN: str = "<extra_id_0>"
+READING_TOKEN: str = "<extra_id_1>"
+LEMMA_TOKEN: str = "<extra_id_2>"
+CANON_TOKEN: str = "<extra_id_3>"
+# tokens to represent full space, half space, no canonical form, and triple dots
+NO_CANON_TOKEN: str = "<extra_id_4>"
+FULL_SPACE_TOKEN: str = "<extra_id_5>"
+HALF_SPACE_TOKEN1: str = "<extra_id_6>"
+HALF_SPACE_TOKEN2: str = "<extra_id_7>"
+TRIPLE_DOT_TOKEN: str = "<extra_id_8>"
+# token to split input text into morphemes
+MORPHEME_SPLIT_TOKEN: str = "<extra_id_9>"
+# tokens for unk tokens
+RARE_TO_SPECIAL: Dict[str, str] = {
+    "ゔ": "<extra_id_10>",
+    "榕": "<extra_id_11>",
+    "謄": "<extra_id_12>",
+    "丿": "<extra_id_13>",
+    "孜": "<extra_id_14>",
+    "腑": "<extra_id_15>",
+    "庖": "<extra_id_16>",
+    "┘": "<extra_id_17>",
+    "秧": "<extra_id_18>",
+    "褪": "<extra_id_19>",
+    "疥": "<extra_id_20>",
+    "鮪": "<extra_id_21>",
+    "髑髏": "<extra_id_22>",
+    "侭": "<extra_id_23>",
+    "蒟蒻": "<extra_id_24>",
+    "╹": "<extra_id_25>",
+    "厂": "<extra_id_26>",
+    "Ӧ": "<extra_id_27>",
+    "溢": "<extra_id_28>",
+}
+SPECIAL_TO_RARE: Dict[str, str] = {v: k for k, v in RARE_TO_SPECIAL.items()}
+
+
 # ---------- word module ----------
 class WordTask(Enum):
     READING_PREDICTION = "reading_prediction"
@@ -221,7 +257,7 @@ class WordTask(Enum):
     BASE_PHRASE_FEATURE_TAGGING = "base_phrase_feature_tagging"
     DEPENDENCY_PARSING = "dependency_parsing"
     COHESION_ANALYSIS = "cohesion_analysis"
-    DISCOURSE_PARSING = "discourse_parsing"
+    DISCOURSE_RELATION_ANALYSIS = "discourse_relation_analysis"
 
 
 class CohesionTask(Enum):
@@ -1083,7 +1119,7 @@ SUB_BASE_PHRASE_FEATURES = (  # メンテナンスしない基本句素性
     "時間",
     "節-区切:補文",
     "節-区切:連体修飾",
-    # cf. https://github.com/ ku-nlp/KWDLC/blob/master/doc/clause_feature_manual.pdf
+    # cf. https://github.com/ku-nlp/KWDLC/blob/master/doc/clause_feature_manual.pdf
     "節-機能-原因・理由",
     "節-機能疑-原因・理由",
     "節-前向き機能-原因・理由",
@@ -1146,7 +1182,7 @@ IGNORE_VALUE_FEATURE_PAT = re.compile(r"節-(前向き)?機能疑?")
 DEPENDENCY_TYPES: Tuple[DepType, ...] = tuple(DepType)
 
 
-# ---------- word module|discourse parsing ----------
+# ---------- word module|discourse relation analysis ----------
 DISCOURSE_RELATION_MAP = {
     # Labels annotated by experts.
     "その他根拠(逆方向)": "根拠",

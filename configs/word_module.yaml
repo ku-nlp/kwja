@@ -1,6 +1,6 @@
 defaults:
   - base
-  - callbacks: [early_stopping, model_checkpoint, model_summary, word_module_writer, progress_bar, lr_monitor]
+  - callbacks: [word_module_writer, early_stopping, lr_monitor, model_checkpoint, model_summary, progress_bar]
   - datamodule: word
   - logger: wandb
   - encoder: word_deberta_large
@@ -22,20 +22,20 @@ training_tasks:
   - base_phrase_feature_tagging
   - dependency_parsing
   - cohesion_analysis
-  - discourse_parsing
+  - discourse_relation_analysis
 
 # for dependency parser
 dependency_topk: 4
 
-# for discourse parser
-discourse_parsing_threshold: 0.0
+# for discourse relation analyzer
+discourse_threshold: 0.0
 
 # for cohesion analysis
 # pas_analysis, bridging_reference_resolution, and/or coreference_resolution
 cohesion_tasks: [pas_analysis, bridging_reference_resolution, coreference_resolution]
 exophora_referents: ["著者", "読者", "不特定:人", "不特定:物"]
 restrict_cohesion_target: true
-pas_cases: ["ガ", "ヲ", "ニ", "ガ２"]
+pas_cases: ["ガ", "ヲ", "ニ", "ガ２", "デ", "ト", "時間"]
 br_cases: ["ノ"]
 
 # set monitor and mode for early_stopping and model_checkpoint
@@ -49,7 +49,7 @@ aggregating_metrics:
   - macro_base_phrase_feature_tagging_f1
   - base_phrase_LAS_f1
   - cohesion_analysis_f1
-  - discourse_parsing_f1
+  - discourse_relation_analysis_f1
 
 # hyper-parameters to be tuned
 lr: 1e-4

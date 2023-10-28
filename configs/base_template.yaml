@@ -34,8 +34,8 @@ hydra:
       TOKENIZERS_PARALLELISM: false
     config:
       override_dirname:
-        kv_sep: '-'
-        item_sep: ','
+        kv_sep: '='
+        item_sep: '-'
         exclude_keys:
           - seed
           - name

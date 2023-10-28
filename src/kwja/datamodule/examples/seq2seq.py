@@ -1,20 +1,21 @@
 from dataclasses import dataclass
+from typing import List
 
-from transformers import BatchEncoding
 
-
-@dataclass(frozen=True)
+@dataclass
 class Seq2SeqExample:
     example_id: int
-    src_text: str
-    src_encoding: BatchEncoding
-    tgt_encoding: BatchEncoding
+    surfs: List[str]
+    src_input_ids: List[int]
+    src_attention_mask: List[int]
+    tgt_input_ids: List[int]
     sid: str
 
 
 @dataclass(frozen=True)
 class Seq2SeqInferenceExample:
     example_id: int
-    src_text: str
-    src_encoding: BatchEncoding
+    surfs: List[str]
+    src_input_ids: List[int]
+    src_attention_mask: List[int]
     sid: str

@@ -144,16 +144,18 @@ poetry run pytest
 
 ## Releasing a new version
 
-- Checkout `main` branch
+- Checkout the `dev` branch
 - Make sure the new version is supported in `_get_model_version` function in `src/kwja/cli/utils.py`
 - Update `CHANGELOG.md`
 - Edit `pyproject.toml` to update `tool.poetry.version`
-- Update dependencies
+- Update dependencies (edit `pyproject.toml` if necessary)
 
     ```shell
     poetry update
     ```
-
+- Push changes to the `dev` branch and create a pull request to the `main` branch
+- If CI is passed, merge the pull request
+- Checkout the `main` branch and pull changes
 - Add a new tag and push changes
 
     ```shell
@@ -161,9 +163,17 @@ poetry run pytest
     git push --follow-tags
     ```
 
-- If CI is passed, publish to PyPI
+- Publish to PyPI
 
     ```shell
     poetry build
     poetry publish [--username $PYPI_USERNAME] [--password $PYPI_PASSWORD]
+    ```
+
+- Rebase the `dev` branch to the `main` branch
+
+    ```shell
+    git checkout dev
+    git rebase main
+    git push
     ```

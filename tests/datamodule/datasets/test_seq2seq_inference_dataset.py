@@ -2,71 +2,110 @@ import tempfile
 from pathlib import Path
 from textwrap import dedent
 
-from transformers import PreTrainedTokenizerBase
+from transformers import PreTrainedTokenizerFast
 
 from kwja.datamodule.datasets import Seq2SeqInferenceDataset
 
 
-def test_init(seq2seq_tokenizer: PreTrainedTokenizerBase):
-    _ = Seq2SeqInferenceDataset(seq2seq_tokenizer, max_src_length=128, max_tgt_length=512)
+def test_init(seq2seq_tokenizer: PreTrainedTokenizerFast):
+    max_src_length = 128
+    max_tgt_length = 512
+    _ = Seq2SeqInferenceDataset(seq2seq_tokenizer, max_src_length, max_tgt_length)
 
 
-def test_len(seq2seq_tokenizer: PreTrainedTokenizerBase):
-    senter_text = dedent(
+def test_len(seq2seq_tokenizer: PreTrainedTokenizerFast):
+    max_src_length = 128
+    max_tgt_length = 512
+    juman_text = dedent(
         """\
-        # S-ID:test-0-0
-        今日は晴れだ
         # S-ID:test-0-1
-        散歩に行こう
-        # S-ID:test-1-0
-        今日は雨だ
+        今日 _ 今日 未定義語 15 その他 1 * 0 * 0
+        は _ は 未定義語 15 その他 1 * 0 * 0
+        晴れ _ 晴れ 未定義語 15 その他 1 * 0 * 0
+        だ _ だ 未定義語 15 その他 1 * 0 * 0
+        EOS
+        # S-ID:test-0-2
+        散歩 _ 散歩 未定義語 15 その他 1 * 0 * 0
+        に _ に 未定義語 15 その他 1 * 0 * 0
+        行こう _ 行こう 未定義語 15 その他 1 * 0 * 0
+        EOS
         # S-ID:test-1-1
-        家でゆっくりしよう
+        今日 _ 今日 未定義語 15 その他 1 * 0 * 0
+        は _ は 未定義語 15 その他 1 * 0 * 0
+        雨 _ 雨 未定義語 15 その他 1 * 0 * 0
+        だ _ だ 未定義語 15 その他 1 * 0 * 0
+        EOS
+        # S-ID:test-1-2
+        家 _ 家 未定義語 15 その他 1 * 0 * 0
+        で _ で 未定義語 15 その他 1 * 0 * 0
+        ゆっくり _ ゆっくり 未定義語 15 その他 1 * 0 * 0
+        しよう _ しよう 未定義語 15 その他 1 * 0 * 0
+        EOS
         """
     )
-    senter_file = tempfile.NamedTemporaryFile("wt")
-    senter_file.write(senter_text)
-    senter_file.seek(0)
+    juman_file = tempfile.NamedTemporaryFile("wt")
+    juman_file.write(juman_text)
+    juman_file.seek(0)
 
     dataset = Seq2SeqInferenceDataset(
         seq2seq_tokenizer,
-        max_src_length=128,
-        max_tgt_length=512,
-        senter_file=Path(senter_file.name),
+        max_src_length,
+        max_tgt_length,
+        juman_file=Path(juman_file.name),
     )
     assert len(dataset) == 4
 
 
-def test_getitem(seq2seq_tokenizer: PreTrainedTokenizerBase):
-    max_src_length = 64
+def test_getitem(seq2seq_tokenizer: PreTrainedTokenizerFast):
+    max_src_length = 128
     max_tgt_length = 512
-    texts = ["今日は晴れだ", "散歩に行こう", "今日は雨だ", "家でゆっくりしよう"]
-    senter_text = dedent(
+    surfs = [
+        ["今日", "は", "晴れ", "だ"],
+        ["散歩", "に", "行こう"],
+        ["今日", "は", "雨", "だ"],
+        ["家", "で", "ゆっくり", "しよう"],
+    ]
+    juman_text = dedent(
         """\
-        # S-ID:test-0-0
-        今日は晴れだ
         # S-ID:test-0-1
-        散歩に行こう
-        # S-ID:test-1-0
-        今日は雨だ
+        今日 _ 今日 未定義語 15 その他 1 * 0 * 0
+        は _ は 未定義語 15 その他 1 * 0 * 0
+        晴れ _ 晴れ 未定義語 15 その他 1 * 0 * 0
+        だ _ だ 未定義語 15 その他 1 * 0 * 0
+        EOS
+        # S-ID:test-0-2
+        散歩 _ 散歩 未定義語 15 その他 1 * 0 * 0
+        に _ に 未定義語 15 その他 1 * 0 * 0
+        行こう _ 行こう 未定義語 15 その他 1 * 0 * 0
+        EOS
         # S-ID:test-1-1
-        家でゆっくりしよう
+        今日 _ 今日 未定義語 15 その他 1 * 0 * 0
+        は _ は 未定義語 15 その他 1 * 0 * 0
+        雨 _ 雨 未定義語 15 その他 1 * 0 * 0
+        だ _ だ 未定義語 15 その他 1 * 0 * 0
+        EOS
+        # S-ID:test-1-2
+        家 _ 家 未定義語 15 その他 1 * 0 * 0
+        で _ で 未定義語 15 その他 1 * 0 * 0
+        ゆっくり _ ゆっくり 未定義語 15 その他 1 * 0 * 0
+        しよう _ しよう 未定義語 15 その他 1 * 0 * 0
+        EOS
         """
     )
-    senter_file = tempfile.NamedTemporaryFile("wt")
-    senter_file.write(senter_text)
-    senter_file.seek(0)
+    juman_file = tempfile.NamedTemporaryFile("wt")
+    juman_file.write(juman_text)
+    juman_file.seek(0)
 
     dataset = Seq2SeqInferenceDataset(
         seq2seq_tokenizer,
-        max_src_length=max_src_length,
-        max_tgt_length=max_tgt_length,
-        senter_file=Path(senter_file.name),
+        max_src_length,
+        max_tgt_length,
+        juman_file=Path(juman_file.name),
     )
     for i in range(len(dataset)):
         feature = dataset[i]
         assert feature.example_ids == i
-        assert feature.src_text == texts[i]
+        assert feature.surfs == surfs[i]
         assert len(feature.input_ids) == max_src_length
         assert len(feature.attention_mask) == max_src_length
         assert len(feature.seq2seq_labels) == 0

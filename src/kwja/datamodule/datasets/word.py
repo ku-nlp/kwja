@@ -3,16 +3,18 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Literal, Optional, Union
 
+from cohesion_tools.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
+from cohesion_tools.extractors.base import BaseExtractor
 from omegaconf import ListConfig
 from rhoknp import Document, Sentence
-from rhoknp.cohesion import ExophoraReferent
+from rhoknp.cohesion import ExophoraReferent, ExophoraReferentType
 from tokenizers import Encoding
 from transformers import PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
 from kwja.datamodule.datasets.base import BaseDataset, FullAnnotatedDocumentLoaderMixin
 from kwja.datamodule.examples import SpecialTokenIndexer, WordExample
-from kwja.utils.cohesion_analysis import BridgingUtils, CohesionBasePhrase, CohesionUtils, CoreferenceUtils, PasUtils
+from kwja.utils.cohesion_analysis import CohesionBasePhrase
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TAGS,
@@ -31,7 +33,6 @@ from kwja.utils.constants import (
 from kwja.utils.kanjidic import KanjiDic
 from kwja.utils.logging_util import track
 from kwja.utils.reading_prediction import ReadingAligner, get_reading2reading_id
-from kwja.utils.sub_document import extract_target_sentences
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,7 @@ class WordModuleFeatures:
     example_ids: int
     input_ids: List[int]
     attention_mask: List[int]
+    special_token_indices: List[int]
     subword_map: List[List[bool]]
     reading_labels: List[int]
     reading_subword_map: List[List[bool]]
@@ -74,7 +76,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         br_cases: ListConfig,
         special_tokens: ListConfig,
     ) -> None:
-        super(WordDataset, self).__init__(tokenizer, max_seq_length)
+        super().__init__(tokenizer, max_seq_length)
         self.path = Path(path)
         if tokenizer.name_or_path in SPLIT_INTO_WORDS_MODEL_NAMES:
             self.tokenizer_input_format: Literal["words", "text"] = "words"
@@ -92,13 +94,26 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         )
 
         # ---------- cohesion analysis ----------
-        self.cohesion_tasks: List[CohesionTask] = [CohesionTask(ct) for ct in cohesion_tasks]
-        self.exophora_referents = [ExophoraReferent(er) for er in exophora_referents]
-        self.pas_cases: List[str] = list(pas_cases)
-        self.br_cases: List[str] = list(br_cases)
-        self.cohesion_task2utils: Dict[CohesionTask, CohesionUtils] = {
-            ct: self._build_cohesion_utils(ct, restrict_cohesion_target) for ct in self.cohesion_tasks
+        self.cohesion_tasks: List[CohesionTask] = [task for task in CohesionTask if task.value in cohesion_tasks]
+        self.exophora_referent_types: List[ExophoraReferentType] = [
+            ExophoraReferent(er).type for er in exophora_referents
+        ]
+        self.cohesion_task2extractor: Dict[CohesionTask, BaseExtractor] = {
+            CohesionTask.PAS_ANALYSIS: PasExtractor(
+                list(pas_cases),
+                self.exophora_referent_types,
+                verbal_predicate=True,
+                nominal_predicate=True,
+            ),
+            CohesionTask.BRIDGING_REFERENCE_RESOLUTION: BridgingExtractor(list(br_cases), self.exophora_referent_types),
+            CohesionTask.COREFERENCE_RESOLUTION: CoreferenceExtractor(self.exophora_referent_types),
         }
+        self.cohesion_task2rels: Dict[CohesionTask, List[str]] = {
+            CohesionTask.PAS_ANALYSIS: list(pas_cases),
+            CohesionTask.BRIDGING_REFERENCE_RESOLUTION: list(br_cases),
+            CohesionTask.COREFERENCE_RESOLUTION: ["="],
+        }
+        self.restrict_cohesion_target: bool = restrict_cohesion_target
 
         # ---------- dependency parsing & cohesion analysis ----------
         self.special_tokens: List[str] = list(special_tokens)
@@ -111,6 +126,11 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         ).encodings[0]
 
         self.examples: List[WordExample] = self._load_examples(self.doc_id2document)
+        is_training = self.path.parts[-1] == "train" or (
+            self.path.parts[-2] == "kyoto_ed" and self.path.parts[-1] == "all"
+        )
+        if is_training is True:
+            del self.doc_id2document  # for saving memory
 
     def _get_tokenized_len(self, document_or_sentence: Union[Document, Sentence]) -> int:
         tokenizer_input: Union[List[str], str] = [m.text for m in document_or_sentence.morphemes]
@@ -145,7 +165,13 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             special_token_indexer = SpecialTokenIndexer(self.special_tokens, len(encoding.ids), len(document.morphemes))
 
             example = WordExample(example_id, merged_encoding, special_token_indexer)
-            example.load_document(document, self.reading_aligner, self.cohesion_task2utils)
+            example.load_document(
+                document,
+                self.reading_aligner,
+                self.cohesion_task2extractor,
+                self.cohesion_task2rels,
+                self.restrict_cohesion_target,
+            )
             if discourse_document := self._find_discourse_document(document):
                 example.load_discourse_document(discourse_document)
 
@@ -160,12 +186,10 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
 
     def encode(self, example: WordExample) -> WordModuleFeatures:
         assert example.doc_id is not None, "doc_id isn't set"
-        document = self.doc_id2document[example.doc_id]
 
         target_mask = [False] * self.max_seq_length
-        for sentence in extract_target_sentences(document):
-            for morpheme in sentence.morphemes:
-                target_mask[morpheme.global_index] = True
+        for global_index in example.analysis_target_morpheme_indices:
+            target_mask[global_index] = True
 
         # ---------- reading prediction ----------
         reading_labels = [IGNORE_INDEX] * self.max_seq_length
@@ -226,8 +250,8 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             dependency_labels[morpheme_global_index] = root_index if dependency == -1 else dependency
         dependency_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
         for morpheme_global_index, head_candidates in example.morpheme_global_index2head_candidates.items():
-            for head_candidate in head_candidates:
-                dependency_mask[morpheme_global_index][head_candidate.global_index] = True
+            for head_candidate_global_index in head_candidates:
+                dependency_mask[morpheme_global_index][head_candidate_global_index] = True
             dependency_mask[morpheme_global_index][root_index] = True
         dependency_type_labels: List[int] = [IGNORE_INDEX] * self.max_seq_length
         for morpheme_global_index, dependency_type in example.morpheme_global_index2dependency_type.items():
@@ -236,9 +260,10 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         # ---------- cohesion analysis ----------
         cohesion_labels: List[List[List[int]]] = []  # (rel, seq, seq)
         cohesion_mask: List[List[List[bool]]] = []  # (rel, seq, seq)
-        for cohesion_task, cohesion_utils in self.cohesion_task2utils.items():
+        for cohesion_task in self.cohesion_tasks:
+            cohesion_rels = self.cohesion_task2rels[cohesion_task]
             cohesion_base_phrases = example.cohesion_task2base_phrases[cohesion_task]
-            for rel in cohesion_utils.rels:
+            for rel in cohesion_rels:
                 rel_labels = self._convert_cohesion_base_phrases_into_rel_labels(
                     cohesion_base_phrases, rel, example.special_token_indexer
                 )
@@ -246,9 +271,9 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             rel_mask = self._convert_cohesion_base_phrases_into_rel_mask(
                 cohesion_base_phrases, example.special_token_indexer
             )
-            cohesion_mask.extend([rel_mask] * len(cohesion_utils.rels))
+            cohesion_mask.extend([rel_mask] * len(cohesion_rels))
 
-        # ---------- discourse parsing ----------
+        # ---------- discourse relation analysis ----------
         discourse_labels = [[IGNORE_INDEX] * self.max_seq_length for _ in range(self.max_seq_length)]
         if self.skip_cohesion_ne_discourse is False:
             for (
@@ -265,6 +290,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             example_ids=example.example_id,
             input_ids=example.encoding.ids,
             attention_mask=example.encoding.attention_mask,
+            special_token_indices=example.special_token_indexer.token_level_indices,
             subword_map=self._generate_subword_map(example.encoding.word_ids, example.special_token_indexer),
             reading_labels=reading_labels,
             reading_subword_map=self._generate_subword_map(
@@ -315,16 +341,6 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
                 logger.warning(f"{discourse_path} is not a valid KNP file")
         return None
 
-    def _build_cohesion_utils(self, cohesion_task: CohesionTask, restrict_cohesion_target: bool) -> CohesionUtils:
-        if cohesion_task == CohesionTask.PAS_ANALYSIS:
-            return PasUtils(self.pas_cases, "all", self.exophora_referents, restrict_cohesion_target)
-        elif cohesion_task == CohesionTask.BRIDGING_REFERENCE_RESOLUTION:
-            return BridgingUtils(self.br_cases, self.exophora_referents, restrict_cohesion_target)
-        elif cohesion_task == CohesionTask.COREFERENCE_RESOLUTION:
-            return CoreferenceUtils(self.exophora_referents, restrict_cohesion_target)
-        else:
-            raise ValueError("invalid cohesion task")
-
     def _convert_cohesion_base_phrases_into_rel_labels(
         self,
         cohesion_base_phrases: List[CohesionBasePhrase],
@@ -343,8 +359,8 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
                     target_morpheme_global_index = special_token_indexer.get_morpheme_level_index(tag)
                 else:
                     # int(tag) is the base phrase global index of an endophora argument
-                    target_morpheme_global_index = cohesion_base_phrases[int(tag)].head.global_index
-                rel_labels[cohesion_base_phrase.head.global_index][target_morpheme_global_index] = 1
+                    target_morpheme_global_index = cohesion_base_phrases[int(tag)].head_morpheme_global_index
+                rel_labels[cohesion_base_phrase.head_morpheme_global_index][target_morpheme_global_index] = 1
         return rel_labels
 
     def _convert_cohesion_base_phrases_into_rel_mask(
@@ -357,9 +373,9 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             if cohesion_base_phrase.is_target is False:
                 continue
             assert cohesion_base_phrase.antecedent_candidates is not None, "antecedent_candidates isn't set"
-            for morpheme in cohesion_base_phrase.morphemes:
+            for morpheme_global_index in cohesion_base_phrase.morpheme_global_indices:
                 for antecedent_candidate in cohesion_base_phrase.antecedent_candidates:
-                    rel_mask[morpheme.global_index][antecedent_candidate.head.global_index] = True
-                for morpheme_global_index in special_token_indexer.get_morpheme_level_indices(only_cohesion=True):
-                    rel_mask[morpheme.global_index][morpheme_global_index] = True
+                    rel_mask[morpheme_global_index][antecedent_candidate.head_morpheme_global_index] = True
+                for special_token_global_index in special_token_indexer.get_morpheme_level_indices(only_cohesion=True):
+                    rel_mask[morpheme_global_index][special_token_global_index] = True
         return rel_mask

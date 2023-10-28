@@ -26,7 +26,7 @@ def test_init() -> None:
     _ = Seq2SeqModule(cfg)
 
 
-def test_steps(fixture_data_dir: Path) -> None:
+def test_steps(data_dir: Path) -> None:
     trainer: pl.Trainer = hydra.utils.instantiate(
         cfg.trainer,
         logger=False,
@@ -35,7 +35,7 @@ def test_steps(fixture_data_dir: Path) -> None:
         accelerator="cpu",
     )
 
-    path = fixture_data_dir / "datasets" / "word_files"
+    path = data_dir / "datasets" / "word_files"
     seq2seq_tokenizer = hydra.utils.instantiate(cfg.datamodule.train.kyoto.tokenizer)
     dataset = Seq2SeqDataset(str(path), seq2seq_tokenizer, cfg.max_src_length, cfg.max_tgt_length)
     data_loader = DataLoader(dataset, batch_size=len(dataset), collate_fn=token_dataclass_data_collator)

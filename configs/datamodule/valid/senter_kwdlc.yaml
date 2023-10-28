@@ -1,5 +1,0 @@
-defaults:
-  - /datamodule/base/senter@kwdlc
-
-kwdlc:
-  path: ${oc.env:DATA_DIR}/kwdlc/valid

@@ -2,9 +2,11 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Literal, Optional, Union
 
+from cohesion_tools.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
+from cohesion_tools.extractors.base import BaseExtractor
 from omegaconf import ListConfig
 from rhoknp import Document, Sentence
-from rhoknp.cohesion import ExophoraReferent
+from rhoknp.cohesion import ExophoraReferent, ExophoraReferentType
 from rhoknp.utils.reader import chunk_by_document
 from tokenizers import Encoding
 from transformers import PreTrainedTokenizerBase
@@ -13,7 +15,6 @@ from transformers.utils import PaddingStrategy
 from kwja.datamodule.datasets.base import BaseDataset, FullAnnotatedDocumentLoaderMixin
 from kwja.datamodule.datasets.word import WordModuleFeatures
 from kwja.datamodule.examples import SpecialTokenIndexer, WordInferenceExample
-from kwja.utils.cohesion_analysis import BridgingUtils, CohesionUtils, CoreferenceUtils, PasUtils
 from kwja.utils.constants import SPLIT_INTO_WORDS_MODEL_NAMES, CohesionTask
 from kwja.utils.logging_util import track
 from kwja.utils.sub_document import extract_target_sentences
@@ -34,17 +35,13 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
         br_cases: ListConfig,
         special_tokens: ListConfig,
         juman_file: Optional[Path] = None,
-        knp_file: Optional[Path] = None,
     ) -> None:
-        super(WordInferenceDataset, self).__init__(tokenizer, max_seq_length)
+        super().__init__(tokenizer, max_seq_length)
         if juman_file is not None:
             with juman_file.open() as f:
                 documents = [
                     Document.from_jumanpp(c) for c in track(chunk_by_document(f), description="Loading documents")
                 ]
-        elif knp_file is not None:
-            with knp_file.open() as f:
-                documents = [Document.from_knp(c) for c in track(chunk_by_document(f), description="Loading documents")]
         else:
             # do_predict_after_train
             documents = []
@@ -56,13 +53,26 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
 
         super(BaseDataset, self).__init__(documents, tokenizer, max_seq_length, document_split_stride)
         # ---------- cohesion analysis ----------
-        self.cohesion_tasks = [CohesionTask(ct) for ct in cohesion_tasks]
-        self.exophora_referents = [ExophoraReferent(er) for er in exophora_referents]
-        self.pas_cases: List[str] = list(pas_cases)
-        self.br_cases: List[str] = list(br_cases)
-        self.cohesion_task2utils: Dict[CohesionTask, CohesionUtils] = {
-            ct: self._build_cohesion_utils(ct, restrict_cohesion_target) for ct in self.cohesion_tasks
+        self.cohesion_tasks: List[CohesionTask] = [task for task in CohesionTask if task.value in cohesion_tasks]
+        self.exophora_referent_types: List[ExophoraReferentType] = [
+            ExophoraReferent(er).type for er in exophora_referents
+        ]
+        self.cohesion_task2extractor: Dict[CohesionTask, BaseExtractor] = {
+            CohesionTask.PAS_ANALYSIS: PasExtractor(
+                list(pas_cases),
+                self.exophora_referent_types,
+                verbal_predicate=True,
+                nominal_predicate=True,
+            ),
+            CohesionTask.BRIDGING_REFERENCE_RESOLUTION: BridgingExtractor(list(br_cases), self.exophora_referent_types),
+            CohesionTask.COREFERENCE_RESOLUTION: CoreferenceExtractor(self.exophora_referent_types),
         }
+        self.cohesion_task2rels: Dict[CohesionTask, List[str]] = {
+            CohesionTask.PAS_ANALYSIS: list(pas_cases),
+            CohesionTask.BRIDGING_REFERENCE_RESOLUTION: list(br_cases),
+            CohesionTask.COREFERENCE_RESOLUTION: ["="],
+        }
+        self.restrict_cohesion_target: bool = restrict_cohesion_target
 
         # ---------- dependency parsing & cohesion analysis ----------
         self.special_tokens: List[str] = list(special_tokens)
@@ -108,12 +118,17 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
 
             special_token_indexer = SpecialTokenIndexer(self.special_tokens, len(encoding.ids), len(document.morphemes))
 
+            analysis_target_morpheme_indices = []
+            for sentence in extract_target_sentences(document):
+                analysis_target_morpheme_indices += [m.global_index for m in sentence.morphemes]
+
             examples.append(
                 WordInferenceExample(
                     example_id=example_id,
                     encoding=merged_encoding,
                     special_token_indexer=special_token_indexer,
                     doc_id=document.doc_id,
+                    analysis_target_morpheme_indices=analysis_target_morpheme_indices,
                 )
             )
             example_id += 1
@@ -125,11 +140,9 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
         document = self.doc_id2document[example.doc_id]
 
         # ---------- ner ----------
-        # True/False = keep/mask
-        ne_mask = [False] * self.max_seq_length
-        for sentence in extract_target_sentences(document):
-            for morpheme in sentence.morphemes:
-                ne_mask[morpheme.global_index] = True
+        target_mask = [False] * self.max_seq_length
+        for global_index in example.analysis_target_morpheme_indices:
+            target_mask[global_index] = True
 
         # ---------- dependency parsing ----------
         dependency_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
@@ -144,22 +157,23 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
         # ---------- cohesion analysis ----------
         cohesion_mask: List[List[List[bool]]] = []  # (rel, seq, seq)
         morphemes = document.morphemes
-        for cohesion_task, cohesion_utils in self.cohesion_task2utils.items():
+        for cohesion_task in self.cohesion_tasks:
+            cohesion_rels = self.cohesion_task2rels[cohesion_task]
+            cohesion_extractor = self.cohesion_task2extractor[cohesion_task]
             rel_mask: List[List[bool]] = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
             for morpheme in morphemes:
-                for antecedent_candidate_morpheme in cohesion_utils.get_antecedent_candidate_morphemes(
-                    morpheme, morphemes
-                ):
+                for antecedent_candidate_morpheme in cohesion_extractor.get_candidates(morpheme, morphemes):
                     rel_mask[morpheme.global_index][antecedent_candidate_morpheme.global_index] = True
                 for morpheme_global_index in example.special_token_indexer.get_morpheme_level_indices(
                     only_cohesion=True
                 ):
                     rel_mask[morpheme.global_index][morpheme_global_index] = True
-            cohesion_mask.extend([rel_mask] * len(cohesion_utils.rels))
+            cohesion_mask.extend([rel_mask] * len(cohesion_rels))
         return WordModuleFeatures(
             example_ids=example.example_id,
             input_ids=example.encoding.ids,
             attention_mask=example.encoding.attention_mask,
+            special_token_indices=example.special_token_indexer.token_level_indices,
             subword_map=self._generate_subword_map(example.encoding.word_ids, example.special_token_indexer),
             reading_labels=[],
             reading_subword_map=self._generate_subword_map(
@@ -171,7 +185,7 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
             conjform_labels=[],
             word_feature_labels=[],
             ne_labels=[],
-            ne_mask=ne_mask,
+            ne_mask=target_mask,
             base_phrase_feature_labels=[],
             dependency_labels=[],
             dependency_mask=dependency_mask,
@@ -196,13 +210,3 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
             for token_index, morpheme_global_index in special_token_indexer.token_and_morpheme_level_indices:
                 subword_map[morpheme_global_index][token_index] = True
         return subword_map
-
-    def _build_cohesion_utils(self, cohesion_task: CohesionTask, restrict_cohesion_target: bool) -> CohesionUtils:
-        if cohesion_task == CohesionTask.PAS_ANALYSIS:
-            return PasUtils(self.pas_cases, "all", self.exophora_referents, restrict_cohesion_target)
-        elif cohesion_task == CohesionTask.BRIDGING_REFERENCE_RESOLUTION:
-            return BridgingUtils(self.br_cases, self.exophora_referents, restrict_cohesion_target)
-        elif cohesion_task == CohesionTask.COREFERENCE_RESOLUTION:
-            return CoreferenceUtils(self.exophora_referents, restrict_cohesion_target)
-        else:
-            raise ValueError("invalid cohesion task")

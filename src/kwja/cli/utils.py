@@ -18,24 +18,22 @@ DEFAULT_CACHE_DIR = Path.home() / ".cache"
 
 _CHECKPOINT_BASE_URL = "https://lotus.kuee.kyoto-u.ac.jp"
 _CHECKPOINT_FILE_NAMES: Dict[ModelSize, Dict[str, str]] = {
-    ModelSize.tiny: {
+    ModelSize.TINY: {
         "typo": "typo_deberta-v2-tiny-wwm.ckpt",
-        "seq2seq": "seq2seq_t5-small.ckpt",
         "char": "char_deberta-v2-tiny-wwm.ckpt",
+        "seq2seq": "seq2seq_t5-small.ckpt",
         "word": "word_deberta-v2-tiny.ckpt",
     },
-    ModelSize.base: {
+    ModelSize.BASE: {
         "typo": "typo_deberta-v2-base-wwm.ckpt",
-        "senter": "senter_deberta-v2-base-wwm.ckpt",
-        "seq2seq": "seq2seq_t5-base.ckpt",
         "char": "char_deberta-v2-base-wwm.ckpt",
+        "seq2seq": "seq2seq_t5-base.ckpt",
         "word": "word_deberta-v2-base.ckpt",
     },
-    ModelSize.large: {
+    ModelSize.LARGE: {
         "typo": "typo_deberta-v2-large-wwm.ckpt",
-        "senter": "senter_deberta-v2-base-wwm.ckpt",  # We won't release the large model for now.
-        "seq2seq": "seq2seq_t5-large.ckpt",
         "char": "char_deberta-v2-large-wwm.ckpt",
+        "seq2seq": "seq2seq_t5-large.ckpt",
         "word": "word_deberta-v2-large.ckpt",
     },
 }
@@ -91,6 +89,7 @@ def _get_model_version() -> str:
         ("1", "4"): "v1.3",
         ("2", "0"): "v2.0",
         ("2", "1"): "v2.1",
+        ("2", "2"): "v2.2",
     }
     version_fields = kwja.__version__.split(".")
     return version_map[(version_fields[0], version_fields[1])]

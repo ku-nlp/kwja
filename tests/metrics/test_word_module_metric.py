@@ -24,17 +24,14 @@ from kwja.utils.constants import (
 
 
 def test_word_module_metric(
-    fixture_data_dir: Path,
+    data_dir: Path,
     word_tokenizer: PreTrainedTokenizerBase,
     dataset_kwargs: Dict[str, Any],
 ) -> None:
-    metric = WordModuleMetric()
-
-    path = fixture_data_dir / "datasets" / "word_files"
+    path = data_dir / "datasets" / "word_files"
     max_seq_length = 20
     dataset = WordDataset(str(path), word_tokenizer, max_seq_length, document_split_stride=1, **dataset_kwargs)
     dataset.examples[1].load_discourse_document(Document.from_knp(path.joinpath("1.knp").read_text()))
-
     reading_id2reading = {v: k for k, v in dataset.reading2reading_id.items()}
     training_tasks = [
         WordTask.READING_PREDICTION,
@@ -44,8 +41,10 @@ def test_word_module_metric(
         WordTask.BASE_PHRASE_FEATURE_TAGGING,
         WordTask.DEPENDENCY_PARSING,
         WordTask.COHESION_ANALYSIS,
-        WordTask.DISCOURSE_PARSING,
+        WordTask.DISCOURSE_RELATION_ANALYSIS,
     ]
+
+    metric = WordModuleMetric(max_seq_length)
     metric.set_properties(
         {
             "dataset": dataset,
@@ -53,7 +52,6 @@ def test_word_module_metric(
             "training_tasks": training_tasks,
         }
     )
-
     metric.update(
         {
             "example_ids": torch.empty(0),  # dummy
@@ -294,7 +292,7 @@ def test_word_module_metric(
     metric.dependency_type_predictions[1, 5] = torch.as_tensor([d, d])  # 頼み -> [ROOT], ました
     metric.dependency_type_predictions[1, 6] = torch.as_tensor([d, d])  # ました -> 頼み, 好きな
 
-    flatten_rels = [r for cohesion_utils in dataset.cohesion_task2utils.values() for r in cohesion_utils.rels]
+    flatten_rels = [r for rels in dataset.cohesion_task2rels.values() for r in rels]
     metric.cohesion_logits = torch.zeros(
         (num_examples, len(flatten_rels), max_seq_length, max_seq_length), dtype=torch.float
     )
@@ -356,9 +354,9 @@ def test_word_module_metric(
     # tp = , fp = , fn =
     assert metrics["morpheme_UAS_f1"] == pytest.approx(1.0)
 
-    assert metrics["pas_all_case"] == pytest.approx(1.0)
-    assert metrics["bridging_all_case"] == pytest.approx(0.0)
-    assert metrics["coreference_all_case"] == pytest.approx(0.0)
+    assert metrics["pas_f1"] == pytest.approx(1.0)
+    assert metrics["bridging_f1"] == pytest.approx(0.0)
+    assert metrics["coreference_f1"] == pytest.approx(0.0)
     assert metrics["cohesion_analysis_f1"] == pytest.approx(1 / 3)
 
-    assert metrics["discourse_parsing_f1"] == pytest.approx(1.0)
+    assert metrics["discourse_relation_analysis_f1"] == pytest.approx(1.0)

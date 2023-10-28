@@ -1,25 +1,28 @@
 from pathlib import Path
+from typing import List
 
-from transformers import PreTrainedTokenizerBase
+from transformers import PreTrainedTokenizerFast
 
 from kwja.datamodule.datasets import Seq2SeqDataset
-from kwja.utils.constants import IGNORE_INDEX
+from kwja.utils.constants import CANON_TOKEN, IGNORE_INDEX, LEMMA_TOKEN, NO_CANON_TOKEN, READING_TOKEN, SURF_TOKEN
 
 
-def test_init(fixture_data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
-    path = fixture_data_dir / "datasets" / "word_files"
-    _ = Seq2SeqDataset(str(path), seq2seq_tokenizer, max_src_length=128, max_tgt_length=512)
+def test_init(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast):
+    path = data_dir / "datasets" / "word_files"
+    max_src_length = 128
+    max_tgt_length = 512
+    _ = Seq2SeqDataset(str(path), seq2seq_tokenizer, max_src_length, max_tgt_length)
 
 
-def test_getitem(fixture_data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
-    path = fixture_data_dir / "datasets" / "word_files"
+def test_getitem(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast):
+    path = data_dir / "datasets" / "word_files"
     max_src_length = 128
     max_tgt_length = 512
     dataset = Seq2SeqDataset(
         str(path),
         seq2seq_tokenizer,
-        max_src_length=max_src_length,
-        max_tgt_length=max_tgt_length,
+        max_src_length,
+        max_tgt_length,
     )
     for i in range(len(dataset)):
         feature = dataset[i]
@@ -29,176 +32,162 @@ def test_getitem(fixture_data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerB
         assert len(feature.seq2seq_labels) == max_tgt_length
 
 
-def test_encode(fixture_data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
-    path = fixture_data_dir / "datasets" / "word_files"
+def test_encode(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast):
+    path = data_dir / "datasets" / "word_files"
     max_src_length = 128
     max_tgt_length = 512
     dataset = Seq2SeqDataset(
         str(path),
         seq2seq_tokenizer,
-        max_src_length=max_src_length,
-        max_tgt_length=max_tgt_length,
+        max_src_length,
+        max_tgt_length,
     )
     num_examples = len(dataset)
 
-    expecteds = [
+    expected_tokens: List[List[str]] = [
         [
-            "▁",
+            SURF_TOKEN,
             "太郎",
-            "▁",
+            READING_TOKEN,
             "た",
             "ろう",
-            "▁",
+            LEMMA_TOKEN,
             "太郎",
-            "▁",
+            CANON_TOKEN,
             "太郎",
             "/",
             "た",
             "ろう",
-            "<extra_id_0>",  # 太郎
-            "▁",
+            SURF_TOKEN,
             "と",
-            "▁",
+            READING_TOKEN,
             "と",
-            "▁",
+            LEMMA_TOKEN,
             "と",
-            "▁",
-            "<extra_id_2>",
-            "<extra_id_0>",  # と
-            "▁",
+            CANON_TOKEN,
+            NO_CANON_TOKEN,
+            SURF_TOKEN,
             "次郎",
-            "▁",
+            READING_TOKEN,
             "じ",
             "ろう",
-            "▁",
+            LEMMA_TOKEN,
             "次郎",
-            "▁",
+            CANON_TOKEN,
             "次郎",
             "/",
             "じ",
             "ろう",
-            "<extra_id_0>",  # 次郎
-            "▁",
+            SURF_TOKEN,
             "は",
-            "▁",
+            READING_TOKEN,
             "は",
-            "▁",
+            LEMMA_TOKEN,
             "は",
-            "▁",
-            "<extra_id_2>",
-            "<extra_id_0>",  # は
-            "▁",
+            CANON_TOKEN,
+            NO_CANON_TOKEN,
+            SURF_TOKEN,
             "よく",
-            "▁",
+            READING_TOKEN,
             "よく",
-            "▁",
+            LEMMA_TOKEN,
             "よく",
-            "▁",
-            "<extra_id_2>",
-            "<extra_id_0>",  # よく
-            "▁",
+            CANON_TOKEN,
+            NO_CANON_TOKEN,
+            SURF_TOKEN,
             "けん",
             "か",
-            "▁",
+            READING_TOKEN,
             "けん",
             "か",
-            "▁",
+            LEMMA_TOKEN,
             "けん",
             "か",
-            "▁",
+            CANON_TOKEN,
             "喧",
             "嘩",
             "/",
             "けん",
             "か",
-            "<extra_id_0>",  # けんか
-            "▁",
+            SURF_TOKEN,
             "する",
-            "▁",
+            READING_TOKEN,
             "する",
-            "▁",
+            LEMMA_TOKEN,
             "する",
-            "▁",
-            "<extra_id_2>",
-            "<extra_id_0>",  # する
+            CANON_TOKEN,
+            NO_CANON_TOKEN,
             "</s>",
         ],
         [
-            "▁",
+            SURF_TOKEN,
             "辛い",
-            "▁",
+            READING_TOKEN,
             "から",
             "い",
-            "▁",
+            LEMMA_TOKEN,
             "辛い",
-            "▁",
-            "<extra_id_2>",
-            "<extra_id_0>",  # 辛い
-            "▁",
+            CANON_TOKEN,
+            NO_CANON_TOKEN,
+            SURF_TOKEN,
             "ラーメン",
-            "▁",
+            READING_TOKEN,
             "ら",
             "ー",
             "めん",
-            "▁",
+            LEMMA_TOKEN,
             "ラーメン",
-            "▁",
-            "<extra_id_2>",
-            "<extra_id_0>",  # ラーメン
-            "▁",
+            CANON_TOKEN,
+            NO_CANON_TOKEN,
+            SURF_TOKEN,
             "が",
-            "▁",
+            READING_TOKEN,
             "が",
-            "▁",
+            LEMMA_TOKEN,
             "が",
-            "▁",
-            "<extra_id_2>",
-            "<extra_id_0>",  # が
-            "▁",
+            CANON_TOKEN,
+            NO_CANON_TOKEN,
+            SURF_TOKEN,
             "好きな",
-            "▁",
+            READING_TOKEN,
             "すき",
             "な",
-            "▁",
+            LEMMA_TOKEN,
             "好き",
             "だ",
-            "▁",
-            "<extra_id_2>",
-            "<extra_id_0>",  # 好きな
-            "▁",
+            CANON_TOKEN,
+            NO_CANON_TOKEN,
+            SURF_TOKEN,
             "ので",
-            "▁",
+            READING_TOKEN,
             "ので",
-            "▁",
+            LEMMA_TOKEN,
             "のだ",
-            "▁",
-            "<extra_id_2>",
-            "<extra_id_0>",  # ので
-            "▁",
+            CANON_TOKEN,
+            NO_CANON_TOKEN,
+            SURF_TOKEN,
             "頼",
             "み",
-            "▁",
+            READING_TOKEN,
             "た",
             "のみ",
-            "▁",
+            LEMMA_TOKEN,
             "頼む",
-            "▁",
-            "<extra_id_2>",
-            "<extra_id_0>",  # 頼み
-            "▁",
+            CANON_TOKEN,
+            NO_CANON_TOKEN,
+            SURF_TOKEN,
             "ました",
-            "▁",
+            READING_TOKEN,
             "ました",
-            "▁",
+            LEMMA_TOKEN,
             "ます",
-            "▁",
-            "<extra_id_2>",
-            "<extra_id_0>",  # ました
+            CANON_TOKEN,
+            NO_CANON_TOKEN,
             "</s>",
         ],
     ]
     for i in range(num_examples):
         feature = dataset[i]
-        seq2seq_label_ids = [x for x in feature.seq2seq_labels if x != IGNORE_INDEX]
-        seq2seq_labels = seq2seq_tokenizer.convert_ids_to_tokens(seq2seq_label_ids)
-        assert seq2seq_labels == expecteds[i]
+        seq2seq_labels = [x for x in feature.seq2seq_labels if x != IGNORE_INDEX]
+        seq2seq_tokens = seq2seq_tokenizer.convert_ids_to_tokens(seq2seq_labels)
+        assert seq2seq_tokens == expected_tokens[i]

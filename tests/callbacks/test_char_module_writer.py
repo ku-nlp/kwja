@@ -1,4 +1,3 @@
-import tempfile
 from importlib.metadata import version
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -7,12 +6,13 @@ from typing import List, Optional, Union
 
 import pytest
 import torch
+from omegaconf import ListConfig
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
 
-from kwja.callbacks.char_module_writer import CharModuleWriter
+from kwja.callbacks import CharModuleWriter
 from kwja.datamodule.datasets import CharInferenceDataset
-from kwja.utils.constants import WORD_NORM_OP_TAGS, WORD_SEGMENTATION_TAGS
+from kwja.utils.constants import SENT_SEGMENTATION_TAGS, WORD_NORM_OP_TAGS, WORD_SEGMENTATION_TAGS
 
 
 class MockTrainer:
@@ -33,28 +33,37 @@ def test_init(destination: Optional[Union[str, Path]]):
 
 
 def test_write_on_batch_end(char_tokenizer: PreTrainedTokenizerBase):
+    texts = ListConfig(["花咲ガニを買ぅ", "うまそーですね〜〜"])
     max_seq_length = 32
     doc_id_prefix = "test"
-    senter_text = dedent(
-        f"""\
-        # S-ID:{doc_id_prefix}-0-0 kwja:{version("kwja")}
-        花咲ガニを買ぅ
-        # S-ID:{doc_id_prefix}-1-0 kwja:{version("kwja")}
-        うまそーですね〜〜
-        """
-    )
-    senter_file = tempfile.NamedTemporaryFile("wt")
-    senter_file.write(senter_text)
-    senter_file.seek(0)
     dataset = CharInferenceDataset(
-        tokenizer=char_tokenizer,
-        max_seq_length=max_seq_length,
-        document_split_stride=-1,
-        senter_file=Path(senter_file.name),
+        texts,
+        char_tokenizer,
+        max_seq_length,
+        doc_id_prefix=doc_id_prefix,
     )
     num_examples = len(dataset)
 
     trainer = MockTrainer([DataLoader(dataset, batch_size=num_examples)])
+
+    sent_segmentation_predictions = torch.zeros((num_examples, max_seq_length), dtype=torch.long)
+    # [:, 0] = [CLS]
+    sent_segmentation_predictions[0, 1] = SENT_SEGMENTATION_TAGS.index("B")  # 花
+    sent_segmentation_predictions[0, 2] = SENT_SEGMENTATION_TAGS.index("I")  # 咲
+    sent_segmentation_predictions[0, 3] = SENT_SEGMENTATION_TAGS.index("I")  # ガ
+    sent_segmentation_predictions[0, 4] = SENT_SEGMENTATION_TAGS.index("I")  # ニ
+    sent_segmentation_predictions[0, 5] = SENT_SEGMENTATION_TAGS.index("I")  # を
+    sent_segmentation_predictions[0, 6] = SENT_SEGMENTATION_TAGS.index("I")  # 買
+    sent_segmentation_predictions[0, 7] = SENT_SEGMENTATION_TAGS.index("I")  # ぅ
+    sent_segmentation_predictions[1, 1] = SENT_SEGMENTATION_TAGS.index("B")  # う
+    sent_segmentation_predictions[1, 2] = SENT_SEGMENTATION_TAGS.index("I")  # ま
+    sent_segmentation_predictions[1, 3] = SENT_SEGMENTATION_TAGS.index("I")  # そ
+    sent_segmentation_predictions[1, 4] = SENT_SEGMENTATION_TAGS.index("I")  # ー
+    sent_segmentation_predictions[1, 5] = SENT_SEGMENTATION_TAGS.index("I")  # で
+    sent_segmentation_predictions[1, 6] = SENT_SEGMENTATION_TAGS.index("I")  # す
+    sent_segmentation_predictions[1, 7] = SENT_SEGMENTATION_TAGS.index("I")  # ね
+    sent_segmentation_predictions[1, 8] = SENT_SEGMENTATION_TAGS.index("I")  # 〜
+    sent_segmentation_predictions[1, 9] = SENT_SEGMENTATION_TAGS.index("I")  # 〜
 
     word_segmentation_predictions = torch.zeros((num_examples, max_seq_length), dtype=torch.long)
     # [:, 0] = [CLS]
@@ -96,23 +105,24 @@ def test_write_on_batch_end(char_tokenizer: PreTrainedTokenizerBase):
 
     prediction = {
         "example_ids": torch.arange(num_examples, dtype=torch.long),
+        "sent_segmentation_predictions": sent_segmentation_predictions,
         "word_segmentation_predictions": word_segmentation_predictions,
         "word_norm_op_predictions": word_norm_op_predictions,
     }
 
     with TemporaryDirectory() as tmp_dir:
         writer = CharModuleWriter(destination=tmp_dir / Path("char_prediction.juman"))
-        writer.write_on_batch_end(trainer, ..., prediction, None, ..., 0, 0)
+        writer.write_on_batch_end(trainer, ..., prediction, None, ..., 0, 0)  # type: ignore
         assert isinstance(writer.destination, Path), "destination isn't set"
         assert writer.destination.read_text() == dedent(
             f"""\
-            # S-ID:{doc_id_prefix}-0-0 kwja:{version("kwja")}
+            # S-ID:{doc_id_prefix}-0-1 kwja:{version("kwja")}
             花咲 _ 花咲 未定義語 15 その他 1 * 0 * 0
             ガニ _ カニ 未定義語 15 その他 1 * 0 * 0
             を _ を 未定義語 15 その他 1 * 0 * 0
             買ぅ _ 買う 未定義語 15 その他 1 * 0 * 0
             EOS
-            # S-ID:{doc_id_prefix}-1-0 kwja:{version("kwja")}
+            # S-ID:{doc_id_prefix}-1-1 kwja:{version("kwja")}
             うま _ うま 未定義語 15 その他 1 * 0 * 0
             そーです _ そうです 未定義語 15 その他 1 * 0 * 0
             ね〜〜 _ ねえ 未定義語 15 その他 1 * 0 * 0

@@ -94,7 +94,7 @@ def token_dataclass_data_collator(batch_features: List[Any]) -> Dict[str, Union[
     batch: Dict[str, Union[Tensor, List[str]]] = {}
     for field in fields(first_features):
         features = [getattr(fs, field.name) for fs in batch_features]
-        if field.name in {"src_text"}:
+        if field.name in {"surfs"}:
             batch[field.name] = features
         else:
             value = torch.as_tensor(features)
@@ -128,6 +128,8 @@ def word_dataclass_data_collator(batch_features: List[Any]) -> Dict[str, Union[T
             value = value[:, word_indices.unsqueeze(1), token_indices]
         elif field.name in {"dependency_mask", "cohesion_mask", "cohesion_labels", "discourse_labels"}:
             value = value[..., word_indices.unsqueeze(1), word_indices]
+        elif field.name == "special_token_indices":
+            pass
         else:
             value = value[:, word_indices]
         batch[field.name] = value

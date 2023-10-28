@@ -178,7 +178,6 @@ word_batch_size: 1
 
 - typo, senter, character, and word modules
   - The performance on each task except typo correction and discourse relation analysis is the mean over all the corpora (KC, KWDLC, Fuman, and WAC) and over three runs with different random seeds.
-    - \* denotes results of a single run (TBU)
   - We set the learning rate of RoBERTa<sub>LARGE</sub> (word) to 2e-5 because we failed to fine-tune it with a higher learning rate.
     Other hyperparameters are the same described in configs, which are tuned for DeBERTa<sub>BASE</sub>.
 - seq2seq module
@@ -229,30 +228,30 @@ word_batch_size: 1
     <tr>
       <th colspan="2">Typo Correction</th>
       <td>79.0</td>
-      <td>76.7*</td>
+      <td>76.7</td>
       <td>80.8</td>
       <td>83.1</td>
     </tr>
     <tr>
       <th colspan="2">Sentence Segmentation</th>
       <td>-</td>
-      <td>98.2</td>
+      <td>98.4</td>
       <td>-</td>
-      <td>98.2</td>
+      <td>98.6</td>
     </tr>
     <tr>
       <th colspan="2">Word Segmentation</th>
       <td>98.5</td>
-      <td>98.6 / 98.2*</td>
+      <td>98.1 / 98.2*</td>
       <td>98.7</td>
-      <td>98.9 / 98.4*</td>
+      <td>98.4 / 98.4*</td>
     </tr>
     <tr>
       <th colspan="2">Word Normalization</th>
       <td>44.0</td>
-      <td>39.2</td>
+      <td>15.3</td>
       <td>39.8</td>
-      <td>46.0</td>
+      <td>48.6</td>
     </tr>
     <tr>
       <th rowspan="7">Morphological Analysis</th>
@@ -260,35 +259,35 @@ word_batch_size: 1
       <td>99.3</td>
       <td>99.4</td>
       <td>99.3</td>
-      <td>99.5</td>
+      <td>99.4</td>
     </tr>
     <tr>
       <th>sub-POS</th>
       <td>98.1</td>
       <td>98.5</td>
       <td>98.2</td>
-      <td>98.6</td>
+      <td>98.5</td>
     </tr>
     <tr>
       <th>conjtype</th>
       <td>99.4</td>
-      <td>99.5</td>
+      <td>99.6</td>
       <td>99.2</td>
       <td>99.6</td>
     </tr>
     <tr>
       <th>conjform</th>
       <td>99.5</td>
-      <td>99.6</td>
+      <td>99.7</td>
       <td>99.4</td>
       <td>99.7</td>
     </tr>
     <tr>
       <th>reading</th>
       <td>95.5</td>
-      <td>95.2 / 96.2*</td>
+      <td>95.4 / 96.2*</td>
       <td>90.8</td>
-      <td>95.5 / 96.8*</td>
+      <td>95.6 / 96.8*</td>
     </tr>
     <tr>
       <th>lemma</th>
@@ -307,9 +306,9 @@ word_batch_size: 1
     <tr>
       <th colspan="2">Named Entity Recognition</th>
       <td>83.0</td>
-      <td>84.0</td>
+      <td>84.6</td>
       <td>82.1</td>
-      <td>83.9</td>
+      <td>85.9</td>
     </tr>
     <tr>
       <th rowspan="2">Linguistic Feature Tagging</th>
@@ -322,44 +321,44 @@ word_batch_size: 1
     <tr>
       <th>base phrase</th>
       <td>86.6</td>
-      <td>91.4</td>
+      <td>93.6</td>
       <td>86.4</td>
-      <td>92.6</td>
+      <td>93.4</td>
     </tr>
     <tr>
       <th colspan="2">Dependency Parsing</th>
       <td>92.9</td>
-      <td>93.6</td>
+      <td>93.5</td>
       <td>93.8</td>
-      <td>93.7</td>
+      <td>93.6</td>
     </tr>
     <tr>
       <th colspan="2">Pas Analysis</th>
       <td>74.2</td>
-      <td>77.9</td>
+      <td>76.9</td>
       <td>75.3</td>
-      <td>78.6</td>
+      <td>77.5</td>
     </tr>
     <tr>
       <th colspan="2">Bridging Reference Resolution</th>
       <td>66.5</td>
-      <td>68.7</td>
+      <td>67.3</td>
       <td>65.2</td>
-      <td>68.4</td>
+      <td>67.5</td>
     </tr>
     <tr>
       <th colspan="2">Coreference Resolution</th>
       <td>74.9</td>
-      <td>78.3</td>
+      <td>78.6</td>
       <td>75.9</td>
-      <td>79.6</td>
+      <td>79.2</td>
     </tr>
     <tr>
       <th colspan="2">Discourse Relation Analysis</th>
       <td>42.2</td>
-      <td>40.6</td>
+      <td>39.2</td>
       <td>41.3</td>
-      <td>45.5</td>
+      <td>44.3</td>
     </tr>
   </tbody>
 </table>

@@ -1,3 +1,4 @@
+import logging
 import multiprocessing as mp
 import re
 import subprocess
@@ -12,8 +13,41 @@ from rhoknp import KNP, Document, Jumanpp, Morpheme, Sentence
 from rhoknp.props import FeatureDict, NamedEntity, NamedEntityCategory
 from rhoknp.utils.reader import chunk_by_document, chunk_by_sentence
 
-from kwja.utils.constants import BASE_PHRASE_FEATURES, IGNORE_VALUE_FEATURE_PAT, SUB_WORD_FEATURES
+from kwja.utils.constants import (
+    BASE_PHRASE_FEATURES,
+    CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID,
+    CONJTYPE_TAGS,
+    IGNORE_VALUE_FEATURE_PAT,
+    POS_TAG2POS_ID,
+    POS_TAG_SUBPOS_TAG2SUBPOS_ID,
+    SUB_WORD_FEATURES,
+)
 from kwja.utils.logging_util import track
+
+logging.getLogger("rhoknp").setLevel(logging.ERROR)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+UNSUPPORTED_CONJUGATION_FALLBACK_TABLE = {
+    ("ナ形容詞", "ダ列文語基本形"): ("ナ形容詞", "ダ列基本連体形"),
+    ("判定詞", "ダ列文語連体形"): ("子音動詞ラ行", "基本形"),  # 950112215-023
+    ("文語助動詞", "連体形"): ("子音動詞ラ行", "基本形"),
+    ("助動詞たり型", "文語連体形"): ("子音動詞ラ行", "基本形"),
+    ("助動詞たり文語", "連体形"): ("子音動詞ラ行", "基本形"),
+    ("助動詞たり", "文語連体形(たる)"): ("子音動詞ラ行", "基本形"),
+    ("助動詞たり", "文語連体形"): ("子音動詞ラ行", "基本形"),
+    ("文語", "連体形たる"): ("子音動詞ラ行", "基本形"),
+    ("なり列", "古語基本形(なり)"): ("判定詞", "基本形"),
+    ("方言", "基本形"): ("判定詞", "基本形"),  # 950114251-001
+    ("判定詞", "ヤ列基本形"): ("判定詞", "*"),  # 950115185-003
+    ("サ変動詞", "文語已然形"): ("サ変動詞", "*"),  # 950114053-007
+    ("ナ形容詞", "語幹異形"): ("ナ形容詞", "語幹"),  # 950115169-035
+    ("助動詞そうだ型", "デアル列連用形"): ("助動詞そうだ型", "デアル列基本形"),  # 950115157-027
+}
+
+UNSUPPORTED_POS_SUBPOS_FALLBACK_TABLE = {
+    ("未定義語", "未対応表現"): ("副詞", "*"),
+}
 
 
 class JumanppAugmenter:
@@ -77,7 +111,7 @@ class JumanppAugmenter:
                     augmented_morpheme = aligned[0]
                     # Jumanpp may override reading
                     augmented_morpheme.reading = original_morpheme.reading
-                    if update_original and not original_sentence.need_knp:
+                    if update_original and not original_sentence.is_knp_required():
                         original_morpheme.semantics.update(augmented_morpheme.semantics)
                 keys = []
 
@@ -134,7 +168,7 @@ def set_named_entities(document: Document, sid2tagged_sentence: Dict[str, Senten
             tagged_sentence = sid2tagged_sentence[sentence.sid]
             alignment = align_morphemes(tagged_sentence.morphemes, sentence.morphemes)
             if alignment is None:
-                print(
+                logger.warning(
                     f'alignment ({" ".join(morpheme.surf for morpheme in tagged_sentence.morphemes)} | '
                     f'{" ".join(morpheme.surf for morpheme in sentence.morphemes)}) not found'
                 )
@@ -152,7 +186,7 @@ def set_named_entities(document: Document, sid2tagged_sentence: Dict[str, Senten
                     named_entity = NamedEntity(category=NamedEntityCategory(category), morphemes=morphemes)
                     morphemes[-1].base_phrase.features["NE"] = f"{named_entity.category.value}:{named_entity.text}"
                 else:
-                    print(
+                    logger.warning(
                         f'morpheme span of {" ".join(morpheme.surf for morpheme in morphemes_buff)} not found in '
                         f'{" ".join(morpheme.surf for morpheme in sentence.morphemes)}'
                     )
@@ -177,7 +211,7 @@ def refresh(document: Document) -> None:
         feature_dict = FeatureDict()
         if (
             (feature := base_phrase.features.get("NE"))
-            and type(feature) == str
+            and isinstance(feature, str)
             and feature.startswith("OPTIONAL") is False
         ):
             feature_dict["NE"] = feature
@@ -200,7 +234,7 @@ def refresh(document: Document) -> None:
                 span2 = {morpheme.index for morpheme in ne2.morphemes}
                 # あるnamed entityの一部もまたnamed entityである場合、外側だけ残す
                 if len(span1 & span2) > 0 and len(span1) < len(span2):
-                    print(
+                    logger.warning(
                         f'NE tag {" ".join(morpheme.surf for morpheme in ne1.morphemes)} removed '
                         f'due to the named entity {" ".join(morpheme.surf for morpheme in ne2.morphemes)} '
                         f"({sentence.sid}:{sentence.text})"
@@ -221,30 +255,84 @@ def assign_features_and_save(
         try:
             document = Document.from_knp(knp_text)
         except ValueError:
-            print("ignore broken knp file")
+            logger.warning("ignore broken knp file")
             continue
         if document.doc_id not in doc_id2split:
             continue
 
-        buf = []
+        morpheme_features = []
+        unsupported_conjugations: Dict[int, Tuple[str, int, str, int]] = {}
+        unsupported_pos_subpos: Dict[int, Tuple[str, int, str, int]] = {}
         for morpheme in document.morphemes:
-            buf.append({**morpheme.features})
+            morpheme_features.append(morpheme.features.copy())
             morpheme.features.clear()
+            if fallback_conjugation := UNSUPPORTED_CONJUGATION_FALLBACK_TABLE.get(
+                (morpheme.conjtype, morpheme.conjform)
+            ):
+                unsupported_conjugations[morpheme.global_index] = (
+                    morpheme.conjtype,
+                    morpheme.conjtype_id,
+                    morpheme.conjform,
+                    morpheme.conjform_id,
+                )
+                conjtype, conjform = fallback_conjugation
+                morpheme.conjtype = conjtype
+                morpheme.conjtype_id = CONJTYPE_TAGS.index(conjtype)
+                morpheme.conjform = conjform
+                morpheme.conjform_id = CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID[conjtype][conjform]
+                logger.info(
+                    f"{morpheme.sentence.sid}: replaced unsupported conjugation (type: {morpheme.conjtype}, form: {morpheme.conjform}) with ({conjtype}, {conjform})"
+                )
+            if fallback_pos_subpos := UNSUPPORTED_POS_SUBPOS_FALLBACK_TABLE.get((morpheme.pos, morpheme.subpos)):
+                unsupported_pos_subpos[morpheme.global_index] = (
+                    morpheme.pos,
+                    morpheme.pos_id,
+                    morpheme.subpos,
+                    morpheme.subpos_id,
+                )
+                pos, subpos = fallback_pos_subpos
+                morpheme.pos = pos
+                morpheme.pos_id = POS_TAG2POS_ID[pos]
+                morpheme.subpos = subpos
+                morpheme.subpos_id = POS_TAG_SUBPOS_TAG2SUBPOS_ID[pos][subpos]
+                logger.info(
+                    f"{morpheme.sentence.sid}: replaced unsupported pos/subpos (pos: {morpheme.pos}, subpos: {morpheme.subpos}) with ({pos}, {subpos})"
+                )
 
         # 形態素意味情報付与 (引数に渡したdocumentをupdateする)
         _ = jumanpp_augmenter.augment_document(document)
 
-        # 素性付与
-        with Popen(knp.run_command, stdout=PIPE, stdin=PIPE, encoding="utf-8", errors="replace") as p:
-            assigned_knp_text, _ = p.communicate(input=document.to_knp())
-        # ダ列文語連体形など
-        if len(assigned_knp_text.split("\n")) != len(knp_text.split("\n")):
-            continue
-        document = Document.from_knp(assigned_knp_text)
+        # Juman++ によって意味情報フィールド設定されなかった場合は、 KNP で segmentation fault が出ないように NIL を付与
+        for morpheme in document.morphemes:
+            if not morpheme.semantics:
+                morpheme.semantics.nil = True
 
-        # 初めから付いていた素性の付与
-        for morpheme, features in zip(document.morphemes, buf):
+        # 素性付与
+        try:
+            document = knp.apply_to_document(document, timeout=120)
+        except Exception as e:
+            logger.warning(f"{type(e).__name__}: {e}, {document.doc_id}")
+            knp = KNP(options=["-tab", "-dpnd-fast", "-read-feature"])
+            Path(f"knp_error_{document.doc_id}.knp").write_text(document.to_knp())
+            continue
+
+        assert len(document.to_knp().split("\n")) == len(
+            knp_text.split("\n")
+        ), f"knp text length mismatch: {document.doc_id}"
+
+        # 初めから付いていた素性およびKNPサポート外の活用・品詞の付与
+        for morpheme, features in zip(document.morphemes, morpheme_features):
             morpheme.features.update(features)
+            if conjugation := unsupported_conjugations.get(morpheme.global_index):
+                morpheme.conjtype, morpheme.conjtype_id, morpheme.conjform, morpheme.conjform_id = conjugation
+                logger.info(
+                    f"{morpheme.sentence.sid}: unsupported cojugation (type: {conjugation[0]}, form: {conjugation[2]}) restored"
+                )
+            if pos_subpos := unsupported_pos_subpos.get(morpheme.global_index):
+                morpheme.pos, morpheme.pos_id, morpheme.subpos, morpheme.subpos_id = pos_subpos
+                logger.info(
+                    f"{morpheme.sentence.sid}: unsupported pos/subpos (pos: {pos_subpos[0]}, subpos: {pos_subpos[2]}) restored"
+                )
 
         if sid2tagged_sentence is not None:
             set_named_entities(document, sid2tagged_sentence)
@@ -265,27 +353,28 @@ def test_jumanpp_version():
 def test_jumanpp_augmenter():
     jumanpp_augmenter = JumanppAugmenter()
 
-    knp_text = textwrap.dedent(
-        """\
-        # S-ID:w201106-0000060050-1 JUMAN:6.1-20101108 KNP:3.1-20101107 DATE:2011/06/21 SCORE:-44.94406 MOD:2017/10/15 MEMO:
-        * 2D
-        + 1D
-        コイン こいん コイン 名詞 6 普通名詞 1 * 0 * 0
-        + 3D <rel type="ガ" target="不特定:人"/><rel type="ヲ" target="コイン" sid="w201106-0000060050-1" id="0"/>
-        トス とす トス 名詞 6 サ変名詞 2 * 0 * 0
-        を を を 助詞 9 格助詞 1 * 0 * 0
-        * 2D
-        + 3D
-        ３ さん ３ 名詞 6 数詞 7 * 0 * 0
-        回 かい 回 接尾辞 14 名詞性名詞助数辞 3 * 0 * 0
-        * -1D
-        + -1D <rel type="ガ" target="不特定:人"/><rel type="ガ" mode="？" target="読者"/><rel type="ガ" mode="？" target="著者"/><rel type="ヲ" target="トス" sid="w201106-0000060050-1" id="1"/>
-        行う おこなう 行う 動詞 2 * 0 子音動詞ワ行 12 基本形 2
-        。 。 。 特殊 1 句点 1 * 0 * 0
-        EOS
-        """
+    sentence = Sentence.from_knp(
+        textwrap.dedent(
+            """\
+            # S-ID:w201106-0000060050-1 JUMAN:6.1-20101108 KNP:3.1-20101107 DATE:2011/06/21 SCORE:-44.94406 MOD:2017/10/15 MEMO:
+            * 2D
+            + 1D
+            コイン こいん コイン 名詞 6 普通名詞 1 * 0 * 0
+            + 3D <rel type="ガ" target="不特定:人"/><rel type="ヲ" target="コイン" sid="w201106-0000060050-1" id="0"/>
+            トス とす トス 名詞 6 サ変名詞 2 * 0 * 0
+            を を を 助詞 9 格助詞 1 * 0 * 0
+            * 2D
+            + 3D
+            ３ さん ３ 名詞 6 数詞 7 * 0 * 0
+            回 かい 回 接尾辞 14 名詞性名詞助数辞 3 * 0 * 0
+            * -1D
+            + -1D <rel type="ガ" target="不特定:人"/><rel type="ガ" mode="？" target="読者"/><rel type="ガ" mode="？" target="著者"/><rel type="ヲ" target="トス" sid="w201106-0000060050-1" id="1"/>
+            行う おこなう 行う 動詞 2 * 0 子音動詞ワ行 12 基本形 2
+            。 。 。 特殊 1 句点 1 * 0 * 0
+            EOS
+            """
+        )
     )
-    sentence = Sentence.from_knp(knp_text)
     _ = jumanpp_augmenter.augment_sentence(sentence)
     expected = textwrap.dedent(
         """\
@@ -309,55 +398,56 @@ def test_jumanpp_augmenter():
     )
     assert sentence.to_knp() == expected
 
-    knp_text = textwrap.dedent(
-        """\
-        # S-ID:w201106-0000060050-1 JUMAN:6.1-20101108 KNP:3.1-20101107 DATE:2011/06/21 SCORE:-44.94406 MOD:2017/10/15 MEMO:
-        * 2D
-        + 1D
-        コイン こいん コイン 名詞 6 普通名詞 1 * 0 * 0
-        + 3D <rel type="ガ" target="不特定:人"/><rel type="ヲ" target="コイン" sid="w201106-0000060050-1" id="0"/>
-        トス とす トス 名詞 6 サ変名詞 2 * 0 * 0
-        を を を 助詞 9 格助詞 1 * 0 * 0
-        * 2D
-        + 3D
-        ３ さん ３ 名詞 6 数詞 7 * 0 * 0
-        回 かい 回 接尾辞 14 名詞性名詞助数辞 3 * 0 * 0
-        * -1D
-        + -1D <rel type="ガ" target="不特定:人"/><rel type="ガ" mode="？" target="読者"/><rel type="ガ" mode="？" target="著者"/><rel type="ヲ" target="トス" sid="w201106-0000060050-1" id="1"/>
-        行う おこなう 行う 動詞 2 * 0 子音動詞ワ行 12 基本形 2
-        。 。 。 特殊 1 句点 1 * 0 * 0
-        EOS
-        # S-ID:w201106-0000060050-2 JUMAN:6.1-20101108 KNP:3.1-20101107 DATE:2011/06/21 SCORE:-64.95916 MOD:2013/04/13
-        * 1D
-        + 1D <rel type="ノ" target="コイン" sid="w201106-0000060050-1" id="0"/>
-        表 おもて 表 名詞 6 普通名詞 1 * 0 * 0
-        が が が 助詞 9 格助詞 1 * 0 * 0
-        * 2D
-        + 2D <rel type="ガ" target="表" sid="w201106-0000060050-2" id="0"/><rel type="外の関係" target="数" sid="w201106-0000060050-2" id="2"/>
-        出た でた 出る 動詞 2 * 0 母音動詞 1 タ形 10
-        * 5D
-        + 5D <rel type="ノ" target="出た" sid="w201106-0000060050-2" id="1"/>
-        数 かず 数 名詞 6 普通名詞 1 * 0 * 0
-        だけ だけ だけ 助詞 9 副助詞 2 * 0 * 0
-        、 、 、 特殊 1 読点 2 * 0 * 0
-        * 4D
-        + 4D
-        フィールド ふぃーるど フィールド 名詞 6 普通名詞 1 * 0 * 0
-        上 じょう 上 接尾辞 14 名詞性名詞接尾辞 2 * 0 * 0
-        の の の 助詞 9 接続助詞 3 * 0 * 0
-        * 5D
-        + 5D <rel type="修飾" target="フィールド上" sid="w201106-0000060050-2" id="3"/><rel type="修飾" mode="AND" target="数" sid="w201106-0000060050-2" id="2"/>
-        モンスター もんすたー モンスター 名詞 6 普通名詞 1 * 0 * 0
-        を を を 助詞 9 格助詞 1 * 0 * 0
-        * -1D
-        + -1D <rel type="ヲ" target="モンスター" sid="w201106-0000060050-2" id="4"/><rel type="ガ" target="不特定:状況"/>
-        破壊 はかい 破壊 名詞 6 サ変名詞 2 * 0 * 0
-        する する する 動詞 2 * 0 サ変動詞 16 基本形 2
-        。 。 。 特殊 1 句点 1 * 0 * 0
-        EOS
-        """
+    document = Document.from_knp(
+        textwrap.dedent(
+            """\
+            # S-ID:w201106-0000060050-1 JUMAN:6.1-20101108 KNP:3.1-20101107 DATE:2011/06/21 SCORE:-44.94406 MOD:2017/10/15 MEMO:
+            * 2D
+            + 1D
+            コイン こいん コイン 名詞 6 普通名詞 1 * 0 * 0
+            + 3D <rel type="ガ" target="不特定:人"/><rel type="ヲ" target="コイン" sid="w201106-0000060050-1" id="0"/>
+            トス とす トス 名詞 6 サ変名詞 2 * 0 * 0
+            を を を 助詞 9 格助詞 1 * 0 * 0
+            * 2D
+            + 3D
+            ３ さん ３ 名詞 6 数詞 7 * 0 * 0
+            回 かい 回 接尾辞 14 名詞性名詞助数辞 3 * 0 * 0
+            * -1D
+            + -1D <rel type="ガ" target="不特定:人"/><rel type="ガ" mode="？" target="読者"/><rel type="ガ" mode="？" target="著者"/><rel type="ヲ" target="トス" sid="w201106-0000060050-1" id="1"/>
+            行う おこなう 行う 動詞 2 * 0 子音動詞ワ行 12 基本形 2
+            。 。 。 特殊 1 句点 1 * 0 * 0
+            EOS
+            # S-ID:w201106-0000060050-2 JUMAN:6.1-20101108 KNP:3.1-20101107 DATE:2011/06/21 SCORE:-64.95916 MOD:2013/04/13
+            * 1D
+            + 1D <rel type="ノ" target="コイン" sid="w201106-0000060050-1" id="0"/>
+            表 おもて 表 名詞 6 普通名詞 1 * 0 * 0
+            が が が 助詞 9 格助詞 1 * 0 * 0
+            * 2D
+            + 2D <rel type="ガ" target="表" sid="w201106-0000060050-2" id="0"/><rel type="外の関係" target="数" sid="w201106-0000060050-2" id="2"/>
+            出た でた 出る 動詞 2 * 0 母音動詞 1 タ形 10
+            * 5D
+            + 5D <rel type="ノ" target="出た" sid="w201106-0000060050-2" id="1"/>
+            数 かず 数 名詞 6 普通名詞 1 * 0 * 0
+            だけ だけ だけ 助詞 9 副助詞 2 * 0 * 0
+            、 、 、 特殊 1 読点 2 * 0 * 0
+            * 4D
+            + 4D
+            フィールド ふぃーるど フィールド 名詞 6 普通名詞 1 * 0 * 0
+            上 じょう 上 接尾辞 14 名詞性名詞接尾辞 2 * 0 * 0
+            の の の 助詞 9 接続助詞 3 * 0 * 0
+            * 5D
+            + 5D <rel type="修飾" target="フィールド上" sid="w201106-0000060050-2" id="3"/><rel type="修飾" mode="AND" target="数" sid="w201106-0000060050-2" id="2"/>
+            モンスター もんすたー モンスター 名詞 6 普通名詞 1 * 0 * 0
+            を を を 助詞 9 格助詞 1 * 0 * 0
+            * -1D
+            + -1D <rel type="ヲ" target="モンスター" sid="w201106-0000060050-2" id="4"/><rel type="ガ" target="不特定:状況"/>
+            破壊 はかい 破壊 名詞 6 サ変名詞 2 * 0 * 0
+            する する する 動詞 2 * 0 サ変動詞 16 基本形 2
+            。 。 。 特殊 1 句点 1 * 0 * 0
+            EOS
+            """
+        )
     )
-    document = Document.from_knp(knp_text)
     _ = jumanpp_augmenter.augment_document(document)
     expected = textwrap.dedent(
         """\
@@ -428,7 +518,7 @@ def main():
             knp_texts += [knp_text for knp_text in chunk_by_document(f, doc_id_format=args.doc_id_format)]
 
     if args.ne_tags:
-        with open(args.ne_tags, mode="r") as f:
+        with open(args.ne_tags) as f:
             sentences = [Sentence.from_jumanpp(jumanpp_text) for jumanpp_text in chunk_by_sentence(f)]
         sid2tagged_sentence = {sentence.sid: sentence for sentence in sentences}
     else:
@@ -448,13 +538,16 @@ def main():
         for doc_id in id_file.read_text().splitlines():
             doc_id2split[doc_id] = split
 
-    chunk_size = len(knp_texts) // args.j + int(len(knp_texts) % args.j > 0)
-    iterable = [
-        (knp_texts[slice(start, start + chunk_size)], output_root, doc_id2split, sid2tagged_sentence)
-        for start in range(0, len(knp_texts), chunk_size)
-    ]
-    with mp.Pool(args.j) as pool:
-        pool.starmap(assign_features_and_save, iterable)
+    if args.j > 0:
+        chunk_size = len(knp_texts) // args.j + int(len(knp_texts) % args.j > 0)
+        iterable = [
+            (knp_texts[slice(start, start + chunk_size)], output_root, doc_id2split, sid2tagged_sentence)
+            for start in range(0, len(knp_texts), chunk_size)
+        ]
+        with mp.Pool(args.j) as pool:
+            pool.starmap(assign_features_and_save, iterable)
+    else:
+        assign_features_and_save(knp_texts, output_root, doc_id2split, sid2tagged_sentence)
 
 
 if __name__ == "__main__":

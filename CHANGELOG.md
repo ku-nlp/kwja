@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v2.2.0] - 2023-10-27
+### Added
+- Support `jumanpp` and `knp` input formats. This functionality allows you to partly use tokenization results of `jumanpp` as input.
+  ```shell
+  kwja --tasks word --text "$(echo "外国人参政権" | jumanpp)" --input-format jumanpp
+  kwja --tasks word --filename <(echo "外国人参政権" | jumanpp) --input-format jumanpp
+
+  kwja --tasks word --text "$(echo "外国人参政権" | jumanpp | knp -tab)" --input-format knp
+  kwja --tasks word --filename <(echo "外国人参政権" | jumanpp | knp -tab) --input-format knp
+  ```
+- Analyze `デ`, `ト`, and `時間` cases in addition to `ガ`, `ヲ`, `ニ`, and `ガ２` cases in predicate-argument structure analysis.
+
+### Changed
+- Merge senter module into char module
+
 ## [v2.1.3] - 2023-08-28
 ### Fixed
 - Version specification of `rhoknp` in `pyproject.toml`.
@@ -175,7 +190,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove an unnecessary dependency, `fugashi`.
 
-[Unreleased]: https://github.com/ku-nlp/kwja/compare/v2.1.3...HEAD
+[Unreleased]: https://github.com/ku-nlp/kwja/compare/v2.2.0...HEAD
+[2.2.0]: https://github.com/ku-nlp/kwja/compare/v2.1.3...v2.2.0
 [2.1.3]: https://github.com/ku-nlp/kwja/compare/v2.1.2...v2.1.3
 [2.1.2]: https://github.com/ku-nlp/kwja/compare/v2.1.1...v2.1.2
 [2.1.1]: https://github.com/ku-nlp/kwja/compare/v2.1.0...v2.1.1

@@ -1,15 +1,25 @@
 from pathlib import Path
 from textwrap import dedent
+from typing import List
 
 import jaconv
 from rhoknp import Sentence
-from transformers import PreTrainedTokenizerBase
+from transformers import PreTrainedTokenizerFast
 
-from kwja.callbacks.seq2seq_module_writer import Seq2SeqModuleWriter
-from kwja.utils.constants import FULL_SPACE_TOKEN, NEW_LINE_TOKEN, NO_CANON_TOKEN
-from kwja.utils.seq2seq_format import get_sent_from_seq2seq_format, get_seq2seq_format
+from kwja.utils.constants import (
+    CANON_TOKEN,
+    FULL_SPACE_TOKEN,
+    HALF_SPACE_TOKEN1,
+    LEMMA_TOKEN,
+    MORPHEME_SPLIT_TOKEN,
+    NO_CANON_TOKEN,
+    READING_TOKEN,
+    SURF_TOKEN,
+    TRIPLE_DOT_TOKEN,
+)
+from kwja.utils.seq2seq_format import Seq2SeqFormatter
 
-input_seq2seq_formats = [
+seq2seq_formats: List[str] = [
     dedent(
         f"""\
         計算 けいさん 計算 計算/けいさん
@@ -48,12 +58,12 @@ input_seq2seq_formats = [
         """
     ),
     dedent(
-        """\
+        f"""\
         「 「 「 「/「
         核 かく 核 核/かく
         の の の の/の
         歴史 れきし 歴史 歴史/れきし
-        … … … …/…
+        {TRIPLE_DOT_TOKEN} {TRIPLE_DOT_TOKEN} {TRIPLE_DOT_TOKEN} {TRIPLE_DOT_TOKEN}/{TRIPLE_DOT_TOKEN}
         ヒロシマ ひろしま ヒロシマ ヒロシマ/ひろしま
         、 、 、 、/、
         ナガサキ ながさき ナガサキ ナガサキ/ながさき
@@ -73,112 +83,112 @@ input_seq2seq_formats = [
         ？ ？ ？ ？/？
         . . . ./.
         / / / ///
+        ℃ ど ℃ ℃/ど
         """
     ),
     dedent(
         f"""\
         ＪＵＭＰ ＪＵＭＰ ＪＵＭＰ ＪＵＭＰ/ＪＵＭＰ
-        {FULL_SPACE_TOKEN} {FULL_SPACE_TOKEN} {FULL_SPACE_TOKEN} {NO_CANON_TOKEN}
+        {FULL_SPACE_TOKEN} {FULL_SPACE_TOKEN} {FULL_SPACE_TOKEN} /
         ＣＯＭＩＣＳ ＣＯＭＩＣＳ ＣＯＭＩＣＳ ＣＯＭＩＣＳ/ＣＯＭＩＣＳ
-        """
-    ),
-]
-
-output_seq2seq_formats = [
-    dedent(
-        f"""\
-        計算 けいさん 計算 計算/けいさん
-        機 き 機 機/き
-        に に に {NO_CANON_TOKEN}
-        よる よる よる 因る/よる
-        言語 げんご 言語 言語/げんご
-        理解 りかい 理解 理解/りかい
-        を を を {NO_CANON_TOKEN}
-        実現 じつげん 実現 実現/じつげん
-        する する する する/する
-        """
-    ),
-    dedent(
-        """\
-        また また また 又/また
-        ,,,,/,
-        校区 こうく 校区 校区/こうく
-        で で で で/で
-        行わ おこなわ 行う 行う/おこなう
-        れる れる れる れる/れる
-        事業 じぎょう 事業 事業/じぎょう
-        や や や や/や
-        防犯 ぼうはん 防犯 防犯/ぼうはん
-        など など など など/など
-        校区 こうく 校区 校区/こうく
-        の の の の/の
-        情報 じょうほう 情報 情報/じょうほう
-        も も も も/も
-        記載 きさい 記載 記載/きさい
-        さ さ する する/する
-        れて れて れる れる/れる
-        い い いる いる/いる
-        ます ます ます ます/ます
-        。 。 。 。/。
-        """
-    ),
-    dedent(
-        """\
-        「 「 「 「/「
-        核 かく 核 核/かく
-        の の の の/の
-        歴史 れきし 歴史 歴史/れきし
-        ............/...
-        ヒロシマ ひろしま ヒロシマ ヒロシマ/ひろしま
-        、 、 、 、/、
-        ナガサキ ながさき ナガサキ ナガサキ/ながさき
-        を を を を/を
-        超えて こえて 超える 超える/こえる
-        」 」 」 」/」
-        。 。 。 。/。
-        """
-    ),
-    dedent(
-        f"""\
-        後 あと 後 後/あと
-        一 ついたち 一 一/いち
-        日 {FULL_SPACE_TOKEN} 日 日/にち
-        まで まで まで まで/まで
-        !!!!/!
-        ????/?
-        ..../.
-        / / / ///
-        """
-    ),
-    dedent(
-        f"""\
-        ＪＵＭＰ ＪＵＭＰ ＪＵＭＰ ＪＵＭＰ/ＪＵＭＰ
-        {FULL_SPACE_TOKEN} {FULL_SPACE_TOKEN} {FULL_SPACE_TOKEN} {NO_CANON_TOKEN}
-        ＣＯＭＩＣＳ ＣＯＭＩＣＳ ＣＯＭＩＣＳ ＣＯＭＩＣＳ/ＣＯＭＩＣＳ
+        {HALF_SPACE_TOKEN1} {HALF_SPACE_TOKEN1} {HALF_SPACE_TOKEN1} /
         """
     ),
 ]
 
 
-def test_get_seq2seq_format(fixture_data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
-    juman_dir: Path = fixture_data_dir / "modules" / "juman"
+def test_get_surfs(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast):
+    surfs: List[str] = [
+        "計算 機 に よる 言語 理解 を 実現 する",
+        "また , 校区 で 行わ れる 事業 や 防犯 など 校区 の 情報 も 記載 さ れて い ます 。",
+        f"「 核 の 歴史 {TRIPLE_DOT_TOKEN} ヒロシマ 、 ナガサキ を 超えて 」 。",
+        "後 一 日 まで ! ? . / °C",
+        f"JUMP {FULL_SPACE_TOKEN} COMICS {HALF_SPACE_TOKEN1}",
+    ]
+    seq2seq_formatter = Seq2SeqFormatter(seq2seq_tokenizer)
+    juman_dir: Path = data_dir / "modules" / "juman"
     for idx, path in enumerate(sorted(juman_dir.glob("*.juman"))):
         with open(path) as f:
             sent = Sentence.from_jumanpp(f.read())
-            assert get_seq2seq_format(sent) == input_seq2seq_formats[idx]
+            assert seq2seq_formatter.get_surfs(sent) == surfs[idx].split(" ")
 
 
-def test_get_sent_from_seq2seq_format(fixture_data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerBase):
-    seq2seq_module_writer = Seq2SeqModuleWriter(seq2seq_tokenizer)
-    juman_dir: Path = fixture_data_dir / "modules" / "juman"
+def test_get_src_tokens(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast):
+    src_tokens: List[List[str]] = [
+        ["計算", "機", "に", "よ る", "言語", "理解", "を", "実現", "する"],
+        [
+            "また",
+            ",",
+            "校 区",
+            "で",
+            "行 わ",
+            "れる",
+            "事業",
+            "や",
+            "防犯",
+            "など",
+            "校 区",
+            "の",
+            "情報",
+            "も",
+            "記載",
+            "さ",
+            "れて",
+            "い",
+            "ます",
+            "。",
+        ],
+        ["「", "核", "の", "歴史", TRIPLE_DOT_TOKEN, "ヒロ シマ", "、", "ナ ガ サ キ", "を", "超 えて", "」", "。"],
+        ["後", "一", "日", "まで", "!", "?", ".", "/", "° C"],
+        ["J UMP", FULL_SPACE_TOKEN, "COM ICS", HALF_SPACE_TOKEN1],
+    ]
+    seq2seq_formatter = Seq2SeqFormatter(seq2seq_tokenizer)
+    juman_dir: Path = data_dir / "modules" / "juman"
+    for idx, path in enumerate(sorted(juman_dir.glob("*.juman"))):
+        with open(path) as f:
+            sent = Sentence.from_jumanpp(f.read())
+            expected_src_tokens: List[str] = []
+            for morphemes in src_tokens[idx]:
+                expected_src_tokens.extend(morphemes.split(" ") + [MORPHEME_SPLIT_TOKEN])
+            assert [
+                x[1:] if x.startswith("▁") else x for x in seq2seq_formatter.get_src_tokens(sent)
+            ] == expected_src_tokens[:-1]
+
+
+def test_get_tgt_tokens(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast):
+    seq2seq_formatter = Seq2SeqFormatter(seq2seq_tokenizer)
+    juman_dir: Path = data_dir / "modules" / "juman"
+    for idx, path in enumerate(sorted(juman_dir.glob("*.juman"))):
+        with open(path) as f:
+            sent = Sentence.from_jumanpp(f.read())
+            expected_seq2seq_format: str = ""
+            for line in seq2seq_formats[idx].rstrip("\n").split("\n"):
+                mrphs: List[str] = line.split(" ")
+                expected_seq2seq_format += (
+                    f"{SURF_TOKEN}{mrphs[0]}{READING_TOKEN}{mrphs[1]}{LEMMA_TOKEN}{mrphs[2]}{CANON_TOKEN}{mrphs[3]}"
+                )
+            expected_tgt_tokens: List[str] = [
+                x for x in seq2seq_tokenizer.tokenize(expected_seq2seq_format) if x != "▁"
+            ]
+            assert seq2seq_formatter.get_tgt_tokens(sent) == expected_tgt_tokens
+
+
+def test_format_to_sent(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast):
+    seq2seq_formatter = Seq2SeqFormatter(seq2seq_tokenizer)
+    juman_dir: Path = data_dir / "modules" / "juman"
     for idx, path in enumerate(sorted(juman_dir.glob("*.juman"))):
         with open(path) as f:
             expected_sent = Sentence.from_jumanpp(f.read())
 
-        shaped_output: str = seq2seq_module_writer.shape(
-            output_seq2seq_formats[idx].replace("\n", NEW_LINE_TOKEN) + "</s>"
-        )
-        actual_sent = get_sent_from_seq2seq_format(shaped_output)
+        seq2seq_format: List[str] = []
+        for line in seq2seq_formats[idx].rstrip("\n").split("\n"):
+            morphemes: List[str] = line.split(" ")
+            seq2seq_format.extend(
+                f"{SURF_TOKEN} {morphemes[0]} {READING_TOKEN} {morphemes[1]} {LEMMA_TOKEN} {morphemes[2]} {CANON_TOKEN} {morphemes[3]}".split(
+                    " "
+                )
+            )
+        actual_sent: Sentence = seq2seq_formatter.format_to_sent("".join(seq2seq_format))
         assert len(actual_sent.morphemes) == len(expected_sent.morphemes)
         for actual_morpheme, expected_morpheme in zip(actual_sent.morphemes, expected_sent.morphemes):
             if "/" in expected_morpheme.reading and len(expected_morpheme.reading) > 1:
@@ -186,7 +196,7 @@ def test_get_sent_from_seq2seq_format(fixture_data_dir: Path, seq2seq_tokenizer:
             else:
                 expected_reading = expected_morpheme.reading
 
-            actual_canon: str = str(actual_morpheme.canon) if actual_morpheme.canon != f"{NO_CANON_TOKEN}" else "NIL"
+            actual_canon: str = str(actual_morpheme.canon) if actual_morpheme.canon != NO_CANON_TOKEN else "NIL"
             expected_canon: str = expected_morpheme.canon if expected_morpheme.canon is not None else "NIL"
 
             if expected_morpheme.pos == "特殊":

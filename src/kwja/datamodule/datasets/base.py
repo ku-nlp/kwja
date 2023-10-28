@@ -1,5 +1,6 @@
 import logging
 from abc import ABC
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from typing import Dict, Generic, List, TypeVar, Union
 
@@ -17,11 +18,7 @@ FeatureType = TypeVar("FeatureType")
 
 
 class BaseDataset(Dataset[FeatureType], Generic[ExampleType, FeatureType], ABC):
-    def __init__(
-        self,
-        tokenizer: PreTrainedTokenizerBase,
-        max_seq_length: int,
-    ) -> None:
+    def __init__(self, tokenizer: PreTrainedTokenizerBase, max_seq_length: int) -> None:
         self.tokenizer: PreTrainedTokenizerBase = tokenizer
         self.max_seq_length: int = max_seq_length
         self.examples: List[ExampleType] = []
@@ -47,15 +44,15 @@ class FullAnnotatedDocumentLoaderMixin:
     ) -> None:
         self.tokenizer: PreTrainedTokenizerBase = tokenizer
 
-        self.orig_documents: List[Document]
+        orig_documents: List[Document]
         if isinstance(source, Path):
             assert source.is_dir()
-            self.orig_documents = self._load_documents(source, ext)
+            orig_documents = self._load_documents(source, ext)
         else:
-            self.orig_documents = source
+            orig_documents = source
 
         self.doc_id2document: Dict[str, Document] = {}
-        for orig_document in track(self.orig_documents, description="Splitting documents"):
+        for orig_document in track(orig_documents, description="Splitting documents"):
             orig_document = self._postprocess_document(orig_document)
             self.doc_id2document.update(
                 {
@@ -71,13 +68,20 @@ class FullAnnotatedDocumentLoaderMixin:
     @staticmethod
     def _load_documents(document_dir: Path, ext: str) -> List[Document]:
         documents = []
-        for path in track(sorted(document_dir.glob(f"*.{ext}")), description="Loading documents"):
-            # TODO: fix document files that raise exception
-            try:
-                documents.append(Document.from_knp(path.read_text()))
-            except AssertionError:
-                logger.warning(f"{path} is not a valid knp file.")
+        # Use a ProcessPoolExecutor to parallelize the loading of documents
+        with ProcessPoolExecutor(4) as executor:
+            paths = sorted(document_dir.glob(f"*.{ext}"))
+            for document in track(
+                executor.map(FullAnnotatedDocumentLoaderMixin._load_document, paths),
+                total=len(paths),
+                description="Loading documents",
+            ):
+                documents.append(document)
         return documents
+
+    @staticmethod
+    def _load_document(path: Path) -> Document:
+        return Document.from_knp(path.read_text())
 
     def _postprocess_document(self, document: Document) -> Document:
         return document

@@ -11,7 +11,7 @@ from rhoknp.props import DepType
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
 
-from kwja.callbacks.word_module_writer import WordModuleWriter
+from kwja.callbacks import WordModuleWriter
 from kwja.datamodule.datasets import WordInferenceDataset
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
@@ -121,7 +121,7 @@ def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwa
         WordTask.BASE_PHRASE_FEATURE_TAGGING,
         WordTask.DEPENDENCY_PARSING,
         WordTask.COHESION_ANALYSIS,
-        WordTask.DISCOURSE_PARSING,
+        WordTask.DISCOURSE_RELATION_ANALYSIS,
     ]
 
     reading_resource_path = RESOURCE_PATH / "reading_prediction"
@@ -339,7 +339,7 @@ def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwa
     dependency_type_logits[1, 6, 0, DEPENDENCY_TYPES.index(DepType.DEPENDENCY)] = 1.0  # ました -> 頼み
 
     # (b, rel, src, tgt)
-    flatten_rels = [r for cohesion_utils in dataset.cohesion_task2utils.values() for r in cohesion_utils.rels]
+    flatten_rels = [r for rels in dataset.cohesion_task2rels.values() for r in rels]
     cohesion_logits = torch.zeros((num_examples, len(flatten_rels), max_seq_length, max_seq_length), dtype=torch.float)
     for i in range(num_examples):
         for j, rel in enumerate(flatten_rels):

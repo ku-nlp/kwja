@@ -12,7 +12,7 @@ from typing_extensions import Self
 
 
 class DummyModuleMetric:
-    def __init__(self) -> None:
+    def __init__(self, _: int) -> None:
         pass
 
     def update(self, *args: Any, **kwargs: Any) -> None:
@@ -96,6 +96,11 @@ class BaseModule(pl.LightningModule, Generic[MetricType]):
         checkpoint = torch.load(checkpoint_path, map_location=map_location)
         with _EmptyInit():
             module = cls(hparams=checkpoint[cls.CHECKPOINT_HYPER_PARAMS_KEY])  # type: ignore
+        state_dict: Dict[str, torch.Tensor] = checkpoint["state_dict"]
+        # from transformers 4.31.0, `encoder.embeddings.position_ids` is a non-persistent buffer
+        # https://github.com/huggingface/transformers/commit/8e5d1619b3e57367701d74647e87b95f8dba5409#diff-6f3cd40371ba02671abf26407e722aa56cf116263be410253f58c8aa063f14adR866
+        if strict is True and "encoder.embeddings.position_ids" in state_dict:
+            state_dict.pop("encoder.embeddings.position_ids")
         module.load_state_dict(checkpoint["state_dict"], strict=strict)
         return module
 

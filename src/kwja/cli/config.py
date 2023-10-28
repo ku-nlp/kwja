@@ -20,27 +20,26 @@ def get_kwja_config_file() -> Path:
 
 
 class Device(str, Enum):
-    auto = "auto"
-    cpu = "cpu"
-    gpu = "gpu"
+    AUTO = "auto"
+    CPU = "cpu"
+    GPU = "gpu"
 
 
 class ModelSize(str, Enum):
-    tiny = "tiny"
-    base = "base"
-    large = "large"
+    TINY = "tiny"
+    BASE = "base"
+    LARGE = "large"
 
 
 @dataclass
 class CLIConfig:
-    model_size: ModelSize = ModelSize.base
-    device: Device = Device.auto
+    model_size: ModelSize = ModelSize.BASE
+    device: Device = Device.AUTO
     num_workers: int = 0
     torch_compile: bool = False
     typo_batch_size: int = 1
-    senter_batch_size: int = 1
-    seq2seq_batch_size: int = 1
     char_batch_size: int = 1
+    seq2seq_batch_size: int = 1
     word_batch_size: int = 1
 
     @classmethod
@@ -52,8 +51,7 @@ class CLIConfig:
             num_workers=config["num_workers"],
             torch_compile=config["torch_compile"],
             typo_batch_size=config["typo_batch_size"],
-            senter_batch_size=config["senter_batch_size"],
-            seq2seq_batch_size=config["seq2seq_batch_size"],
             char_batch_size=config["char_batch_size"],
+            seq2seq_batch_size=config["seq2seq_batch_size"],
             word_batch_size=config["word_batch_size"],
         )

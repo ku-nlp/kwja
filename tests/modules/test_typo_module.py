@@ -22,7 +22,7 @@ def test_init() -> None:
     _ = TypoModule(cfg)
 
 
-def test_run(fixture_data_dir: Path) -> None:
+def test_run(data_dir: Path) -> None:
     trainer: pl.Trainer = hydra.utils.instantiate(
         cfg.trainer,
         logger=False,
@@ -31,7 +31,7 @@ def test_run(fixture_data_dir: Path) -> None:
         accelerator="cpu",
     )
 
-    path = fixture_data_dir / "datasets" / "typo_files"
+    path = data_dir / "datasets" / "typo_files"
     typo_tokenizer = hydra.utils.instantiate(cfg.datamodule.train.jwtd.tokenizer)
     dataset = TypoDataset(str(path), typo_tokenizer, cfg.max_seq_length)
     data_loader = DataLoader(dataset, batch_size=len(dataset), collate_fn=token_dataclass_data_collator)

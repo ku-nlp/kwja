@@ -1,16 +1,13 @@
 from logging import getLogger
-from pathlib import Path
 from typing import Dict, List, Literal, Optional, Set, Tuple
 
 import numpy as np
-import torch
+from cohesion_tools.extractors.base import BaseExtractor
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
-from rhoknp.cohesion import ExophoraReferent, RelTag, RelTagList
+from rhoknp.cohesion import ExophoraReferent, ExophoraReferentType, RelTag
 from rhoknp.props import DepType, NamedEntity, NamedEntityCategory
-from transformers import PreTrainedTokenizerBase
 
 from kwja.datamodule.examples import SpecialTokenIndexer
-from kwja.utils.cohesion_analysis import CohesionUtils
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TAGS,
@@ -33,25 +30,14 @@ from kwja.utils.constants import (
     CohesionTask,
 )
 from kwja.utils.dependency_parsing import DependencyManager
-from kwja.utils.reading_prediction import get_word_level_readings
 from kwja.utils.word_normalization import get_normalized
 
 logger = getLogger(__name__)
 
 
 # ---------- typo module writer ----------
-def get_maps(tokenizer: PreTrainedTokenizerBase, extended_vocab_path: Path) -> Tuple[Dict[str, int], Dict[int, str]]:
-    token2token_id = tokenizer.get_vocab()
-    with extended_vocab_path.open() as f:
-        for line in f:
-            if line := line.strip():
-                token2token_id[line] = len(token2token_id.keys())
-    token_id2token = {v: k for k, v in token2token_id.items()}
-    return token2token_id, token_id2token
-
-
-def convert_predictions_into_typo_corr_op_tags(
-    predictions: List[int],
+def convert_typo_predictions_into_tags(
+    predictions: List[int],  # kdr_predictions or ins_predictions
     probabilities: List[float],
     prefix: Literal["R", "I"],
     confidence_threshold: float,
@@ -87,14 +73,17 @@ def apply_edit_operations(pre_text: str, kdr_tags: List[str], ins_tags: List[str
     return post_text
 
 
-# ---------- senter module writer ----------
-def convert_senter_predictions_into_tags(
+# ---------- char module writer ----------
+def convert_char_predictions_into_tags(
     sent_segmentation_predictions: List[int],
-    input_ids: List[int],
-    special_ids: Set[int],
-) -> List[str]:
-    indices = [i for i, input_id in enumerate(input_ids) if input_id not in special_ids]
-    return [SENT_SEGMENTATION_TAGS[sent_segmentation_predictions[i]] for i in indices]
+    word_segmentation_predictions: List[int],
+    word_norm_op_predictions: List[int],
+    indices: List[int],
+) -> Tuple[List[str], List[str], List[str]]:
+    sent_segmentation_tags = [SENT_SEGMENTATION_TAGS[sent_segmentation_predictions[i]] for i in indices]
+    word_segmentation_tags = [WORD_SEGMENTATION_TAGS[word_segmentation_predictions[i]] for i in indices]
+    word_norm_op_tags = [WORD_NORM_OP_TAGS[word_norm_op_predictions[i]] for i in indices]
+    return sent_segmentation_tags, word_segmentation_tags, word_norm_op_tags
 
 
 def set_sentences(document: Document, sent_segmentation_tags: List[str]) -> None:
@@ -108,19 +97,6 @@ def set_sentences(document: Document, sent_segmentation_tags: List[str]) -> None
     if surf:
         sentences.append(Sentence(surf))
     document.sentences = sentences
-
-
-# ---------- char module writer ----------
-def convert_predictions_into_tags(
-    word_segmentation_predictions: List[int],
-    word_norm_op_predictions: List[int],
-    input_ids: List[int],
-    special_ids: Set[int],
-) -> Tuple[List[str], List[str]]:
-    indices = [i for i, input_id in enumerate(input_ids) if input_id not in special_ids]
-    word_segmentation_tags = [WORD_SEGMENTATION_TAGS[word_segmentation_predictions[i]] for i in indices]
-    word_norm_op_tags = [WORD_NORM_OP_TAGS[word_norm_op_predictions[i]] for i in indices]
-    return word_segmentation_tags, word_norm_op_tags
 
 
 def set_morphemes(document: Document, word_segmentation_tags: List[str], word_norm_op_tags: List[str]) -> None:
@@ -162,19 +138,6 @@ def _build_morpheme(surf: str, norm: str) -> Morpheme:
 
 
 # ---------- word module writer ----------
-def get_word_reading_predictions(
-    input_ids: torch.Tensor,
-    reading_predictions: List[int],
-    reading_id2reading: Dict[int, str],
-    tokenizer: PreTrainedTokenizerBase,
-    reading_subword_map: List[List[bool]],
-) -> List[str]:
-    readings: List[str] = [reading_id2reading[reading_id] for reading_id in reading_predictions]
-    tokens: List[str] = [tokenizer.decode(input_id) for input_id in input_ids]
-    word_reading_predictions: List[str] = get_word_level_readings(readings, tokens, reading_subword_map)
-    return word_reading_predictions
-
-
 def get_morpheme_attribute_predictions(
     pos_logits: List[List[float]],
     subpos_logits: List[List[float]],
@@ -422,38 +385,39 @@ def _resolve_dependency(base_phrase: BasePhrase, dependency_manager: DependencyM
             base_phrase.dep_type = DepType.DEPENDENCY
             return
 
-    raise RuntimeError("couldn't resolve dependency")
+    raise RuntimeError("couldn't resolve dependency")  # pragma: no cover
 
 
 def add_cohesion(
     document: Document,
     cohesion_logits: List[List[List[float]]],  # (rel, seq, seq)
-    cohesion_task2utils: Dict[CohesionTask, CohesionUtils],
+    cohesion_task2extractor: Dict[CohesionTask, BaseExtractor],
+    cohesion_task2rels: Dict[CohesionTask, List[str]],
+    restrict_cohesion_target: bool,
     special_token_indexer: SpecialTokenIndexer,
 ) -> None:
     rel2logits = dict(
         zip(
-            [r for cohesion_utils in cohesion_task2utils.values() for r in cohesion_utils.rels],
+            [r for cohesion_rels in cohesion_task2rels.values() for r in cohesion_rels],
             cohesion_logits,
         )
     )
     base_phrases = document.base_phrases
     for base_phrase in base_phrases:
-        rel_tags = RelTagList()
-        for cohesion_utils in cohesion_task2utils.values():
-            if cohesion_utils.is_target(base_phrase) is False:
+        base_phrase.rel_tags.clear()
+        for cohesion_task, cohesion_extractor in cohesion_task2extractor.items():
+            if restrict_cohesion_target is True and cohesion_extractor.is_target(base_phrase) is False:
                 continue
-            for rel in cohesion_utils.rels:
+            for rel in cohesion_task2rels[cohesion_task]:
                 rel_tag = _to_rel_tag(
                     rel,
                     rel2logits[rel][base_phrase.head.global_index],  # (seq, )
                     base_phrases,
                     special_token_indexer,
-                    cohesion_utils.exophora_referents,
+                    cohesion_extractor.exophora_referent_types,
                 )
                 if rel_tag is not None:
-                    rel_tags.append(rel_tag)
-        base_phrase.rel_tags = rel_tags
+                    base_phrase.rel_tags.append(rel_tag)
 
 
 def _to_rel_tag(
@@ -461,7 +425,7 @@ def _to_rel_tag(
     rel_logits: List[float],  # (seq, )
     base_phrases: List[BasePhrase],
     special_token_indexer: SpecialTokenIndexer,
-    exophora_referents: List[ExophoraReferent],
+    exophora_referent_types: List[ExophoraReferentType],
 ) -> Optional[RelTag]:
     logits = [rel_logits[bp.head.global_index] for bp in base_phrases]
     logits += [rel_logits[i] for i in special_token_indexer.get_morpheme_level_indices()]
@@ -480,7 +444,7 @@ def _to_rel_tag(
         # exophora
         special_token = special_token_indexer.special_tokens[predicted_base_phrase_global_index - len(base_phrases)]
         stripped_special_token = special_token[1:-1]  # strip '[' and ']'
-        if stripped_special_token in [str(er) for er in exophora_referents]:  # exclude [NULL], [NA], and [ROOT]
+        if ExophoraReferent(stripped_special_token).type in exophora_referent_types:  # exclude [NULL], [NA], and [ROOT]
             return RelTag(
                 type=rel,
                 target=stripped_special_token,
@@ -492,7 +456,7 @@ def _to_rel_tag(
 
 
 def add_discourse(document: Document, discourse_predictions: List[List[int]]) -> None:
-    if document.need_clause_tag:
+    if document.is_clause_tag_required():
         logger.warning("failed to output clause boundaries")
         return
 

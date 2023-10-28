@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Tuple
 import torch
 from Levenshtein import opcodes
 
-from kwja.callbacks.utils import apply_edit_operations, convert_predictions_into_typo_corr_op_tags
+from kwja.callbacks.utils import apply_edit_operations, convert_typo_predictions_into_tags
 from kwja.datamodule.datasets import TypoDataset
 from kwja.metrics.base import BaseModuleMetric
 from kwja.metrics.utils import unique
@@ -18,8 +18,8 @@ class TypoModuleMetric(BaseModuleMetric):
         "ins_probabilities",
     )
 
-    def __init__(self, confidence_thresholds: Tuple[float, ...] = (0.0, 0.8, 0.9)) -> None:
-        super().__init__()
+    def __init__(self, max_seq_length: int, confidence_thresholds: Tuple[float, ...] = (0.0, 0.8, 0.9)) -> None:
+        super().__init__(max_seq_length)
         self.confidence_thresholds = confidence_thresholds
         self.dataset: Optional[TypoDataset] = None
         self.example_ids: torch.Tensor
@@ -28,25 +28,26 @@ class TypoModuleMetric(BaseModuleMetric):
         self.ins_predictions: torch.Tensor
         self.ins_probabilities: torch.Tensor
 
-    @staticmethod
-    def pad(kwargs: Dict[str, torch.Tensor], max_seq_length: int) -> None:
+    def _pad(self, kwargs: Dict[str, torch.Tensor]) -> None:
         for key, value in kwargs.items():
-            if key in {"example_ids"}:
+            if key in {"example_ids"} or value.numel() == 0:
                 continue
             else:
                 dims = [1]
             for dim in dims:
-                size = [max_seq_length - s if i == dim else s for i, s in enumerate(value.size())]
-                if size[dim] == 0:
-                    continue
+                size = [self.max_seq_length - s if i == dim else s for i, s in enumerate(value.size())]
                 padding = torch.zeros(size, dtype=value.dtype, device=value.device)
                 value = torch.cat([value, padding], dim=dim)
             kwargs[key] = value
 
     def compute(self) -> Dict[str, float]:
+        if isinstance(self.example_ids, torch.Tensor) is False:
+            self.example_ids = torch.cat(self.example_ids, dim=0)  # type: ignore
         sorted_indices = unique(self.example_ids)
         for state_name in self.STATE_NAMES:
             state = getattr(self, state_name)
+            if isinstance(state, torch.Tensor) is False:
+                state = torch.cat(state, dim=0)
             setattr(self, state_name, state[sorted_indices])
 
         metrics: Dict[str, float] = {}
@@ -58,11 +59,7 @@ class TypoModuleMetric(BaseModuleMetric):
     def _build_texts(self, confidence_threshold: float) -> List[Tuple[str, str, str]]:
         example_id2texts = {}
         for example_id, kdr_predictions, kdr_probabilities, ins_predictions, ins_probabilities in zip(
-            self.example_ids.tolist(),
-            self.kdr_predictions.tolist(),
-            self.kdr_probabilities.tolist(),
-            self.ins_predictions.tolist(),
-            self.ins_probabilities.tolist(),
+            *[getattr(self, state_name).tolist() for state_name in self.STATE_NAMES]
         ):
             assert self.dataset is not None, "typo dataset isn't set"
 
@@ -72,8 +69,8 @@ class TypoModuleMetric(BaseModuleMetric):
                 continue
 
             args = (confidence_threshold, self.dataset.token2token_id, self.dataset.token_id2token)
-            kdr_tags = convert_predictions_into_typo_corr_op_tags(kdr_predictions, kdr_probabilities, "R", *args)
-            ins_tags = convert_predictions_into_typo_corr_op_tags(ins_predictions, ins_probabilities, "I", *args)
+            kdr_tags = convert_typo_predictions_into_tags(kdr_predictions, kdr_probabilities, "R", *args)
+            ins_tags = convert_typo_predictions_into_tags(ins_predictions, ins_probabilities, "I", *args)
 
             # the prediction of the first token (= [CLS]) is excluded.
             # the prediction of the dummy token at the end is used for insertion only.

@@ -1,13 +1,15 @@
 from collections import defaultdict
-from itertools import chain
 from statistics import mean
-from typing import Dict, List, Literal, Optional, Tuple, Union
+from typing import Dict, List, Literal, Optional, Set, Tuple, Union
 
 import torch
+from cohesion_tools.evaluation import CohesionScore, CohesionScorer
+from cohesion_tools.extractors import PasExtractor
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
-from rhoknp.props import DepType
-from seqeval.metrics import accuracy_score, f1_score
+from rhoknp.props import DepType, FeatureDict, MemoTag
+from seqeval.metrics import f1_score as seqeval_f1_score
 from seqeval.scheme import IOB2
+from sklearn.metrics import accuracy_score, f1_score, precision_recall_fscore_support
 
 from kwja.callbacks.utils import (  # add_discourse,
     add_base_phrase_features,
@@ -17,20 +19,18 @@ from kwja.callbacks.utils import (  # add_discourse,
     build_morphemes,
     chunk_morphemes,
     get_morpheme_attribute_predictions,
-    get_word_reading_predictions,
 )
 from kwja.datamodule.datasets import WordDataset
 from kwja.metrics.base import BaseModuleMetric
-from kwja.metrics.cohesion_scorer import Scorer, ScoreResult
 from kwja.metrics.conll18_ud_eval import main as conll18_ud_eval
 from kwja.metrics.utils import unique
-from kwja.utils.cohesion_analysis import PasUtils
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TAGS,
     CONJTYPE_TAGS,
     DISCOURSE_RELATIONS,
     IGNORE_INDEX,
+    IGNORE_VALUE_FEATURE_PAT,
     MASKED,
     POS_TAGS,
     SUBPOS_TAGS,
@@ -38,6 +38,7 @@ from kwja.utils.constants import (
     CohesionTask,
     WordTask,
 )
+from kwja.utils.reading_prediction import get_word_level_readings
 from kwja.utils.sub_document import extract_target_sentences, to_orig_doc_id
 
 
@@ -60,8 +61,8 @@ class WordModuleMetric(BaseModuleMetric):
         "discourse_labels",
     )
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, max_seq_length: int) -> None:
+        super().__init__(max_seq_length)
         self.dataset: Optional[WordDataset] = None
         self.reading_id2reading: Optional[Dict[int, str]] = None
         self.training_tasks: Optional[List[WordTask]] = None
@@ -82,19 +83,16 @@ class WordModuleMetric(BaseModuleMetric):
         self.discourse_predictions: torch.Tensor
         self.discourse_labels: torch.Tensor
 
-    @staticmethod
-    def pad(kwargs: Dict[str, torch.Tensor], max_seq_length: int) -> None:
+    def _pad(self, kwargs: Dict[str, torch.Tensor]) -> None:
         for key, value in kwargs.items():
-            if key in {"example_ids"}:
+            if key in {"example_ids"} or value.numel() == 0:
                 continue
             elif key in {"reading_subword_map", "cohesion_logits", "discourse_predictions", "discourse_labels"}:
                 dims = [value.ndim - 2, value.ndim - 1]
             else:
                 dims = [1]
             for dim in dims:
-                size = [max_seq_length - s if i == dim else s for i, s in enumerate(value.size())]
-                if size[dim] == 0:
-                    continue
+                size = [self.max_seq_length - s if i == dim else s for i, s in enumerate(value.size())]
                 if key in {"discourse_labels"}:
                     fill_value: Union[float, int] = IGNORE_INDEX
                 else:
@@ -106,9 +104,14 @@ class WordModuleMetric(BaseModuleMetric):
     def compute(self) -> Dict[str, float]:
         assert self.training_tasks is not None, "training_tasks isn't set"
 
+        if isinstance(self.example_ids, torch.Tensor) is False:
+            self.example_ids = torch.cat(self.example_ids, dim=0)  # type: ignore
+
         sorted_indices = unique(self.example_ids)
         for state_name in self.STATE_NAMES:
             state = getattr(self, state_name)
+            if isinstance(state, torch.Tensor) is False:
+                state = torch.cat(state, dim=0)
             if state_name == "reading_subword_map":
                 state = state.bool()
             setattr(self, state_name, state[sorted_indices])
@@ -130,10 +133,10 @@ class WordModuleMetric(BaseModuleMetric):
             metrics.update(self.compute_dependency_parsing_metrics(partly_gold_document1, gold_documents))
         if WordTask.COHESION_ANALYSIS in self.training_tasks:
             metrics.update(self.compute_cohesion_analysis_metrics(partly_gold_document2, gold_documents))
-        if WordTask.DISCOURSE_PARSING in self.training_tasks:
+        if WordTask.DISCOURSE_RELATION_ANALYSIS in self.training_tasks:
             predictions = self.discourse_predictions.view(-1)
             labels = self.discourse_labels.view(-1)
-            metrics.update(self.compute_discourse_parsing_metrics(predictions, labels))
+            metrics.update(self.compute_discourse_relation_analysis_metrics(predictions, labels))
         return metrics
 
     def _build_documents(self) -> Tuple[List[Document], ...]:
@@ -160,18 +163,15 @@ class WordModuleMetric(BaseModuleMetric):
         ) in zip(*[getattr(self, state_name).tolist() for state_name in self.STATE_NAMES]):
             example = self.dataset.examples[example_id]
             gold_document = self.dataset.doc_id2document[example.doc_id]
-            num_morphemes = len(gold_document.morphemes)
             orig_doc_id = to_orig_doc_id(gold_document.doc_id)
 
-            word_reading_predictions = get_word_reading_predictions(
-                example.encoding.ids,
-                reading_predictions,
-                self.reading_id2reading,
-                self.dataset.tokenizer,
+            word_reading_predictions = get_word_level_readings(
+                [self.reading_id2reading[reading_id] for reading_id in reading_predictions],
+                [self.dataset.tokenizer.decode(input_id) for input_id in example.encoding.ids],
                 reading_subword_map,
             )
             morpheme_attribute_predictions = get_morpheme_attribute_predictions(
-                *(logits[:num_morphemes] for logits in morpheme_attribute_logits)
+                *(logits[: len(gold_document.morphemes)] for logits in morpheme_attribute_logits)
             )
             morphemes = build_morphemes(
                 [m.surf for m in gold_document.morphemes],
@@ -187,7 +187,7 @@ class WordModuleMetric(BaseModuleMetric):
             # goldの基本句区切り・基本句主辞を使用
             partly_gold_document1 = gold_document.reparse()
             partly_gold_document1.doc_id = gold_document.doc_id
-            self._refresh(partly_gold_document1, level=1)
+            self.refresh(partly_gold_document1, level=1)
             for sentence in extract_target_sentences(partly_gold_document1):
                 add_named_entities(sentence, ne_predictions)
                 add_base_phrase_features(sentence, base_phrase_feature_probabilities)
@@ -199,11 +199,13 @@ class WordModuleMetric(BaseModuleMetric):
             # goldの基本句区切り・基本句主辞・基本句素性を使用
             partly_gold_document2 = gold_document.reparse()
             partly_gold_document2.doc_id = gold_document.doc_id
-            self._refresh(partly_gold_document2, level=2)
+            self.refresh(partly_gold_document2, level=2)
             add_cohesion(
                 partly_gold_document2,
                 cohesion_logits,
-                self.dataset.cohesion_task2utils,
+                self.dataset.cohesion_task2extractor,
+                self.dataset.cohesion_task2rels,
+                self.dataset.restrict_cohesion_target,
                 example.special_token_indexer,
             )
             for sentence in extract_target_sentences(partly_gold_document2):
@@ -218,7 +220,7 @@ class WordModuleMetric(BaseModuleMetric):
         return predicted_documents, partly_gold_documents1, partly_gold_documents2, gold_documents
 
     @staticmethod
-    def _refresh(document: Document, level: int = 1) -> None:
+    def refresh(document: Document, level: int = 1) -> None:
         """Refresh document
 
         NOTE:
@@ -232,8 +234,15 @@ class WordModuleMetric(BaseModuleMetric):
         except AttributeError:
             pass
 
+        for phrase in document.phrases:
+            if level == 1:
+                phrase.features.clear()
+                phrase.parent_index = None
+                phrase.dep_type = None
+
         for base_phrase in document.base_phrases:
             base_phrase.rel_tags.clear()
+            base_phrase.memo_tag = MemoTag()
             if level == 1:
                 base_phrase.features.clear()
                 base_phrase.parent_index = None
@@ -247,80 +256,87 @@ class WordModuleMetric(BaseModuleMetric):
     def compute_reading_prediction_metrics(
         predicted_documents: List[Document], gold_documents: List[Document]
     ) -> Dict[str, float]:
-        reading_predictions = [m.reading for d in predicted_documents for m in d.morphemes]
-        reading_labels = [m.reading for d in gold_documents for m in d.morphemes]
-        num_correct = sum(p == l for p, l in zip(reading_predictions, reading_labels))
-        # 単語単位の読みの正解率
-        return {"reading_prediction_accuracy": num_correct / len(reading_labels)}
+        predictions = [m.reading for d in predicted_documents for m in d.morphemes]
+        labels = [m.reading for d in gold_documents for m in d.morphemes]
+        return {"reading_prediction_accuracy": accuracy_score(y_true=labels, y_pred=predictions)}
 
     @staticmethod
     def compute_morphological_analysis_metrics(
         predicted_documents: List[Document], gold_documents: List[Document]
     ) -> Dict[str, float]:
         metrics: Dict[str, float] = {}
-
-        # m.pos not in POS_TAGS ... 未定義語、その他など
-        pos_labels = [[f"B-{m.pos}" if m.pos in POS_TAGS else "B-" for m in d.morphemes] for d in gold_documents]
-        pos_predictions = [[f"B-{m.pos}" for m in d.morphemes] for d in predicted_documents]
-        metrics["pos_f1"] = f1_score(y_true=pos_labels, y_pred=pos_predictions).item()
-
-        subpos_labels = [
-            [f"B-{m.subpos}" if m.subpos in SUBPOS_TAGS else "B-" for m in d.morphemes] for d in gold_documents
-        ]
-        subpos_predictions = [[f"B-{m.subpos}" for m in d.morphemes] for d in predicted_documents]
-        metrics["subpos_f1"] = f1_score(y_true=subpos_labels, y_pred=subpos_predictions).item()
-
-        conjtype_labels = [
-            [f"B-{m.conjtype}" if m.conjtype in CONJTYPE_TAGS else "B-" for m in d.morphemes] for d in gold_documents
-        ]
-        conjtype_predictions = [[f"B-{m.conjtype}" for m in d.morphemes] for d in predicted_documents]
-        metrics["conjtype_f1"] = f1_score(y_true=conjtype_labels, y_pred=conjtype_predictions).item()
-
-        conjform_labels = [
-            [f"B-{m.conjform}" if m.conjform in CONJFORM_TAGS else "B-" for m in d.morphemes] for d in gold_documents
-        ]
-        conjform_predictions = [[f"B-{m.conjform}" for m in d.morphemes] for d in predicted_documents]
-        metrics["conjform_f1"] = f1_score(y_true=conjform_labels, y_pred=conjform_predictions).item()
-
+        for attribute_name, supported_attribute_values in zip(
+            ("pos", "subpos", "conjtype", "conjform"), (POS_TAGS, SUBPOS_TAGS, CONJTYPE_TAGS, CONJFORM_TAGS)
+        ):
+            metrics[f"{attribute_name}_f1"] = WordModuleMetric._calc_morpheme_attribute_f1_score(
+                [m for d in predicted_documents for m in d.morphemes],
+                [m for d in gold_documents for m in d.morphemes],
+                attribute_name,
+                supported_attribute_values,
+            )
         metrics["morphological_analysis_f1"] = mean(metrics.values())
         return metrics
 
+    @staticmethod
+    def _calc_morpheme_attribute_f1_score(
+        predicted_morphemes: List[Morpheme],
+        gold_morphemes: List[Morpheme],
+        attribute_name: str,
+        supported_attribute_values: Tuple[str, ...],
+    ) -> float:
+        labels: List[str] = []
+        for morpheme in gold_morphemes:
+            attribute_value = getattr(morpheme, attribute_name)
+            labels.append(attribute_value if attribute_value in supported_attribute_values else "UNKNOWN")
+        predictions: List[str] = [getattr(morpheme, attribute_name) for morpheme in predicted_morphemes]
+        return f1_score(y_true=labels, y_pred=predictions, average="micro").item()
+
+    @staticmethod
     def compute_word_feature_tagging_metrics(
-        self, predicted_documents: List[Document], gold_documents: List[Document]
+        predicted_documents: List[Document], gold_documents: List[Document]
     ) -> Dict[str, float]:
         metrics: Dict[str, float] = {}
-        concatenated_labels = []
-        concatenated_predictions = []
-        for word_feature in WORD_FEATURES:
-            if word_feature == "基本句-区切":
-                labels = [self._convert_units_into_segmentation_tags(d.base_phrases) for d in gold_documents]
-                predictions = [self._convert_units_into_segmentation_tags(d.base_phrases) for d in predicted_documents]
-            elif word_feature == "文節-区切":
-                labels = [self._convert_units_into_segmentation_tags(d.phrases) for d in gold_documents]
-                predictions = [self._convert_units_into_segmentation_tags(d.phrases) for d in predicted_documents]
-            else:
-                labels = [
-                    [self._convert_feature_to_bo_tag(m.features.get(word_feature)) for m in d.morphemes]
-                    for d in gold_documents
-                ]
-                predictions = [
-                    [self._convert_feature_to_bo_tag(m.features.get(word_feature)) for m in d.morphemes]
-                    for d in predicted_documents
-                ]
-            metrics[f"{word_feature}_f1"] = f1_score(
-                y_true=labels, y_pred=predictions, mode="strict", scheme=IOB2
+        all_labels = []
+        all_predictions = []
+        for feature_label in WORD_FEATURES:
+            labels: List[List[str]] = []
+            predictions: List[List[str]] = []
+            gold_document: Document
+            predicted_document: Document
+            for gold_document, predicted_document in zip(gold_documents, predicted_documents):
+                if feature_label == "基本句-区切":
+                    label = WordModuleMetric._convert_units_into_segmentation_tags(gold_document.base_phrases)
+                    prediction = WordModuleMetric._convert_units_into_segmentation_tags(predicted_document.base_phrases)
+                elif feature_label == "文節-区切":
+                    label = WordModuleMetric._convert_units_into_segmentation_tags(gold_document.phrases)
+                    prediction = WordModuleMetric._convert_units_into_segmentation_tags(predicted_document.phrases)
+                else:
+                    label = [
+                        ("B" if feature_label in WordModuleMetric._convert_features_to_labels(m.features) else "O")
+                        for m in gold_document.morphemes
+                    ]
+                    prediction = [
+                        ("B" if feature_label in WordModuleMetric._convert_features_to_labels(m.features) else "O")
+                        for m in predicted_document.morphemes
+                    ]
+                labels.append(label)
+                predictions.append(prediction)
+            metrics[f"{feature_label}_f1"] = seqeval_f1_score(
+                y_true=labels, y_pred=predictions, mode="strict", scheme=IOB2, average="micro"
             ).item()
-            concatenated_labels += labels
-            concatenated_predictions += predictions
-        metrics["macro_word_feature_tagging_f1"] = mean(metrics.values())
-        metrics["micro_word_feature_tagging_f1"] = f1_score(
-            y_true=concatenated_labels, y_pred=concatenated_predictions, mode="strict", scheme=IOB2
+            all_labels += labels
+            all_predictions += predictions
+        metrics["macro_word_feature_tagging_f1"] = mean(
+            metrics[f"{feature_label}_f1"] for feature_label in WORD_FEATURES
+        )
+        metrics["micro_word_feature_tagging_f1"] = seqeval_f1_score(
+            y_true=all_labels, y_pred=all_predictions, mode="strict", scheme=IOB2, average="micro"
         ).item()
         return metrics
 
     @staticmethod
     def _convert_units_into_segmentation_tags(units: Union[List[Phrase], List[BasePhrase]]) -> List[str]:
-        return ["B" if m == u.morphemes[-1] else "I" for u in units for m in u.morphemes]
+        return ["B" if idx == 0 else "I" for u in units for idx in range(len(u.morphemes))]
 
     @staticmethod
     def compute_ner_metrics(predicted_documents: List[Document], gold_documents: List[Document]) -> Dict[str, float]:
@@ -331,88 +347,88 @@ class WordModuleMetric(BaseModuleMetric):
                     morpheme.features["NE"] = f"{bi}-{named_entity.category.value}"
         labels = [[m.features.get("NE") or "O" for m in d.morphemes] for d in gold_documents]
         predictions = [[m.features.get("NE") or "O" for m in d.morphemes] for d in predicted_documents]
-        # `f1_score` function calculates micro average by default
-        return {"ner_f1": f1_score(y_true=labels, y_pred=predictions, mode="strict", scheme=IOB2).item()}
+        return {
+            "ner_f1": seqeval_f1_score(
+                y_true=labels, y_pred=predictions, mode="strict", scheme=IOB2, average="micro"
+            ).item()
+        }
 
     @staticmethod
     def compute_base_phrase_feature_tagging_metrics(
         partly_gold_documents1: List[Document], gold_documents: List[Document]
     ) -> Dict[str, float]:
         metrics: Dict[str, float] = {}
-        concatenated_labels = []
-        concatenated_predictions = []
-        for base_phrase_feature in BASE_PHRASE_FEATURES:
-            labels = [
-                [
-                    WordModuleMetric._convert_feature_to_bo_tag(m.base_phrase.features.get(base_phrase_feature))
-                    for m in d.morphemes
-                    if m == m.base_phrase.head
+        all_labels: List[bool] = []
+        all_predictions: List[bool] = []
+        for feature_label in BASE_PHRASE_FEATURES:
+            labels: List[bool] = []
+            predictions: List[bool] = []
+            gold_document: Document
+            predicted_document: Document
+            for gold_document, predicted_document in zip(gold_documents, partly_gold_documents1):
+                labels += [
+                    feature_label in WordModuleMetric._convert_features_to_labels(base_phrase.features)
+                    for base_phrase in gold_document.base_phrases
                 ]
-                for d in gold_documents
-            ]
-            predictions = [
-                [
-                    WordModuleMetric._convert_feature_to_bo_tag(m.base_phrase.features.get(base_phrase_feature))
-                    for m in d.morphemes
-                    if m == m.base_phrase.head
+                predictions += [
+                    feature_label in WordModuleMetric._convert_features_to_labels(base_phrase.features)
+                    for base_phrase in predicted_document.base_phrases
                 ]
-                for d in partly_gold_documents1
-            ]
             # 正解ラベルがない基本句素性は評価対象外
-            if "B" not in set(chain.from_iterable(labels)):
-                continue
-            metrics[f"{base_phrase_feature}_f1"] = f1_score(
-                y_true=labels, y_pred=predictions, mode="strict", scheme=IOB2
-            ).item()
-            concatenated_labels += labels
-            concatenated_predictions += predictions
-        metrics["macro_base_phrase_feature_tagging_f1"] = mean(metrics.values())
+            if any(labels):
+                metrics[f"{feature_label}_f1"] = f1_score(
+                    y_true=labels, y_pred=predictions, pos_label=True, average="binary"
+                ).item()
+            all_labels += labels
+            all_predictions += predictions
+        metrics["macro_base_phrase_feature_tagging_f1"] = mean(
+            metrics[f"{feature_label}_f1"] for feature_label in BASE_PHRASE_FEATURES if f"{feature_label}_f1" in metrics
+        )
         metrics["micro_base_phrase_feature_tagging_f1"] = f1_score(
-            y_true=concatenated_labels, y_pred=concatenated_predictions, mode="strict", scheme=IOB2
+            y_true=all_labels, y_pred=all_predictions, pos_label=True, average="binary"
         ).item()
         return metrics
 
     @staticmethod
-    def _convert_feature_to_bo_tag(feature: Optional[Union[bool, str]]) -> str:
-        return "B" if feature is not None else "O"
+    def _convert_features_to_labels(features: FeatureDict) -> Set[str]:
+        # {"用言": "動", "体言": True, "節-機能-原因・理由": "ので"} -> {"用言:動", "体言", "節-機能-原因・理由"}
+        return {
+            k + (f":{v}" if isinstance(v, str) and IGNORE_VALUE_FEATURE_PAT.match(k) is None else "")
+            for k, v in features.items()
+            if v not in (None, False)
+        }
 
     @staticmethod
     def compute_dependency_parsing_metrics(
         partly_gold_documents1: List[Document], gold_documents: List[Document]
     ) -> Dict[str, float]:
         metrics: Dict[str, float] = {}
-        metrics.update(
-            {
-                f"base_phrase_{k}": v
-                for k, v in conll18_ud_eval(
-                    *WordModuleMetric._to_conll_lines(partly_gold_documents1, gold_documents, "base_phrase")
-                ).items()
-            }
-        )
-        metrics.update(
-            {
-                f"morpheme_{k}": v
-                for k, v in conll18_ud_eval(
-                    *WordModuleMetric._to_conll_lines(partly_gold_documents1, gold_documents, "morpheme")
-                ).items()
-            }
-        )
+        unit_names: List[Literal["base_phrase", "morpheme"]] = ["base_phrase", "morpheme"]
+        for unit_name in unit_names:
+            metrics.update(
+                {
+                    f"{unit_name}_{k}": v
+                    for k, v in conll18_ud_eval(
+                        *WordModuleMetric._to_conll_lines(partly_gold_documents1, gold_documents, unit_name)
+                    ).items()
+                }
+            )
         return metrics
 
     @staticmethod
     def _to_conll_lines(
         partly_gold_documents1: List[Document],
         gold_documents: List[Document],
-        unit: Literal["base_phrase", "morpheme"],
+        unit_name: Literal["base_phrase", "morpheme"],
     ) -> Tuple[List[str], List[str]]:
         gold_lines = []
         system_lines = []
         for gold_document, partly_gold_document1 in zip(gold_documents, partly_gold_documents1):
             for sentence in gold_document.sentences:
-                gold_lines += [WordModuleMetric._to_conll_line(u) for u in getattr(sentence, f"{unit}s")]
+                gold_lines += [WordModuleMetric._to_conll_line(u) for u in getattr(sentence, f"{unit_name}s")]
                 gold_lines.append("\n")
             for sentence in partly_gold_document1.sentences:
-                system_lines += [WordModuleMetric._to_conll_line(u) for u in getattr(sentence, f"{unit}s")]
+                system_lines += [WordModuleMetric._to_conll_line(u) for u in getattr(sentence, f"{unit_name}s")]
                 system_lines.append("\n")
         return gold_lines, system_lines
 
@@ -440,72 +456,67 @@ class WordModuleMetric(BaseModuleMetric):
         self, partly_gold_documents2: List[Document], gold_documents: List[Document]
     ) -> Dict[str, float]:
         assert self.dataset is not None, "dataset isn't set"
-        if pas_utils := self.dataset.cohesion_task2utils.get(CohesionTask.PAS_ANALYSIS):
-            assert isinstance(pas_utils, PasUtils), "pas utils isn't set correctly"
-            pas_cases = pas_utils.cases
-            pas_target = pas_utils.target
-        else:
-            pas_cases = []
-            pas_target = ""
+        pas_extractor = self.dataset.cohesion_task2extractor[CohesionTask.PAS_ANALYSIS]
+        assert isinstance(pas_extractor, PasExtractor), "pas utils isn't set correctly"
 
-        scorer = Scorer(
-            partly_gold_documents2,
-            gold_documents,
-            exophora_referents=self.dataset.exophora_referents,
-            pas_cases=pas_cases,
-            pas_target=pas_target,
+        scorer = CohesionScorer(
+            exophora_referent_types=self.dataset.exophora_referent_types,
+            pas_cases=pas_extractor.cases if CohesionTask.PAS_ANALYSIS in self.dataset.cohesion_tasks else [],
+            pas_verbal=pas_extractor.verbal_predicate,
+            pas_nominal=pas_extractor.nominal_predicate,
             bridging=(CohesionTask.BRIDGING_REFERENCE_RESOLUTION in self.dataset.cohesion_tasks),
             coreference=(CohesionTask.COREFERENCE_RESOLUTION in self.dataset.cohesion_tasks),
         )
-        score_result: ScoreResult = scorer.run()
+        score: CohesionScore = scorer.run(partly_gold_documents2, gold_documents)
 
         metrics: Dict[str, float] = {}
-        for rel, analysis2metric in score_result.to_dict().items():
+        for task, analysis2metric in score.to_dict().items():
             for analysis, metric in analysis2metric.items():
-                metrics[f"{analysis}_{rel}"] = metric.f1
+                if task not in ("bridging", "coreference"):
+                    key = "pas"
+                    if task != "all_case":
+                        key += f"_{task}"
+                else:
+                    key = task
+                if analysis != "all":
+                    key += f"_{analysis}"
+                key += "_f1"
+                metrics[key] = metric.f1
         cohesion_analysis_f1s = []
         if CohesionTask.PAS_ANALYSIS in self.dataset.cohesion_tasks:
-            cohesion_analysis_f1s.append(metrics["pas_all_case"])
+            cohesion_analysis_f1s.append(metrics["pas_f1"])
         if CohesionTask.BRIDGING_REFERENCE_RESOLUTION in self.dataset.cohesion_tasks:
-            cohesion_analysis_f1s.append(metrics["bridging_all_case"])
+            cohesion_analysis_f1s.append(metrics["bridging_f1"])
         if CohesionTask.COREFERENCE_RESOLUTION in self.dataset.cohesion_tasks:
-            cohesion_analysis_f1s.append(metrics["coreference_all_case"])
-        metrics["cohesion_analysis_f1"] = mean(cohesion_analysis_f1s)
+            cohesion_analysis_f1s.append(metrics["coreference_f1"])
+        metrics["cohesion_analysis_f1"] = mean(cohesion_analysis_f1s) if cohesion_analysis_f1s else 0.0
         return metrics
 
     @staticmethod
-    def compute_discourse_parsing_metrics(predictions: torch.Tensor, labels: torch.Tensor) -> Dict[str, float]:
-        ignored_indices = labels.eq(IGNORE_INDEX)
-        predictions = predictions[~ignored_indices]
-        labels = labels[~ignored_indices]
+    def compute_discourse_relation_analysis_metrics(
+        predictions: torch.Tensor,  # (N)
+        labels: torch.Tensor,  # (N)
+    ) -> Dict[str, float]:
+        mask = labels.ne(IGNORE_INDEX)
+        predictions = predictions[mask].cpu()
+        labels = labels[mask].cpu()
 
-        if (~ignored_indices).sum().item() == 0:
+        if labels.numel() == 0:
             accuracy = 0.0
         else:
-            accuracy = accuracy_score(y_true=labels, y_pred=predictions).item()
+            accuracy = accuracy_score(y_true=labels, y_pred=predictions)
 
-        no_relation_index = DISCOURSE_RELATIONS.index("談話関係なし")
-
-        ignored_indices = predictions.eq(no_relation_index)
-        if (~ignored_indices).sum().item() == 0:
-            precision = 0.0
-        else:
-            precision = accuracy_score(y_true=labels[~ignored_indices], y_pred=predictions[~ignored_indices]).item()
-
-        ignored_indices = labels.eq(no_relation_index)
-        if (~ignored_indices).sum().item() == 0:
-            recall = 0.0
-        else:
-            recall = accuracy_score(y_true=labels[~ignored_indices], y_pred=predictions[~ignored_indices]).item()
-
-        if (precision + recall) == 0.0:
-            f1 = 0.0
-        else:
-            f1 = (2 * precision * recall) / (precision + recall)
+        precision, recall, f1, _ = precision_recall_fscore_support(
+            y_true=labels,
+            y_pred=predictions,
+            labels=[idx for idx, relation in enumerate(DISCOURSE_RELATIONS) if relation != "談話関係なし"],
+            average="micro",
+            zero_division=0.0,
+        )
 
         return {
-            "discourse_parsing_accuracy": accuracy,
-            "discourse_parsing_precision": precision,
-            "discourse_parsing_recall": recall,
-            "discourse_parsing_f1": f1,
+            "discourse_relation_analysis_accuracy": accuracy,
+            "discourse_relation_analysis_precision": precision.item(),
+            "discourse_relation_analysis_recall": recall.item(),
+            "discourse_relation_analysis_f1": f1.item(),
         }
