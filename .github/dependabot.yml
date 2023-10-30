@@ -12,4 +12,4 @@ updates:
     schedule:
       interval: "monthly"
       timezone: "Asia/Tokyo"
-    target-branch: "main"
+    target-branch: "dev"
