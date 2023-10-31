@@ -208,10 +208,9 @@ class WordModule(BaseModule[WordModuleMetric]):
     def on_validation_epoch_end(self) -> None:
         metrics_log: Dict[str, Dict[str, float]] = {}
         for corpus, metric in self.valid_corpus2metric.items():
-            dataset = self.trainer.val_dataloaders[corpus].dataset
             metric.set_properties(
                 {
-                    "dataset": dataset,
+                    "dataset": self.trainer.val_dataloaders[corpus].dataset,
                     "reading_id2reading": self.reading_id2reading,
                     "training_tasks": self.training_tasks,
                 }
@@ -243,10 +242,9 @@ class WordModule(BaseModule[WordModuleMetric]):
     def on_test_epoch_end(self) -> None:
         metrics_log: Dict[str, Dict[str, float]] = {}
         for corpus, metric in self.test_corpus2metric.items():
-            dataset = self.trainer.test_dataloaders[corpus].dataset
             metric.set_properties(
                 {
-                    "dataset": dataset,
+                    "dataset": self.trainer.test_dataloaders[corpus].dataset,
                     "reading_id2reading": self.reading_id2reading,
                     "training_tasks": self.training_tasks,
                 }
