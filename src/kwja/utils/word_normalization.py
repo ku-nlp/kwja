@@ -42,9 +42,9 @@ def get_word_norm_op_tags(surf: str, normalized: str) -> List[str]:
         raise ValueError(f"failed to construct normalization labels to convert {surf} to {normalized}")
     d = np.inf * np.ones((surf_len, normalized_len), dtype=np.int32)
     dops: List[List[str]] = []
-    for i in range(surf_len):
+    for _ in range(surf_len):
         dops.append([])
-        for j in range(normalized_len):
+        for _ in range(normalized_len):
             dops[-1].append("_")
     d[0, 0] = 0
     dops[0][0] = ""
@@ -173,6 +173,7 @@ class SentenceDenormalizer:
     def __init__(self):
         self.mn = MorphemeNormalizer()
         self.md = MorphemeDenormalizer()
+        self._rng = np.random.default_rng()
 
     def denormalize(self, sentence: Sentence, p=0.5) -> None:
         prob = p
@@ -181,7 +182,7 @@ class SentenceDenormalizer:
                 continue
             surf2 = self.md.denormalize(morpheme)
             if surf2 != morpheme.text:
-                if np.random.rand() < prob:
+                if self._rng.random() < prob:
                     morpheme.text = surf2
                     prob *= 0.1
             else:
@@ -195,6 +196,9 @@ class SentenceDenormalizer:
 
 
 class MorphemeDenormalizer:
+    def __init__(self):
+        self._rng = np.random.default_rng()
+
     def denormalize(self, morpheme: Morpheme) -> str:
         return self._denormalize(morpheme.surf)
 
@@ -304,11 +308,10 @@ class MorphemeDenormalizer:
             return surf2
         probs = np.array(list(map(lambda x: x[1], cands)))
         probs /= probs.sum()
-        idx = np.random.choice(len(probs), p=probs)
+        idx = self._rng.choice(len(probs), p=probs)
         return cands[idx][0]
 
-    @staticmethod
-    def _denormalize_deterministic(surf, var_prolonged=False) -> str:
+    def _denormalize_deterministic(self, surf, var_prolonged=False) -> str:
         # S
         if surf[-1] in UPPER2LOWER:
             surf2 = surf[:-1] + UPPER2LOWER[surf[-1]]
@@ -320,7 +323,7 @@ class MorphemeDenormalizer:
             surf2 = surf[:pos] + c + surf[pos + 1 :]
             return surf2
         # P, E
-        if var_prolonged and np.random.rand() < 0.1:
+        if var_prolonged and self._rng.random() < 0.1:
             prolonged = "〜"
         else:
             prolonged = "ー"

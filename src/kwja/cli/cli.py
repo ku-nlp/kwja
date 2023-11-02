@@ -289,7 +289,7 @@ def _tasks_callback(value: str) -> str:
             tasks.append(candidate_task)
             values.remove(candidate_task)
     if len(values) == 1:
-        raise typer.BadParameter(f"invalid task is specified: {repr(values[0])}")
+        raise typer.BadParameter(f"invalid task is specified: {values[0]!r}")
     if len(values) > 1:
         raise typer.BadParameter(f"invalid tasks are specified: {', '.join(repr(v) for v in values)}")
     if len(tasks) == 0:

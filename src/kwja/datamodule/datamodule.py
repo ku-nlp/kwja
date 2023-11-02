@@ -89,7 +89,7 @@ def token_dataclass_data_collator(batch_features: List[Any]) -> Dict[str, Union[
     first_features: Any = batch_features[0]
     assert is_dataclass(first_features), "Data must be a dataclass"
 
-    token_indices = torch.arange(max(sum(getattr(fs, "attention_mask")) for fs in batch_features))
+    token_indices = torch.arange(max(sum(fs.attention_mask) for fs in batch_features))
 
     batch: Dict[str, Union[Tensor, List[str]]] = {}
     for field in fields(first_features):
@@ -113,8 +113,8 @@ def word_dataclass_data_collator(batch_features: List[Any]) -> Dict[str, Union[T
     first_features: Any = batch_features[0]
     assert is_dataclass(first_features), "Data must be a dataclass"
 
-    token_indices = torch.arange(max(sum(getattr(fs, "attention_mask")) for fs in batch_features))
-    word_indices = torch.arange(max(sum(any(row) for row in getattr(fs, "subword_map")) for fs in batch_features))
+    token_indices = torch.arange(max(sum(fs.attention_mask) for fs in batch_features))
+    word_indices = torch.arange(max(sum(any(row) for row in fs.subword_map) for fs in batch_features))
 
     batch: Dict[str, Union[Tensor, List[str]]] = {}
     for field in fields(first_features):
