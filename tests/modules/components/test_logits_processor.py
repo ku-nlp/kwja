@@ -90,7 +90,7 @@ def test_get_target_morpheme(data_dir: Path) -> None:
         test_case_path: Path = data_dir / "modules" / "permitted_tokens.json"
         with open(test_case_path) as f:
             test_cases = json.load(f)
-        for test_id, test_case in test_cases.items():
+        for test_case in test_cases.values():
             processor = ForcedLogitsProcessor(
                 surfs=[test_case["surfs"]],
                 num_beams=1,
@@ -107,7 +107,7 @@ def test_get_target_morpheme(data_dir: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    "input_tokens, surfs, expected_remaining_surf",
+    ("input_tokens", "surfs", "expected_remaining_surf"),
     [
         (["<pad>", "<extra_id_0>"], ["研究", "する"], "研究"),
         (["<pad>", "<extra_id_0>", "研"], ["研究", "する"], "究"),
@@ -172,7 +172,7 @@ def test_get_remaining_surf(input_tokens: List[str], surfs: List[str], expected_
 
 
 @pytest.mark.parametrize(
-    "surfs, permitted_tokens",
+    ("surfs", "permitted_tokens"),
     [
         (["研究", "を", "する"], ["研究", "研"]),
         ([FULL_SPACE_TOKEN, "研究", "を", "する"], [FULL_SPACE_TOKEN]),
@@ -226,7 +226,7 @@ def test_get_generated_surf(data_dir: Path) -> None:
                     char2tokens=char2tokens,
                 )
                 tgt_tokens: List[str] = formatter.get_tgt_tokens(sentence)
-                tgt_input_ids: List[int] = tokenizer.convert_tokens_to_ids(tgt_tokens) + [tokenizer.eos_token_id]
+                tgt_input_ids: List[int] = [*tokenizer.convert_tokens_to_ids(tgt_tokens), tokenizer.eos_token_id]
                 assert processor.surfs[0] == processor._get_generated_surf(tgt_input_ids)
 
 
@@ -249,7 +249,7 @@ def test_get_mask(data_dir: Path) -> None:
         test_case_path: Path = data_dir / "modules" / "permitted_tokens.json"
         with open(test_case_path) as f:
             test_cases = json.load(f)
-        for test_id, test_case in test_cases.items():
+        for test_case in test_cases.values():
             assert test_case["target_morpheme"] in ["surf", "reading", "lemma", "canon", "init"]
             processor = ForcedLogitsProcessor(
                 surfs=[test_case["surfs"]],

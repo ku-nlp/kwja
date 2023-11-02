@@ -6,7 +6,7 @@ from kwja.utils.constants import MASKED
 
 
 @pytest.mark.parametrize(
-    "input_, target, expected",
+    ("input_", "target", "expected"),
     [
         (
             torch.tensor([[1.0, 0.0]], dtype=torch.float),  # (1, 2)
@@ -20,7 +20,7 @@ def test_compute_token_mean_loss(input_: torch.Tensor, target: torch.Tensor, exp
 
 
 @pytest.mark.parametrize(
-    "input_, target, expected",
+    ("input_", "target", "expected"),
     [
         (
             torch.tensor([[[0.5, 0.5], [1.0, 0.5]]], dtype=torch.float),  # (1, 2, 2)
@@ -38,7 +38,7 @@ def test_compute_multi_label_token_mean_loss(
 
 
 @pytest.mark.parametrize(
-    "logits, mask, expected",
+    ("logits", "mask", "expected"),
     [
         (
             torch.tensor([1.0, 1.0, 1.0], dtype=torch.float),  # (3,)

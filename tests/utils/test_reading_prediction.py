@@ -9,7 +9,7 @@ from kwja.utils.constants import RESOURCE_PATH
 
 
 @pytest.mark.parametrize(
-    "readings, tokens, subword_map, expected_output",
+    ("readings", "tokens", "subword_map", "expected_output"),
     [
         (
             ["[UNK]", "せい", "じょう", "[ID]", "にゅうりょく"],

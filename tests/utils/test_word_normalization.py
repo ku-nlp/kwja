@@ -71,12 +71,12 @@ wellformed_list = [
 ]
 
 
-@pytest.mark.parametrize("surf,ops,expected", wellformed_list)
+@pytest.mark.parametrize(("surf", "ops", "expected"), wellformed_list)
 def test_gen_normalized_surf(surf, ops, expected):
     assert get_normalized(surf, ops, strict=True) == expected
 
 
-@pytest.mark.parametrize("surf,expected,normalized", wellformed_list)
+@pytest.mark.parametrize(("surf", "expected", "normalized"), wellformed_list)
 def test_get_normalization_opns(surf, expected, normalized):
     word_norm_op_tags = get_word_norm_op_tags(surf, normalized)
     assert len(word_norm_op_tags) == len(expected)
@@ -90,13 +90,13 @@ malformed_list = [
 ]
 
 
-@pytest.mark.parametrize("surf,ops,expected", malformed_list)
+@pytest.mark.parametrize(("surf", "ops", "expected"), malformed_list)
 def test_gen_normalized_surf_malformed(surf, ops, expected):
     with pytest.raises(ValueError):
         get_normalized(surf, ops, strict=True)
 
 
-@pytest.mark.parametrize("surf,ops,expected", malformed_list)
+@pytest.mark.parametrize(("surf", "ops", "expected"), malformed_list)
 def test_gen_normalized_surf_malformed_loose(surf, ops, expected):
     assert get_normalized(surf, ops, strict=False) == expected
 
@@ -112,7 +112,7 @@ def test_morpheme_normalizer():
 
 
 @pytest.mark.parametrize(
-    "surf,expected",
+    ("surf", "expected"),
     [
         ("なあ", "なぁ"),
         ("さあ", "さぁ"),

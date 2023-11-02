@@ -149,7 +149,7 @@ def test_get_src_tokens(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFa
             sent = Sentence.from_jumanpp(f.read())
             expected_src_tokens: List[str] = []
             for morphemes in src_tokens[idx]:
-                expected_src_tokens.extend(morphemes.split(" ") + [MORPHEME_SPLIT_TOKEN])
+                expected_src_tokens.extend([*morphemes.split(" "), MORPHEME_SPLIT_TOKEN])
             assert [
                 x[1:] if x.startswith("▁") else x for x in seq2seq_formatter.get_src_tokens(sent)
             ] == expected_src_tokens[:-1]

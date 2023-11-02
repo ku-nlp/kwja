@@ -94,7 +94,7 @@ def test_split_conditions_auto_stride(case: Dict[str, Any]):
     splitter = SequenceSplitter(sequence_lengths, max_length, stride=-1)
     sequence_ids = list(range(len(sequence_lengths)))
     concatenated_ids = []
-    for idx, item in enumerate(splitter.split_into_spans(return_candidates=True)):
+    for item in splitter.split_into_spans(return_candidates=True):
         assert isinstance(item, tuple)
         span: SpanCandidate
         candidates: List[SpanCandidate]

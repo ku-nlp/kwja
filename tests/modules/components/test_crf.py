@@ -29,7 +29,7 @@ def test_init() -> None:
 
 
 @pytest.mark.parametrize(
-    "batch_size, seq_length, reduction",
+    ("batch_size", "seq_length", "reduction"),
     [
         (2, 3, "token_mean"),
         (2, 3, "mean"),
@@ -54,7 +54,7 @@ def test_forward(batch_size: int, seq_length: int, reduction: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "batch_size, seq_length, reduction",
+    ("batch_size", "seq_length", "reduction"),
     [
         (2, 3, "token_mean"),
         (2, 3, "mean"),
@@ -73,7 +73,7 @@ def test_loss_mask(batch_size: int, seq_length: int, reduction: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "batch_size, seq_length, target_span",
+    ("batch_size", "seq_length", "target_span"),
     [
         (2, 3, (0, 3)),
         (2, 3, (1, 2)),
@@ -86,7 +86,7 @@ def test_viterbi_decode(batch_size: int, seq_length: int, target_span: Tuple[int
     crf.transitions.data = torch.zeros_like(crf.transitions)
     crf.end_transitions.data = torch.zeros_like(crf.end_transitions)
 
-    ne_index = [i for i, tag in enumerate(NE_TAGS) if tag.startswith("B-")][0]
+    ne_index = next(i for i, tag in enumerate(NE_TAGS) if tag.startswith("B-"))
     emissions = torch.zeros((batch_size, seq_length, crf.num_tags), dtype=torch.float)
     emissions[:, :, ne_index] = 1.0
     mask = torch.full((batch_size, seq_length), False, dtype=torch.bool)

@@ -23,7 +23,7 @@ def test_device_validation():
     devices: List[str] = ["", "auto", "cpu", "gpu", "INVALID"]
     base_args: List[str] = ["--model-size", "tiny", "--text", ""]
     for device in devices:
-        ret = runner.invoke(app, args=base_args + ["--device", device])
+        ret = runner.invoke(app, args=[*base_args, "--device", device])
         if device not in {"auto", "cpu", "gpu"}:
             assert isinstance(ret.exception, SystemExit)
         else:
@@ -65,10 +65,10 @@ def test_task_combination_validation():
     }
     base_args: List[str] = ["--model-size", "tiny", "--text", ""]
     for task in tasks:
-        ret = runner.invoke(app, args=base_args + ["--task", task, "--input-format", "raw"])
+        ret = runner.invoke(app, args=[*base_args, "--task", task, "--input-format", "raw"])
         if tuple(task.split(",")) not in valid_tasks_raw_input:
             assert isinstance(ret.exception, SystemExit)
-        ret = runner.invoke(app, args=base_args + ["--task", task, "--input-format", "jumanpp"])
+        ret = runner.invoke(app, args=[*base_args, "--task", task, "--input-format", "jumanpp"])
         if tuple(task.split(",")) not in valid_tasks_jumanpp_input:
             assert isinstance(ret.exception, SystemExit)
 
@@ -91,7 +91,7 @@ def test_text_input():
 
 
 @pytest.mark.parametrize(
-    "text, output",
+    ("text", "output"),
     [
         ("", "EOD\n"),
         # ("EOD", "EOD\nEOD\n"),  # TODO
