@@ -1,4 +1,5 @@
 import logging
+import sys
 from abc import ABC
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
@@ -10,6 +11,8 @@ from transformers import PreTrainedTokenizerBase
 
 from kwja.utils.logging_util import track
 from kwja.utils.sub_document import SequenceSplitter, SpanCandidate, to_sub_doc_id
+
+sys.setrecursionlimit(5000)
 
 logger = logging.getLogger(__name__)
 
