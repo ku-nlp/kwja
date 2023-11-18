@@ -167,7 +167,20 @@ def test_sanity():
         )
 
 
-@pytest.mark.parametrize("tasks", ["word", "char,word", "typo,char,word"])
+@pytest.mark.parametrize(
+    "tasks",
+    [
+        "word",
+        "seq2seq",
+        "char,word",
+        "char,seq2seq",
+        "seq2seq,word",
+        "typo,char,word",
+        "typo,char,seq2seq",
+        "char,seq2seq,word",
+        "typo,char,seq2seq,word",
+    ],
+)
 def test_input_format_jumanpp(tasks: str):
     jumanpp_text = textwrap.dedent(
         """\
@@ -184,8 +197,11 @@ def test_input_format_jumanpp(tasks: str):
     )
     assert ret.exception is None
     documents: List[Document] = []
-    for knp_text in chunk_by_document(io.StringIO(ret.stdout)):
-        documents.append(Document.from_knp(knp_text))
+    for out_text in chunk_by_document(io.StringIO(ret.stdout)):
+        if tasks.split(",")[-1] == "word":
+            documents.append(Document.from_knp(out_text))
+        else:
+            documents.append(Document.from_jumanpp(out_text))
     assert len(documents) == 1
     document = documents[0]
     doc_id = document.doc_id
@@ -196,7 +212,7 @@ def test_input_format_jumanpp(tasks: str):
         assert sentence.doc_id == doc_id
     if "typo" not in tasks:
         assert document.text == "こんにちは。こんばんは。"
-    if tasks == "word":
+    if tasks.split(",")[0] in ("word", "seq2seq"):
         # sentence boundaries are kept
         assert len(sentences) == 2
         assert sentences[0].text == "こんにちは。"
@@ -205,7 +221,20 @@ def test_input_format_jumanpp(tasks: str):
         assert sentences[1].sent_id.startswith(doc_id)
 
 
-@pytest.mark.parametrize("tasks", ["word", "char,word", "typo,char,word"])
+@pytest.mark.parametrize(
+    "tasks",
+    [
+        "word",
+        "seq2seq",
+        "char,word",
+        "char,seq2seq",
+        "seq2seq,word",
+        "typo,char,word",
+        "typo,char,seq2seq",
+        "char,seq2seq,word",
+        "typo,char,seq2seq,word",
+    ],
+)
 def test_input_format_jumanpp_with_sid(tasks: str):
     jumanpp_text = textwrap.dedent(
         """\
@@ -224,8 +253,11 @@ def test_input_format_jumanpp_with_sid(tasks: str):
     )
     assert ret.exception is None
     documents: List[Document] = []
-    for knp_text in chunk_by_document(io.StringIO(ret.stdout)):
-        documents.append(Document.from_knp(knp_text))
+    for out_text in chunk_by_document(io.StringIO(ret.stdout)):
+        if tasks.split(",")[-1] == "word":
+            documents.append(Document.from_knp(out_text))
+        else:
+            documents.append(Document.from_jumanpp(out_text))
     assert len(documents) == 1
     document = documents[0]
     doc_id = document.doc_id
@@ -236,7 +268,7 @@ def test_input_format_jumanpp_with_sid(tasks: str):
         assert sentence.doc_id == doc_id
     if "typo" not in tasks:
         assert document.text == "こんにちは。こんばんは。"
-    if tasks == "word":
+    if tasks.split(",")[0] in ("word", "seq2seq"):
         # sentence boundaries are kept
         assert len(sentences) == 2
         assert sentences[0].text == "こんにちは。"
@@ -245,7 +277,20 @@ def test_input_format_jumanpp_with_sid(tasks: str):
         assert sentences[1].sent_id == "test-1"
 
 
-@pytest.mark.parametrize("tasks", ["word", "char,word", "typo,char,word"])
+@pytest.mark.parametrize(
+    "tasks",
+    [
+        "word",
+        "seq2seq",
+        "char,word",
+        "char,seq2seq",
+        "seq2seq,word",
+        "typo,char,word",
+        "typo,char,seq2seq",
+        "char,seq2seq,word",
+        "typo,char,seq2seq,word",
+    ],
+)
 def test_input_format_knp(tasks: str):
     knp_text = textwrap.dedent(
         """\
@@ -268,8 +313,11 @@ def test_input_format_knp(tasks: str):
     )
     assert ret.exception is None
     documents: List[Document] = []
-    for output_knp_text in chunk_by_document(io.StringIO(ret.stdout)):
-        documents.append(Document.from_knp(output_knp_text))
+    for out_text in chunk_by_document(io.StringIO(ret.stdout)):
+        if tasks.split(",")[-1] == "word":
+            documents.append(Document.from_knp(out_text))
+        else:
+            documents.append(Document.from_jumanpp(out_text))
     assert len(documents) == 1
     document = documents[0]
     doc_id = document.doc_id
@@ -280,7 +328,7 @@ def test_input_format_knp(tasks: str):
         assert sentence.doc_id == doc_id
     if "typo" not in tasks:
         assert documents[0].text == "こんにちは。こんばんは。"
-    if tasks == "word":
+    if tasks.split(",")[0] in ("word", "seq2seq"):
         # sentence boundaries are kept
         assert len(sentences) == 2
         assert sentences[0].text == "こんにちは。"
