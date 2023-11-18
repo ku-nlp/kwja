@@ -35,6 +35,7 @@ def compute_multi_label_token_mean_loss(
     if input_.isnan().any().item() is True:
         return torch.tensor(float("nan"), dtype=input_.dtype, device=input_.device)
     else:
+        target = torch.where(mask, target, torch.zeros_like(target))
         losses = nn.functional.binary_cross_entropy(input_, target.float(), reduction="none")  # (b, seq, num_features)
         # features の軸は和をとる
         losses = (losses * mask).sum(dim=2)  # (b, seq)
