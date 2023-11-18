@@ -167,7 +167,46 @@ def test_sanity():
         )
 
 
-def test_input_format_jumanpp():
+@pytest.mark.parametrize("tasks", ["word", "char,word", "typo,char,word"])
+def test_input_format_jumanpp(tasks: str):
+    jumanpp_text = textwrap.dedent(
+        """\
+        こんにちは こんにちは こんにちは 感動詞 12 * 0 * 0 * 0 "代表表記:こんにちは/こんにちは"
+        。 。 。 特殊 1 句点 1 * 0 * 0 "代表表記:。/。"
+        EOS
+        こんばんは こんばんは こんばんは 感動詞 12 * 0 * 0 * 0 "代表表記:今晩は/こんばんは"
+        。 。 。 特殊 1 句点 1 * 0 * 0 "代表表記:。/。"
+        EOS
+        """
+    )
+    ret = runner.invoke(
+        app, args=["--model-size", "tiny", "--tasks", tasks, "--text", jumanpp_text, "--input-format", "jumanpp"]
+    )
+    assert ret.exception is None
+    documents: List[Document] = []
+    for knp_text in chunk_by_document(io.StringIO(ret.stdout)):
+        documents.append(Document.from_knp(knp_text))
+    assert len(documents) == 1
+    document = documents[0]
+    doc_id = document.doc_id
+    assert doc_id != ""  # current datetime
+    sentences = document.sentences
+    for sentence in sentences:
+        assert sentence.sent_id.startswith(doc_id)
+        assert sentence.doc_id == doc_id
+    if "typo" not in tasks:
+        assert document.text == "こんにちは。こんばんは。"
+    if tasks == "word":
+        # sentence boundaries are kept
+        assert len(sentences) == 2
+        assert sentences[0].text == "こんにちは。"
+        assert sentences[0].sent_id.startswith(doc_id)
+        assert sentences[1].text == "こんばんは。"
+        assert sentences[1].sent_id.startswith(doc_id)
+
+
+@pytest.mark.parametrize("tasks", ["word", "char,word", "typo,char,word"])
+def test_input_format_jumanpp_with_sid(tasks: str):
     jumanpp_text = textwrap.dedent(
         """\
         # S-ID:test-0 kwja:0.1.0
@@ -181,23 +220,33 @@ def test_input_format_jumanpp():
         """
     )
     ret = runner.invoke(
-        app, args=["--model-size", "tiny", "--text", jumanpp_text, "--tasks", "word", "--input-format", "jumanpp"]
+        app, args=["--model-size", "tiny", "--tasks", tasks, "--text", jumanpp_text, "--input-format", "jumanpp"]
     )
-    documents: list[Document] = []
+    assert ret.exception is None
+    documents: List[Document] = []
     for knp_text in chunk_by_document(io.StringIO(ret.stdout)):
         documents.append(Document.from_knp(knp_text))
     assert len(documents) == 1
-    assert documents[0].text == "こんにちは。こんばんは。"
-    assert documents[0].doc_id == "test"
-    sentences = documents[0].sentences
-    assert len(sentences) == 2
-    assert sentences[0].text == "こんにちは。"
-    assert sentences[0].sent_id == "test-0"
-    assert sentences[1].text == "こんばんは。"
-    assert sentences[1].sent_id == "test-1"
+    document = documents[0]
+    doc_id = document.doc_id
+    assert doc_id == "test"
+    sentences = document.sentences
+    for sentence in sentences:
+        assert sentence.sent_id.startswith(doc_id)
+        assert sentence.doc_id == doc_id
+    if "typo" not in tasks:
+        assert document.text == "こんにちは。こんばんは。"
+    if tasks == "word":
+        # sentence boundaries are kept
+        assert len(sentences) == 2
+        assert sentences[0].text == "こんにちは。"
+        assert sentences[0].sent_id == "test-0"
+        assert sentences[1].text == "こんばんは。"
+        assert sentences[1].sent_id == "test-1"
 
 
-def test_input_format_knp():
+@pytest.mark.parametrize("tasks", ["word", "char,word", "typo,char,word"])
+def test_input_format_knp(tasks: str):
     knp_text = textwrap.dedent(
         """\
         # S-ID:test-0 kwja:0.1.0
@@ -215,17 +264,26 @@ def test_input_format_knp():
         """
     )
     ret = runner.invoke(
-        app, args=["--model-size", "tiny", "--text", knp_text, "--tasks", "word", "--input-format", "knp"]
+        app, args=["--model-size", "tiny", "--tasks", tasks, "--text", knp_text, "--input-format", "knp"]
     )
-    documents: list[Document] = []
-    for knp_text in chunk_by_document(io.StringIO(ret.stdout)):
-        documents.append(Document.from_knp(knp_text))
+    assert ret.exception is None
+    documents: List[Document] = []
+    for output_knp_text in chunk_by_document(io.StringIO(ret.stdout)):
+        documents.append(Document.from_knp(output_knp_text))
     assert len(documents) == 1
-    assert documents[0].text == "こんにちは。こんばんは。"
-    assert documents[0].doc_id == "test"
-    sentences = documents[0].sentences
-    assert len(sentences) == 2
-    assert sentences[0].text == "こんにちは。"
-    assert sentences[0].sent_id == "test-0"
-    assert sentences[1].text == "こんばんは。"
-    assert sentences[1].sent_id == "test-1"
+    document = documents[0]
+    doc_id = document.doc_id
+    assert doc_id == "test"
+    sentences = document.sentences
+    for sentence in sentences:
+        assert sentence.sent_id.startswith(doc_id)
+        assert sentence.doc_id == doc_id
+    if "typo" not in tasks:
+        assert documents[0].text == "こんにちは。こんばんは。"
+    if tasks == "word":
+        # sentence boundaries are kept
+        assert len(sentences) == 2
+        assert sentences[0].text == "こんにちは。"
+        assert sentences[0].sent_id == "test-0"
+        assert sentences[1].text == "こんばんは。"
+        assert sentences[1].sent_id == "test-1"

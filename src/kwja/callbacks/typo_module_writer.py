@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Optional, Sequence, Union
+from typing import Any, List, Optional, Sequence, Union
 
 import pytorch_lightning as pl
 from transformers import PreTrainedTokenizerBase
@@ -42,13 +42,15 @@ class TypoModuleWriter(BaseModuleWriter):
             dataloader = trainer.predict_dataloaders[dataloader_idx]
         dataset: Union[TypoDataset, TypoInferenceDataset] = dataloader.dataset
 
-        post_texts = []
+        post_texts: List[str] = []
+        doc_ids: List[str] = []
         for example_id, kdr_predictions, kdr_probabilities, ins_predictions, ins_probabilities in zip(
             *[v.tolist() for v in prediction.values()]
         ):
             if example_id in dataset.stash:
                 texts = dataset.stash.pop(example_id)
-                post_texts.extend(texts)
+                post_texts.extend([t[0] for t in texts])
+                doc_ids.extend([t[1] for t in texts])
 
             example: Union[TypoExample, TypoInferenceExample] = dataset.examples[example_id]
             seq_len: int = len(example.pre_text)
@@ -63,11 +65,18 @@ class TypoModuleWriter(BaseModuleWriter):
             # the prediction of the dummy token at the end is used for insertion only.
             post_text = apply_edit_operations(example.pre_text, kdr_tags[1 : seq_len + 1], ins_tags[1 : seq_len + 2])
             post_texts.append(post_text)
+            doc_ids.append(example.doc_id)
 
         if batch_idx == len(dataloader) - 1:
             for texts in dataset.stash.values():
-                post_texts.extend(texts)
+                post_texts.extend([t[0] for t in texts])
+                doc_ids.extend([t[1] for t in texts])
             dataset.stash.clear()
 
-        output_string = "".join(post_text + "\nEOD\n" for post_text in post_texts)
+        output_string = ""
+        for text, doc_id in zip(post_texts, doc_ids):
+            if doc_id != "":
+                output_string += f"# D-ID:{doc_id}\n"
+            output_string += text + "\nEOD\n"
+
         self.write_output_string(output_string)

@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime
 from typing import Dict, List, Optional
 
 from omegaconf import ListConfig
@@ -7,9 +6,9 @@ from rhoknp import Document, RegexSenter
 from transformers import BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 
-import kwja
 from kwja.datamodule.datasets.base import BaseDataset, FullAnnotatedDocumentLoaderMixin
 from kwja.datamodule.datasets.char import CharModuleFeatures
+from kwja.datamodule.datasets.utils import add_doc_ids, add_sent_ids, create_documents_from_raw_texts
 from kwja.datamodule.examples import CharInferenceExample
 from kwja.utils.logging_util import track
 
@@ -26,7 +25,9 @@ class CharInferenceDataset(BaseDataset[CharInferenceExample, CharModuleFeatures]
         **_,
     ) -> None:
         super().__init__(tokenizer, max_seq_length)
-        documents = self._build_documents_from_texts(list(texts), doc_id_prefix)
+        documents = create_documents_from_raw_texts(texts)
+        add_doc_ids(documents, doc_id_prefix)
+        documents = self._add_tentative_sentence_boundary(documents)
         super(BaseDataset, self).__init__(documents, tokenizer, max_seq_length, -1)  # document_split_stride must be -1
         self.examples: List[CharInferenceExample] = self._load_examples(self.doc_id2document)
 
@@ -61,19 +62,8 @@ class CharInferenceDataset(BaseDataset[CharInferenceExample, CharModuleFeatures]
         )
 
     @staticmethod
-    def _build_documents_from_texts(texts: List[str], doc_id_prefix: Optional[str]) -> List[Document]:
+    def _add_tentative_sentence_boundary(documents: List[Document]) -> List[Document]:
         senter = RegexSenter()
-        # split text into sentences
-        documents: List[Document] = [
-            senter.apply_to_document(text) for text in track(texts, description="Loading documents")
-        ]
-        if doc_id_prefix is None:
-            doc_id_prefix = datetime.now().strftime("%Y%m%d%H%M")
-        doc_id_width = len(str(len(documents)))
-        sent_id_width = max((len(str(len(d.sentences))) for d in documents), default=0)
-        for doc_index, document in enumerate(documents):
-            document.doc_id = f"{doc_id_prefix}-{doc_index:0{doc_id_width}}"
-            for sent_index, sentence in enumerate(document.sentences):
-                sentence.sid = f"{document.doc_id}-{sent_index:0{sent_id_width}}"
-                sentence.misc_comment = f"kwja:{kwja.__version__}"
+        documents = [senter.apply_to_document(doc) if doc.is_senter_required() else doc for doc in documents]
+        add_sent_ids(documents)
         return documents

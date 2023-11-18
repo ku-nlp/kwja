@@ -52,7 +52,7 @@ class TypoDataset(BaseDataset[TypoExample, TypoModuleFeatures]):
         )
 
         self.examples: List[TypoExample] = self._load_examples(self.path)
-        self.stash: Dict[int, List[str]] = defaultdict(list)
+        self.stash: Dict[int, List[Tuple[str, str]]] = defaultdict(list)
         assert len(self) > 0
 
     @staticmethod
@@ -61,7 +61,7 @@ class TypoDataset(BaseDataset[TypoExample, TypoModuleFeatures]):
         example_id = 0
         for path in track(sorted(example_dir.glob("**/*.jsonl")), description="Loading documents"):
             for line in path.read_text().strip().split("\n"):
-                examples.append(TypoExample(**json.loads(line), example_id=example_id))
+                examples.append(TypoExample(**json.loads(line), example_id=example_id, doc_id=""))
                 example_id += 1
         return examples
 
