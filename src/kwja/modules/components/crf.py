@@ -1,5 +1,5 @@
 from math import sqrt
-from typing import Literal, Optional, Tuple
+from typing import List, Literal, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -119,7 +119,7 @@ class CRF(nn.Module):
         tail_indices = torch.amax(arange * mask, dim=1)
         max_tail_index = int(tail_indices.max())
 
-        score = self.start_transitions + emissions[indices, head_indices]  # (b, num_tags)
+        score: torch.Tensor = self.start_transitions + emissions[indices, head_indices]  # (b, num_tags)
         history = []
         for j in range(min_head_index + 1, max_tail_index + 1):
             condition = torch.logical_and(mask[:, j] == 1, head_indices != j)
@@ -135,10 +135,12 @@ class CRF(nn.Module):
         for i in range(batch_size):
             head_index, tail_index = int(head_indices[i]), int(tail_indices[i])
             _, best_tag = score[i].max(dim=0)
-            best_tags = [best_tag.item()]
+            assert isinstance(best_tag_int := best_tag.item(), int)
+            best_tags: List[int] = [best_tag_int]
             for max_indices in history[head_index - min_head_index : tail_index - min_head_index][::-1]:
                 best_tag = max_indices[i][best_tags[-1]]
-                best_tags.append(best_tag.item())
+                assert isinstance(best_tag_int := best_tag.item(), int)
+                best_tags.append(best_tag_int)
             best_tags += [self.tags.index("O")] * head_index
             best_tags = best_tags[::-1]
             best_tags += [self.tags.index("O")] * (seq_len - tail_index - 1)

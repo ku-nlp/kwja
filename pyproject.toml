@@ -48,8 +48,8 @@ exclude = [
 [tool.poetry.dependencies]
 python = ">=3.8,<3.12"
 torch = ">=1.11,!=2.0.1,!=2.1.0"  # https://github.com/pytorch/pytorch/issues/100974
-transformers = { version = "~4.33.3", extras = ["sentencepiece"] }
-tokenizers = "^0.13.2"
+transformers = { version = "~4.34.1", extras = ["sentencepiece"] }
+tokenizers = "^0.14.1"
 pytorch-lightning = "~2.1.0"  # As "lightning" comes with many extra dependencies, we stay with "pytorch-lightning"
 omegaconf = "^2.1"
 hydra-core = "^1.2"
@@ -78,7 +78,7 @@ ipython = [
 ipdb = "^0.13.13"
 types-attrs = "^19.1"
 types-pyyaml = "^6.0.12.9"
-wandb = "^0.15.0"
+wandb = "^0.16.0"
 
 [tool.poetry.group.test.dependencies]
 torchmetrics = "^1.0"
