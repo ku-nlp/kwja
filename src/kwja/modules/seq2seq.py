@@ -43,7 +43,7 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
         )
         return {"loss": output.loss, "logits": output.logits}
 
-    def training_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
+    def training_step(self, batch: Any) -> torch.Tensor:
         ret: Dict[str, torch.Tensor] = self(batch)
         self.log("train/loss", ret["loss"])
         return ret["loss"]
@@ -84,7 +84,7 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
             mean_score = mean(metrics_log[corpus][key] for corpus in self.test_corpora if key in metrics_log[corpus])
             self.log(f"test/{key}", mean_score)
 
-    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Any:
+    def predict_step(self, batch: Any) -> Dict[str, Any]:
         generations = self.encoder_decoder.generate(
             input_ids=batch["input_ids"],
             attention_mask=batch["attention_mask"],
