@@ -286,7 +286,7 @@ def _load_document_from_text(text: str, input_format: InputFormat) -> Document:
 def _version_callback(value: bool) -> None:
     if value is True:
         print(f"KWJA {kwja.__version__}")
-        raise typer.Exit()
+        raise typer.Exit
 
 
 def _tasks_callback(value: str) -> str:
@@ -359,7 +359,7 @@ def main(
     input_documents: Optional[List[Document]] = None
     if text is not None and len(filename) > 0:
         logger.error("ERROR: Please provide text or filename, not both")
-        raise typer.Abort()
+        raise typer.Abort
     elif text is not None:
         input_documents = [_load_document_from_text(text, input_format)]
     elif len(filename) > 0:
@@ -367,7 +367,7 @@ def main(
         for path in filename:
             if path.exists() is False:
                 logger.error(f"ERROR: {path} does not exist")
-                raise typer.Abort()
+                raise typer.Abort
             with path.open() as f:
                 for document_text in _chunk_by_document(f, input_format):
                     input_documents.append(_load_document_from_text(document_text, input_format))
@@ -400,7 +400,7 @@ def main(
         output: str = processor.run(input_documents)
         print(output or "EOD\n", end="")
         processor.refresh()
-        raise typer.Exit()
+        raise typer.Exit
 
     # Interactive mode
     processor.load_all_modules()

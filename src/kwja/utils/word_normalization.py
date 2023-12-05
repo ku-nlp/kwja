@@ -170,7 +170,7 @@ def get_normalized(surf: str, ops: List[str], strict: bool = True) -> str:
 
 
 class SentenceDenormalizer:
-    def __init__(self):
+    def __init__(self) -> None:
         self.mn = MorphemeNormalizer()
         self.md = MorphemeDenormalizer()
         self._rng = np.random.default_rng()
@@ -196,7 +196,7 @@ class SentenceDenormalizer:
 
 
 class MorphemeDenormalizer:
-    def __init__(self):
+    def __init__(self) -> None:
         self._rng = np.random.default_rng()
 
     def denormalize(self, morpheme: Morpheme) -> str:

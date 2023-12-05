@@ -5,7 +5,7 @@ from kwja.utils.constants import KATA2HIRA
 
 
 class KanjiDic:
-    def __init__(self, fpath: str):
+    def __init__(self, fpath: str) -> None:
         self.entries: Dict[str, Any] = {
             "°": {
                 "reading": ["ど"],

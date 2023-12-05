@@ -16,7 +16,7 @@ class BaseModuleMetric(Metric, ABC):
             self.add_state(state_name, default=[], dist_reduce_fx="cat")
 
     def _pad(self, kwargs: Dict[str, torch.Tensor]) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def update(self, kwargs: Dict[str, torch.Tensor]) -> None:
         self._pad(kwargs)

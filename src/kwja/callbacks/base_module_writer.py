@@ -36,7 +36,7 @@ class BaseModuleWriter(BasePredictionWriter):
         batch_idx: int,
         dataloader_idx: int,
     ) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def write_on_epoch_end(
         self,
