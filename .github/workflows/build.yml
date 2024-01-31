@@ -24,14 +24,11 @@ jobs:
         run: |
             pipx install poetry
             echo "$HOME/.local/bin" >> $GITHUB_PATH
-      - name: Check Python version
-        run: python -V
-      - name: Check Python path
-        run: which -a python
       - name: Install dependencies
         env:
           POETRY_PYTHON: ${{ steps.setup-python.outputs.python-path }}
         run: |
+          poetry env use $POETRY_PYTHON
           poetry install --no-interaction --without dev,test
       - name: Build KWJA
         run: |
