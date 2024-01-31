@@ -51,7 +51,7 @@ python = ">=3.8,<3.13"
 torch = ">=1.11,!=2.0.1,!=2.1.0"  # https://github.com/pytorch/pytorch/issues/100974ypmun
 numpy = [
     { version = "~1.24.4", python = "<3.9" },
-    { version = "^1.25", python = ">=3.9" },
+    { version = ">=1.26", python = ">=3.9" },
 ]
 transformers = { version = "~4.34.1", extras = ["sentencepiece"] }
 tokenizers = "^0.14.1"
@@ -94,6 +94,8 @@ jaconv = "^0.3.4"
 pytest = "^7.1"
 pytest-cov = "^4.0"
 pytest-profiling = "^1.7"
+
+[tool.poetry.group.build.dependencies]
 
 [tool.poetry.scripts]
 kwja = "kwja.cli.cli:app"
