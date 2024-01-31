@@ -31,6 +31,7 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering",
     "Topic :: Text Processing",
 ]
@@ -46,7 +47,7 @@ exclude = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.8,<3.12"
+python = ">=3.8,<3.13"
 torch = ">=1.11,!=2.0.1,!=2.1.0"  # https://github.com/pytorch/pytorch/issues/100974ypmun
 numpy = [
     { version = "~1.24.4", python = "<3.9" },
