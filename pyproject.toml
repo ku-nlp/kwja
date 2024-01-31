@@ -71,8 +71,11 @@ importlib-resources = { version = "^6.0", python = "<3.9" }
 [tool.poetry.group.dev.dependencies]
 torchmetrics = "^1.0"
 seqeval = "^1.2"
-scikit-learn = "^1.3"
-Levenshtein = "^0.21.0"
+scikit-learn = [
+    { version = "^1.3", python = "<3.9" },
+    { version = "^1.4", python = ">=3.9" },
+]
+Levenshtein = ">=0.21.0"
 cohesion-tools = { version = "^0.5.7", extras = ["eval"] }
 python-dotenv = "^1.0"
 jaconv = "^0.3.4"
@@ -88,14 +91,12 @@ wandb = "^0.16.0"
 [tool.poetry.group.test.dependencies]
 torchmetrics = "^1.0"
 seqeval = "^1.2"
-Levenshtein = "^0.21.0"
+Levenshtein = ">=0.21.0"
 pandas = "^2.0"
 jaconv = "^0.3.4"
-pytest = "^7.1"
+pytest = "^8.0"
 pytest-cov = "^4.0"
 pytest-profiling = "^1.7"
-
-[tool.poetry.group.build.dependencies]
 
 [tool.poetry.scripts]
 kwja = "kwja.cli.cli:app"
