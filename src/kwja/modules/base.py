@@ -115,7 +115,7 @@ class _EmptyInit(TorchFunctionMode):
         model.load_state_dict(torch.load("checkpoint.pt"))
     """
 
-    def __init__(self, enabled: bool = True):
+    def __init__(self, enabled: bool = True) -> None:
         super().__init__()
         self.enabled = enabled
 

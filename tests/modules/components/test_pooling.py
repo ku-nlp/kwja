@@ -130,5 +130,5 @@ def test_average_pooling():
 
 
 def test_error():
-    with pytest.raises(ValueError):
-        _ = pool_subwords(sequence_output, subword_map, None)  # type: ignore
+    with pytest.raises(ValueError, match="Unknown pooling strategy: INVALID"):
+        _ = pool_subwords(sequence_output, subword_map, "INVALID")  # type: ignore

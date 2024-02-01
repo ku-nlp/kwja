@@ -5,7 +5,7 @@ from kwja.modules.base import filter_dict_items
 
 
 @pytest.mark.parametrize(
-    "item, keys_to_ignore, expected",
+    ("item", "keys_to_ignore", "expected"),
     [
         (
             DictConfig({"key_0": "value_0", "key_1": "value_1"}),

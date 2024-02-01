@@ -10,7 +10,7 @@ from kwja.modules.components.head import (
 
 
 @pytest.mark.parametrize(
-    "num_labels, hidden_size, hidden_dropout_prob",
+    ("num_labels", "hidden_size", "hidden_dropout_prob"),
     [
         (2, 3, 0.0),
         (10, 2, 0.1),
@@ -25,7 +25,7 @@ def test_sequential_labeling_head(num_labels: int, hidden_size: int, hidden_drop
 
 
 @pytest.mark.parametrize(
-    "num_labels, hidden_size, hidden_dropout_prob, rank",
+    ("num_labels", "hidden_size", "hidden_dropout_prob", "rank"),
     [
         (2, 3, 0.0, 4),
         (10, 2, 0.1, 2),
@@ -42,7 +42,7 @@ def test_lora_sequential_multi_labeling_head(
 
 
 @pytest.mark.parametrize(
-    "num_labels, hidden_size, hidden_dropout_prob",
+    ("num_labels", "hidden_size", "hidden_dropout_prob"),
     [
         (5, 3, 0.0),
         (1, 2, 0.1),
@@ -57,7 +57,7 @@ def test_word_selection_head(num_labels: int, hidden_size: int, hidden_dropout_p
 
 
 @pytest.mark.parametrize(
-    "num_labels, hidden_size, hidden_dropout_prob",
+    ("num_labels", "hidden_size", "hidden_dropout_prob"),
     [
         (5, 3, 0.0),
         (1, 2, 0.1),

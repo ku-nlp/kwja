@@ -50,7 +50,7 @@ class CharModule(BaseModule[CharModuleMetric]):
             "word_norm_op_logits": self.word_norm_op_tagger(encoded.last_hidden_state),
         }
 
-    def training_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
+    def training_step(self, batch: Any) -> torch.Tensor:
         ret: Dict[str, torch.Tensor] = self(batch)
         sent_segmentation_loss = compute_token_mean_loss(
             ret["sent_segmentation_logits"], batch["sent_segmentation_labels"]
@@ -65,7 +65,7 @@ class CharModule(BaseModule[CharModuleMetric]):
         return sent_segmentation_loss + word_segmentation_loss + word_normalization_loss
 
     def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
-        kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
+        kwargs = self.predict_step(batch)
         kwargs.update({"word_norm_op_labels": batch["word_norm_op_labels"]})
         metric = self.valid_corpus2metric[self.valid_corpora[dataloader_idx]]
         metric.update(kwargs)
@@ -89,7 +89,7 @@ class CharModule(BaseModule[CharModuleMetric]):
             self.log(f"valid/{key}", mean_score)
 
     def test_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
-        kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
+        kwargs = self.predict_step(batch)
         kwargs.update({"word_norm_op_labels": batch["word_norm_op_labels"]})
         metric = self.test_corpus2metric[self.test_corpora[dataloader_idx]]
         metric.update(kwargs)
@@ -112,7 +112,7 @@ class CharModule(BaseModule[CharModuleMetric]):
             mean_score = mean(metrics_log[corpus][key] for corpus in self.test_corpora if key in metrics_log[corpus])
             self.log(f"test/{key}", mean_score)
 
-    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Dict[str, torch.Tensor]:
+    def predict_step(self, batch: Any) -> Dict[str, torch.Tensor]:
         ret: Dict[str, torch.Tensor] = self(batch)
         return {
             "example_ids": batch["example_ids"],

@@ -5,6 +5,18 @@
 
 version: 2
 updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      timezone: "Asia/Tokyo"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
+    target-branch: "dev"
+    versioning-strategy: lockfile-only
+
   - package-ecosystem: "github-actions"
     # Workflow files stored in the
     # default location of `.github/workflows`
@@ -12,4 +24,4 @@ updates:
     schedule:
       interval: "monthly"
       timezone: "Asia/Tokyo"
-    target-branch: "main"
+    target-branch: "dev"

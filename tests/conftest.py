@@ -12,12 +12,12 @@ if base_path.exists() is False:
     base_path.symlink_to(base_path.parent / "base_template.yaml")
 
 
-@pytest.fixture
+@pytest.fixture()
 def data_dir() -> Path:
     return Path(__file__).parent / "data"
 
 
-@pytest.fixture
+@pytest.fixture()
 def typo_tokenizer() -> PreTrainedTokenizerBase:
     return AutoTokenizer.from_pretrained(
         "ku-nlp/deberta-v2-tiny-japanese-char-wwm",
@@ -26,7 +26,7 @@ def typo_tokenizer() -> PreTrainedTokenizerBase:
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def seq2seq_tokenizer() -> PreTrainedTokenizerBase:
     return AutoTokenizer.from_pretrained(
         "google/mt5-small",
@@ -34,42 +34,42 @@ def seq2seq_tokenizer() -> PreTrainedTokenizerBase:
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def char_tokenizer() -> PreTrainedTokenizerBase:
     return AutoTokenizer.from_pretrained("ku-nlp/deberta-v2-tiny-japanese-char-wwm", do_word_tokenize=False)
 
 
-@pytest.fixture
+@pytest.fixture()
 def word_tokenizer(special_tokens: List[str]) -> PreTrainedTokenizerBase:
     return AutoTokenizer.from_pretrained("ku-nlp/deberta-v2-tiny-japanese", additional_special_tokens=special_tokens)
 
 
-@pytest.fixture
+@pytest.fixture()
 def cohesion_tasks() -> List[str]:
     return ["pas_analysis", "bridging_reference_resolution", "coreference_resolution"]
 
 
-@pytest.fixture
+@pytest.fixture()
 def exophora_referents() -> List[str]:
     return ["著者", "読者", "不特定:人", "不特定:物"]
 
 
-@pytest.fixture
+@pytest.fixture()
 def pas_cases() -> List[str]:
     return ["ガ", "ヲ", "ニ", "ガ２"]
 
 
-@pytest.fixture
+@pytest.fixture()
 def br_cases() -> List[str]:
     return ["ノ"]
 
 
-@pytest.fixture
+@pytest.fixture()
 def special_tokens(exophora_referents: List[str]) -> List[str]:
     return [f"[{e}]" for e in exophora_referents] + ["[NULL]", "[NA]", "[ROOT]"]
 
 
-@pytest.fixture
+@pytest.fixture()
 def dataset_kwargs(
     cohesion_tasks: List[str],
     exophora_referents: List[str],

@@ -149,7 +149,7 @@ class ReadingAligner:
                     #     kanji_reading = kanji_reading.split(".")[0]
                     if j + len(kanji_reading) > len(reading):
                         continue
-                    reading_part = reading[j : j + len(kanji_reading)]  # noqa: E203
+                    reading_part = reading[j : j + len(kanji_reading)]
                     if reading_part == kanji_reading:
                         node = Node(i=i, j=j, wI=1, wJ=len(kanji_reading), cost=0)
                         td_lattice[i][j].append(node)
@@ -243,7 +243,7 @@ class ReadingAligner:
         boundaries.pop(0)
         while True:
             wI, wJ = seg.pop(0)
-            subreading += reading[posJ : posJ + wJ]  # noqa: E203
+            subreading += reading[posJ : posJ + wJ]
             posI += wI
             posJ += wJ
             if posI == boundaries[0]:

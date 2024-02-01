@@ -155,7 +155,7 @@ class WordModule(BaseModule[WordModuleMetric]):
             "discourse_logits": self.discourse_relation_analyzer(pooled),
         }
 
-    def training_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
+    def training_step(self, batch: Any) -> torch.Tensor:
         ret: Dict[str, torch.Tensor] = self(batch)
         loss_log: Dict[str, torch.Tensor] = {}
         if WordTask.READING_PREDICTION in self.training_tasks:
@@ -200,7 +200,7 @@ class WordModule(BaseModule[WordModuleMetric]):
         return torch.stack(list(loss_log.values())).sum()
 
     def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
-        kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
+        kwargs = self.predict_step(batch)
         kwargs.update({"discourse_labels": batch["discourse_labels"]})
         metric = self.valid_corpus2metric[self.valid_corpora[dataloader_idx]]
         metric.update(kwargs)
@@ -208,10 +208,9 @@ class WordModule(BaseModule[WordModuleMetric]):
     def on_validation_epoch_end(self) -> None:
         metrics_log: Dict[str, Dict[str, float]] = {}
         for corpus, metric in self.valid_corpus2metric.items():
-            dataset = self.trainer.val_dataloaders[corpus].dataset
             metric.set_properties(
                 {
-                    "dataset": dataset,
+                    "dataset": self.trainer.val_dataloaders[corpus].dataset,
                     "reading_id2reading": self.reading_id2reading,
                     "training_tasks": self.training_tasks,
                 }
@@ -235,7 +234,7 @@ class WordModule(BaseModule[WordModuleMetric]):
             self.log(f"valid/{key}", mean_score)
 
     def test_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
-        kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
+        kwargs = self.predict_step(batch)
         kwargs.update({"discourse_labels": batch["discourse_labels"]})
         metric = self.test_corpus2metric[self.test_corpora[dataloader_idx]]
         metric.update(kwargs)
@@ -243,10 +242,9 @@ class WordModule(BaseModule[WordModuleMetric]):
     def on_test_epoch_end(self) -> None:
         metrics_log: Dict[str, Dict[str, float]] = {}
         for corpus, metric in self.test_corpus2metric.items():
-            dataset = self.trainer.test_dataloaders[corpus].dataset
             metric.set_properties(
                 {
-                    "dataset": dataset,
+                    "dataset": self.trainer.test_dataloaders[corpus].dataset,
                     "reading_id2reading": self.reading_id2reading,
                     "training_tasks": self.training_tasks,
                 }
@@ -269,7 +267,7 @@ class WordModule(BaseModule[WordModuleMetric]):
             mean_score = mean(metrics_log[corpus][key] for corpus in self.test_corpora if key in metrics_log[corpus])
             self.log(f"test/{key}", mean_score)
 
-    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Dict[str, torch.Tensor]:
+    def predict_step(self, batch: Any) -> Dict[str, torch.Tensor]:
         ret: Dict[str, torch.Tensor] = self(batch)
         ne_predictions = self.crf.viterbi_decode(ret["ne_logits"], batch["ne_mask"])
         discourse_probabilities = ret["discourse_logits"].softmax(dim=3)

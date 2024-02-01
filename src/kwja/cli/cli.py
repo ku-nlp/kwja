@@ -22,6 +22,7 @@ import kwja
 from kwja.cli.config import CLIConfig, Device, ModelSize, get_kwja_config_file
 from kwja.cli.utils import download_checkpoint, prepare_device
 from kwja.datamodule.datamodule import DataModule
+from kwja.datamodule.datasets.utils import add_doc_ids, add_sent_ids
 from kwja.modules import CharModule, Seq2SeqModule, TypoModule, WordModule
 from kwja.utils.constants import TRANSLATION_TABLE
 from kwja.utils.logging_util import filter_logs
@@ -108,7 +109,13 @@ class TypoModuleProcessor(BaseModuleProcessor):
         return datamodule
 
     def export_prediction(self) -> str:
-        return self.destination.read_text()
+        output_text = ""
+        for line in self.destination.read_text().strip().split("\n"):
+            if line.startswith("# D-ID:"):
+                pass
+            else:
+                output_text += line + "\n"
+        return output_text
 
 
 class CharModuleProcessor(BaseModuleProcessor):
@@ -211,14 +218,16 @@ class CLIProcessor:
         input_documents = [document for document in input_documents if document.text != ""]
         if len(input_documents) == 0:
             return ""
+        add_doc_ids(input_documents)
+        add_sent_ids(input_documents)
         if self.processors[0].input_format == InputFormat.RAW:
-            self.initial_destination.write_text(
-                "".join(normalize_text(input_document.text) + "\nEOD\n" for input_document in input_documents)
-            )
+            output_text = ""
+            for input_document in input_documents:
+                output_text += f"# D-ID:{input_document.doc_id}\n"
+                output_text += normalize_text(input_document.text) + "\nEOD\n"
+            self.initial_destination.write_text(output_text)
         elif self.processors[0].input_format == InputFormat.JUMANPP:
             self.initial_destination.write_text("".join(document.to_jumanpp() + "\n" for document in input_documents))
-        # elif self.processors[0].input_format == InputFormat.knp:
-        #     self.initial_destination.write_text("".join(document.to_knp() + "\n" for document in input_documents))
         else:
             raise AssertionError  # unreachable
 
@@ -277,7 +286,7 @@ def _load_document_from_text(text: str, input_format: InputFormat) -> Document:
 def _version_callback(value: bool) -> None:
     if value is True:
         print(f"KWJA {kwja.__version__}")
-        raise typer.Exit()
+        raise typer.Exit
 
 
 def _tasks_callback(value: str) -> str:
@@ -289,7 +298,7 @@ def _tasks_callback(value: str) -> str:
             tasks.append(candidate_task)
             values.remove(candidate_task)
     if len(values) == 1:
-        raise typer.BadParameter(f"invalid task is specified: {repr(values[0])}")
+        raise typer.BadParameter(f"invalid task is specified: {values[0]!r}")
     if len(values) > 1:
         raise typer.BadParameter(f"invalid tasks are specified: {', '.join(repr(v) for v in values)}")
     if len(tasks) == 0:
@@ -350,7 +359,7 @@ def main(
     input_documents: Optional[List[Document]] = None
     if text is not None and len(filename) > 0:
         logger.error("ERROR: Please provide text or filename, not both")
-        raise typer.Abort()
+        raise typer.Abort
     elif text is not None:
         input_documents = [_load_document_from_text(text, input_format)]
     elif len(filename) > 0:
@@ -358,7 +367,7 @@ def main(
         for path in filename:
             if path.exists() is False:
                 logger.error(f"ERROR: {path} does not exist")
-                raise typer.Abort()
+                raise typer.Abort
             with path.open() as f:
                 for document_text in _chunk_by_document(f, input_format):
                     input_documents.append(_load_document_from_text(document_text, input_format))
@@ -391,7 +400,7 @@ def main(
         output: str = processor.run(input_documents)
         print(output or "EOD\n", end="")
         processor.refresh()
-        raise typer.Exit()
+        raise typer.Exit
 
     # Interactive mode
     processor.load_all_modules()

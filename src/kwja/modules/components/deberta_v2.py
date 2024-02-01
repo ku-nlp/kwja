@@ -35,7 +35,7 @@ _CHECKPOINT_FOR_DOC = "microsoft/deberta-v2-xlarge"
 
 # Copied from transformers.models.deberta.modeling_deberta.DebertaAttention with Deberta->DebertaV2
 class DebertaV2Attention(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config) -> None:
         super().__init__()
         self.self = DisentangledSelfAttention(config)
         self.output = DebertaV2SelfOutput(config)
@@ -72,7 +72,7 @@ class DebertaV2Attention(nn.Module):
 
 # Copied from transformers.models.deberta.modeling_deberta.DebertaLayer with Deberta->DebertaV2
 class DebertaV2Layer(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config) -> None:
         super().__init__()
         self.attention = DebertaV2Attention(config)
         self.intermediate = DebertaV2Intermediate(config)
@@ -108,7 +108,7 @@ class DebertaV2Layer(nn.Module):
 class DebertaV2Encoder(nn.Module):
     """Modified BertEncoder with relative position bias support"""
 
-    def __init__(self, config):
+    def __init__(self, config) -> None:
         super().__init__()
 
         self.layer = nn.ModuleList([DebertaV2Layer(config) for _ in range(config.num_hidden_layers)])
@@ -277,7 +277,7 @@ class DisentangledSelfAttention(nn.Module):
 
     """
 
-    def __init__(self, config):
+    def __init__(self, config) -> None:
         super().__init__()
         if config.hidden_size % config.num_attention_heads != 0:
             raise ValueError(
@@ -497,7 +497,7 @@ class DisentangledSelfAttention(nn.Module):
 )
 # Copied from transformers.models.deberta.modeling_deberta.DebertaModel with Deberta->DebertaV2
 class DebertaV2Model(DebertaV2PreTrainedModel):
-    def __init__(self, config):
+    def __init__(self, config) -> None:
         super().__init__(config)
 
         self.embeddings = DebertaV2Embeddings(config)
@@ -587,6 +587,7 @@ class DebertaV2Model(DebertaV2PreTrainedModel):
             query_states = encoded_layers[-1]
             rel_embeddings = self.encoder.get_rel_embedding()
             attention_mask = self.encoder.get_attention_mask(attention_mask)
+            assert special_token_indices is not None
             rel_pos = self.encoder.get_rel_pos(embedding_output, special_token_indices)
             for layer in layers[1:]:
                 query_states = layer(

@@ -44,7 +44,7 @@ class TypoModule(BaseModule[TypoModuleMetric]):
             "ins_logits": self.ins_tagger(encoded.last_hidden_state),
         }
 
-    def training_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
+    def training_step(self, batch: Any) -> torch.Tensor:
         ret: Dict[str, torch.Tensor] = self(batch)
         kdr_loss = compute_token_mean_loss(ret["kdr_logits"], batch["kdr_labels"])
         self.log("train/kdr_loss", kdr_loss)
@@ -53,7 +53,7 @@ class TypoModule(BaseModule[TypoModuleMetric]):
         return kdr_loss + ins_loss
 
     def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
-        kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
+        kwargs = self.predict_step(batch)
         kwargs.update({"kdr_labels": batch["kdr_labels"], "ins_labels": batch["ins_labels"]})
         metric = self.valid_corpus2metric[self.valid_corpora[dataloader_idx]]
         metric.update(kwargs)
@@ -73,7 +73,7 @@ class TypoModule(BaseModule[TypoModuleMetric]):
             self.log(f"valid/{key}", mean_score)
 
     def test_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
-        kwargs = self.predict_step(batch, batch_idx, dataloader_idx=dataloader_idx)
+        kwargs = self.predict_step(batch)
         kwargs.update({"kdr_labels": batch["kdr_labels"], "ins_labels": batch["ins_labels"]})
         metric = self.test_corpus2metric[self.test_corpora[dataloader_idx]]
         metric.update(kwargs)
@@ -92,7 +92,7 @@ class TypoModule(BaseModule[TypoModuleMetric]):
             mean_score = mean(metrics_log[corpus][key] for corpus in self.test_corpora if key in metrics_log[corpus])
             self.log(f"test/{key}", mean_score)
 
-    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Dict[str, torch.Tensor]:
+    def predict_step(self, batch: Any) -> Dict[str, torch.Tensor]:
         ret: Dict[str, torch.Tensor] = self(batch)
         kdr_probabilities = ret["kdr_logits"].softmax(dim=2)
         kdr_max_probabilities, kdr_predictions = kdr_probabilities.max(dim=2)
