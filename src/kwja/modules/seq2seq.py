@@ -88,19 +88,21 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
         generations = self.encoder_decoder.generate(
             input_ids=batch["input_ids"],
             attention_mask=batch["attention_mask"],
-            logits_processor=LogitsProcessorList(
-                [
-                    ForcedLogitsProcessor(
-                        surfs=batch["surfs"],
-                        num_beams=self.hparams.decoding.num_beams,
-                        tokenizer=self.tokenizer,
-                        reading_candidates=self.reading_candidates,
-                        char2tokens=self.char2tokens,
-                    ),
-                ]
-            )
-            if self.use_forced_decoding
-            else None,
+            logits_processor=(
+                LogitsProcessorList(
+                    [
+                        ForcedLogitsProcessor(
+                            surfs=batch["surfs"],
+                            num_beams=self.hparams.decoding.num_beams,
+                            tokenizer=self.tokenizer,
+                            reading_candidates=self.reading_candidates,
+                            char2tokens=self.char2tokens,
+                        ),
+                    ]
+                )
+                if self.use_forced_decoding
+                else None
+            ),
             **self.hparams.decoding,
         )
         if isinstance(generations, torch.Tensor):

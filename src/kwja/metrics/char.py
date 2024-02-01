@@ -117,9 +117,11 @@ class CharModuleMetric(BaseModuleMetric):
     ) -> List[Document]:
         # Build documents that do not have clauses, phrases, or base phrases, but morphemes only
         return [
-            Document.from_jumanpp("".join(s.to_jumanpp() for s in ss))
-            if from_sentences is False
-            else Document.from_sentences(ss)
+            (
+                Document.from_jumanpp("".join(s.to_jumanpp() for s in ss))
+                if from_sentences is False
+                else Document.from_sentences(ss)
+            )
             for ss in doc_id2sentences.values()
         ]
 

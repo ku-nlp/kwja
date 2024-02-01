@@ -159,7 +159,10 @@ def test_sanity():
         for knp_text in chunk_by_document(io.StringIO(ret.stdout)):
             documents.append(Document.from_knp(knp_text))
         assert len(documents) == 2
-        assert documents[0].text == "KWJAは日本語の統合解析ツールです。汎用言語モデルを利用し、様々な言語解析を統一的な方法で解いています。"
+        assert (
+            documents[0].text
+            == "KWJAは日本語の統合解析ツールです。汎用言語モデルを利用し、様々な言語解析を統一的な方法で解いています。"
+        )
         assert documents[1].text == (
             "計算機による言語理解を実現するためには、計算機に常識・世界知識を与える必要があります。10年前にはこれは非常に難しい問題でしたが、"
             + "近年の計算機パワー、計算機ネットワークの飛躍的進展によって計算機が超大規模テキストを取り扱えるようになり、そこから常識を"
