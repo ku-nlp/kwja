@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v2.3.0] - 2024-02-01
+### Added
+- Support Python 3.12.
+
+### Fixed
+- Preserve document IDs when they are given as input.
+
 ## [v2.2.0] - 2023-10-27
 ### Added
 - Support `jumanpp` and `knp` input formats. This functionality allows you to partly use tokenization results of `jumanpp` as input.
@@ -190,7 +197,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove an unnecessary dependency, `fugashi`.
 
-[Unreleased]: https://github.com/ku-nlp/kwja/compare/v2.2.0...HEAD
+[Unreleased]: https://github.com/ku-nlp/kwja/compare/v2.3.0...HEAD
+[2.3.0]: https://github.com/ku-nlp/kwja/compare/v2.2.0...v2.3.0
 [2.2.0]: https://github.com/ku-nlp/kwja/compare/v2.1.3...v2.2.0
 [2.1.3]: https://github.com/ku-nlp/kwja/compare/v2.1.2...v2.1.3
 [2.1.2]: https://github.com/ku-nlp/kwja/compare/v2.1.1...v2.1.2
