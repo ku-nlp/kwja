@@ -108,6 +108,19 @@ def test_normalization_and_typo_module(text: str, output: str):
     assert ret.stdout == output
 
 
+@pytest.mark.parametrize(
+    ("text", "output"),
+    [
+        ("今日は${day}日です", "今日は${day}日です"),
+    ],
+)
+def test_normalization_and_char_module(text: str, output: str):
+    ret = runner.invoke(app, args=["--model-size", "tiny", "--tasks", "char", "--text", text])
+    assert ret.exception is None
+    restored_output = "".join([line for line in ret.stdout.splitlines() if not line.startswith("#")]).replace(" ", "")
+    assert restored_output == output.replace(" ", "")
+
+
 def test_file_input():
     with tempfile.NamedTemporaryFile("wt") as f:
         f.write(

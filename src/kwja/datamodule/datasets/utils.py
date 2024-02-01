@@ -1,10 +1,10 @@
 from datetime import datetime
-from typing import List, Optional, Sequence
+from typing import Iterable, Iterator, List, Optional, Sequence, TextIO
 
 from rhoknp import Document
 
 
-def create_documents_from_raw_texts(texts: Sequence[str]) -> List[Document]:
+def create_documents_from_raw_texts(texts: Iterable[str]) -> List[Document]:
     documents: List[Document] = []
     for text in texts:
         raw_text = ""
@@ -37,3 +37,15 @@ def add_sent_ids(documents: Sequence[Document]) -> None:
         for idx, sentence in enumerate(document.sentences):
             if sentence.sent_id == "":
                 sentence.sent_id = f"{document.doc_id}-{idx:0{sent_id_width}}"
+
+
+def chunk_by_document(f: TextIO) -> Iterator[str]:
+    buff: str = ""
+    for line in f:
+        if line.strip() == "EOD":
+            yield buff.rstrip()
+            buff = ""
+        else:
+            buff += line
+    if buff.rstrip() != "":
+        yield buff.rstrip()

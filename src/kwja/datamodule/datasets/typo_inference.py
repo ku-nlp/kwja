@@ -1,5 +1,6 @@
 from collections import defaultdict
-from typing import Dict, List, Tuple
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
 from omegaconf import ListConfig
 from rhoknp import Document
@@ -8,7 +9,7 @@ from transformers.utils import PaddingStrategy
 
 from kwja.datamodule.datasets.base import BaseDataset
 from kwja.datamodule.datasets.typo import TypoModuleFeatures
-from kwja.datamodule.datasets.utils import create_documents_from_raw_texts
+from kwja.datamodule.datasets.utils import chunk_by_document, create_documents_from_raw_texts
 from kwja.datamodule.examples import TypoInferenceExample
 from kwja.utils.constants import DUMMY_TOKEN
 from kwja.utils.logging_util import track
@@ -20,9 +21,17 @@ class TypoInferenceDataset(BaseDataset[TypoInferenceExample, TypoModuleFeatures]
         texts: ListConfig,
         tokenizer: PreTrainedTokenizerBase,
         max_seq_length: int,
+        raw_text_file: Optional[Path] = None,
     ) -> None:
         super().__init__(tokenizer, max_seq_length)
-        documents: List[Document] = create_documents_from_raw_texts(texts)
+        documents: List[Document]
+        if len(texts) > 0:
+            documents = create_documents_from_raw_texts(texts)
+        elif raw_text_file is not None:
+            with raw_text_file.open() as f:
+                documents = create_documents_from_raw_texts(chunk_by_document(f))
+        else:
+            documents = []
         self.examples: List[TypoInferenceExample] = []
         self.stash: Dict[int, List[Tuple[str, str]]] = defaultdict(list)
         example_id = 0

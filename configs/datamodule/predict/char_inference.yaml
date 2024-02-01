@@ -5,3 +5,4 @@ defaults:
 _target_: kwja.datamodule.datasets.CharInferenceDataset
 texts: []
 doc_id_prefix: null
+raw_text_file: null
