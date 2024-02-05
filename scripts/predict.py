@@ -23,6 +23,10 @@ def main(eval_cfg: DictConfig):
         eval_cfg.devices = (
             list(map(int, eval_cfg.devices.split(","))) if "," in eval_cfg.devices else int(eval_cfg.devices)
         )
+    if isinstance(eval_cfg.max_batches_per_device, str):
+        eval_cfg.max_batches_per_device = int(eval_cfg.max_batches_per_device)
+    if isinstance(eval_cfg.num_workers, str):
+        eval_cfg.num_workers = int(eval_cfg.num_workers)
 
     # Load saved model and config
     model: pl.LightningModule = hydra.utils.call(eval_cfg.module.load_from_checkpoint, _recursive_=False)
