@@ -25,7 +25,7 @@ dependency_topk: 4
 discourse_threshold: 0.0
 
 # environment dependent settings
-num_workers: -1
+num_workers: ${oc.env:NUM_WORKERS,0}
 devices: ${oc.env:DEVICES,1}
-max_batches_per_device: 4
-compile: false
+max_batches_per_device: ${oc.env:MAX_BATCHES_PER_DEVICE,2}
+compile: ${oc.env:COMPILE,false}
