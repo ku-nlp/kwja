@@ -3,6 +3,7 @@ defaults:
   - _self_
 
 _target_: kwja.datamodule.datasets.CharInferenceDataset
-texts: []
 doc_id_prefix: null
+# texts and raw_text_file are mutually exclusive
+texts: []
 raw_text_file: null
