@@ -1,6 +1,5 @@
 import logging
 import os
-import re
 import sys
 from abc import ABC
 from enum import Enum
@@ -29,7 +28,6 @@ from kwja.utils.logging_util import filter_logs
 
 filter_logs(environment="production")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
-OMEGACONF_VARIABLE_INTERPOLATION = re.compile(r"\$(?P<variable>\{.*?})")
 logging.basicConfig(format="")
 
 logger = logging.getLogger("kwja_cli")
@@ -102,8 +100,7 @@ class TypoModuleProcessor(BaseModuleProcessor):
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
-        with input_file.open() as f:
-            self.module.hparams.datamodule.predict.texts = list(_chunk_by_document(f, self.input_format))
+        self.module.hparams.datamodule.predict.raw_text_file = input_file
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
         datamodule.setup(stage=TrainerFn.PREDICTING)
         return datamodule
@@ -128,8 +125,7 @@ class CharModuleProcessor(BaseModuleProcessor):
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
-        with input_file.open() as f:
-            self.module.hparams.datamodule.predict.texts = list(_chunk_by_document(f, self.input_format))
+        self.module.hparams.datamodule.predict.raw_text_file = input_file
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
         datamodule.setup(stage=TrainerFn.PREDICTING)
         return datamodule
@@ -248,8 +244,6 @@ def normalize_text(text: str) -> str:
     normalized = normalize("NFKC", text)
     # escape several symbols and delete control characters
     normalized = normalized.translate(TRANSLATION_TABLE)
-    # prevent hydra.utils.instantiate from interpolating the string "${...}"
-    normalized = OMEGACONF_VARIABLE_INTERPOLATION.sub(r"$␣\g<variable>", normalized)
     # if normalized != text:
     #     typer.echo(f"apply normalization ({text} -> {normalized})", err=True)
     return normalized

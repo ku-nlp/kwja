@@ -1,5 +1,6 @@
 import os
 import sys
+import tempfile
 from pathlib import Path
 from time import time
 from typing import List
@@ -27,6 +28,10 @@ def main(eval_cfg: DictConfig):
         eval_cfg.devices = (
             list(map(int, eval_cfg.devices.split(","))) if "," in eval_cfg.devices else int(eval_cfg.devices)
         )
+    if isinstance(eval_cfg.max_batches_per_device, str):
+        eval_cfg.max_batches_per_device = int(eval_cfg.max_batches_per_device)
+    if isinstance(eval_cfg.num_workers, str):
+        eval_cfg.num_workers = int(eval_cfg.num_workers)
 
     # Load saved model and config
     model: pl.LightningModule = hydra.utils.call(eval_cfg.module.load_from_checkpoint, _recursive_=False)
@@ -56,12 +61,20 @@ def main(eval_cfg: DictConfig):
         devices=cfg.devices,
     )
 
-    if getattr(cfg.datamodule.predict, "juman_file", None):
-        cfg.datamodule.predict.juman_file = Path(cfg.datamodule.predict.juman_file)
-    elif getattr(cfg.datamodule.predict, "texts", None) is not None:
-        cfg.datamodule.predict.texts = [normalize_text(line) for line in sys.stdin.readlines()]
-    datamodule = DataModule(cfg=cfg.datamodule)
-    datamodule.setup(stage=TrainerFn.PREDICTING)
+    with tempfile.NamedTemporaryFile(mode="w+t") as temp_file:
+        if juman_file := getattr(cfg.datamodule.predict, "juman_file", None):
+            # For seq2seq module and word module
+            cfg.datamodule.predict.juman_file = Path(juman_file)
+        elif raw_input_file := getattr(cfg.datamodule.predict, "raw_input_file", None):
+            # For typo module and char module
+            cfg.datamodule.predict.raw_text_file = Path(raw_input_file)
+        else:
+            # For typo module and char module
+            Path(temp_file.name).write_text("\n".join(normalize_text(line) for line in sys.stdin.readlines()))
+            cfg.datamodule.predict.raw_text_file = Path(temp_file.name)
+
+        datamodule = DataModule(cfg=cfg.datamodule)
+        datamodule.setup(stage=TrainerFn.PREDICTING)
 
     trainer.predict(model=model, dataloaders=[datamodule.predict_dataloader()], return_predictions=False)
 
