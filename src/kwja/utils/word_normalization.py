@@ -26,154 +26,134 @@ class MorphemeNormalizer:
     def get_word_norm_op_tags(self, morpheme: Morpheme) -> List[str]:
         try:
             if morpheme.conjtype == "*":
-                normalized = morpheme.lemma
+                norm = morpheme.lemma
             else:
-                normalized = self.jinf(morpheme.lemma, morpheme.conjtype, "基本形", morpheme.conjform)
-            return get_word_norm_op_tags(morpheme.surf, normalized)
+                norm = self.jinf(morpheme.lemma, morpheme.conjtype, "基本形", morpheme.conjform)
+            return get_word_norm_op_tags(morpheme.surf, norm)
         except ValueError as e:
             logger.info(f"failed to get normalized form of {morpheme.surf}: {e}")
             return [IGNORE_WORD_NORM_OP_TAG] * len(morpheme.surf)
 
 
-def get_word_norm_op_tags(surf: str, normalized: str) -> List[str]:
-    surf_len = len(surf) + 1
-    normalized_len = len(normalized) + 1
-    if surf_len < normalized_len:
-        raise ValueError(f"failed to construct normalization labels to convert {surf} to {normalized}")
-    d = np.inf * np.ones((surf_len, normalized_len), dtype=np.int32)
-    dops: List[List[str]] = []
-    for _ in range(surf_len):
-        dops.append([])
-        for _ in range(normalized_len):
-            dops[-1].append("_")
-    d[0, 0] = 0
-    dops[0][0] = ""
-    for j in range(1, normalized_len):
-        cj = normalized[j - 1]
-        for i in range(1, surf_len):
+def get_word_norm_op_tags(surf: str, norm: str) -> List[str]:
+    m, n = len(surf) + 1, len(norm) + 1
+    if m < n:
+        raise ValueError(f"failed to get word norm op tags from {surf} and {norm}")
+    dp: List[List[Tuple[float, str]]] = [[(float("inf"), "_") for _ in range(n)] for _ in range(m)]  # (m, n)
+    dp[0][0] = (0.0, "")
+    for j in range(1, n):
+        cj = norm[j - 1]
+        for i in range(1, m):
             if i < j:
                 continue
             ci = surf[i - 1]
-            lops = []
-            costs = []
-            # heuristics: add D before K
+            candidates = []
+            # heuristic: add D before K
             if ci in CHOON_SET or ci in HATSUON_SET or ci in LOWER2UPPER:
-                lops.append("D")
-                costs.append(d[i - 1, j] + 1)
+                candidates.append((dp[i - 1][j][0] + 1.0, "D"))
             if ci == cj:
-                lops.append("K")
-                costs.append(d[i - 1, j - 1])
+                candidates.append((dp[i - 1][j - 1][0], "K"))
             else:
                 if i == 1 and j == 1 and ci in VOICED2VOICELESS and cj == VOICED2VOICELESS[ci]:
-                    lops.append("V")
-                    costs.append(d[i - 1, j - 1] + 1)
+                    candidates.append((dp[i - 1][j - 1][0] + 1.0, "V"))
                 if ci in LOWER2UPPER and cj == LOWER2UPPER[ci]:
-                    lops.append("S")
-                    costs.append(d[i - 1, j - 1] + 1)
-                if ci in CHOON_SET and i > 1 and dops[i - 1][j - 1] == "K":
+                    candidates.append((dp[i - 1][j - 1][0] + 1.0, "S"))
+                if ci in CHOON_SET and i >= 2 and dp[i - 1][j - 1][1] == "K":
                     # NOTE: "P" and "E" must follow "K"
-                    # jumanpp does not support いくぇー -> いくえい
+                    # Juman++ does not support いくぇー -> いくえい
                     p = surf[i - 2]
                     if p in PROLONGED_MAP and cj == PROLONGED_MAP[p]:
-                        lops.append("P")
-                        costs.append(d[i - 1, j - 1] + 1)
+                        candidates.append((dp[i - 1][j - 1][0] + 1.0, "P"))
                     if p in PROLONGED_MAP_FOR_EROW and cj == PROLONGED_MAP_FOR_EROW[p]:
-                        lops.append("E")
-                        costs.append(d[i - 1, j - 1] + 1)
-            if len(lops) > 0:
-                idx = np.array(costs).argmin()
-                d[i, j] = costs[idx]
-                dops[i][j] = lops[idx]
-    if np.isinf(d[-1, -1]):
-        raise ValueError(f"failed to construct normalization labels to convert {surf} to {normalized}")
+                        candidates.append((dp[i - 1][j - 1][0] + 1.0, "E"))
+            if len(candidates) >= 1:
+                dp[i][j] = sorted(candidates)[0]  # choose the least-cost word norm op tag
+    if dp[-1][-1] == (float("inf"), "_"):
+        raise ValueError(f"failed to get word norm op tags from {surf} and {norm}")
     # backtracking
-    i, j = surf_len - 1, normalized_len - 1
-    ops = []
+    i, j = m - 1, n - 1
+    word_norm_op_tags = []
     while i >= 0 and j >= 0 and not (i == j == 0):
-        op = dops[i][j]
-        assert op not in ("", "_")
-        ops.append(op)
-        if op == "D":
+        word_norm_op_tag = dp[i][j][1]
+        word_norm_op_tags.append(word_norm_op_tag)
+        if word_norm_op_tag == "D":
             i -= 1
         else:
             i -= 1
             j -= 1
-    assert len(ops) == surf_len - 1
-    ops.reverse()
-    return ops
+    word_norm_op_tags.reverse()
+    return word_norm_op_tags
 
 
-def get_normalized(surf: str, ops: List[str], strict: bool = True) -> str:
-    assert len(surf) == len(ops)
-    normalized = ""
-    for i, (c, op) in enumerate(zip(surf, ops)):
-        if op == "K":
-            normalized += c
-        elif op == "V":
-            if strict and i != 0:
+def get_normalized_surf(surf: str, word_norm_op_tags: List[str], strict: bool = True) -> str:
+    assert len(surf) == len(word_norm_op_tags)
+    norm = ""
+    for i, (c, word_norm_op_tag) in enumerate(zip(surf, word_norm_op_tags)):
+        if word_norm_op_tag == "K":
+            norm += c
+        elif word_norm_op_tag == "V":
+            if strict is True and i != 0:
                 raise ValueError(f"not an initial kana {c} in {surf}")
             if c in VOICED2VOICELESS:
-                normalized += VOICED2VOICELESS[c]
+                norm += VOICED2VOICELESS[c]
             else:
-                if strict:
+                if strict is True:
                     raise ValueError(f"not a voiced kana {c} in {surf}")
-                normalized += c
-        elif op == "D":
-            if strict and c not in CHOON_SET and c not in HATSUON_SET and c not in LOWER2UPPER:
+                norm += c
+        elif word_norm_op_tag == "D":
+            if strict is True and c not in CHOON_SET and c not in HATSUON_SET and c not in LOWER2UPPER:
                 raise ValueError(f"not a removable kana {c} in {surf}")
-        elif op == "S":
+        elif word_norm_op_tag == "S":
             if c in LOWER2UPPER:
-                normalized += LOWER2UPPER[c]
+                norm += LOWER2UPPER[c]
             else:
-                if strict:
+                if strict is True:
                     raise ValueError(f"not a small kana {c} in {surf}")
-                normalized += c
-        elif op == "P":
-            # NOTE: in canonical ops, P and E must follow K,
-            # but we do not check this constraint here
-            if len(normalized) <= 0:
-                if strict:
+                norm += c
+        elif word_norm_op_tag == "P":
+            # NOTE: in canonical ops, P and E must follow K, but we do not check this constraint here
+            if len(norm) <= 0:
+                if strict is True:
                     raise ValueError(f"no preceding kana for {c} in {surf}")
-                normalized += c
+                norm += c
             elif c not in CHOON_SET:
-                if strict:
+                if strict is True:
                     raise ValueError(f"not a prolonged sign for {c} in {surf}")
-                normalized += c
+                norm += c
             else:
-                p = normalized[-1]
+                p = norm[-1]
                 if p in PROLONGED_MAP:
-                    normalized += PROLONGED_MAP[p]
+                    norm += PROLONGED_MAP[p]
                 else:
-                    if strict:
+                    if strict is True:
                         raise ValueError(f"not a valid preceding kana {p} in {surf}")
-                    normalized += c
-        elif op == "E":
-            if len(normalized) <= 0:
-                if strict:
+                    norm += c
+        elif word_norm_op_tag == "E":
+            if len(norm) <= 0:
+                if strict is True:
                     raise ValueError(f"no preceding kana for {c} in {surf}")
-                normalized += c
+                norm += c
             elif c not in CHOON_SET:
-                if strict:
+                if strict is True:
                     raise ValueError(f"not a prolonged sign for {c} in {surf}")
-                normalized += c
+                norm += c
             else:
-                p = normalized[-1]
+                p = norm[-1]
                 if p in PROLONGED_MAP_FOR_EROW:
-                    normalized += PROLONGED_MAP_FOR_EROW[p]
+                    norm += PROLONGED_MAP_FOR_EROW[p]
                 else:
-                    if strict:
+                    if strict is True:
                         raise ValueError(f"not a valid preceding kana {p} in {surf}")
-                    normalized += c
+                    norm += c
         else:
-            raise NotImplementedError(f"unknown op {op}")
-    return normalized
+            raise NotImplementedError(f"unknown word norm op tag {word_norm_op_tag}")
+    return norm
 
 
 class SentenceDenormalizer:
-    def __init__(self) -> None:
+    def __init__(self):
         self.mn = MorphemeNormalizer()
         self.md = MorphemeDenormalizer()
-        self._rng = np.random.default_rng()
 
     def denormalize(self, sentence: Sentence, p=0.5) -> None:
         prob = p
@@ -182,7 +162,7 @@ class SentenceDenormalizer:
                 continue
             surf2 = self.md.denormalize(morpheme)
             if surf2 != morpheme.text:
-                if self._rng.random() < prob:
+                if np.random.rand() < prob:
                     morpheme.text = surf2
                     prob *= 0.1
             else:
@@ -196,9 +176,6 @@ class SentenceDenormalizer:
 
 
 class MorphemeDenormalizer:
-    def __init__(self) -> None:
-        self._rng = np.random.default_rng()
-
     def denormalize(self, morpheme: Morpheme) -> str:
         return self._denormalize(morpheme.surf)
 
@@ -308,10 +285,11 @@ class MorphemeDenormalizer:
             return surf2
         probs = np.array(list(map(lambda x: x[1], cands)))
         probs /= probs.sum()
-        idx = self._rng.choice(len(probs), p=probs)
+        idx = np.random.choice(len(probs), p=probs)
         return cands[idx][0]
 
-    def _denormalize_deterministic(self, surf, var_prolonged=False) -> str:
+    @staticmethod
+    def _denormalize_deterministic(surf, var_prolonged=False) -> str:
         # S
         if surf[-1] in UPPER2LOWER:
             surf2 = surf[:-1] + UPPER2LOWER[surf[-1]]
@@ -323,7 +301,7 @@ class MorphemeDenormalizer:
             surf2 = surf[:pos] + c + surf[pos + 1 :]
             return surf2
         # P, E
-        if var_prolonged and self._rng.random() < 0.1:
+        if var_prolonged and np.random.rand() < 0.1:
             prolonged = "〜"
         else:
             prolonged = "ー"
