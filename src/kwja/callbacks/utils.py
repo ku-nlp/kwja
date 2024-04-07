@@ -30,7 +30,7 @@ from kwja.utils.constants import (
     CohesionTask,
 )
 from kwja.utils.dependency_parsing import DependencyManager
-from kwja.utils.word_normalization import get_normalized
+from kwja.utils.word_normalization import get_normalized_surf
 
 logger = getLogger(__name__)
 
@@ -100,23 +100,25 @@ def set_sentences(document: Document, sent_segmentation_tags: List[str]) -> None
 
 
 def set_morphemes(document: Document, word_segmentation_tags: List[str], word_norm_op_tags: List[str]) -> None:
-    char_index = 0
+    cursor = 0
     for sentence in document.sentences:
         Morpheme.count = 0
         morphemes: List[Morpheme] = []
-        surf: str = ""
-        ops: List[str] = []
+        surf = ""
         for char in sentence.text:
-            if word_segmentation_tags[char_index] == "B" and surf:
-                norm = get_normalized(surf, ops, strict=False)
+            # 半角スペースで強制分割
+            if (word_segmentation_tags[cursor] == "B" or char == " ") and surf:
+                norm = get_normalized_surf(surf, word_norm_op_tags[cursor - len(surf) : cursor], strict=False)
                 morphemes.append(_build_morpheme(surf, norm))
                 surf = ""
-                ops = []
-            surf += char
-            ops.append(word_norm_op_tags[char_index])
-            char_index += 1
+
+            if char == " ":
+                morphemes.append(_build_morpheme(char, char))
+            else:
+                surf += char
+            cursor += 1
         if surf:
-            norm = get_normalized(surf, ops, strict=False)
+            norm = get_normalized_surf(surf, word_norm_op_tags[cursor - len(surf) : cursor], strict=False)
             morphemes.append(_build_morpheme(surf, norm))
         sentence.morphemes = morphemes
 
