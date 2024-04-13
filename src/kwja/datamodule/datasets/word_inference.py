@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Dict, List, Literal, Optional, Union
+from typing import Dict, List, Optional, Union
 
 from cohesion_tools.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
 from cohesion_tools.extractors.base import BaseExtractor
@@ -15,7 +15,7 @@ from transformers.utils import PaddingStrategy
 from kwja.datamodule.datasets.base import BaseDataset, FullAnnotatedDocumentLoaderMixin
 from kwja.datamodule.datasets.word import WordModuleFeatures
 from kwja.datamodule.examples import SpecialTokenIndexer, WordInferenceExample
-from kwja.utils.constants import SPLIT_INTO_WORDS_MODEL_NAMES, CohesionTask
+from kwja.utils.constants import CohesionTask
 from kwja.utils.logging_util import track
 from kwja.utils.sub_document import extract_target_sentences
 
@@ -46,11 +46,6 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
             # do_predict_after_train
             documents = []
 
-        if tokenizer.name_or_path in SPLIT_INTO_WORDS_MODEL_NAMES:
-            self.tokenizer_input_format: Literal["words", "text"] = "words"
-        else:
-            self.tokenizer_input_format = "text"
-
         super(BaseDataset, self).__init__(documents, tokenizer, max_seq_length, document_split_stride)
         # ---------- cohesion analysis ----------
         self.cohesion_tasks: List[CohesionTask] = [task for task in CohesionTask if task.value in cohesion_tasks]
@@ -75,7 +70,7 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
         self.restrict_cohesion_target: bool = restrict_cohesion_target
 
         # ---------- dependency parsing & cohesion analysis ----------
-        self.special_tokens: List[str] = list(special_tokens)
+        self.special_tokens: List[str] = [st for st in special_tokens if st != " "]
         self.special_encoding: Encoding = self.tokenizer(
             self.special_tokens,
             add_special_tokens=False,
@@ -88,22 +83,18 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
 
     def _get_tokenized_len(self, document_or_sentence: Union[Document, Sentence]) -> int:
         tokenizer_input: Union[List[str], str] = [m.text for m in document_or_sentence.morphemes]
-        if self.tokenizer_input_format == "text":
-            tokenizer_input = " ".join(tokenizer_input)
-        return len(self.tokenizer.tokenize(tokenizer_input, is_split_into_words=self.tokenizer_input_format == "words"))
+        return len(self.tokenizer.tokenize(tokenizer_input, is_split_into_words=True))
 
     def _load_examples(self, doc_id2document: Dict[str, Document]) -> List[WordInferenceExample]:
         examples = []
         example_id = 0
         for document in track(doc_id2document.values(), description="Loading examples"):
             tokenizer_input: Union[List[str], str] = [m.text for m in document.morphemes]
-            if self.tokenizer_input_format == "text":
-                tokenizer_input = " ".join(tokenizer_input)
             encoding: Encoding = self.tokenizer(
                 tokenizer_input,
                 padding=PaddingStrategy.DO_NOT_PAD,
                 truncation=False,
-                is_split_into_words=self.tokenizer_input_format == "words",
+                is_split_into_words=True,
             ).encodings[0]
             if len(encoding.ids) > self.max_seq_length - len(self.special_tokens):
                 continue

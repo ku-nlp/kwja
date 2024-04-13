@@ -16,14 +16,6 @@ MASKED = -1024.0
 RESOURCE_PATH = resource_files(kwja) / "resource"
 
 
-# ---------- word (inference) dataset ----------
-SPLIT_INTO_WORDS_MODEL_NAMES = [
-    "nlp-waseda/roberta-base-japanese",
-    "nlp-waseda/roberta-large-japanese",
-    "nlp-waseda/roberta-large-japanese-seq512",
-]
-
-
 # ---------- typo module ----------
 TYPO_CORR_OP_TAG2TOKEN = {
     "K": "<k>",

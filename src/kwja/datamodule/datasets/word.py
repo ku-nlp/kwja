@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Literal, Optional, Union
+from typing import Dict, List, Optional, Union
 
 from cohesion_tools.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
 from cohesion_tools.extractors.base import BaseExtractor
@@ -25,7 +25,6 @@ from kwja.utils.constants import (
     NE_TAGS,
     POS_TAGS,
     RESOURCE_PATH,
-    SPLIT_INTO_WORDS_MODEL_NAMES,
     SUBPOS_TAGS,
     WORD_FEATURES,
     CohesionTask,
@@ -78,10 +77,6 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
     ) -> None:
         super().__init__(tokenizer, max_seq_length)
         self.path = Path(path)
-        if tokenizer.name_or_path in SPLIT_INTO_WORDS_MODEL_NAMES:
-            self.tokenizer_input_format: Literal["words", "text"] = "words"
-        else:
-            self.tokenizer_input_format = "text"
         super(BaseDataset, self).__init__(self.path, tokenizer, max_seq_length, document_split_stride)
         # some tags are not annotated in editorial articles
         self.skip_cohesion_ne_discourse = self.path.parts[-2] == "kyoto_ed"
@@ -89,9 +84,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         # ---------- reading prediction ----------
         reading_resource_path = RESOURCE_PATH / "reading_prediction"
         self.reading2reading_id = get_reading2reading_id(reading_resource_path / "vocab.txt")
-        self.reading_aligner = ReadingAligner(
-            self.tokenizer, self.tokenizer_input_format, KanjiDic(str(reading_resource_path / "kanjidic"))
-        )
+        self.reading_aligner = ReadingAligner(self.tokenizer, KanjiDic(str(reading_resource_path / "kanjidic")))
 
         # ---------- cohesion analysis ----------
         self.cohesion_tasks: List[CohesionTask] = [task for task in CohesionTask if task.value in cohesion_tasks]
@@ -116,7 +109,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         self.restrict_cohesion_target: bool = restrict_cohesion_target
 
         # ---------- dependency parsing & cohesion analysis ----------
-        self.special_tokens: List[str] = list(special_tokens)
+        self.special_tokens: List[str] = [st for st in special_tokens if st != " "]
         self.special_encoding: Encoding = self.tokenizer(
             self.special_tokens,
             add_special_tokens=False,
@@ -134,22 +127,18 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
 
     def _get_tokenized_len(self, document_or_sentence: Union[Document, Sentence]) -> int:
         tokenizer_input: Union[List[str], str] = [m.text for m in document_or_sentence.morphemes]
-        if self.tokenizer_input_format == "text":
-            tokenizer_input = " ".join(tokenizer_input)
-        return len(self.tokenizer.tokenize(tokenizer_input, is_split_into_words=self.tokenizer_input_format == "words"))
+        return len(self.tokenizer.tokenize(tokenizer_input, is_split_into_words=True))
 
     def _load_examples(self, doc_id2document: Dict[str, Document]) -> List[WordExample]:
         examples = []
         example_id = 0
         for document in track(doc_id2document.values(), description="Loading examples"):
             tokenizer_input: Union[List[str], str] = [m.text for m in document.morphemes]
-            if self.tokenizer_input_format == "text":
-                tokenizer_input = " ".join(tokenizer_input)
             encoding: Encoding = self.tokenizer(
                 tokenizer_input,
                 padding=PaddingStrategy.DO_NOT_PAD,
                 truncation=False,
-                is_split_into_words=self.tokenizer_input_format == "words",
+                is_split_into_words=True,
             ).encodings[0]
             if len(encoding.ids) > self.max_seq_length - len(self.special_tokens):
                 continue
