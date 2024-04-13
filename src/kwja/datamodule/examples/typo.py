@@ -8,8 +8,8 @@ class TypoExample:
     doc_id: str
     pre_text: str
     post_text: str
-    kdrs: List[str]
-    inss: List[str]
+    kdr_tags: List[str]
+    ins_tags: List[str]
 
 
 @dataclass(frozen=True)
