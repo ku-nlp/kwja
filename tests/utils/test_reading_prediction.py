@@ -33,7 +33,7 @@ from kwja.utils.constants import RESOURCE_PATH
                 [False, False, False, False, True],
                 [False, False, False, False, False],
             ],
-            ["ふせい", "␣", "な", "にゅうりょく"],
+            ["ふせい", "_", "な", "にゅうりょく"],
         ),
         (
             ["[UNK]", "ふせい", "[ID]", "[ID]", "にゅうりょく"],
