@@ -15,7 +15,7 @@ from Levenshtein import opcodes
 
 from kwja.utils.constants import TRANSLATION_TABLE
 
-L = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s: %(message)s", level=logging.DEBUG)
 
 
@@ -63,7 +63,7 @@ def decompose(pre_text: str, post_text: str, diffs: List[dict]) -> Optional[List
             src_same = monitor[f"{src}_text"][:start]
             tgt_same = monitor[f"{tgt}_text"][:start]
             if src_same != tgt_same:  # diffs以外にもtypoを含んでいる
-                L.warning(f'"{monitor[f"pre_text"]}" != "{monitor[f"post_text"]}" ... skip')
+                logger.warning(f'"{monitor[f"pre_text"]}" != "{monitor[f"post_text"]}" ... skip')
                 return None
             src_diff = monitor[f"{src}_text"][start : start + len(diff[f"{src}_str"])]
             tgt_diff = monitor[f"{tgt}_text"][start : start + len(diff[f"{tgt}_str"])]
@@ -89,7 +89,7 @@ def decompose(pre_text: str, post_text: str, diffs: List[dict]) -> Optional[List
             break
     if len(monitor["pre_text"]) > 0 and len(monitor["post_text"]) > 0:
         if monitor["pre_text"] != monitor["post_text"]:  # diffs以外にもtypoを含んでいる
-            L.warning(f'"{monitor[f"pre_text"]}" != "{monitor[f"post_text"]}" ... skip')
+            logger.warning(f'"{monitor[f"pre_text"]}" != "{monitor[f"post_text"]}" ... skip')
             return None
         components.append(Component(pre_str=monitor["pre_text"], post_str=monitor["post_text"], type="equal"))
     return components
@@ -126,7 +126,7 @@ def convert_components_into_tags(components: List[Component], length: int) -> Tu
                             for i in range(i2 - i1):
                                 kdr_tags[cursor + i1 + i] = f"R:{component.post_str[j1 + i]}"
                         else:
-                            L.warning(f"replace\t{component.pre_str[i1:i2]}\t{component.post_str[j1:j2]}\n")
+                            logger.warning(f"replace\t{component.pre_str[i1:i2]}\t{component.post_str[j1:j2]}\n")
                     else:
                         raise ValueError("invalid operation")
             else:
