@@ -82,8 +82,8 @@ def decompose(pre_text: str, post_text: str, diffs: List[dict]) -> Optional[List
                 components.append(Component(pre_str=src_diff, post_str=tgt_diff, type=type_))
             monitor.update(
                 {
-                    "pre_text": monitor["pre_text"][start + len(src_diff) :],
-                    "post_text": monitor["post_text"][start + len(tgt_diff) :],
+                    "pre_text": monitor["pre_text"][start + len(diff["pre_str"]) :],
+                    "post_text": monitor["post_text"][start + len(diff["post_str"]) :],
                 }
             )
             break
