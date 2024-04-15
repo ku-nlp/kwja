@@ -24,7 +24,6 @@ jobs:
             echo "$HOME/.local/bin" >> $GITHUB_PATH
       - name: Install dependencies
         run: |
-          poetry config virtualenvs.create false
           poetry install --no-interaction --without dev
       - name: Run tests
         run: |
