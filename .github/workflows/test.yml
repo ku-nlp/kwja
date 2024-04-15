@@ -24,13 +24,10 @@ jobs:
             echo "$HOME/.local/bin" >> $GITHUB_PATH
       - name: Install dependencies
         run: |
-          poetry config virtualenvs.create false
-          poetry install --no-interaction --without dev
+          poetry install --no-interaction --without dev --no-cache
       - name: Run tests
         run: |
           poetry run pytest --cov=./ --cov-report=xml
-        env:
-          XDG_CACHE_HOME: ${{ github.workspace }}/.cache
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
