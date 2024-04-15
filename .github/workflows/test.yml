@@ -24,7 +24,7 @@ jobs:
             echo "$HOME/.local/bin" >> $GITHUB_PATH
       - name: Install dependencies
         run: |
-          poetry install --no-interaction --without dev
+          poetry install --no-interaction --without dev --no-cache
       - name: Run tests
         run: |
           poetry run pytest --cov=./ --cov-report=xml
