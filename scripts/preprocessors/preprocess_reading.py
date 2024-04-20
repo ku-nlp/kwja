@@ -17,7 +17,7 @@ def main():
     parser = ArgumentParser()
     parser.add_argument("-m", "--model-name-or-path", type=str, help="model_name_or_path")
     parser.add_argument("-k", "--kanji-dic", type=str, help="path to kanji dic file")
-    parser.add_argument("-i", "--input", type=str, help="path to input directory")
+    parser.add_argument("-i", "--in-dir", type=Path, help="path to input directory")
     args = parser.parse_args()
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
@@ -25,7 +25,7 @@ def main():
     reading_aligner = ReadingAligner(tokenizer, kanji_dic)
 
     reading_counter: Dict[str, int] = Counter()
-    for path in Path(args.input).glob("**/*.knp"):
+    for path in args.in_dir.glob("**/*.knp"):
         logger.info(f"processing {path}")
         with path.open() as f:
             document = Document.from_knp(f.read())

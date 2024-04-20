@@ -9,11 +9,10 @@ from enum import Enum
 from pathlib import Path
 from textwrap import dedent
 from typing import Dict, List, Optional, Tuple
-from unicodedata import normalize
 
 from Levenshtein import opcodes
 
-from kwja.utils.constants import TRANSLATION_TABLE
+from kwja.utils.normalization import normalize_text
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s: %(message)s", level=logging.DEBUG)
@@ -31,10 +30,6 @@ class OpType(Enum):
     DELETE = "delete"
     INSERT = "insert"
     REPLACE = "replace"
-
-
-def normalize_text(text: str) -> str:
-    return normalize("NFKC", text).translate(TRANSLATION_TABLE)
 
 
 def normalize_example(example: dict) -> None:
@@ -161,9 +156,42 @@ def load_examples(in_dir: Path, split: str) -> Tuple[Dict[str, List[Dict[str, st
     return category2examples, other_examples
 
 
-def build_multi_char_vocab(train_file: Path, out_dir: Path) -> None:
+def save_examples(
+    category2examples: Dict[str, List[Dict[str, str]]],
+    other_examples: List[Dict[str, str]],
+    out_dir: Path,
+    split: str,
+    num_valid_examples_per_category: int,
+) -> None:
+    if split == "train":
+        train_examples: List[Dict[str, str]] = other_examples
+        valid_examples: List[Dict[str, str]] = []
+        for category, examples in category2examples.items():
+            train_examples.extend(examples[num_valid_examples_per_category:])
+            valid_examples.extend(examples[:num_valid_examples_per_category])
+
+        random.shuffle(train_examples)
+        train_dir: Path = out_dir / split
+        train_dir.mkdir(parents=True, exist_ok=True)
+        with (train_dir / f"{split}.jsonl").open(mode="w") as f:
+            f.write("\n".join(json.dumps(e, ensure_ascii=False) for e in train_examples) + "\n")
+
+        valid_dir: Path = out_dir / "valid"
+        valid_dir.mkdir(parents=True, exist_ok=True)
+        with (valid_dir / "valid.jsonl").open(mode="w") as f:
+            f.write("\n".join(json.dumps(e, ensure_ascii=False) for e in valid_examples) + "\n")
+    elif split == "test":
+        test_dir: Path = out_dir / split
+        test_dir.mkdir(parents=True, exist_ok=True)
+        with (test_dir / f"{split}.jsonl").open(mode="w") as f:
+            f.write("\n".join(json.dumps(e, ensure_ascii=False) for e in other_examples) + "\n")
+    else:
+        raise ValueError("invalid split")
+
+
+def build_multi_char_vocab(out_dir: Path) -> None:
     multi_char_vocab: List[str] = []
-    with train_file.open() as f:
+    with (out_dir / "train" / "train.jsonl").open() as f:
         for line in f:
             train_example: dict = json.loads(line)
             for ins_tag in train_example["ins_tags"]:
@@ -214,35 +242,10 @@ def main():
 
     random.seed(0)
 
-    for split in ["test", "train"]:
+    for split in ["train", "test"]:
         category2examples, other_examples = load_examples(args.in_dir, split)
-        if split == "test":
-            test_dir: Path = args.out_dir / split
-            test_dir.mkdir(parents=True, exist_ok=True)
-            with (test_dir / f"{split}.jsonl").open(mode="w") as f:
-                f.write("\n".join(json.dumps(e, ensure_ascii=False) for e in other_examples) + "\n")
-        else:
-            train_examples: List[Dict[str, str]] = other_examples
-            valid_examples: List[Dict[str, str]] = []
-            for category, examples in category2examples.items():
-                train_examples.extend(examples[args.num_valid_examples_per_category :])
-                valid_examples.extend(examples[: args.num_valid_examples_per_category])
-
-            random.shuffle(train_examples)
-            train_dir: Path = args.out_dir / split
-            train_dir.mkdir(parents=True, exist_ok=True)
-            with (train_dir / "train.jsonl").open(mode="w") as f:
-                f.write("\n".join(json.dumps(e, ensure_ascii=False) for e in train_examples) + "\n")
-
-            valid_dir: Path = args.out_dir / "valid"
-            valid_dir.mkdir(parents=True, exist_ok=True)
-            with (valid_dir / "valid.jsonl").open(mode="w") as f:
-                f.write("\n".join(json.dumps(e, ensure_ascii=False) for e in valid_examples) + "\n")
-
-    build_multi_char_vocab(
-        train_file=args.out_dir / "train" / "train.jsonl",
-        out_dir=args.out_dir,
-    )
+        save_examples(category2examples, other_examples, args.out_dir, split, args.num_valid_examples_per_category)
+    build_multi_char_vocab(args.out_dir)
 
 
 if __name__ == "__main__":
