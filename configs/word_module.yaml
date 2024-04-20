@@ -1,4 +1,4 @@
-configs/word_module.yamldefaults:
+defaults:
   - base
   - callbacks: [word_module_writer, early_stopping, lr_monitor, model_checkpoint, model_summary, progress_bar]
   - datamodule: word

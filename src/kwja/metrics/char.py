@@ -68,7 +68,10 @@ class CharModuleMetric(BaseModuleMetric):
         doc_id2predicted_sentences: Dict[str, List[Sentence]] = defaultdict(list)
         doc_id2partly_gold_sentences: Dict[str, List[Sentence]] = defaultdict(list)
         doc_id2gold_sentences: Dict[str, List[Sentence]] = defaultdict(list)
-        special_ids = set(self.dataset.tokenizer.all_special_ids) - {self.dataset.tokenizer.unk_token_id}
+        special_ids = {
+            getattr(self.dataset.tokenizer, f"{prefix}_token_id")
+            for prefix in ["bos", "eos", "sep", "pad", "cls", "mask"]
+        }
         for (
             example_id,
             sent_segmentation_predictions,
