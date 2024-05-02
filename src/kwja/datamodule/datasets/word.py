@@ -31,6 +31,7 @@ from kwja.utils.constants import (
 )
 from kwja.utils.kanjidic import KanjiDic
 from kwja.utils.logging_util import track
+from kwja.utils.normalization import normalize_text
 from kwja.utils.reading_prediction import ReadingAligner, get_reading2reading_id
 
 logger = logging.getLogger(__name__)
@@ -133,7 +134,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         examples = []
         example_id = 0
         for document in track(doc_id2document.values(), description="Loading examples"):
-            tokenizer_input: Union[List[str], str] = [m.text for m in document.morphemes]
+            tokenizer_input: Union[List[str], str] = [normalize_text(m.text) for m in document.morphemes]
             encoding: Encoding = self.tokenizer(
                 tokenizer_input,
                 padding=PaddingStrategy.DO_NOT_PAD,
