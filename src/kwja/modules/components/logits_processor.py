@@ -6,17 +6,7 @@ import torch
 from transformers import PreTrainedTokenizerFast
 from transformers.generation import LogitsProcessor
 
-from kwja.utils.constants import (
-    CANON_TOKEN,
-    FULL_SPACE_TOKEN,
-    HALF_SPACE_TOKEN1,
-    HALF_SPACE_TOKEN2,
-    LEMMA_TOKEN,
-    READING_TOKEN,
-    SPECIAL_TO_RARE,
-    SURF_TOKEN,
-    TRIPLE_DOT_TOKEN,
-)
+from kwja.utils.constants import CANON_TOKEN, HALF_SPACE_TOKEN, LEMMA_TOKEN, READING_TOKEN, SPECIAL_TO_RARE, SURF_TOKEN
 
 KANJI_KATAKANA_PATTERN = r"[\p{Script=Han}\p{Script=Katakana}]"
 
@@ -78,9 +68,7 @@ class ForcedLogitsProcessor(LogitsProcessor):
         self.ids_except_kanji_and_katakana: Set[int] = set(self.tokenizer.get_vocab().values()) - reading_candidates
 
         self.token_to_ids_except_token: Dict[str, Set[int]] = {}
-        special_tokens: List[str] = [FULL_SPACE_TOKEN, HALF_SPACE_TOKEN1, HALF_SPACE_TOKEN2, TRIPLE_DOT_TOKEN] + list(
-            SPECIAL_TO_RARE.keys()
-        )
+        special_tokens: List[str] = [HALF_SPACE_TOKEN] + list(SPECIAL_TO_RARE.keys())
         for special_token in special_tokens:
             self.token_to_ids_except_token[special_token] = set(self.tokenizer.get_vocab().values()) - {
                 self.tokenizer.convert_tokens_to_ids(special_token)

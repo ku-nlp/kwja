@@ -207,35 +207,32 @@ SURF_TOKEN: str = "<extra_id_0>"
 READING_TOKEN: str = "<extra_id_1>"
 LEMMA_TOKEN: str = "<extra_id_2>"
 CANON_TOKEN: str = "<extra_id_3>"
-# tokens to represent full space, half space, no canonical form, and triple dots
+# tokens to represent no canonical form and half space
 NO_CANON_TOKEN: str = "<extra_id_4>"
-FULL_SPACE_TOKEN: str = "<extra_id_5>"
-HALF_SPACE_TOKEN1: str = "<extra_id_6>"
-HALF_SPACE_TOKEN2: str = "<extra_id_7>"
-TRIPLE_DOT_TOKEN: str = "<extra_id_8>"
+HALF_SPACE_TOKEN: str = "<extra_id_5>"
 # token to split input text into morphemes
-MORPHEME_SPLIT_TOKEN: str = "<extra_id_9>"
+MORPHEME_SPLIT_TOKEN: str = "<extra_id_6>"
 # tokens for unk tokens
 RARE_TO_SPECIAL: Dict[str, str] = {
-    "ゔ": "<extra_id_10>",
-    "榕": "<extra_id_11>",
-    "謄": "<extra_id_12>",
-    "丿": "<extra_id_13>",
-    "孜": "<extra_id_14>",
-    "腑": "<extra_id_15>",
-    "庖": "<extra_id_16>",
-    "┘": "<extra_id_17>",
-    "秧": "<extra_id_18>",
-    "褪": "<extra_id_19>",
-    "疥": "<extra_id_20>",
-    "鮪": "<extra_id_21>",
-    "髑髏": "<extra_id_22>",
-    "侭": "<extra_id_23>",
-    "蒟蒻": "<extra_id_24>",
-    "╹": "<extra_id_25>",
-    "厂": "<extra_id_26>",
-    "Ӧ": "<extra_id_27>",
-    "溢": "<extra_id_28>",
+    "ゔ": "<extra_id_7>",
+    "榕": "<extra_id_8>",
+    "謄": "<extra_id_9>",
+    "丿": "<extra_id_10>",
+    "孜": "<extra_id_11>",
+    "腑": "<extra_id_12>",
+    "庖": "<extra_id_13>",
+    "┘": "<extra_id_14>",
+    "秧": "<extra_id_15>",
+    "褪": "<extra_id_16>",
+    "疥": "<extra_id_17>",
+    "鮪": "<extra_id_18>",
+    "髑髏": "<extra_id_19>",
+    "侭": "<extra_id_20>",
+    "蒟蒻": "<extra_id_21>",
+    "╹": "<extra_id_22>",
+    "厂": "<extra_id_23>",
+    "Ӧ": "<extra_id_24>",
+    "溢": "<extra_id_25>",
 }
 SPECIAL_TO_RARE: Dict[str, str] = {v: k for k, v in RARE_TO_SPECIAL.items()}
 
