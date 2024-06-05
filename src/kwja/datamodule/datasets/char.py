@@ -17,7 +17,7 @@ from kwja.utils.constants import (
     WORD_SEGMENTATION_TAGS,
 )
 from kwja.utils.logging_util import track
-from kwja.utils.normalization import normalize_text
+from kwja.utils.normalization import normalize_morpheme
 from kwja.utils.word_normalization import SentenceDenormalizer
 
 logger = logging.getLogger(__name__)
@@ -115,11 +115,9 @@ class CharDataset(BaseDataset[CharExample, CharModuleFeatures], FullAnnotatedDoc
                 # e.g. です -> でーす
                 self.denormalizer.denormalize(sentence, self.denormalize_probability)
                 for morpheme in sentence.morphemes:
-                    normalized = normalize_text(morpheme.text)
-                    if normalized != morpheme.text:
-                        logger.warning(f"apply normalization ({morpheme.text} -> {normalized})")
-                        morpheme.text = normalized
-                        morpheme.reading = normalize_text(morpheme.reading)
-                        morpheme.lemma = normalize_text(morpheme.lemma)
+                    surf = morpheme.text
+                    normalize_morpheme(morpheme)
+                    if morpheme.text != surf:
+                        logger.warning(f"apply normalization ({surf} -> {morpheme.text})")
         # propagate updates of morpheme.text to sentence.text and document.text
         return document.reparse()

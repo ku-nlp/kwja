@@ -58,7 +58,9 @@ class Seq2SeqFormatter:
                 canon = "/"
             else:
                 surf = morpheme.surf
-                if "/" in morpheme.reading and len(morpheme.reading) > 1:
+                if morpheme.reading == " ":  # 読みがない場合
+                    reading = HALF_SPACE_TOKEN
+                elif "/" in morpheme.reading and len(morpheme.reading) > 1:
                     reading = morpheme.reading.split("/")[0]
                 else:
                     reading = morpheme.reading
