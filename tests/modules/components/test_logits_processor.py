@@ -15,7 +15,7 @@ from kwja.modules.components.logits_processor import (
     get_char2tokens,
     get_reading_candidates,
 )
-from kwja.utils.constants import FULL_SPACE_TOKEN, HALF_SPACE_TOKEN1, HALF_SPACE_TOKEN2, LEMMA_TOKEN, TRIPLE_DOT_TOKEN
+from kwja.utils.constants import HALF_SPACE_TOKEN, LEMMA_TOKEN
 
 SPECIAL_TOKENS: List[str] = [f"<extra_id_{idx}>" for idx in range(100)]
 
@@ -175,10 +175,7 @@ def test_get_remaining_surf(input_tokens: List[str], surfs: List[str], expected_
     ("surfs", "permitted_tokens"),
     [
         (["研究", "を", "する"], ["研究", "研"]),
-        ([FULL_SPACE_TOKEN, "研究", "を", "する"], [FULL_SPACE_TOKEN]),
-        ([HALF_SPACE_TOKEN1, "研究", "を", "する"], [HALF_SPACE_TOKEN1]),
-        ([HALF_SPACE_TOKEN2, "研究", "を", "する"], [HALF_SPACE_TOKEN2]),
-        ([TRIPLE_DOT_TOKEN, "研究", "を", "する"], [TRIPLE_DOT_TOKEN]),
+        ([HALF_SPACE_TOKEN, "研究", "を", "する"], [HALF_SPACE_TOKEN]),
     ],
 )
 def test_get_banned_token_ids(surfs: List[str], permitted_tokens: List[str]) -> None:
