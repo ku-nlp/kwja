@@ -202,18 +202,15 @@ TRANSLATION_TABLE: Dict[int, Optional[int]] = str.maketrans(
 
 
 # ---------- seq2seq module----------
-# tokens to separate surface, reading, lemma, and canonical form
 SURF_TOKEN: str = "<extra_id_0>"
 READING_TOKEN: str = "<extra_id_1>"
 LEMMA_TOKEN: str = "<extra_id_2>"
 CANON_TOKEN: str = "<extra_id_3>"
-# tokens to represent no canonical form and half space
-NO_CANON_TOKEN: str = "<extra_id_4>"
-HALF_SPACE_TOKEN: str = "<extra_id_5>"
-# token to split input text into morphemes
-MORPHEME_SPLIT_TOKEN: str = "<extra_id_6>"
-# tokens for unk tokens
-RARE_TO_SPECIAL: Dict[str, str] = {
+NO_CANON_TOKEN: str = "<extra_id_4>"  # control token to represent no canonical form
+MORPHEME_DELIMITER_TOKEN: str = "<extra_id_5>"  # control token to segment input text into morphemes
+# special tokens
+HALF_SPACE_TOKEN: str = "<extra_id_6>"
+RARE2SPECIAL: Dict[str, str] = {
     "ゔ": "<extra_id_7>",
     "榕": "<extra_id_8>",
     "謄": "<extra_id_9>",
@@ -234,7 +231,7 @@ RARE_TO_SPECIAL: Dict[str, str] = {
     "Ӧ": "<extra_id_24>",
     "溢": "<extra_id_25>",
 }
-SPECIAL_TO_RARE: Dict[str, str] = {v: k for k, v in RARE_TO_SPECIAL.items()}
+SPECIAL2RARE: Dict[str, str] = {v: k for k, v in RARE2SPECIAL.items()}
 
 
 # ---------- word module ----------
