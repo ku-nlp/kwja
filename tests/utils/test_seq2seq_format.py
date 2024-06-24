@@ -10,7 +10,7 @@ from kwja.utils.constants import (
     CANON_TOKEN,
     HALF_SPACE_TOKEN,
     LEMMA_TOKEN,
-    MORPHEME_SPLIT_TOKEN,
+    MORPHEME_DELIMITER_TOKEN,
     NO_CANON_TOKEN,
     READING_TOKEN,
     SURF_TOKEN,
@@ -152,7 +152,7 @@ def test_get_src_tokens(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFa
                 normalize_morpheme(morpheme)
             expected_src_tokens: List[str] = []
             for morphemes in src_tokens[idx]:
-                expected_src_tokens.extend([*morphemes.split(" "), MORPHEME_SPLIT_TOKEN])
+                expected_src_tokens.extend([*morphemes.split(" "), MORPHEME_DELIMITER_TOKEN])
             assert [
                 x[1:] if x.startswith("▁") else x for x in seq2seq_formatter.get_src_tokens(sentence)
             ] == expected_src_tokens[:-1]
