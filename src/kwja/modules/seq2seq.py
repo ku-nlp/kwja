@@ -33,7 +33,7 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
 
         self.reading_candidate_token_ids = get_reading_candidate_token_ids(self.tokenizer)
         self.char2token_items = get_char2token_items(self.tokenizer)
-        self.use_forced_decoding: bool = getattr(hparams, "use_forced_decoding", False)
+        self.use_surf_forced_decoding: bool = getattr(hparams, "use_surf_forced_decoding", False)
 
     def setup(self, stage: str) -> None:
         if stage == "fit":
@@ -104,7 +104,7 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
                         ),
                     ]
                 )
-                if self.use_forced_decoding
+                if self.use_surf_forced_decoding
                 else None
             ),
             **self.hparams.decoding,

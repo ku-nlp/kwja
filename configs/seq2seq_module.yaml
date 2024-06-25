@@ -16,10 +16,10 @@ do_predict_after_train: false
 checkpoint_path: ""
 
 # For decoding settings
-use_forced_decoding: true
+use_surf_forced_decoding: true
 decoding:
   max_length: ${max_tgt_length}
-  num_beams: 3
+  num_beams: 2
 
 # set monitor and mode for early_stopping and model_checkpoint
 monitor: valid/seq2seq_loss

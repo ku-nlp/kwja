@@ -83,6 +83,7 @@ class SurfForcedDecodingLogitsProcessor(LogitsProcessor):
         self.is_finished: List[bool] = [False] * len(batch_surfs)
 
     def __call__(self, batch_prev_input_ids: torch.Tensor, logits: torch.Tensor) -> torch.Tensor:
+        # Falseならば-inf
         mask = self.get_mask(batch_prev_input_ids, logits)
         masked_logits = mask_logits(logits, mask, mask_value=-float("inf"))
         return masked_logits
@@ -92,7 +93,6 @@ class SurfForcedDecodingLogitsProcessor(LogitsProcessor):
         batch_prev_input_ids: torch.Tensor,  # (b * num_beams, seq_len)
         batch_logits: torch.Tensor,  # (b * num_beams, vocab_size)
     ) -> torch.Tensor:
-        # Falseならば-inf
         _, seq_len = batch_prev_input_ids.size()
         if seq_len == 1:
             mask = torch.zeros_like(batch_logits, dtype=torch.bool)
