@@ -120,12 +120,12 @@
     "t5": {
       "input_tokens": ["<pad>", "<extra_id_0>", "計算", "<extra_id_1>", "▁けい", "さん", "<extra_id_2>", "計算", "<extra_id_3>", "計算"],
       "permitted_tokens": [],
-      "prohibited_tokens": ["<extra_id_1>", "<extra_id_2>", "<extra_id_3>", "<extra_id_5>", "<pad>", "</s>"]
+      "prohibited_tokens": ["<extra_id_1>", "<extra_id_2>", "<extra_id_3>", "<extra_id_4>", "<extra_id_5>", "<pad>", "</s>"]
     },
     "mt5": {
       "input_tokens": ["<pad>", "<extra_id_0>", "計算", "<extra_id_1>", "けい", "さん", "<extra_id_2>", "計算", "<extra_id_3>", "計算"],
       "permitted_tokens": [],
-      "prohibited_tokens": ["<extra_id_1>", "<extra_id_2>", "<extra_id_3>", "<extra_id_5>", "<pad>", "</s>"]
+      "prohibited_tokens": ["<extra_id_1>", "<extra_id_2>", "<extra_id_3>", "<extra_id_4>", "<extra_id_5>", "<pad>", "</s>"]
     },
     "target_property": "canon"
   },
@@ -172,12 +172,12 @@
     "t5": {
       "input_tokens": ["<pad>", "<extra_id_0>", "計算", "<extra_id_1>", "けい", "さん", "<extra_id_2>", "計算", "<extra_id_3>", "計算", "/", "けい", "さん"],
       "permitted_tokens": [],
-      "prohibited_tokens": []
+      "prohibited_tokens": ["<extra_id_0>", "<extra_id_1>", "<extra_id_2>", "<extra_id_3>", "<extra_id_4>", "<extra_id_5>", "<pad>"]
     },
     "mt5": {
       "input_tokens": ["<pad>", "<extra_id_0>", "計算", "<extra_id_1>", "けい", "さん", "<extra_id_2>", "計算", "<extra_id_3>", "計算", "/", "けい", "さん"],
       "permitted_tokens": [],
-      "prohibited_tokens": []
+      "prohibited_tokens": ["<extra_id_0>", "<extra_id_1>", "<extra_id_2>", "<extra_id_3>", "<extra_id_4>", "<extra_id_5>", "<pad>"]
     },
     "target_property": "canon"
   }
