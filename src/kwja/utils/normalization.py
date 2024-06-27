@@ -11,7 +11,8 @@ def normalize_text(text: str) -> str:
 
 def normalize_morpheme(morpheme: Morpheme) -> None:
     morpheme.text = normalize_text(morpheme.text)
-    morpheme.reading = normalize_text(morpheme.reading)
+    reading = "ゔぁいおりん" if morpheme.reading == "う゛ぁいおりん" else morpheme.reading
+    morpheme.reading = normalize_text(reading)
     morpheme.lemma = normalize_text(morpheme.lemma)
     canon = morpheme.semantics.get("代表表記")
     if isinstance(canon, str):
