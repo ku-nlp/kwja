@@ -10,6 +10,7 @@ from kwja.datamodule.datasets.base import BaseDataset
 from kwja.datamodule.examples import Seq2SeqExample
 from kwja.utils.constants import IGNORE_INDEX
 from kwja.utils.logging_util import track
+from kwja.utils.normalization import normalize_morpheme
 from kwja.utils.seq2seq_format import Seq2SeqFormatter
 
 logger = logging.getLogger(__name__)
@@ -56,6 +57,7 @@ class Seq2SeqDataset(BaseDataset[Seq2SeqExample, Seq2SeqModuleFeatures]):
         examples: List[Seq2SeqExample] = []
         example_id: int = 0
         for document in track(documents, description="Loading examples"):
+            document = self._postprocess_document(document)
             for sentence in document.sentences:
                 src_tokens: List[str] = self.formatter.get_src_tokens(sentence)
                 src_input_ids: List[int] = self.tokenizer.convert_tokens_to_ids(src_tokens) + [
@@ -111,3 +113,12 @@ class Seq2SeqDataset(BaseDataset[Seq2SeqExample, Seq2SeqModuleFeatures]):
             attention_mask=example.src_attention_mask,
             seq2seq_labels=seq2seq_labels,
         )
+
+    def _postprocess_document(self, document: Document) -> Document:
+        for morpheme in document.morphemes:
+            surf = morpheme.text
+            normalize_morpheme(morpheme)
+            if morpheme.text != surf:
+                logger.warning(f"apply normalization ({surf} -> {morpheme.text})")
+        # propagate updates of morpheme.text to sentence.text and document.text
+        return document.reparse()

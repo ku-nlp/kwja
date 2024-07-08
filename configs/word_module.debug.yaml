@@ -66,7 +66,7 @@ compile: ${oc.env:COMPILE,false}
 ignore_hparams_on_save: false
 
 # constants
-special_tokens: ["[著者]", "[読者]", "[不特定:人]", "[不特定:物]", "[NULL]", "[NA]", "[ROOT]"]
+special_tokens: ["[著者]", "[読者]", "[不特定:人]", "[不特定:物]", "[NULL]", "[NA]", "[ROOT]", " "]
 hparams_to_ignore_on_save:
   - project
   - work_dir

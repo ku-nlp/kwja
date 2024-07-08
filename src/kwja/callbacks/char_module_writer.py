@@ -32,7 +32,11 @@ class CharModuleWriter(BaseModuleWriter):
         else:
             dataloader = trainer.predict_dataloaders[dataloader_idx]
         dataset: Union[CharDataset, CharInferenceDataset] = dataloader.dataset
-        special_ids = set(dataset.tokenizer.all_special_ids) - {dataset.tokenizer.unk_token_id}
+
+        special_ids = {
+            getattr(dataset.tokenizer, f"{prefix}_token_id") for prefix in ["bos", "eos", "sep", "pad", "cls", "mask"]
+        }
+
         for example_id, sent_segmentation_predictions, word_segmentation_predictions, word_norm_op_predictions in zip(
             *[v.tolist() for v in prediction.values()]
         ):

@@ -9,7 +9,7 @@
       "input_tokens": ["<pad>"],
       "permitted_tokens": ["<extra_id_0>"]
     },
-    "target_morpheme": "init"
+    "target_property": "init"
   },
   "case002": {
     "surfs": ["計算", "機", "に", "よる", "言語", "理解", "を", "実現", "する"],
@@ -21,7 +21,7 @@
       "input_tokens": ["<pad>", "<extra_id_0>"],
       "permitted_tokens": ["計", "計算"]
     },
-    "target_morpheme": "surf"
+    "target_property": "surf"
   },
   "case003": {
     "surfs": ["計算", "機", "に", "よる", "言語", "理解", "を", "実現", "する"],
@@ -33,7 +33,7 @@
       "input_tokens": ["<pad>", "<extra_id_0>", "計"],
       "permitted_tokens": ["算"]
     },
-    "target_morpheme": "surf"
+    "target_property": "surf"
   },
   "case004": {
     "surfs": ["計算", "機", "に", "よる", "言語", "理解", "を", "実現", "する"],
@@ -45,105 +45,101 @@
       "input_tokens": ["<pad>", "<extra_id_0>", "計算"],
       "permitted_tokens": ["<extra_id_1>"]
     },
-    "target_morpheme": "surf"
+    "target_property": "surf"
   },
   "case005": {
     "surfs": ["計算", "機", "に", "よる", "言語", "理解", "を", "実現", "する"],
     "t5": {
       "input_tokens": ["<pad>", "<extra_id_0>", "計算", "<extra_id_1>"],
       "permitted_tokens": "reading_candidates",
-      "banned_tokens": ["<extra_id_0>", "<extra_id_1>", "<extra_id_2>", "<extra_id_3>", "</s>"]
+      "prohibited_tokens": ["<extra_id_2>"]
     },
     "mt5": {
       "input_tokens": ["<pad>", "<extra_id_0>", "計算", "<extra_id_1>"],
       "permitted_tokens": "reading_candidates",
-      "banned_tokens": ["<extra_id_0>", "<extra_id_1>", "<extra_id_2>", "<extra_id_3>", "</s>"]
+      "prohibited_tokens": ["<extra_id_2>"]
     },
-    "target_morpheme": "reading"
+    "target_property": "reading"
   },
   "case006": {
     "surfs": ["計算", "機", "に", "よる", "言語", "理解", "を", "実現", "する"],
     "t5": {
       "input_tokens": ["<pad>", "<extra_id_0>", "計算", "<extra_id_1>", "▁けい"],
-      "permitted_tokens": "reading_candidates",
-      "banned_tokens": ["</s>"]
+      "permitted_tokens": "reading_candidates"
     },
     "mt5": {
       "input_tokens": ["<pad>", "<extra_id_0>", "計算", "<extra_id_1>", "けい"],
-      "permitted_tokens": "reading_candidates",
-      "banned_tokens": ["</s>"]
+      "permitted_tokens": "reading_candidates"
     },
-    "target_morpheme": "reading"
+    "target_property": "reading"
   },
   "case007": {
     "surfs": ["計算", "機", "に", "よる", "言語", "理解", "を", "実現", "する"],
     "t5": {
       "input_tokens": ["<pad>", "<extra_id_0>", "計算", "<extra_id_1>", "▁けい", "さん", "<extra_id_2>"],
       "permitted_tokens": [],
-      "banned_tokens": ["<extra_id_0>", "<extra_id_1>", "<extra_id_2>", "<extra_id_3>", "</s>"]
+      "prohibited_tokens": ["<extra_id_0>", "<extra_id_1>", "<extra_id_2>", "<extra_id_3>", "<extra_id_4>", "<extra_id_5>", "<pad>", "</s>"]
     },
     "mt5": {
       "input_tokens": ["<pad>", "<extra_id_0>", "計算", "<extra_id_1>", "けい", "さん", "<extra_id_2>"],
       "permitted_tokens": [],
-      "banned_tokens": ["<extra_id_0>", "<extra_id_1>", "<extra_id_2>", "<extra_id_3>", "</s>"]
+      "prohibited_tokens": ["<extra_id_0>", "<extra_id_1>", "<extra_id_2>", "<extra_id_3>", "<extra_id_4>", "<extra_id_5>", "<pad>", "</s>"]
     },
-    "target_morpheme": "lemma"
+    "target_property": "lemma"
   },
   "case008": {
     "surfs": ["計算", "機", "に", "よる", "言語", "理解", "を", "実現", "する"],
     "t5": {
       "input_tokens": ["<pad>", "<extra_id_0>", "計算", "<extra_id_1>", "▁けい", "さん", "<extra_id_2>", "計算"],
       "permitted_tokens": [],
-      "banned_tokens": ["<extra_id_0>", "<extra_id_1>", "<extra_id_2>", "</s>"]
+      "prohibited_tokens": ["<extra_id_0>", "<extra_id_1>", "<extra_id_2>", "<extra_id_4>", "<extra_id_5>", "<pad>", "</s>"]
     },
     "mt5": {
       "input_tokens": ["<pad>", "<extra_id_0>", "計算", "<extra_id_1>", "けい", "さん", "<extra_id_2>", "計算"],
       "permitted_tokens": [],
-      "banned_tokens": ["<extra_id_0>", "<extra_id_1>", "<extra_id_2>", "</s>"]
+      "prohibited_tokens": ["<extra_id_0>", "<extra_id_1>", "<extra_id_2>", "<extra_id_4>", "<extra_id_5>", "<pad>", "</s>"]
     },
-    "target_morpheme": "lemma"
+    "target_property": "lemma"
   },
   "case009": {
     "surfs": ["計算", "機", "に", "よる", "言語", "理解", "を", "実現", "する"],
     "t5": {
       "input_tokens": ["<pad>", "<extra_id_0>", "計算", "<extra_id_1>", "▁けい", "さん", "<extra_id_2>", "計算", "<extra_id_3>"],
       "permitted_tokens": [],
-      "banned_tokens": ["<extra_id_0>", "<extra_id_1>", "<extra_id_2>", "<extra_id_3>", "</s>"]
+      "prohibited_tokens": ["<extra_id_0>", "<extra_id_1>", "<extra_id_2>", "<extra_id_3>", "<extra_id_5>", "<pad>", "</s>"]
     },
     "mt5": {
       "input_tokens": ["<pad>", "<extra_id_0>", "計算", "<extra_id_1>", "けい", "さん", "<extra_id_2>", "計算", "<extra_id_3>"],
       "permitted_tokens": [],
-      "banned_tokens": ["<extra_id_0>", "<extra_id_1>", "<extra_id_2>", "<extra_id_3>", "</s>"]
+      "prohibited_tokens": ["<extra_id_0>", "<extra_id_1>", "<extra_id_2>", "<extra_id_3>", "<extra_id_5>", "<pad>", "</s>"]
     },
-    "target_morpheme": "canon"
+    "target_property": "canon"
   },
   "case010": {
     "surfs": ["計算", "機", "に", "よる", "言語", "理解", "を", "実現", "する"],
     "t5": {
       "input_tokens": ["<pad>", "<extra_id_0>", "計算", "<extra_id_1>", "▁けい", "さん", "<extra_id_2>", "計算", "<extra_id_3>", "計算"],
       "permitted_tokens": [],
-      "banned_tokens": ["<extra_id_1>", "<extra_id_2>", "<extra_id_3>", "</s>"]
+      "prohibited_tokens": ["<extra_id_1>", "<extra_id_2>", "<extra_id_3>", "<extra_id_4>", "<extra_id_5>", "<pad>", "</s>"]
     },
     "mt5": {
       "input_tokens": ["<pad>", "<extra_id_0>", "計算", "<extra_id_1>", "けい", "さん", "<extra_id_2>", "計算", "<extra_id_3>", "計算"],
       "permitted_tokens": [],
-      "banned_tokens": ["<extra_id_1>", "<extra_id_2>", "<extra_id_3>", "</s>"]
+      "prohibited_tokens": ["<extra_id_1>", "<extra_id_2>", "<extra_id_3>", "<extra_id_4>", "<extra_id_5>", "<pad>", "</s>"]
     },
-    "target_morpheme": "canon"
+    "target_property": "canon"
   },
   "case011": {
     "surfs": ["計算", "機", "に", "よる", "言語", "理解", "を", "実現", "する"],
     "t5": {
       "input_tokens": ["<pad>", "<extra_id_0>", "計算", "<extra_id_1>", "▁けい", "さん", "<extra_id_2>", "計算", "<extra_id_3>", "計算", "/", "けい", "さん", "<extra_id_0>"],
-      "permitted_tokens": ["機"],
-      "banned_tokens": ["<extra_id_1>", "<extra_id_2>", "<extra_id_3>", "</s>"]
+      "permitted_tokens": ["機"]
     },
     "mt5": {
       "input_tokens": ["<pad>", "<extra_id_0>", "計算", "<extra_id_1>", "けい", "さん", "<extra_id_2>", "計算", "<extra_id_3>", "計算", "/", "けい", "さん", "<extra_id_0>"],
-      "permitted_tokens": ["機"],
-      "banned_tokens": ["<extra_id_1>", "<extra_id_2>", "<extra_id_3>", "</s>"]
+      "permitted_tokens": ["機"]
     },
-    "target_morpheme": "surf"
+    "target_property": "surf"
   },
   "case012": {
     "surfs": ["計算"],
@@ -155,34 +151,34 @@
       "input_tokens": ["<pad>", "<extra_id_0>", "計算"],
       "permitted_tokens": ["<extra_id_1>"]
     },
-    "target_morpheme": "surf"
+    "target_property": "surf"
   },
   "case013": {
     "surfs": ["計算"],
     "t5": {
       "input_tokens": ["<pad>", "<extra_id_0>", "計算", "<extra_id_1>", "けい", "さん", "<extra_id_2>", "計算", "<extra_id_3>"],
       "permitted_tokens": [],
-      "banned_tokens": ["<extra_id_0>", "<extra_id_1>", "<extra_id_2>", "<extra_id_3>", "</s>"]
+      "prohibited_tokens": ["<extra_id_0>", "<extra_id_1>", "<extra_id_2>", "<extra_id_3>", "<extra_id_5>", "<pad>", "</s>"]
     },
     "mt5": {
       "input_tokens": ["<pad>", "<extra_id_0>", "計算", "<extra_id_1>", "けい", "さん", "<extra_id_2>", "計算", "<extra_id_3>"],
       "permitted_tokens": [],
-      "banned_tokens": ["<extra_id_0>", "<extra_id_1>", "<extra_id_2>", "<extra_id_3>", "</s>"]
+      "prohibited_tokens": ["<extra_id_0>", "<extra_id_1>", "<extra_id_2>", "<extra_id_3>", "<extra_id_5>", "<pad>", "</s>"]
     },
-    "target_morpheme": "canon"
+    "target_property": "canon"
   },
   "case014": {
     "surfs": ["計算"],
     "t5": {
       "input_tokens": ["<pad>", "<extra_id_0>", "計算", "<extra_id_1>", "けい", "さん", "<extra_id_2>", "計算", "<extra_id_3>", "計算", "/", "けい", "さん"],
       "permitted_tokens": [],
-      "banned_tokens": []
+      "prohibited_tokens": ["<extra_id_0>", "<extra_id_1>", "<extra_id_2>", "<extra_id_3>", "<extra_id_4>", "<extra_id_5>", "<pad>"]
     },
     "mt5": {
       "input_tokens": ["<pad>", "<extra_id_0>", "計算", "<extra_id_1>", "けい", "さん", "<extra_id_2>", "計算", "<extra_id_3>", "計算", "/", "けい", "さん"],
       "permitted_tokens": [],
-      "banned_tokens": []
+      "prohibited_tokens": ["<extra_id_0>", "<extra_id_1>", "<extra_id_2>", "<extra_id_3>", "<extra_id_4>", "<extra_id_5>", "<pad>"]
     },
-    "target_morpheme": "canon"
+    "target_property": "canon"
   }
 }

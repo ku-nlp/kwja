@@ -4,5 +4,6 @@ denormalize_probability: ${denormalize_probability}
 tokenizer:
   _target_: transformers.AutoTokenizer.from_pretrained
   pretrained_model_name_or_path: ${encoder.pretrained_model_name_or_path}
+  additional_special_tokens: ${special_tokens}
   do_word_tokenize: false
   _convert_: all
