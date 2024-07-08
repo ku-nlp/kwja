@@ -75,7 +75,7 @@ class SurfForcedDecodingLogitsProcessor(LogitsProcessor):
         self.num_beams: int = num_beams
 
         self.tokenizer = tokenizer
-        self.vocab = tokenizer.vocab
+        self.vocab = tokenizer.vocab  # cache
 
         self.char2token_items: Dict[str, Dict[str, int]] = char2token_items
         self.reading_candidate_token_ids: List[int] = reading_candidate_token_ids
@@ -83,7 +83,7 @@ class SurfForcedDecodingLogitsProcessor(LogitsProcessor):
         self.is_finished: List[bool] = [False] * len(batch_surfs)
 
     def __call__(self, batch_prev_input_ids: torch.Tensor, batch_logits: torch.Tensor) -> torch.Tensor:
-        # Falseならば-inf
+        # Falseならば-inf（-infでないと対応するトークンが選ばれてしまう可能性がある）
         mask = self.get_mask(batch_prev_input_ids, batch_logits)
         batch_masked_logits = mask_logits(batch_logits, mask, mask_value=-float("inf"))
         return batch_masked_logits
