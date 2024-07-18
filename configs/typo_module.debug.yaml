@@ -35,7 +35,7 @@ compile: ${oc.env:COMPILE,false}
 ignore_hparams_on_save: false
 
 # constants
-special_tokens: ["<k>", "<d>", "<_>", "<dummy>"]
+special_tokens: ["<k>", "<d>", "<_>", "<dummy>", " "]
 hparams_to_ignore_on_save:
   - project
   - work_dir

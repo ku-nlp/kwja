@@ -4,7 +4,7 @@ from rhoknp import Morpheme
 from kwja.utils.word_normalization import (
     MorphemeDenormalizer,
     MorphemeNormalizer,
-    get_normalized,
+    get_normalized_surf,
     get_word_norm_op_tags,
 )
 
@@ -73,7 +73,7 @@ wellformed_list = [
 
 @pytest.mark.parametrize(("surf", "ops", "expected"), wellformed_list)
 def test_gen_normalized_surf(surf, ops, expected):
-    assert get_normalized(surf, ops, strict=True) == expected
+    assert get_normalized_surf(surf, ops, strict=True) == expected
 
 
 @pytest.mark.parametrize(("surf", "expected", "normalized"), wellformed_list)
@@ -93,12 +93,12 @@ malformed_list = [
 @pytest.mark.parametrize(("surf", "ops", "expected"), malformed_list)
 def test_gen_normalized_surf_malformed(surf, ops, expected):
     with pytest.raises(ValueError):
-        get_normalized(surf, ops, strict=True)
+        get_normalized_surf(surf, ops, strict=True)
 
 
 @pytest.mark.parametrize(("surf", "ops", "expected"), malformed_list)
 def test_gen_normalized_surf_malformed_loose(surf, ops, expected):
-    assert get_normalized(surf, ops, strict=False) == expected
+    assert get_normalized_surf(surf, ops, strict=False) == expected
 
 
 def test_morpheme_normalizer():

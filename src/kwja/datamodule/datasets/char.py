@@ -2,7 +2,6 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List
-from unicodedata import normalize
 
 from rhoknp import Document
 from transformers import BatchEncoding, PreTrainedTokenizerBase
@@ -14,11 +13,11 @@ from kwja.utils.constants import (
     IGNORE_INDEX,
     IGNORE_WORD_NORM_OP_TAG,
     SENT_SEGMENTATION_TAGS,
-    TRANSLATION_TABLE,
     WORD_NORM_OP_TAGS,
     WORD_SEGMENTATION_TAGS,
 )
 from kwja.utils.logging_util import track
+from kwja.utils.normalization import normalize_morpheme
 from kwja.utils.word_normalization import SentenceDenormalizer
 
 logger = logging.getLogger(__name__)
@@ -116,10 +115,9 @@ class CharDataset(BaseDataset[CharExample, CharModuleFeatures], FullAnnotatedDoc
                 # e.g. です -> でーす
                 self.denormalizer.denormalize(sentence, self.denormalize_probability)
                 for morpheme in sentence.morphemes:
-                    normalized = normalize("NFKC", morpheme.text).translate(TRANSLATION_TABLE)
-                    if normalized != morpheme.text:
-                        logger.warning(f"apply normalization ({morpheme.text} -> {normalized})")
-                        morpheme.text = normalized
-                        morpheme.lemma = normalize("NFKC", morpheme.lemma).translate(TRANSLATION_TABLE)
+                    surf = morpheme.text
+                    normalize_morpheme(morpheme)
+                    if morpheme.text != surf:
+                        logger.warning(f"apply normalization ({surf} -> {morpheme.text})")
         # propagate updates of morpheme.text to sentence.text and document.text
         return document.reparse()

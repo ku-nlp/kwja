@@ -5,11 +5,11 @@ import unicodedata
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Literal, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
-from rhoknp import Document, Morpheme
-from transformers import AutoTokenizer, PreTrainedTokenizerBase
+from rhoknp import Morpheme
+from transformers import PreTrainedTokenizerBase
 
 from kwja.utils.constants import (
     CHOON_SET,
@@ -42,21 +42,14 @@ def get_reading2reading_id(path: Path) -> Dict[str, int]:
 class ReadingAligner:
     kana_re = re.compile("^[\u3041-\u30FF]+$")
 
-    def __init__(
-        self, tokenizer: PreTrainedTokenizerBase, tokenizer_input_format: Literal["words", "text"], kanji_dic: KanjiDic
-    ) -> None:
+    def __init__(self, tokenizer: PreTrainedTokenizerBase, kanji_dic: KanjiDic) -> None:
         self.tokenizer = tokenizer
-        self.tokenizer_input_format = tokenizer_input_format
         self.kanji_dic = kanji_dic
 
     def align(self, morphemes: List[Morpheme]) -> List[str]:
         # assumption: morphemes are never combined
         tokenizer_input: Union[List[str], str] = [m.text for m in morphemes]
-        if self.tokenizer_input_format == "text":
-            tokenizer_input = " ".join(tokenizer_input)
-        encoding = self.tokenizer(
-            tokenizer_input, add_special_tokens=False, is_split_into_words=self.tokenizer_input_format == "words"
-        ).encodings[0]
+        encoding = self.tokenizer(tokenizer_input, add_special_tokens=False, is_split_into_words=True).encodings[0]
         word_id2subwords = defaultdict(list)
         for token_id, word_id in enumerate(encoding.word_ids):
             word_id2subwords[word_id].append(self.tokenizer.decode(encoding.ids[token_id]))
@@ -293,46 +286,5 @@ def get_word_level_readings(readings: List[str], tokens: List[str], subword_map:
         if item:
             ret.append(item)
         elif any(flags):
-            ret.append("␣")
+            ret.append("_")
     return ret
-
-
-def main():
-    from argparse import ArgumentParser
-    from collections import Counter
-    from pathlib import Path
-
-    from kwja.utils.constants import SPLIT_INTO_WORDS_MODEL_NAMES
-
-    parser = ArgumentParser()
-    parser.add_argument("-m", "--model-name-or-path", type=str, help="model_name_or_path")
-    parser.add_argument("-k", "--kanjidic", type=str, help="path to file")
-    parser.add_argument("-i", "--input", type=str, help="path to input dir")
-    args = parser.parse_args()
-
-    tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
-    if args.model_name_or_path in SPLIT_INTO_WORDS_MODEL_NAMES:
-        tokenizer_input_format: Literal["words", "text"] = "words"
-    else:
-        tokenizer_input_format = "text"
-    kanjidic = KanjiDic(args.kanjidic)
-    reading_aligner = ReadingAligner(tokenizer, tokenizer_input_format, kanjidic)
-
-    reading_counter: Dict[str, int] = Counter()
-    for path in Path(args.input).glob("**/*.knp"):
-        logger.info(f"processing {path}")
-        with path.open() as f:
-            document = Document.from_knp(f.read())
-        try:
-            for reading in reading_aligner.align(document.morphemes):
-                reading_counter[reading] += 1
-        except ValueError:
-            logger.warning(f"skip {document.doc_id} for an error")
-    for subreading, count in sorted(
-        sorted(reading_counter.items(), key=lambda pair: pair[0]), key=lambda pair: pair[1], reverse=True
-    ):
-        print(f"{subreading}\t{count}")
-
-
-if __name__ == "__main__":
-    main()

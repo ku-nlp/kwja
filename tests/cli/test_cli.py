@@ -97,7 +97,7 @@ def test_text_input():
         # ("EOD", "EOD\nEOD\n"),  # TODO
         ("おはよう", "おはよう\nEOD\n"),
         ("おはよう．", "おはよう.\nEOD\n"),
-        ("おはよう #今日も一日", "おはよう␣＃今日も一日\nEOD\n"),
+        ("おはよう #今日も一日", "おはよう ＃今日も一日\nEOD\n"),
         ("おはよう。\nこんにちは。\nこんばんわ。\n", "おはよう。こんにちは。こんばんわ。\nEOD\n"),
         ("おはよう。EOD", "おはよう。EOD\nEOD\n"),
     ],
@@ -106,6 +106,19 @@ def test_normalization_and_typo_module(text: str, output: str):
     ret = runner.invoke(app, args=["--model-size", "tiny", "--tasks", "typo", "--text", text])
     assert ret.exception is None
     assert ret.stdout == output
+
+
+@pytest.mark.parametrize(
+    ("text", "output"),
+    [
+        ("今日は${day}日です", "今日は${day}日です"),
+    ],
+)
+def test_normalization_and_char_module(text: str, output: str):
+    ret = runner.invoke(app, args=["--model-size", "tiny", "--tasks", "char", "--text", text])
+    assert ret.exception is None
+    restored_output = "".join([line for line in ret.stdout.splitlines() if not line.startswith("#")]).replace(" ", "")
+    assert restored_output == output.replace(" ", "")
 
 
 def test_file_input():
@@ -159,7 +172,10 @@ def test_sanity():
         for knp_text in chunk_by_document(io.StringIO(ret.stdout)):
             documents.append(Document.from_knp(knp_text))
         assert len(documents) == 2
-        assert documents[0].text == "KWJAは日本語の統合解析ツールです。汎用言語モデルを利用し、様々な言語解析を統一的な方法で解いています。"
+        assert (
+            documents[0].text
+            == "KWJAは日本語の統合解析ツールです。汎用言語モデルを利用し、様々な言語解析を統一的な方法で解いています。"
+        )
         assert documents[1].text == (
             "計算機による言語理解を実現するためには、計算機に常識・世界知識を与える必要があります。10年前にはこれは非常に難しい問題でしたが、"
             + "近年の計算機パワー、計算機ネットワークの飛躍的進展によって計算機が超大規模テキストを取り扱えるようになり、そこから常識を"

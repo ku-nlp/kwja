@@ -3,4 +3,6 @@ defaults:
   - _self_
 
 _target_: kwja.datamodule.datasets.TypoInferenceDataset
+# texts and raw_text_file are mutually exclusive
 texts: []
+raw_text_file: null

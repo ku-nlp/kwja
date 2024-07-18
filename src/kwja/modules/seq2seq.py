@@ -9,7 +9,11 @@ from transformers import PreTrainedModel, PreTrainedTokenizerFast
 from transformers.generation import LogitsProcessorList
 
 from kwja.modules.base import BaseModule
-from kwja.modules.components.logits_processor import ForcedLogitsProcessor, get_char2tokens, get_reading_candidates
+from kwja.modules.components.logits_processor import (
+    SurfForcedDecodingLogitsProcessor,
+    get_char2token_items,
+    get_reading_candidate_token_ids,
+)
 
 if os.environ.get("KWJA_CLI_MODE") == "1":
     from kwja.modules.base import DummyModuleMetric as Seq2SeqModuleMetric  # dummy class for faster loading
@@ -25,17 +29,17 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
 
         self.encoder_decoder: PreTrainedModel = hydra.utils.call(hparams.encoder.from_config)
         # https://github.com/huggingface/transformers/issues/4875
-        self.encoder_decoder.resize_token_embeddings(len(self.tokenizer.get_vocab()))
+        self.encoder_decoder.resize_token_embeddings(len(self.tokenizer.vocab))
 
-        self.reading_candidates = get_reading_candidates(self.tokenizer)
-        self.char2tokens = get_char2tokens(self.tokenizer)
-        self.use_forced_decoding: bool = getattr(hparams, "use_forced_decoding", False)
+        self.reading_candidate_token_ids = get_reading_candidate_token_ids(self.tokenizer)
+        self.char2token_items = get_char2token_items(self.tokenizer)
+        self.use_surf_forced_decoding: bool = getattr(hparams, "use_surf_forced_decoding", False)
 
     def setup(self, stage: str) -> None:
         if stage == "fit":
             self.encoder_decoder = hydra.utils.call(self.hparams.encoder.from_pretrained)
             # https://github.com/huggingface/transformers/issues/4875
-            self.encoder_decoder.resize_token_embeddings(len(self.tokenizer.get_vocab()))
+            self.encoder_decoder.resize_token_embeddings(len(self.tokenizer.vocab))
 
     def forward(self, batch: Any) -> Dict[str, torch.Tensor]:
         output = self.encoder_decoder(
@@ -88,19 +92,21 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
         generations = self.encoder_decoder.generate(
             input_ids=batch["input_ids"],
             attention_mask=batch["attention_mask"],
-            logits_processor=LogitsProcessorList(
-                [
-                    ForcedLogitsProcessor(
-                        surfs=batch["surfs"],
-                        num_beams=self.hparams.decoding.num_beams,
-                        tokenizer=self.tokenizer,
-                        reading_candidates=self.reading_candidates,
-                        char2tokens=self.char2tokens,
-                    ),
-                ]
-            )
-            if self.use_forced_decoding
-            else None,
+            logits_processor=(
+                LogitsProcessorList(
+                    [
+                        SurfForcedDecodingLogitsProcessor(
+                            batch_surfs=batch["surfs"],
+                            num_beams=self.hparams.decoding.num_beams,
+                            tokenizer=self.tokenizer,
+                            char2token_items=self.char2token_items,
+                            reading_candidate_token_ids=self.reading_candidate_token_ids,
+                        ),
+                    ]
+                )
+                if self.use_surf_forced_decoding
+                else None
+            ),
             **self.hparams.decoding,
         )
         if isinstance(generations, torch.Tensor):

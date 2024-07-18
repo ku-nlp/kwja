@@ -106,10 +106,10 @@ echo "Juman++ & KNP (NER + Dependency parsing + PAS analysis)"
 grep "# S-ID:" "$WORK_DIR/benchmark.knp_ne_anaphora.knp" | grep -cv "ERROR:" >> "$WORK_DIR/count.txt"
 
 echo "KWJA (typo_module)"
-cat "$INPUT" | poetry run python ./scripts/analyze.py module=typo checkpoint_path="$TYPO_MODULE" devices="$DEVICE" max_batches_per_device="$TYPO_BATCH_SIZE" > "$WORK_DIR/benchmark.kwja.txt" 2>> "$WORK_DIR/benchmark.stderr"
+poetry run python ./scripts/analyze.py module=typo checkpoint_path="$TYPO_MODULE" devices="$DEVICE" max_batches_per_device="$TYPO_BATCH_SIZE" +datamodule.predict.raw_input_file="$INPUT" > "$WORK_DIR/benchmark.kwja.txt" 2>> "$WORK_DIR/benchmark.stderr"
 
 echo "KWJA (char_module)"
-cat "$INPUT" | poetry run python ./scripts/analyze.py module=char checkpoint_path="$CHAR_MODULE" devices="$DEVICE" max_batches_per_device="$CHAR_BATCH_SIZE" > "$WORK_DIR/benchmark.kwja.juman" 2>> "$WORK_DIR/benchmark.stderr"
+poetry run python ./scripts/analyze.py module=char checkpoint_path="$CHAR_MODULE" devices="$DEVICE" max_batches_per_device="$CHAR_BATCH_SIZE" +datamodule.predict.raw_input_file="$INPUT" > "$WORK_DIR/benchmark.kwja.juman" 2>> "$WORK_DIR/benchmark.stderr"
 grep "# S-ID:" "$WORK_DIR/benchmark.kwja.juman" | cut -f -3 -d "-" | uniq | wc -l >> "$WORK_DIR/count.txt"
 
 echo "KWJA (word_module)"

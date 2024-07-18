@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 from typing import Dict, List, Optional
 
 from omegaconf import ListConfig
@@ -8,7 +9,7 @@ from transformers.utils import PaddingStrategy
 
 from kwja.datamodule.datasets.base import BaseDataset, FullAnnotatedDocumentLoaderMixin
 from kwja.datamodule.datasets.char import CharModuleFeatures
-from kwja.datamodule.datasets.utils import add_doc_ids, add_sent_ids, create_documents_from_raw_texts
+from kwja.datamodule.datasets.utils import add_doc_ids, add_sent_ids, chunk_by_document, create_documents_from_raw_texts
 from kwja.datamodule.examples import CharInferenceExample
 from kwja.utils.logging_util import track
 
@@ -22,10 +23,19 @@ class CharInferenceDataset(BaseDataset[CharInferenceExample, CharModuleFeatures]
         tokenizer: PreTrainedTokenizerBase,
         max_seq_length: int,
         doc_id_prefix: Optional[str] = None,
+        raw_text_file: Optional[Path] = None,
         **_,
     ) -> None:
         super().__init__(tokenizer, max_seq_length)
-        documents = create_documents_from_raw_texts(texts)
+        documents: List[Document]
+        if len(texts) > 0:
+            documents = create_documents_from_raw_texts(texts)
+        elif raw_text_file is not None:
+            with raw_text_file.open() as f:
+                documents = create_documents_from_raw_texts(chunk_by_document(f))
+        else:
+            documents = []
+
         add_doc_ids(documents, doc_id_prefix)
         documents = self._add_tentative_sentence_boundary(documents)
         super(BaseDataset, self).__init__(documents, tokenizer, max_seq_length, -1)  # document_split_stride must be -1

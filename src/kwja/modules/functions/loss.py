@@ -50,5 +50,5 @@ def compute_cohesion_analysis_loss(
     return _average_loss(-log_softmax, target)
 
 
-def mask_logits(logits: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
-    return torch.where(mask, logits, torch.full_like(logits, MASKED))
+def mask_logits(logits: torch.Tensor, mask: torch.Tensor, mask_value: float = MASKED) -> torch.Tensor:
+    return torch.where(mask, logits, torch.full_like(logits, mask_value))

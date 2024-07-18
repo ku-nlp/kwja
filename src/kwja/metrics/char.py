@@ -68,7 +68,10 @@ class CharModuleMetric(BaseModuleMetric):
         doc_id2predicted_sentences: Dict[str, List[Sentence]] = defaultdict(list)
         doc_id2partly_gold_sentences: Dict[str, List[Sentence]] = defaultdict(list)
         doc_id2gold_sentences: Dict[str, List[Sentence]] = defaultdict(list)
-        special_ids = set(self.dataset.tokenizer.all_special_ids) - {self.dataset.tokenizer.unk_token_id}
+        special_ids = {
+            getattr(self.dataset.tokenizer, f"{prefix}_token_id")
+            for prefix in ["bos", "eos", "sep", "pad", "cls", "mask"]
+        }
         for (
             example_id,
             sent_segmentation_predictions,
@@ -117,9 +120,11 @@ class CharModuleMetric(BaseModuleMetric):
     ) -> List[Document]:
         # Build documents that do not have clauses, phrases, or base phrases, but morphemes only
         return [
-            Document.from_jumanpp("".join(s.to_jumanpp() for s in ss))
-            if from_sentences is False
-            else Document.from_sentences(ss)
+            (
+                Document.from_jumanpp("".join(s.to_jumanpp() for s in ss))
+                if from_sentences is False
+                else Document.from_sentences(ss)
+            )
             for ss in doc_id2sentences.values()
         ]
 

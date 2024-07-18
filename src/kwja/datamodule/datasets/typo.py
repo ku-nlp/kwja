@@ -74,7 +74,7 @@ class TypoDataset(BaseDataset[TypoExample, TypoModuleFeatures]):
         )
 
         kdr_labels: List[int] = []
-        for kdr_tag in example.kdrs[:-1]:
+        for kdr_tag in example.kdr_tags[:-1]:
             if kdr_tag in TYPO_CORR_OP_TAG2TOKEN:
                 kdr_label = self.token2token_id[TYPO_CORR_OP_TAG2TOKEN[kdr_tag]]
             else:
@@ -87,7 +87,7 @@ class TypoDataset(BaseDataset[TypoExample, TypoModuleFeatures]):
         kdr_labels += [IGNORE_INDEX] * (self.max_seq_length - len(kdr_labels))
 
         ins_labels: List[int] = []
-        for ins_tag in example.inss:
+        for ins_tag in example.ins_tags:
             if ins_tag in TYPO_CORR_OP_TAG2TOKEN:
                 ins_label = self.token2token_id[TYPO_CORR_OP_TAG2TOKEN[ins_tag]]
             else:

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v2.4.0] - 2024-07-18
+### Added
+- Introduce a special token to handle whitespaces as they are.
+
+### Changed
+- Set default value of num_beams to 1.
+- Refactor seq2seq module to make it slightly faster.
+
+### Removed
+- Remove normalization of whitespaces to "␣".
+
 ## [v2.3.0] - 2024-02-01
 ### Added
 - Support Python 3.12.
