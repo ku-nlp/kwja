@@ -98,25 +98,25 @@ class SurfForcedDecodingLogitsProcessor(LogitsProcessor):
             mask = torch.zeros_like(batch_logits, dtype=torch.bool)
             mask[:, self.vocab[SURF_TOKEN]] = True
             return mask
-
-        batch_masks = []
-        for i, (prev_input_ids, logits) in enumerate(zip(batch_prev_input_ids.tolist(), batch_logits)):
-            batch_idx = i // self.num_beams
-            if self.is_finished[batch_idx]:
-                batch_masks.append(torch.ones_like(logits, dtype=torch.bool))
-                continue
-
-            target_property: TargetProperty = self._get_target_property(prev_input_ids)
-            if target_property.surf is True:
-                batch_masks.append(self._get_surf_mask(prev_input_ids, logits, batch_idx))
-            elif target_property.reading is True:
-                batch_masks.append(self._get_reading_mask(prev_input_ids, logits))
-            elif target_property.lemma is True:
-                batch_masks.append(self._get_lemma_mask(prev_input_ids, logits))
-            elif target_property.canon is True:
-                batch_masks.append(self._get_canon_mask(prev_input_ids, logits, batch_idx))
-
-        return torch.stack(batch_masks)
+        else:
+            batch_masks = []
+            for i, (prev_input_ids, logits) in enumerate(zip(batch_prev_input_ids.tolist(), batch_logits)):
+                batch_idx = i // self.num_beams
+                if self.is_finished[batch_idx]:
+                    mask = torch.ones_like(logits, dtype=torch.bool)
+                    mask[self.tokenizer.eos_token_id] = True
+                    batch_masks.append(mask)
+                    continue
+                target_property: TargetProperty = self._get_target_property(prev_input_ids)
+                if target_property.surf is True:
+                    batch_masks.append(self._get_surf_mask(prev_input_ids, logits, batch_idx))
+                elif target_property.reading is True:
+                    batch_masks.append(self._get_reading_mask(prev_input_ids, logits))
+                elif target_property.lemma is True:
+                    batch_masks.append(self._get_lemma_mask(prev_input_ids, logits))
+                elif target_property.canon is True:
+                    batch_masks.append(self._get_canon_mask(prev_input_ids, logits, batch_idx))
+            return torch.stack(batch_masks)
 
     def _get_target_property(self, prev_input_ids: List[int]) -> TargetProperty:
         target_property = TargetProperty()
