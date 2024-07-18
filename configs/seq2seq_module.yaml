@@ -19,7 +19,7 @@ checkpoint_path: ""
 use_surf_forced_decoding: true
 decoding:
   max_length: ${max_tgt_length}
-  num_beams: 2
+  num_beams: 1
 
 # set monitor and mode for early_stopping and model_checkpoint
 monitor: valid/seq2seq_loss
