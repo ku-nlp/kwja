@@ -103,7 +103,7 @@ class SurfForcedDecodingLogitsProcessor(LogitsProcessor):
             for i, (prev_input_ids, logits) in enumerate(zip(batch_prev_input_ids.tolist(), batch_logits)):
                 batch_idx = i // self.num_beams
                 if self.is_finished[batch_idx]:
-                    mask = torch.ones_like(logits, dtype=torch.bool)
+                    mask = torch.zeros_like(logits, dtype=torch.bool)
                     mask[self.tokenizer.eos_token_id] = True
                     batch_masks.append(mask)
                     continue
