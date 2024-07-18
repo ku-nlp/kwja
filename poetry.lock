@@ -121,17 +121,6 @@ files = [
 ]
 
 [[package]]
-name = "appdirs"
-version = "1.4.4"
-description = "A small Python module for determining appropriate platform-specific dirs, e.g. a \"user data dir\"."
-optional = false
-python-versions = "*"
-files = [
-    {file = "appdirs-1.4.4-py2.py3-none-any.whl", hash = "sha256:a841dacd6b99318a741b166adb07e19ee71a274450e68237b4650ca1055ab128"},
-    {file = "appdirs-1.4.4.tar.gz", hash = "sha256:7d5d0167b2b1ba821647616af46a749d1c653740dd0d2415100fe26e27afdf41"},
-]
-
-[[package]]
 name = "appnope"
 version = "0.1.4"
 description = "Disable App Nap on macOS >= 10.9"
@@ -1612,8 +1601,8 @@ files = [
 [package.dependencies]
 numpy = [
     {version = ">=1.20.3", markers = "python_version < \"3.10\""},
-    {version = ">=1.21.0", markers = "python_version >= \"3.10\" and python_version < \"3.11\""},
     {version = ">=1.23.2", markers = "python_version >= \"3.11\""},
+    {version = ">=1.21.0", markers = "python_version >= \"3.10\" and python_version < \"3.11\""},
 ]
 python-dateutil = ">=2.8.2"
 pytz = ">=2020.1"
@@ -1683,6 +1672,22 @@ files = [
 ]
 
 [[package]]
+name = "platformdirs"
+version = "4.2.2"
+description = "A small Python package for determining appropriate platform-specific dirs, e.g. a `user data dir`."
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "platformdirs-4.2.2-py3-none-any.whl", hash = "sha256:2d7a1657e36a80ea911db832a8a6ece5ee53d8de21edd5cc5879af6530b1bfee"},
+    {file = "platformdirs-4.2.2.tar.gz", hash = "sha256:38b7b51f512eed9e84a22788b4bce1de17c0adb134d6becb09836e37d8654cd3"},
+]
+
+[package.extras]
+docs = ["furo (>=2023.9.10)", "proselint (>=0.13)", "sphinx (>=7.2.6)", "sphinx-autodoc-typehints (>=1.25.2)"]
+test = ["appdirs (==1.4.4)", "covdefaults (>=2.3)", "pytest (>=7.4.3)", "pytest-cov (>=4.1)", "pytest-mock (>=3.12)"]
+type = ["mypy (>=1.8)"]
+
+[[package]]
 name = "pluggy"
 version = "1.5.0"
 description = "plugin and hook calling mechanisms for python"
@@ -1713,22 +1718,22 @@ wcwidth = "*"
 
 [[package]]
 name = "protobuf"
-version = "4.25.3"
+version = "5.27.2"
 description = ""
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "protobuf-4.25.3-cp310-abi3-win32.whl", hash = "sha256:d4198877797a83cbfe9bffa3803602bbe1625dc30d8a097365dbc762e5790faa"},
-    {file = "protobuf-4.25.3-cp310-abi3-win_amd64.whl", hash = "sha256:209ba4cc916bab46f64e56b85b090607a676f66b473e6b762e6f1d9d591eb2e8"},
-    {file = "protobuf-4.25.3-cp37-abi3-macosx_10_9_universal2.whl", hash = "sha256:f1279ab38ecbfae7e456a108c5c0681e4956d5b1090027c1de0f934dfdb4b35c"},
-    {file = "protobuf-4.25.3-cp37-abi3-manylinux2014_aarch64.whl", hash = "sha256:e7cb0ae90dd83727f0c0718634ed56837bfeeee29a5f82a7514c03ee1364c019"},
-    {file = "protobuf-4.25.3-cp37-abi3-manylinux2014_x86_64.whl", hash = "sha256:7c8daa26095f82482307bc717364e7c13f4f1c99659be82890dcfc215194554d"},
-    {file = "protobuf-4.25.3-cp38-cp38-win32.whl", hash = "sha256:f4f118245c4a087776e0a8408be33cf09f6c547442c00395fbfb116fac2f8ac2"},
-    {file = "protobuf-4.25.3-cp38-cp38-win_amd64.whl", hash = "sha256:c053062984e61144385022e53678fbded7aea14ebb3e0305ae3592fb219ccfa4"},
-    {file = "protobuf-4.25.3-cp39-cp39-win32.whl", hash = "sha256:19b270aeaa0099f16d3ca02628546b8baefe2955bbe23224aaf856134eccf1e4"},
-    {file = "protobuf-4.25.3-cp39-cp39-win_amd64.whl", hash = "sha256:e3c97a1555fd6388f857770ff8b9703083de6bf1f9274a002a332d65fbb56c8c"},
-    {file = "protobuf-4.25.3-py3-none-any.whl", hash = "sha256:f0700d54bcf45424477e46a9f0944155b46fb0639d69728739c0e47bab83f2b9"},
-    {file = "protobuf-4.25.3.tar.gz", hash = "sha256:25b5d0b42fd000320bd7830b349e3b696435f3b329810427a6bcce6a5492cc5c"},
+    {file = "protobuf-5.27.2-cp310-abi3-win32.whl", hash = "sha256:354d84fac2b0d76062e9b3221f4abbbacdfd2a4d8af36bab0474f3a0bb30ab38"},
+    {file = "protobuf-5.27.2-cp310-abi3-win_amd64.whl", hash = "sha256:0e341109c609749d501986b835f667c6e1e24531096cff9d34ae411595e26505"},
+    {file = "protobuf-5.27.2-cp38-abi3-macosx_10_9_universal2.whl", hash = "sha256:a109916aaac42bff84702fb5187f3edadbc7c97fc2c99c5ff81dd15dcce0d1e5"},
+    {file = "protobuf-5.27.2-cp38-abi3-manylinux2014_aarch64.whl", hash = "sha256:176c12b1f1c880bf7a76d9f7c75822b6a2bc3db2d28baa4d300e8ce4cde7409b"},
+    {file = "protobuf-5.27.2-cp38-abi3-manylinux2014_x86_64.whl", hash = "sha256:b848dbe1d57ed7c191dfc4ea64b8b004a3f9ece4bf4d0d80a367b76df20bf36e"},
+    {file = "protobuf-5.27.2-cp38-cp38-win32.whl", hash = "sha256:4fadd8d83e1992eed0248bc50a4a6361dc31bcccc84388c54c86e530b7f58863"},
+    {file = "protobuf-5.27.2-cp38-cp38-win_amd64.whl", hash = "sha256:610e700f02469c4a997e58e328cac6f305f649826853813177e6290416e846c6"},
+    {file = "protobuf-5.27.2-cp39-cp39-win32.whl", hash = "sha256:9e8f199bf7f97bd7ecebffcae45ebf9527603549b2b562df0fbc6d4d688f14ca"},
+    {file = "protobuf-5.27.2-cp39-cp39-win_amd64.whl", hash = "sha256:7fc3add9e6003e026da5fc9e59b131b8f22b428b991ccd53e2af8071687b4fce"},
+    {file = "protobuf-5.27.2-py3-none-any.whl", hash = "sha256:54330f07e4949d09614707c48b06d1a22f8ffb5763c159efd5c0928326a91470"},
+    {file = "protobuf-5.27.2.tar.gz", hash = "sha256:f3ecdef226b9af856075f28227ff2c90ce3a594d092c39bee5513573f25e2714"},
 ]
 
 [[package]]
@@ -1839,13 +1844,13 @@ dev = ["argcomplete", "attrs (>=19.2)", "hypothesis (>=3.56)", "mock", "pygments
 
 [[package]]
 name = "pytest-cov"
-version = "4.1.0"
+version = "5.0.0"
 description = "Pytest plugin for measuring coverage."
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.8"
 files = [
-    {file = "pytest-cov-4.1.0.tar.gz", hash = "sha256:3904b13dfbfec47f003b8e77fd5b589cd11904a21ddf1ab38a64f204d6a10ef6"},
-    {file = "pytest_cov-4.1.0-py3-none-any.whl", hash = "sha256:6ba70b9e97e69fcc3fb45bfeab2d0a138fb65c4d0d6a41ef33983ad114be8c3a"},
+    {file = "pytest-cov-5.0.0.tar.gz", hash = "sha256:5837b58e9f6ebd335b0f8060eecce69b662415b16dc503883a02f45dfeb14857"},
+    {file = "pytest_cov-5.0.0-py3-none-any.whl", hash = "sha256:4f0764a1219df53214206bf1feea4633c3b558a2925c8b59f144f682861ce652"},
 ]
 
 [package.dependencies]
@@ -1853,7 +1858,7 @@ coverage = {version = ">=5.2.1", extras = ["toml"]}
 pytest = ">=4.6"
 
 [package.extras]
-testing = ["fields", "hunter", "process-tests", "pytest-xdist", "six", "virtualenv"]
+testing = ["fields", "hunter", "process-tests", "pytest-xdist", "virtualenv"]
 
 [[package]]
 name = "pytest-profiling"
@@ -3213,25 +3218,22 @@ tests = ["autopep8", "flake8", "isort", "numpy", "pytest", "scipy (>=1.7.1)", "t
 tutorials = ["matplotlib", "pandas", "tabulate", "torch"]
 
 [[package]]
-name = "typer"
-version = "0.9.4"
+name = "typer-slim"
+version = "0.12.3"
 description = "Typer, build great CLIs. Easy to code. Based on Python type hints."
 optional = false
-python-versions = ">=3.6"
+python-versions = ">=3.7"
 files = [
-    {file = "typer-0.9.4-py3-none-any.whl", hash = "sha256:aa6c4a4e2329d868b80ecbaf16f807f2b54e192209d7ac9dd42691d63f7a54eb"},
-    {file = "typer-0.9.4.tar.gz", hash = "sha256:f714c2d90afae3a7929fcd72a3abb08df305e1ff61719381384211c4070af57f"},
+    {file = "typer_slim-0.12.3-py3-none-any.whl", hash = "sha256:142c73d91ac1df79a49cec5a1c2210c00b1b4040a91014b539792af5ba81c65c"},
+    {file = "typer_slim-0.12.3.tar.gz", hash = "sha256:633965eb413074aa6c47549d1820832f229709e9a59857a4f57ee82b655602af"},
 ]
 
 [package.dependencies]
-click = ">=7.1.1,<9.0.0"
+click = ">=8.0.0"
 typing-extensions = ">=3.7.4.3"
 
 [package.extras]
-all = ["colorama (>=0.4.3,<0.5.0)", "rich (>=10.11.0,<14.0.0)", "shellingham (>=1.3.0,<2.0.0)"]
-dev = ["autoflake (>=1.3.1,<2.0.0)", "flake8 (>=3.8.3,<4.0.0)", "pre-commit (>=2.17.0,<3.0.0)"]
-doc = ["cairosvg (>=2.5.2,<3.0.0)", "mdx-include (>=1.4.1,<2.0.0)", "mkdocs (>=1.1.2,<2.0.0)", "mkdocs-material (>=8.1.4,<9.0.0)", "pillow (>=9.3.0,<10.0.0)"]
-test = ["black (>=22.3.0,<23.0.0)", "coverage (>=6.2,<7.0)", "isort (>=5.0.6,<6.0.0)", "mypy (==0.971)", "pytest (>=4.4.0,<8.0.0)", "pytest-cov (>=2.10.0,<5.0.0)", "pytest-sugar (>=0.9.4,<0.10.0)", "pytest-xdist (>=1.32.0,<4.0.0)", "rich (>=10.11.0,<14.0.0)", "shellingham (>=1.3.0,<2.0.0)"]
+standard = ["rich (>=10.11.0)", "shellingham (>=1.3.0)"]
 
 [[package]]
 name = "types-attrs"
@@ -3295,27 +3297,32 @@ zstd = ["zstandard (>=0.18.0)"]
 
 [[package]]
 name = "wandb"
-version = "0.16.6"
+version = "0.17.4"
 description = "A CLI and library for interacting with the Weights & Biases API."
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "wandb-0.16.6-py3-none-any.whl", hash = "sha256:5810019a3b981c796e98ea58557a7c380f18834e0c6bdaed15df115522e5616e"},
-    {file = "wandb-0.16.6.tar.gz", hash = "sha256:86f491e3012d715e0d7d7421a4d6de41abef643b7403046261f962f3e512fe1c"},
+    {file = "wandb-0.17.4-py3-none-any.whl", hash = "sha256:807d600a86ee9e2df66b64af738caa6eb3b5e04a30b296b9a7c940ede759f4a7"},
+    {file = "wandb-0.17.4-py3-none-macosx_10_9_x86_64.whl", hash = "sha256:02a00fe5e86ac04c07936d1fe7e7d9111d9546a3a844ac00d89735df0290cef8"},
+    {file = "wandb-0.17.4-py3-none-macosx_11_0_arm64.whl", hash = "sha256:78eb7e6a530848fc47792e95563b406019bed7c4dadb54415a982cd4900b7c75"},
+    {file = "wandb-0.17.4-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:91bd3bc5b76f880732c6169288ac64d59a016fd8227d3a74bdc69d457639ef17"},
+    {file = "wandb-0.17.4-py3-none-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:40aa85e0fc6d875f9597c6c02e968bc35a571ddac1cbfac2223fcdb941bf1214"},
+    {file = "wandb-0.17.4-py3-none-win32.whl", hash = "sha256:fec9378ae2ed8c4cf29bb5ef9bd2889f0085b6566d7b9dd7b789718519c46447"},
+    {file = "wandb-0.17.4-py3-none-win_amd64.whl", hash = "sha256:94b78c1a74222a0970580cd953c21562bb57af1c2e14a4e48ab07b8fbcb64f08"},
 ]
 
 [package.dependencies]
-appdirs = ">=1.4.3"
-Click = ">=7.1,<8.0.0 || >8.0.0"
+click = ">=7.1,<8.0.0 || >8.0.0"
 docker-pycreds = ">=0.4.0"
-GitPython = ">=1.0.0,<3.1.29 || >3.1.29"
+gitpython = ">=1.0.0,<3.1.29 || >3.1.29"
+platformdirs = "*"
 protobuf = [
-    {version = ">=3.12.0,<4.21.0 || >4.21.0,<5", markers = "python_version < \"3.9\" and sys_platform == \"linux\""},
-    {version = ">=3.19.0,<4.21.0 || >4.21.0,<5", markers = "python_version > \"3.9\" or sys_platform != \"linux\""},
-    {version = ">=3.15.0,<4.21.0 || >4.21.0,<5", markers = "python_version == \"3.9\" and sys_platform == \"linux\""},
+    {version = ">=3.12.0,<4.21.0 || >4.21.0,<6", markers = "python_version < \"3.9\" and sys_platform == \"linux\""},
+    {version = ">=3.19.0,<4.21.0 || >4.21.0,<6", markers = "python_version > \"3.9\" or sys_platform != \"linux\""},
+    {version = ">=3.15.0,<4.21.0 || >4.21.0,<6", markers = "python_version == \"3.9\" and sys_platform == \"linux\""},
 ]
 psutil = ">=5.0.0"
-PyYAML = "*"
+pyyaml = "*"
 requests = ">=2.0.0,<3"
 sentry-sdk = ">=1.0.0"
 setproctitle = "*"
@@ -3323,18 +3330,17 @@ setuptools = "*"
 typing-extensions = {version = "*", markers = "python_version < \"3.10\""}
 
 [package.extras]
-async = ["httpx (>=0.23.0)"]
 aws = ["boto3"]
 azure = ["azure-identity", "azure-storage-blob"]
 gcp = ["google-cloud-storage"]
 importers = ["filelock", "mlflow", "polars", "rich", "tenacity"]
 kubeflow = ["google-cloud-storage", "kubernetes", "minio", "sh"]
-launch = ["PyYAML (>=6.0.0)", "awscli", "azure-containerregistry", "azure-identity", "azure-storage-blob", "boto3", "botocore", "chardet", "google-auth", "google-cloud-aiplatform", "google-cloud-artifact-registry", "google-cloud-compute", "google-cloud-storage", "iso8601", "kubernetes", "kubernetes-asyncio", "nbconvert", "nbformat", "optuna", "pydantic", "tomli", "typing-extensions"]
+launch = ["awscli", "azure-containerregistry", "azure-identity", "azure-storage-blob", "boto3", "botocore", "chardet", "google-auth", "google-cloud-aiplatform", "google-cloud-artifact-registry", "google-cloud-compute", "google-cloud-storage", "iso8601", "kubernetes", "kubernetes-asyncio", "nbconvert", "nbformat", "optuna", "pydantic", "pyyaml (>=6.0.0)", "tomli", "typing-extensions"]
 media = ["bokeh", "moviepy", "numpy", "pillow", "plotly (>=5.18.0)", "rdkit-pypi", "soundfile"]
 models = ["cloudpickle"]
 perf = ["orjson"]
-reports = ["pydantic (>=2.0.0)"]
 sweeps = ["sweeps (>=0.2.0)"]
+workspaces = ["wandb-workspaces"]
 
 [[package]]
 name = "wcwidth"
@@ -3468,4 +3474,4 @@ test = ["big-O", "importlib-resources", "jaraco.functools", "jaraco.itertools", 
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.13"
-content-hash = "149a5e6075dd726cea0fe0a75095bc192261320de66e4ae6a4bf282ed0dbcd80"
+content-hash = "be7f13364e49c3dee5576a92810b1d0c6fdebc78244e7deaeef7035c7048fff6"
