@@ -1,19 +1,20 @@
 import re
 from enum import Enum
+from importlib.resources import files
+from pathlib import Path
 from typing import Dict, Optional, Tuple
 
-try:
-    from importlib.resources import files as resource_files  # type: ignore
-except ImportError:
-    from importlib_resources import files as resource_files
 from rhoknp.props import DepType, NamedEntityCategory
 
 import kwja
 
+# from importlib.abc import Traversable
+
+
 # ---------- common ----------
 IGNORE_INDEX = -100
 MASKED = -1024.0
-RESOURCE_PATH = resource_files(kwja) / "resource"
+RESOURCE_PATH: Path = files(kwja) / "resource"  # type: ignore[assignment]
 
 
 # ---------- typo module ----------
