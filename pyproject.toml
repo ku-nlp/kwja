@@ -1,7 +1,9 @@
 [tool.poetry]
+package-mode = true
 name = "kwja"
 version = "2.4.0"
 description = "A unified Japanese analyzer based on foundation models"
+license = "MIT"
 authors = [
     "Hirokazu Kiyomaru <kiyomaru@i.kyoto-u.ac.jp>",
     "Nobuhiro Ueda <ueda@nlp.i.kyoto-u.ac.jp>",
@@ -18,10 +20,10 @@ maintainers = [
     "Takashi Kodama <kodama@nlp.i.kyoto-u.ac.jp>",
     "Yugo Murawaki <murawaki@i.kyoto-u.ac.jp>"
 ]
-license = "MIT"
 readme = "README.md"
+homepage = "https://github.com/ku-nlp/kwja"
 repository = "https://github.com/ku-nlp/kwja"
-keywords = ["NLP", "japanese"]
+keywords = ["NLP", "Japanese"]
 classifiers = [
     "Environment :: GPU",
     "Environment :: MacOS X",
@@ -35,6 +37,10 @@ classifiers = [
     "Topic :: Scientific/Engineering",
     "Topic :: Text Processing",
 ]
+#urls = {
+#    Issues = "https://github.com/ku-nlp/kwja/issues",
+#    Changelog = "https://github.com/ku-nlp/kwja/blob/main/CHANGELOG.md",
+#}
 
 packages = [
     { include = "kwja", from = "src" }
