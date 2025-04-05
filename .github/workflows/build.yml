@@ -43,9 +43,17 @@ jobs:
           $whlFile = (Get-ChildItem -Path dist -Filter *.whl).FullName
           pip3 install $whlFile
         shell: pwsh
-      - name: Run KWJA (non-Windows)
-        if: ${{ matrix.os != 'windows-latest' }}
+      - name: Run KWJA (Ubuntu)
+        if: ${{ matrix.os != 'ubuntu-latest' }}
         run: |
+          kwja --version
+          kwja --help
+          kwja --tasks typo,char,word --model-size tiny --text "自然言語処理"
+          kwja --tasks typo,char,seq2seq,word --model-size tiny --text "自然言語処理"
+      - name: Run KWJA (macOS)
+        if: ${{ matrix.os != 'macos-latest' }}
+        run: |
+          export PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0  # avoid OOM
           kwja --version
           kwja --help
           kwja --tasks typo,char,word --model-size tiny --text "自然言語処理"
