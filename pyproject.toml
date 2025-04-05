@@ -44,9 +44,6 @@ classifiers = [
 packages = [
     { include = "kwja", from = "src" }
 ]
-include = [
-    "../kwja/resource/**/*"
-]
 exclude = [
     "src/kwja/metrics/**/*"
 ]
