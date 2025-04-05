@@ -45,7 +45,7 @@ packages = [
     { include = "kwja", from = "src" }
 ]
 include = [
-    "kwja/resource/**/*"
+    "../kwja/resource/**/*"
 ]
 exclude = [
     "src/kwja/metrics/**/*"
