@@ -50,11 +50,11 @@ exclude = [
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.13"
-torch = ">=1.11,!=2.0.1,!=2.1.0"  # https://github.com/pytorch/pytorch/issues/100974ypmun
-numpy = ">=1.26,<2.0"
-transformers = { version = "~4.42.2", extras = ["sentencepiece"] }
-tokenizers = "^0.19.1"
-pytorch-lightning = "~2.3.3"  # As "lightning" comes with many extra dependencies, we stay with "pytorch-lightning"
+torch = ">=2.4.0"
+numpy = "^2.0"
+transformers = { version = "~4.49.0", extras = ["sentencepiece"] }
+tokenizers = "^0.21.1"
+pytorch-lightning = ">=2.4.0"  # As "lightning" comes with many extra dependencies, we stay with "pytorch-lightning"
 omegaconf = "^2.1"
 hydra-core = "^1.2"
 rhoknp = "^1.6.0"
@@ -69,25 +69,25 @@ cohesion-tools = "^0.5.7"
 [tool.poetry.group.dev.dependencies]
 torchmetrics = "^1.0"
 seqeval = "^1.2"
-scikit-learn = "^1.4"
+scikit-learn = "^1.6"
 Levenshtein = ">=0.21.0"
 cohesion-tools = { version = "^0.5.7", extras = ["eval"] }
 python-dotenv = "^1.0"
-jaconv = "^0.3.4"
+jaconv = "^0.4.0"
 ipython = "^8.13"
 ipdb = "^0.13.13"
 types-attrs = "^19.1"
 types-pyyaml = "^6.0.12.9"
-wandb = "^0.17.5"
+wandb = ">=0.18.0"
 
 [tool.poetry.group.test.dependencies]
 torchmetrics = "^1.0"
 seqeval = "^1.2"
 Levenshtein = ">=0.21.0"
 pandas = "^2.0"
-jaconv = "^0.3.4"
+jaconv = "^0.4.0"
 pytest = "^8.0"
-pytest-cov = "^5.0"
+pytest-cov = "^6.0"
 pytest-profiling = "^1.7"
 
 [tool.poetry.scripts]

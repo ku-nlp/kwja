@@ -289,7 +289,7 @@ class WordModuleMetric(BaseModuleMetric):
             attribute_value = getattr(morpheme, attribute_name)
             labels.append(attribute_value if attribute_value in supported_attribute_values else "UNKNOWN")
         predictions: List[str] = [getattr(morpheme, attribute_name) for morpheme in predicted_morphemes]
-        return f1_score(y_true=labels, y_pred=predictions, average="micro").item()
+        return f1_score(y_true=labels, y_pred=predictions, average="micro")
 
     @staticmethod
     def compute_word_feature_tagging_metrics(
@@ -378,7 +378,7 @@ class WordModuleMetric(BaseModuleMetric):
             if any(labels):
                 metrics[f"{feature_label}_f1"] = f1_score(
                     y_true=labels, y_pred=predictions, pos_label=True, average="binary"
-                ).item()
+                )
             all_labels += labels
             all_predictions += predictions
         metrics["macro_base_phrase_feature_tagging_f1"] = mean(
@@ -386,7 +386,7 @@ class WordModuleMetric(BaseModuleMetric):
         )
         metrics["micro_base_phrase_feature_tagging_f1"] = f1_score(
             y_true=all_labels, y_pred=all_predictions, pos_label=True, average="binary"
-        ).item()
+        )
         return metrics
 
     @staticmethod
@@ -516,7 +516,7 @@ class WordModuleMetric(BaseModuleMetric):
 
         return {
             "discourse_relation_analysis_accuracy": accuracy,
-            "discourse_relation_analysis_precision": precision.item(),
-            "discourse_relation_analysis_recall": recall.item(),
-            "discourse_relation_analysis_f1": f1.item(),
+            "discourse_relation_analysis_precision": precision,
+            "discourse_relation_analysis_recall": recall,
+            "discourse_relation_analysis_f1": f1,
         }

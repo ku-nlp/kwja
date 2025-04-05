@@ -1,4 +1,4 @@
-# Copied from https://github.com/huggingface/transformers/blob/v4.33-release/src/transformers/models/deberta_v2/modeling_deberta_v2.py
+# Copied from https://github.com/huggingface/transformers/blob/v4.49-release/src/transformers/models/deberta_v2/modeling_deberta_v2.py
 from typing import Optional, Tuple, Union
 
 import torch
@@ -16,8 +16,8 @@ from transformers.models.deberta_v2.modeling_deberta_v2 import (
     DebertaV2SelfOutput,
     LayerNorm,
     Sequence,
-    StableDropout,
-    XSoftmax,
+    scaled_size_sqrt,
+    build_rpos,
     build_relative_position,
 )
 from transformers.utils import (
@@ -35,7 +35,7 @@ _CHECKPOINT_FOR_DOC = "microsoft/deberta-v2-xlarge"
 
 # Copied from transformers.models.deberta.modeling_deberta.DebertaAttention with Deberta->DebertaV2
 class DebertaV2Attention(nn.Module):
-    def __init__(self, config) -> None:
+    def __init__(self, config):
         super().__init__()
         self.self = DisentangledSelfAttention(config)
         self.output = DebertaV2SelfOutput(config)
@@ -45,12 +45,12 @@ class DebertaV2Attention(nn.Module):
         self,
         hidden_states,
         attention_mask,
-        output_attentions=False,
+        output_attentions: bool = False,
         query_states=None,
         relative_pos=None,
         rel_embeddings=None,
-    ):
-        self_output = self.self(
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+        self_output, att_matrix = self.self(
             hidden_states,
             attention_mask,
             output_attentions,
@@ -58,8 +58,6 @@ class DebertaV2Attention(nn.Module):
             relative_pos=relative_pos,
             rel_embeddings=rel_embeddings,
         )
-        if output_attentions:
-            self_output, att_matrix = self_output
         if query_states is None:
             query_states = hidden_states
         attention_output = self.output(self_output, query_states)
@@ -67,12 +65,12 @@ class DebertaV2Attention(nn.Module):
         if output_attentions:
             return (attention_output, att_matrix)
         else:
-            return attention_output
+            return (attention_output, None)
 
 
 # Copied from transformers.models.deberta.modeling_deberta.DebertaLayer with Deberta->DebertaV2
 class DebertaV2Layer(nn.Module):
-    def __init__(self, config) -> None:
+    def __init__(self, config):
         super().__init__()
         self.attention = DebertaV2Attention(config)
         self.intermediate = DebertaV2Intermediate(config)
@@ -85,9 +83,9 @@ class DebertaV2Layer(nn.Module):
         query_states=None,
         relative_pos=None,
         rel_embeddings=None,
-        output_attentions=False,
-    ):
-        attention_output = self.attention(
+        output_attentions: bool = False,
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+        attention_output, att_matrix = self.attention(
             hidden_states,
             attention_mask,
             output_attentions=output_attentions,
@@ -95,20 +93,19 @@ class DebertaV2Layer(nn.Module):
             relative_pos=relative_pos,
             rel_embeddings=rel_embeddings,
         )
-        if output_attentions:
-            attention_output, att_matrix = attention_output
         intermediate_output = self.intermediate(attention_output)
         layer_output = self.output(intermediate_output, attention_output)
+
         if output_attentions:
             return (layer_output, att_matrix)
         else:
-            return layer_output
+            return (layer_output, None)
 
 
 class DebertaV2Encoder(nn.Module):
     """Modified BertEncoder with relative position bias support"""
 
-    def __init__(self, config) -> None:
+    def __init__(self, config):
         super().__init__()
 
         self.layer = nn.ModuleList([DebertaV2Layer(config) for _ in range(config.num_hidden_layers)])
@@ -158,14 +155,20 @@ class DebertaV2Encoder(nn.Module):
         relative_pos: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         if self.relative_attention and relative_pos is None:
-            q = query_states.size(-2) if query_states is not None else hidden_states.size(-2)
-            relative_pos = build_relative_position(
-                q,
-                hidden_states.size(-2),
-                bucket_size=self.position_buckets,
-                max_position=self.max_relative_positions,
-                device=hidden_states.device,
-            )  # (1, query, key)
+            if query_states is not None:
+                relative_pos = build_relative_position(
+                    query_states,
+                    hidden_states,
+                    bucket_size=self.position_buckets,
+                    max_position=self.max_relative_positions,
+                )  # (1, query, key)
+            else:
+                relative_pos = build_relative_position(
+                    hidden_states,
+                    hidden_states,
+                    bucket_size=self.position_buckets,
+                    max_position=self.max_relative_positions,
+                )
             batch_size = hidden_states.size(0)
             # (b, query, key)
             special_token_mask = torch.zeros_like(relative_pos, dtype=torch.bool).repeat(batch_size, 1, 1)
@@ -201,37 +204,24 @@ class DebertaV2Encoder(nn.Module):
             hidden_states, special_token_indices, query_states, relative_pos
         )  # (b, query, key)
 
-        all_hidden_states = () if output_hidden_states else None
+        all_hidden_states: Optional[Tuple[torch.Tensor]] = (hidden_states,) if output_hidden_states else None
         all_attentions = () if output_attentions else None
 
-        if isinstance(hidden_states, Sequence):
-            next_kv = hidden_states[0]
-        else:
-            next_kv = hidden_states
+        next_kv = hidden_states
         rel_embeddings = self.get_rel_embedding()
-        output_states = next_kv
         for i, layer_module in enumerate(self.layer):
-            if output_hidden_states:
-                all_hidden_states = all_hidden_states + (output_states,)
-
             if self.gradient_checkpointing and self.training:
-
-                def create_custom_forward(module):
-                    def custom_forward(*inputs):
-                        return module(*inputs, output_attentions)
-
-                    return custom_forward
-
-                output_states = torch.utils.checkpoint.checkpoint(
-                    create_custom_forward(layer_module),
+                output_states, attn_weights = self._gradient_checkpointing_func(
+                    layer_module.__call__,
                     next_kv,
                     attention_mask,
                     query_states,
                     relative_pos,
                     rel_embeddings,
+                    output_attentions,
                 )
             else:
-                output_states = layer_module(
+                output_states, attn_weights = layer_module(
                     next_kv,
                     attention_mask,
                     query_states=query_states,
@@ -241,10 +231,13 @@ class DebertaV2Encoder(nn.Module):
                 )
 
             if output_attentions:
-                output_states, att_m = output_states
+                all_attentions = all_attentions + (attn_weights,)
 
             if i == 0 and self.conv is not None:
                 output_states = self.conv(hidden_states, output_states, input_mask)
+
+            if output_hidden_states:
+                all_hidden_states = all_hidden_states + (output_states,)
 
             if query_states is not None:
                 query_states = output_states
@@ -252,12 +245,6 @@ class DebertaV2Encoder(nn.Module):
                     next_kv = hidden_states[i + 1] if i + 1 < len(self.layer) else None
             else:
                 next_kv = output_states
-
-            if output_attentions:
-                all_attentions = all_attentions + (att_m,)
-
-        if output_hidden_states:
-            all_hidden_states = all_hidden_states + (output_states,)
 
         if not return_dict:
             return tuple(v for v in [output_states, all_hidden_states, all_attentions] if v is not None)
@@ -277,7 +264,7 @@ class DisentangledSelfAttention(nn.Module):
 
     """
 
-    def __init__(self, config) -> None:
+    def __init__(self, config):
         super().__init__()
         if config.hidden_size % config.num_attention_heads != 0:
             raise ValueError(
@@ -305,7 +292,7 @@ class DisentangledSelfAttention(nn.Module):
             if self.position_buckets > 0:
                 self.pos_ebd_size = self.position_buckets
 
-            self.pos_dropout = StableDropout(config.hidden_dropout_prob)
+            self.pos_dropout = nn.Dropout(config.hidden_dropout_prob)
 
             if not self.share_att_key:
                 if "c2p" in self.pos_att_type:
@@ -313,9 +300,9 @@ class DisentangledSelfAttention(nn.Module):
                 if "p2c" in self.pos_att_type:
                     self.pos_query_proj = nn.Linear(config.hidden_size, self.all_head_size)
 
-        self.dropout = StableDropout(config.attention_probs_dropout_prob)
+        self.dropout = nn.Dropout(config.attention_probs_dropout_prob)
 
-    def transpose_for_scores(self, x, attention_heads):
+    def transpose_for_scores(self, x, attention_heads) -> torch.Tensor:
         new_x_shape = x.size()[:-1] + (attention_heads, -1)
         x = x.view(new_x_shape)
         return x.permute(0, 2, 1, 3).contiguous().view(-1, x.size(1), x.size(-1))
@@ -342,10 +329,10 @@ class DisentangledSelfAttention(nn.Module):
                 sequence length in which element [i,j] = *1* means the *i* th token in the input can attend to the *j*
                 th token.
 
-            output_attentions (`bool`, optional):
+            output_attentions (`bool`, *optional*):
                 Whether return the attention matrix.
 
-            query_states (`torch.FloatTensor`, optional):
+            query_states (`torch.FloatTensor`, *optional*):
                 The *Q* state in *Attention(Q,K,V)*.
 
             relative_pos (`torch.LongTensor`):
@@ -371,7 +358,7 @@ class DisentangledSelfAttention(nn.Module):
             scale_factor += 1
         if "p2c" in self.pos_att_type:
             scale_factor += 1
-        scale = torch.sqrt(torch.tensor(query_layer.size(-1), dtype=torch.float) * scale_factor)
+        scale = scaled_size_sqrt(query_layer, scale_factor)
         attention_scores = torch.bmm(query_layer, key_layer.transpose(-1, -2) / scale.to(dtype=query_layer.dtype))
         if self.relative_attention:
             rel_embeddings = self.pos_dropout(rel_embeddings)
@@ -386,8 +373,11 @@ class DisentangledSelfAttention(nn.Module):
             -1, self.num_attention_heads, attention_scores.size(-2), attention_scores.size(-1)
         )
 
+        attention_mask = attention_mask.bool()
+        attention_scores = attention_scores.masked_fill(~(attention_mask), torch.finfo(query_layer.dtype).min)
         # bsz x height x length x dimension
-        attention_probs = XSoftmax.apply(attention_scores, attention_mask, -1)
+        attention_probs = nn.functional.softmax(attention_scores, dim=-1)
+
         attention_probs = self.dropout(attention_probs)
         context_layer = torch.bmm(
             attention_probs.view(-1, attention_probs.size(-2), attention_probs.size(-1)), value_layer
@@ -399,20 +389,17 @@ class DisentangledSelfAttention(nn.Module):
         )
         new_context_layer_shape = context_layer.size()[:-2] + (-1,)
         context_layer = context_layer.view(new_context_layer_shape)
-        if output_attentions:
-            return (context_layer, attention_probs)
-        else:
-            return context_layer
+        if not output_attentions:
+            return (context_layer, None)
+        return (context_layer, attention_probs)
 
     def disentangled_attention_bias(self, query_layer, key_layer, relative_pos, rel_embeddings, scale_factor):
         if relative_pos is None:
-            q = query_layer.size(-2)
             relative_pos = build_relative_position(
-                q,
-                key_layer.size(-2),
+                query_layer,
+                key_layer,
                 bucket_size=self.position_buckets,
                 max_position=self.max_relative_positions,
-                device=query_layer.device,
             )
         if relative_pos.dim() == 2:
             relative_pos = relative_pos.unsqueeze(0).unsqueeze(0)
@@ -446,7 +433,7 @@ class DisentangledSelfAttention(nn.Module):
         score = 0
         # content->position
         if "c2p" in self.pos_att_type:
-            scale = torch.sqrt(torch.tensor(pos_key_layer.size(-1), dtype=torch.float) * scale_factor)  # ()
+            scale = scaled_size_sqrt(pos_key_layer, scale_factor)  # ()
             c2p_att = torch.bmm(query_layer, pos_key_layer.transpose(-1, -2))  # (b*num_heads, seq, max_rel_seq)
             c2p_pos = torch.clamp(relative_pos + att_span, 0, att_span * 2 - 1)  # (b, 1, seq, seq)
             c2p_att = torch.gather(
@@ -460,19 +447,14 @@ class DisentangledSelfAttention(nn.Module):
 
         # position->content
         if "p2c" in self.pos_att_type:
-            scale = torch.sqrt(torch.tensor(pos_query_layer.size(-1), dtype=torch.float) * scale_factor)  # ()
-            if key_layer.size(-2) != query_layer.size(-2):
-                r_pos = build_relative_position(
-                    key_layer.size(-2),
-                    key_layer.size(-2),
-                    bucket_size=self.position_buckets,
-                    max_position=self.max_relative_positions,
-                    device=query_layer.device,
-                )
-                r_pos = r_pos.unsqueeze(0)
-            else:
-                r_pos = relative_pos
-
+            scale = scaled_size_sqrt(pos_query_layer, scale_factor)  # ()
+            r_pos = build_rpos(
+                query_layer,
+                key_layer,
+                relative_pos,
+                self.max_relative_positions,
+                self.position_buckets,
+            )
             p2c_pos = torch.clamp(-r_pos + att_span, 0, att_span * 2 - 1)  # (b, 1, seq, seq)
             p2c_att = torch.bmm(key_layer, pos_query_layer.transpose(-1, -2))
             p2c_att = torch.gather(
@@ -493,7 +475,7 @@ class DisentangledSelfAttention(nn.Module):
 )
 # Copied from transformers.models.deberta.modeling_deberta.DebertaModel with Deberta->DebertaV2
 class DebertaV2Model(DebertaV2PreTrainedModel):
-    def __init__(self, config) -> None:
+    def __init__(self, config):
         super().__init__(config)
 
         self.embeddings = DebertaV2Embeddings(config)
