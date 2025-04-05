@@ -93,7 +93,7 @@ class BaseModule(pl.LightningModule, Generic[MetricType]):
         map_location: MAP_LOCATION = None,
         strict: bool = True,
     ) -> Self:
-        checkpoint = torch.load(checkpoint_path, map_location=map_location)
+        checkpoint = torch.load(checkpoint_path, map_location=map_location, weights_only=False)
         with _EmptyInit():
             module = cls(hparams=checkpoint[cls.CHECKPOINT_HYPER_PARAMS_KEY])  # type: ignore
         state_dict: Dict[str, torch.Tensor] = checkpoint["state_dict"]
