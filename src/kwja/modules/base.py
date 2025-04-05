@@ -1,12 +1,12 @@
 import os
 from copy import deepcopy
-from typing import Any, Callable, Dict, Generic, List, Optional, Sequence, TypeVar
+from typing import Any, Dict, Generic, List, TypeVar
 
 import hydra
 import pytorch_lightning as pl
+from lightning_fabric import Fabric
 import torch
 from omegaconf import DictConfig, ListConfig, OmegaConf
-from torch.overrides import TorchFunctionMode  # type: ignore
 from torch.serialization import FILE_LIKE, MAP_LOCATION  # type: ignore
 from typing_extensions import Self
 
@@ -94,7 +94,7 @@ class BaseModule(pl.LightningModule, Generic[MetricType]):
         strict: bool = True,
     ) -> Self:
         checkpoint = torch.load(checkpoint_path, map_location=map_location, weights_only=False)
-        with _EmptyInit():
+        with Fabric().init_module(empty_init=True):
             module = cls(hparams=checkpoint[cls.CHECKPOINT_HYPER_PARAMS_KEY])  # type: ignore
         state_dict: Dict[str, torch.Tensor] = checkpoint["state_dict"]
         # from transformers 4.31.0, `encoder.embeddings.position_ids` is a non-persistent buffer
@@ -103,41 +103,6 @@ class BaseModule(pl.LightningModule, Generic[MetricType]):
             state_dict.pop("encoder.embeddings.position_ids")
         module.load_state_dict(checkpoint["state_dict"], strict=strict)
         return module
-
-
-# TODO: use `Fabric.init_module(empty_weights=True)` instead after this PR is merged: https://github.com/Lightning-AI/lightning/pull/17627
-# From https://lernapparat.de/faster-model-init by Thomas Viehmann
-class _EmptyInit(TorchFunctionMode):
-    """Initialize `nn.Module` with empty tensors, i.e., uninitialized memory.
-    Example::
-        with _EmptyInit():
-            model = BigModel()
-        model.load_state_dict(torch.load("checkpoint.pt"))
-    """
-
-    def __init__(self, enabled: bool = True) -> None:
-        super().__init__()
-        self.enabled = enabled
-
-    def __torch_function__(
-        self,
-        func: Callable,
-        types: Sequence,
-        args: Sequence[Any] = (),
-        kwargs: Optional[Dict] = None,
-    ):
-        kwargs = kwargs or {}
-        if not self.enabled:
-            return func(*args, **kwargs)
-        if getattr(func, "__module__", None) == "torch.nn.init":
-            if "tensor" in kwargs:
-                return kwargs["tensor"]
-            return args[0]
-        if getattr(func, "__module__", None) is None and func.__name__ == "normal_":
-            if "mean" in kwargs:
-                return kwargs["mean"]
-            return args[0]
-        return func(*args, **kwargs)
 
 
 def filter_dict_items(item: DictConfig, keys_to_ignore: ListConfig) -> DictConfig:
