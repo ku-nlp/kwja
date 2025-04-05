@@ -5,7 +5,7 @@ from typing import List
 import pytest
 
 from kwja.utils import reading_prediction
-from kwja.utils.constants import RESOURCE_PATH
+from kwja.utils.constants import RESOURCE_TRAVERSABLE
 
 
 @pytest.mark.parametrize(
@@ -61,7 +61,7 @@ def test_get_word_level_readings(
 def test_main(data_dir: Path):
     script_path = reading_prediction.__file__
     assert script_path is not None
-    kanjidic_path = RESOURCE_PATH / "reading_prediction" / "kanjidic"
+    kanjidic_path = RESOURCE_TRAVERSABLE / "reading_prediction" / "kanjidic"
     input_path = data_dir / "datasets" / "word_files"
     subprocess.run(
         [

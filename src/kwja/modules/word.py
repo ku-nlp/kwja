@@ -32,7 +32,6 @@ from kwja.utils.constants import (
     IGNORE_INDEX,
     NE_TAGS,
     POS_TAGS,
-    RESOURCE_PATH,
     SUBPOS_TAGS,
     WORD_FEATURES,
     CohesionTask,
@@ -59,9 +58,7 @@ class WordModule(BaseModule[WordModuleMetric]):
         head_kwargs: Dict[str, Any] = dict(hidden_size=self.encoder.config.hidden_size, hidden_dropout_prob=0.05)
 
         # ---------- reading prediction ----------
-        self.reading_id2reading: Dict[int, str] = {
-            v: k for k, v in get_reading2reading_id(RESOURCE_PATH / "reading_prediction" / "vocab.txt").items()
-        }
+        self.reading_id2reading: Dict[int, str] = {v: k for k, v in get_reading2reading_id().items()}
         self.reading_tagger = SequenceLabelingHead(len(self.reading_id2reading), **head_kwargs)
 
         # ---------- morphological analysis ----------

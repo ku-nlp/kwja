@@ -1,7 +1,8 @@
 import json
 import struct
+from importlib.abc import Traversable
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Union
 
 import cdblib
 
@@ -9,7 +10,7 @@ from kwja.utils.logging_util import track
 
 
 class JumanDic:
-    def __init__(self, dic_dir: Path) -> None:
+    def __init__(self, dic_dir: Union[Path, Traversable]) -> None:
         self.jumandic = cdblib.Reader(dic_dir.joinpath("jumandic.db").read_bytes())
         self.jumandic_canon = cdblib.Reader(dic_dir.joinpath("jumandic_canon.db").read_bytes())
         self.grammar_data: Dict[str, List[str]] = json.loads(dic_dir.joinpath("grammar.json").read_text())

@@ -1,4 +1,5 @@
 import os
+from importlib.resources import as_file
 from statistics import mean
 from typing import Any, Dict
 
@@ -10,7 +11,7 @@ from transformers import PreTrainedModel
 from kwja.modules.base import BaseModule
 from kwja.modules.components.head import SequenceLabelingHead
 from kwja.modules.functions.loss import compute_token_mean_loss
-from kwja.utils.constants import RESOURCE_PATH
+from kwja.utils.constants import RESOURCE_TRAVERSABLE
 
 if os.environ.get("KWJA_CLI_MODE") == "1":
     from kwja.modules.base import DummyModuleMetric as TypoModuleMetric  # dummy class for faster loading
@@ -28,7 +29,9 @@ class TypoModule(BaseModule[TypoModuleMetric]):
         head_kwargs: Dict[str, Any] = dict(hidden_size=self.encoder.config.hidden_size, hidden_dropout_prob=0.05)
 
         self.kdr_tagger = SequenceLabelingHead(self.encoder.config.vocab_size, **head_kwargs)
-        extended_vocab_size = sum(1 for _ in RESOURCE_PATH.joinpath("typo_correction", "multi_char_vocab.txt").open())
+        vocab_traversable = RESOURCE_TRAVERSABLE / "typo_correction" / "multi_char_vocab.txt"
+        with as_file(vocab_traversable) as file_path:
+            extended_vocab_size = sum(1 for _ in open(file_path))
         self.ins_tagger = SequenceLabelingHead(self.encoder.config.vocab_size + extended_vocab_size, **head_kwargs)
 
     def setup(self, stage: str) -> None:

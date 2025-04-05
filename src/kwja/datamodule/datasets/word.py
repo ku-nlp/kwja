@@ -24,7 +24,7 @@ from kwja.utils.constants import (
     IGNORE_INDEX,
     NE_TAGS,
     POS_TAGS,
-    RESOURCE_PATH,
+    RESOURCE_TRAVERSABLE,
     SUBPOS_TAGS,
     WORD_FEATURES,
     CohesionTask,
@@ -83,9 +83,9 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         self.skip_cohesion_ne_discourse = self.path.parts[-2] == "kyoto_ed"
 
         # ---------- reading prediction ----------
-        reading_resource_path = RESOURCE_PATH / "reading_prediction"
-        self.reading2reading_id = get_reading2reading_id(reading_resource_path / "vocab.txt")
-        self.reading_aligner = ReadingAligner(self.tokenizer, KanjiDic(str(reading_resource_path / "kanjidic")))
+        self.reading2reading_id = get_reading2reading_id()
+        kanjidic_traversable = RESOURCE_TRAVERSABLE / "reading_prediction" / "kanjidic"
+        self.reading_aligner = ReadingAligner(self.tokenizer, KanjiDic(kanjidic_traversable))
 
         # ---------- cohesion analysis ----------
         self.cohesion_tasks: List[CohesionTask] = [task for task in CohesionTask if task.value in cohesion_tasks]

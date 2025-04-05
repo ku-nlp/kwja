@@ -1,20 +1,18 @@
 import re
 from enum import Enum
 from importlib.resources import files
-from pathlib import Path
+from importlib.abc import Traversable
 from typing import Dict, Optional, Tuple
 
 from rhoknp.props import DepType, NamedEntityCategory
 
 import kwja
 
-# from importlib.abc import Traversable
-
 
 # ---------- common ----------
 IGNORE_INDEX = -100
 MASKED = -1024.0
-RESOURCE_PATH: Path = files(kwja) / "resource"  # type: ignore[assignment]
+RESOURCE_TRAVERSABLE: Traversable = files(kwja) / "resource"
 
 
 # ---------- typo module ----------

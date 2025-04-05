@@ -21,7 +21,7 @@ def main():
     args = parser.parse_args()
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
-    kanji_dic = KanjiDic(args.kanji_dic)
+    kanji_dic = KanjiDic(Path(args.kanji_dic))
     reading_aligner = ReadingAligner(tokenizer, kanji_dic)
 
     reading_counter: Dict[str, int] = Counter()

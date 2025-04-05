@@ -4,7 +4,7 @@ import re
 import unicodedata
 from collections import defaultdict
 from dataclasses import dataclass
-from pathlib import Path
+from importlib.resources import as_file
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -23,19 +23,23 @@ from kwja.utils.constants import (
     UNK,
     UNK_ID,
     VOICED2VOICELESS,
+    RESOURCE_TRAVERSABLE,
 )
 from kwja.utils.kanjidic import KanjiDic
 
 logger = logging.getLogger(__name__)
 
+READING_VOCAB_TRAVERSABLE = RESOURCE_TRAVERSABLE / "reading_prediction" / "vocab.txt"
 
-def get_reading2reading_id(path: Path) -> Dict[str, int]:
+
+def get_reading2reading_id() -> Dict[str, int]:
     reading2reading_id = {UNK: UNK_ID, ID: ID_ID}
-    with path.open() as f:
-        for line in f:
-            if line := line.strip():
-                if line not in reading2reading_id:
-                    reading2reading_id[line] = len(reading2reading_id)
+    with as_file(READING_VOCAB_TRAVERSABLE) as path:
+        with open(path) as f:
+            for line in f:
+                if line := line.strip():
+                    if line not in reading2reading_id:
+                        reading2reading_id[line] = len(reading2reading_id)
     return reading2reading_id
 
 

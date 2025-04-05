@@ -21,7 +21,6 @@ from kwja.utils.constants import (
     DISCOURSE_RELATIONS,
     NE_TAGS,
     POS_TAGS,
-    RESOURCE_PATH,
     SUBPOS_TAGS,
     WORD_FEATURES,
     WordTask,
@@ -124,8 +123,7 @@ def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwa
         WordTask.DISCOURSE_RELATION_ANALYSIS,
     ]
 
-    reading_resource_path = RESOURCE_PATH / "reading_prediction"
-    reading2reading_id = get_reading2reading_id(reading_resource_path / "vocab.txt")
+    reading2reading_id = get_reading2reading_id()
     reading_logits = torch.zeros((num_examples, max_seq_length, len(reading2reading_id)), dtype=torch.float)
     reading_logits[0, 1, reading2reading_id["たろう"]] = 1.0  # 太郎 -> たろう
     reading_logits[0, 2, reading2reading_id["[ID]"]] = 1.0  # と

@@ -28,7 +28,7 @@ from kwja.utils.constants import (
     POS_TAG2POS_ID,
     POS_TAG_SUBPOS_TAG2SUBPOS_ID,
     POS_TAGS,
-    RESOURCE_PATH,
+    RESOURCE_TRAVERSABLE,
     SUBPOS_TAGS,
 )
 from kwja.utils.jumandic import JumanDic
@@ -46,11 +46,10 @@ class WordModuleWriter(BaseModuleWriter):
         destination: Optional[Union[str, Path]] = None,
     ) -> None:
         super().__init__(destination=destination)
-        reading2reading_id = get_reading2reading_id(RESOURCE_PATH / "reading_prediction" / "vocab.txt")
-        self.reading_id2reading = {v: k for k, v in reading2reading_id.items()}
+        self.reading_id2reading = {v: k for k, v in get_reading2reading_id().items()}
 
         self.ambig_surf_specs = ambig_surf_specs
-        self.jumandic = JumanDic(RESOURCE_PATH / "jumandic")
+        self.jumandic = JumanDic(RESOURCE_TRAVERSABLE / "jumandic")
         self.jinf = Jinf()
 
         self.preserve_reading_lemma_canon: bool = preserve_reading_lemma_canon

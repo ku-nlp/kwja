@@ -1,6 +1,7 @@
 import json
 from collections import defaultdict
 from dataclasses import dataclass
+from importlib.resources import as_file
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -9,16 +10,19 @@ from transformers.utils import PaddingStrategy
 
 from kwja.datamodule.datasets.base import BaseDataset
 from kwja.datamodule.examples import TypoExample
-from kwja.utils.constants import DUMMY_TOKEN, IGNORE_INDEX, RESOURCE_PATH, TYPO_CORR_OP_TAG2TOKEN
+from kwja.utils.constants import DUMMY_TOKEN, IGNORE_INDEX, RESOURCE_TRAVERSABLE, TYPO_CORR_OP_TAG2TOKEN
 from kwja.utils.logging_util import track
 
+MULTI_CHAR_VOCAB_TRAVERSABLE = RESOURCE_TRAVERSABLE / "typo_correction" / "multi_char_vocab.txt"
 
-def get_maps(tokenizer: PreTrainedTokenizerBase, extended_vocab_path: Path) -> Tuple[Dict[str, int], Dict[int, str]]:
+
+def get_maps(tokenizer: PreTrainedTokenizerBase) -> Tuple[Dict[str, int], Dict[int, str]]:
     token2token_id = tokenizer.get_vocab()
-    with extended_vocab_path.open() as f:
-        for line in f:
-            if line := line.strip():
-                token2token_id[line] = len(token2token_id.keys())
+    with as_file(MULTI_CHAR_VOCAB_TRAVERSABLE) as path:
+        with open(path) as f:
+            for line in f:
+                if line := line.strip():
+                    token2token_id[line] = len(token2token_id.keys())
     token_id2token = {v: k for k, v in token2token_id.items()}
     return token2token_id, token_id2token
 
@@ -46,10 +50,7 @@ class TypoDataset(BaseDataset[TypoExample, TypoModuleFeatures]):
 
         assert self.tokenizer.unk_token_id is not None
 
-        self.token2token_id, self.token_id2token = get_maps(
-            self.tokenizer,
-            RESOURCE_PATH / "typo_correction" / "multi_char_vocab.txt",
-        )
+        self.token2token_id, self.token_id2token = get_maps(self.tokenizer)
 
         self.examples: List[TypoExample] = self._load_examples(self.path)
         self.stash: Dict[int, List[Tuple[str, str]]] = defaultdict(list)

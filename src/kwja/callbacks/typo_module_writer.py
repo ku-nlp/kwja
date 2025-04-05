@@ -9,7 +9,6 @@ from kwja.callbacks.utils import apply_edit_operations, convert_typo_predictions
 from kwja.datamodule.datasets import TypoDataset, TypoInferenceDataset
 from kwja.datamodule.datasets.typo import get_maps
 from kwja.datamodule.examples import TypoExample, TypoInferenceExample
-from kwja.utils.constants import RESOURCE_PATH
 
 
 class TypoModuleWriter(BaseModuleWriter):
@@ -21,10 +20,7 @@ class TypoModuleWriter(BaseModuleWriter):
     ) -> None:
         super().__init__(destination=destination)
         self.confidence_threshold = confidence_threshold
-        self.token2token_id, self.token_id2token = get_maps(
-            tokenizer,
-            RESOURCE_PATH / "typo_correction" / "multi_char_vocab.txt",
-        )
+        self.token2token_id, self.token_id2token = get_maps(tokenizer)
 
     def write_on_batch_end(
         self,
