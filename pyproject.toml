@@ -96,22 +96,20 @@ pytest-profiling = "^1.7"
 [tool.poetry.scripts]
 kwja = "kwja.cli.cli:app"
 
-[tool.black]
+[tool.ruff]
 line-length = 120
-target-version = ["py39", "py310", "py311"]
+indent-width = 4
+src = ["src"]
+target-version = "py39"  # The minimum Python version to target
 
-[tool.isort]
-line_length = 120
-py_version = 39
-profile = "black"
-src_paths = ["src"]
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
 
-[tool.flake8]
-# E203 is not PEP8 compliant and black insert space around slice (https://black.readthedocs.io/en/stable/faq.html#why-are-flake8-s-e203-and-w503-violated)
-# E501: Line too long. Disable it to allow long lines of comments and print lines which black allows.
-# W503: line break before binary operator (https://www.flake8rules.com/rules/W503.html)
-ignore = ["E203", "E501", "W503"]
-max-line-length = 120
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.mccabe]
+max-complexity = 20  # default: 10
 
 [tool.mypy]
 python_version = "3.9"

@@ -169,8 +169,8 @@ def set_named_entities(document: Document, sid2tagged_sentence: Dict[str, Senten
             alignment = align_morphemes(tagged_sentence.morphemes, sentence.morphemes)
             if alignment is None:
                 logger.warning(
-                    f'alignment ({" ".join(morpheme.surf for morpheme in tagged_sentence.morphemes)} | '
-                    f'{" ".join(morpheme.surf for morpheme in sentence.morphemes)}) not found'
+                    f"alignment ({' '.join(morpheme.surf for morpheme in tagged_sentence.morphemes)} | "
+                    f"{' '.join(morpheme.surf for morpheme in sentence.morphemes)}) not found"
                 )
                 continue
 
@@ -187,8 +187,8 @@ def set_named_entities(document: Document, sid2tagged_sentence: Dict[str, Senten
                     morphemes[-1].base_phrase.features["NE"] = f"{named_entity.category.value}:{named_entity.text}"
                 else:
                     logger.warning(
-                        f'morpheme span of {" ".join(morpheme.surf for morpheme in morphemes_buff)} not found in '
-                        f'{" ".join(morpheme.surf for morpheme in sentence.morphemes)}'
+                        f"morpheme span of {' '.join(morpheme.surf for morpheme in morphemes_buff)} not found in "
+                        f"{' '.join(morpheme.surf for morpheme in sentence.morphemes)}"
                     )
 
 
@@ -235,8 +235,8 @@ def refresh(document: Document) -> None:
                 # あるnamed entityの一部もまたnamed entityである場合、外側だけ残す
                 if len(span1 & span2) > 0 and len(span1) < len(span2):
                     logger.warning(
-                        f'NE tag {" ".join(morpheme.surf for morpheme in ne1.morphemes)} removed '
-                        f'due to the named entity {" ".join(morpheme.surf for morpheme in ne2.morphemes)} '
+                        f"NE tag {' '.join(morpheme.surf for morpheme in ne1.morphemes)} removed "
+                        f"due to the named entity {' '.join(morpheme.surf for morpheme in ne2.morphemes)} "
                         f"({sentence.sid}:{sentence.text})"
                     )
                     del ne1.morphemes[-1].base_phrase.features["NE"]
@@ -316,9 +316,9 @@ def assign_features_and_save(
             Path(f"knp_error_{document.doc_id}.knp").write_text(document.to_knp())
             continue
 
-        assert len(document.to_knp().split("\n")) == len(
-            knp_text.split("\n")
-        ), f"knp text length mismatch: {document.doc_id}"
+        assert len(document.to_knp().split("\n")) == len(knp_text.split("\n")), (
+            f"knp text length mismatch: {document.doc_id}"
+        )
 
         # 初めから付いていた素性およびKNPサポート外の活用・品詞の付与
         for morpheme, features in zip(document.morphemes, morpheme_features):

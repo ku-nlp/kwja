@@ -374,7 +374,7 @@ class MorphemeDenormalizer:
 
 def is_kana(char):
     # this ignores extended kana
-    if "\u3040" <= char <= "\u30FF":
+    if "\u3040" <= char <= "\u30ff":
         return True
     return False
 
@@ -394,6 +394,6 @@ def find_kanji_ga(surf) -> int:
 
 def is_chinese_char(char: str) -> bool:
     # this ignores minor Chinese characters
-    if "\u4E00" <= char <= "\u9FFF":
+    if "\u4e00" <= char <= "\u9fff":
         return True
     return False

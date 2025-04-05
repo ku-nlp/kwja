@@ -93,9 +93,9 @@ class TypoModuleMetric(BaseModuleMetric):
                 if predicted_diff in queue:
                     intersection.append(predicted_text)
                     queue.remove(predicted_diff)
-            assert (
-                len(predicted_diffs) - len(intersection) >= 0 and len(gold_diffs) - len(intersection) >= 0
-            ), "invalid computation of tp"
+            assert len(predicted_diffs) - len(intersection) >= 0 and len(gold_diffs) - len(intersection) >= 0, (
+                "invalid computation of tp"
+            )
             tp += len(intersection)
             fp += len(predicted_diffs) - len(intersection)
             fn += len(gold_diffs) - len(intersection)

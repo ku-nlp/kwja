@@ -59,7 +59,7 @@ class CustomPostfixColumn(ProgressColumn):
 
         task_speed = f"{task.speed:>.2f}" if task.speed is not None else "0.00"
         return Text(
-            f"{completed:{total_width}d}/{total} " f"{elapsed_delta} • {remaining_delta} " f"{task_speed}it/s",
+            f"{completed:{total_width}d}/{total} {elapsed_delta} • {remaining_delta} {task_speed}it/s",
             style=self.style,
         )
 

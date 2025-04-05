@@ -40,7 +40,7 @@ def get_reading2reading_id(path: Path) -> Dict[str, int]:
 
 
 class ReadingAligner:
-    kana_re = re.compile("^[\u3041-\u30FF]+$")
+    kana_re = re.compile("^[\u3041-\u30ff]+$")
 
     def __init__(self, tokenizer: PreTrainedTokenizerBase, kanji_dic: KanjiDic) -> None:
         self.tokenizer = tokenizer
@@ -54,9 +54,9 @@ class ReadingAligner:
         for token_id, word_id in enumerate(encoding.word_ids):
             word_id2subwords[word_id].append(self.tokenizer.decode(encoding.ids[token_id]))
         subwords_per_morpheme = [subwords for subwords in word_id2subwords.values()]
-        assert len(subwords_per_morpheme) == len(
-            morphemes
-        ), f"inconsistent segmentation: {subwords_per_morpheme} / {morphemes}"
+        assert len(subwords_per_morpheme) == len(morphemes), (
+            f"inconsistent segmentation: {subwords_per_morpheme} / {morphemes}"
+        )
 
         readings: List[str] = []
         for morpheme, subwords in zip(morphemes, subwords_per_morpheme):

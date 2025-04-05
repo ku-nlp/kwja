@@ -73,8 +73,7 @@ class CharDataset(BaseDataset[CharExample, CharModuleFeatures], FullAnnotatedDoc
             example_id += 1
         if len(examples) == 0:
             logger.error(
-                "No examples to process. "
-                f"Make sure there exist any documents in {self.path} and they are not too long."
+                f"No examples to process. Make sure there exist any documents in {self.path} and they are not too long."
             )
         return examples
 

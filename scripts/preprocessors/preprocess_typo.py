@@ -58,7 +58,7 @@ def decompose(pre_text: str, post_text: str, diffs: List[dict]) -> Optional[List
             src_same = monitor[f"{src}_text"][:start]
             tgt_same = monitor[f"{tgt}_text"][:start]
             if src_same != tgt_same:  # diffs以外にもtypoを含んでいる
-                logger.warning(f'"{monitor[f"pre_text"]}" != "{monitor[f"post_text"]}" ... skip')
+                logger.warning(f'"{monitor["pre_text"]}" != "{monitor["post_text"]}" ... skip')
                 return None
             src_diff = monitor[f"{src}_text"][start : start + len(diff[f"{src}_str"])]
             tgt_diff = monitor[f"{tgt}_text"][start : start + len(diff[f"{tgt}_str"])]
@@ -84,7 +84,7 @@ def decompose(pre_text: str, post_text: str, diffs: List[dict]) -> Optional[List
             break
     if len(monitor["pre_text"]) > 0 and len(monitor["post_text"]) > 0:
         if monitor["pre_text"] != monitor["post_text"]:  # diffs以外にもtypoを含んでいる
-            logger.warning(f'"{monitor[f"pre_text"]}" != "{monitor[f"post_text"]}" ... skip')
+            logger.warning(f'"{monitor["pre_text"]}" != "{monitor["post_text"]}" ... skip')
             return None
         components.append(Component(pre_str=monitor["pre_text"], post_str=monitor["post_text"], type="equal"))
     return components
