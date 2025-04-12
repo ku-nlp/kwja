@@ -2,15 +2,15 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, Optional, Union
 
 import torch
 from torch.hub import download_url_to_file
 
 import kwja
-from kwja.cli.config import ModelSize
+from kwja.cli.config import ModelSize, Device
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("kwja_cli")
 
 ENV_KWJA_CACHE_DIR = "KWJA_CACHE_DIR"
 ENV_XDG_CACHE_HOME = "XDG_CACHE_HOME"
@@ -97,15 +97,23 @@ def _get_model_version() -> str:
     return version_map[(version_fields[0], version_fields[1])]
 
 
-def prepare_device(device_name: str) -> Tuple[str, torch.device]:
-    n_gpu = torch.cuda.device_count()
-    if device_name == "auto":
-        if n_gpu > 0:
-            device_name = "gpu"
+def prepare_device(device_type: Device) -> torch.device:
+    is_cuda_available = torch.cuda.is_available()
+    is_mps_available = torch.backends.mps.is_available()
+
+    if device_type == Device.AUTO:
+        if is_cuda_available:
+            device_type = Device.GPU
+        elif is_mps_available:
+            device_type = Device.MPS
         else:
-            device_name = "cpu"
-    if device_name == "gpu" and n_gpu == 0:
+            device_type = Device.CPU
+
+    if device_type == Device.GPU and not is_cuda_available:
         logger.warning("There's no GPU available on this machine. Using CPU instead.")
-        return "cpu", torch.device("cpu")
-    else:
-        return device_name, torch.device("cuda:0" if device_name == "gpu" else "cpu")
+        device_type = Device.CPU
+    elif device_type == Device.MPS and not is_mps_available:
+        logger.warning("MPS is not available on this machine. Using CPU instead.")
+        device_type = Device.CPU
+
+    return torch.device(device_type.value)

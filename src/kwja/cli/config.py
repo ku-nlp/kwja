@@ -23,6 +23,7 @@ class Device(str, Enum):
     AUTO = "auto"
     CPU = "cpu"
     GPU = "gpu"
+    MPS = "mps"
 
 
 class ModelSize(str, Enum):

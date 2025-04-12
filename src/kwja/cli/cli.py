@@ -46,7 +46,7 @@ class BaseModuleProcessor(ABC):
 
     def __init__(self, config: CLIConfig, batch_size: int) -> None:
         self.config: CLIConfig = config
-        self.device_name, self.device = prepare_device(config.device.value)
+        self.device = prepare_device(config.device)
         self.model_size: ModelSize = config.model_size
         self.batch_size: int = batch_size
         self.destination = Path(NamedTemporaryFile().name)
@@ -68,7 +68,7 @@ class BaseModuleProcessor(ABC):
                 ),
                 hydra.utils.instantiate(self.module.hparams.callbacks.progress_bar),
             ],
-            accelerator=self.device_name,
+            accelerator=self.device.type,
             devices=1,
         )
 
