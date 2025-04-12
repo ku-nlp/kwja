@@ -23,6 +23,7 @@ from kwja.modules.functions.loss import (
     compute_token_mean_loss,
     mask_logits,
 )
+from kwja.modules.components.deberta_v2 import DebertaV2Model
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TAGS,
@@ -117,11 +118,13 @@ class WordModule(BaseModule[WordModuleMetric]):
                 self.encoder.resize_token_embeddings(self.encoder.config.vocab_size + len(self.hparams.special_tokens))
 
     def forward(self, batch: Any) -> Dict[str, torch.Tensor]:
-        encoded = self.encoder(
-            input_ids=batch["input_ids"],
-            attention_mask=batch["attention_mask"],
-            special_token_indices=batch["special_token_indices"],
-        )  # (b, seq, hid)
+        encoder_kwargs = {
+            "input_ids": batch["input_ids"],
+            "attention_mask": batch["attention_mask"],
+        }
+        if isinstance(self.encoder, DebertaV2Model):
+            encoder_kwargs["special_token_indices"] = batch["special_token_indices"]
+        encoded = self.encoder(**encoder_kwargs)  # (b, seq, hid)
         pooled = pool_subwords(encoded.last_hidden_state, batch["subword_map"], PoolingStrategy.FIRST)  # (b, seq, hid)
 
         dependency_logits = self.dependency_parser(pooled)  # (b, seq, seq, 1)
