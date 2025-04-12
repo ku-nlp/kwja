@@ -50,12 +50,15 @@ class WordModule(BaseModule[WordModuleMetric]):
         super().__init__(hparams, WordModuleMetric(hparams.max_seq_length))
 
         self.training_tasks: List[WordTask] = list(map(WordTask, self.hparams.training_tasks))
+        self.head_dropout_prob: float = 0.05
 
         self.encoder: PreTrainedModel = hydra.utils.call(hparams.encoder.from_config)
         pretrained_model_config: PretrainedConfig = self.encoder.config
         if hasattr(hparams, "special_tokens"):
             self.encoder.resize_token_embeddings(pretrained_model_config.vocab_size + len(hparams.special_tokens))
-        head_kwargs: Dict[str, Any] = dict(hidden_size=self.encoder.config.hidden_size, hidden_dropout_prob=0.05)
+        head_kwargs: Dict[str, Any] = dict(
+            hidden_size=pretrained_model_config.hidden_size, hidden_dropout_prob=self.head_dropout_prob
+        )
 
         # ---------- reading prediction ----------
         self.reading_id2reading: Dict[int, str] = {v: k for k, v in get_reading2reading_id().items()}
@@ -83,7 +86,7 @@ class WordModule(BaseModule[WordModuleMetric]):
         self.dependency_type_parser = SequenceLabelingHead(
             len(DEPENDENCY_TYPES),
             pretrained_model_config.hidden_size * 2,
-            pretrained_model_config.hidden_dropout_prob,
+            hidden_dropout_prob=self.head_dropout_prob,
         )
 
         # ---------- cohesion analysis ----------
