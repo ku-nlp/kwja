@@ -325,11 +325,7 @@ def load_conllu(lines: List[str]):  # ADD
                 raise UDError(f"Cannot parse word ID '{_encode(columns[ID])}'")
             if word_id != len(ud.words) - sentence_start + 1:
                 raise UDError(
-                    "Incorrect word ID '{}' for word '{}', expected '{}'".format(
-                        _encode(columns[ID]),
-                        _encode(columns[FORM]),
-                        len(ud.words) - sentence_start + 1,
-                    )
+                    f"Incorrect word ID '{_encode(columns[ID])}' for word '{_encode(columns[FORM])}', expected '{len(ud.words) - sentence_start + 1}'"
                 )
 
             try:
@@ -492,19 +488,18 @@ def evaluate(gold_ud, system_ud):
                             g += 1
                         else:
                             s += 1
+            # B: No multi-word token => align according to spans.
+            elif (gold_words[gi].span.start, gold_words[gi].span.end) == (
+                system_words[si].span.start,
+                system_words[si].span.end,
+            ):
+                alignment.append_aligned_words(gold_words[gi], system_words[si])
+                gi += 1
+                si += 1
+            elif gold_words[gi].span.start <= system_words[si].span.start:
+                gi += 1
             else:
-                # B: No multi-word token => align according to spans.
-                if (gold_words[gi].span.start, gold_words[gi].span.end) == (
-                    system_words[si].span.start,
-                    system_words[si].span.end,
-                ):
-                    alignment.append_aligned_words(gold_words[gi], system_words[si])
-                    gi += 1
-                    si += 1
-                elif gold_words[gi].span.start <= system_words[si].span.start:
-                    gi += 1
-                else:
-                    si += 1
+                si += 1
 
         return alignment
 

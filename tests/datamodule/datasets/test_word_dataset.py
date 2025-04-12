@@ -23,7 +23,7 @@ from kwja.utils.constants import (
 )
 
 
-@pytest.fixture()
+@pytest.fixture
 def split_into_words_word_tokenizer(special_tokens: List[str]) -> PreTrainedTokenizerBase:
     return AutoTokenizer.from_pretrained("nlp-waseda/roberta-base-japanese", additional_special_tokens=special_tokens)
 

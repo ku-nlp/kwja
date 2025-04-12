@@ -2,10 +2,11 @@ import logging
 import os
 import sys
 from abc import ABC
+from collections.abc import Iterator
 from enum import Enum
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Dict, Iterator, List, Optional, Set, TextIO, Tuple
+from typing import Annotated, Dict, List, Optional, Set, TextIO, Tuple
 from unicodedata import normalize
 
 import hydra
@@ -15,7 +16,6 @@ import typer
 from pytorch_lightning.trainer.states import TrainerFn
 from rhoknp import Document, Sentence
 from rhoknp.utils.reader import chunk_by_document, chunk_by_sentence
-from typing_extensions import Annotated
 
 import kwja
 from kwja.cli.config import CLIConfig, Device, ModelSize, get_kwja_config_file

@@ -1,13 +1,12 @@
 import re
 from enum import Enum
-from importlib.resources import files
 from importlib.abc import Traversable
+from importlib.resources import files
 from typing import Dict, Optional, Tuple
 
 from rhoknp.props import DepType, NamedEntityCategory
 
 import kwja
-
 
 # ---------- common ----------
 IGNORE_INDEX = -100

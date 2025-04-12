@@ -242,12 +242,11 @@ class MorphologicalAnalysisScorer:
                                     gold_diff_idx += 1
                                 else:
                                     break
+                            elif pred_diff_idx < len(pred_diff_parts):
+                                pred_surf_len += len(pred_diff_parts[pred_diff_idx].surf)
+                                pred_diff_idx += 1
                             else:
-                                if pred_diff_idx < len(pred_diff_parts):
-                                    pred_surf_len += len(pred_diff_parts[pred_diff_idx].surf)
-                                    pred_diff_idx += 1
-                                else:
-                                    break
+                                break
                         diff.append(
                             DiffType(surf=True),
                             pred_diff_parts[pred_diff_idx_start:pred_diff_idx],

@@ -1,5 +1,6 @@
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, List, Optional, Sequence, Union
+from typing import Any, List, Optional, Union
 
 import pytorch_lightning as pl
 from transformers import PreTrainedTokenizerBase

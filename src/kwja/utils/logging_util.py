@@ -1,9 +1,10 @@
 import logging
 import sys
 import warnings
+from collections.abc import Iterable, Sequence
 from datetime import timedelta
 from functools import partial
-from typing import Iterable, List, Literal, Optional, Sequence, Union
+from typing import List, Literal, Optional, Union
 
 from lightning_fabric.utilities.warnings import PossibleUserWarning
 from rich.console import Console

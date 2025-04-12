@@ -1,7 +1,8 @@
 import sys
+from collections.abc import Sequence
 from io import TextIOBase
 from pathlib import Path
-from typing import Any, Optional, Sequence, TextIO, Union
+from typing import Any, Optional, TextIO, Union
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import BasePredictionWriter

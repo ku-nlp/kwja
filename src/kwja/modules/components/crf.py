@@ -2,7 +2,7 @@ from math import sqrt
 from typing import List, Literal, Optional, Tuple
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 from kwja.utils.constants import MASKED
 

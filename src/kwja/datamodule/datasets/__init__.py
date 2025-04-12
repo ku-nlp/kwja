@@ -8,12 +8,12 @@ from .word import WordDataset
 from .word_inference import WordInferenceDataset
 
 __all__ = [
-    "TypoDataset",
-    "TypoInferenceDataset",
     "CharDataset",
     "CharInferenceDataset",
     "Seq2SeqDataset",
     "Seq2SeqInferenceDataset",
+    "TypoDataset",
+    "TypoInferenceDataset",
     "WordDataset",
     "WordInferenceDataset",
 ]

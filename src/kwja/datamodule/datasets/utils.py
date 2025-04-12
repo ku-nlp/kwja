@@ -1,5 +1,6 @@
+from collections.abc import Iterable, Iterator, Sequence
 from datetime import datetime
-from typing import Iterable, Iterator, List, Optional, Sequence, TextIO
+from typing import List, Optional, TextIO
 
 from rhoknp import Document
 

@@ -345,7 +345,7 @@ def assign_features_and_save(
 
 
 def test_jumanpp_version():
-    out = subprocess.run(["jumanpp", "--version"], capture_output=True, encoding="utf-8", text=True)
+    out = subprocess.run(["jumanpp", "--version"], capture_output=True, encoding="utf-8", text=True, check=False)
     match = re.match(r"Juman\+\+ Version: 2\.0\.0-dev\.(\d{8}).+", out.stdout)
     assert match is not None and int(match.group(1)) >= 20220605, "Juman++ version is old. Please update Juman++."
 
@@ -530,9 +530,8 @@ def main():
         if output_root.parts[-1] == "kyoto_ed":
             if id_file.stem != "all":
                 continue
-        else:
-            if id_file.stem not in {"train", "dev", "test"}:
-                continue
+        elif id_file.stem not in {"train", "dev", "test"}:
+            continue
         split = "valid" if id_file.stem == "dev" else id_file.stem
         output_root.joinpath(split).mkdir(parents=True, exist_ok=True)
         for doc_id in id_file.read_text().splitlines():

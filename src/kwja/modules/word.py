@@ -10,6 +10,7 @@ from transformers import PretrainedConfig, PreTrainedModel
 
 from kwja.modules.base import BaseModule
 from kwja.modules.components.crf import CRF
+from kwja.modules.components.deberta_v2 import DebertaV2Model
 from kwja.modules.components.head import (
     LoRARelationWiseWordSelectionHead,
     LoRASequenceMultiLabelingHead,
@@ -23,7 +24,6 @@ from kwja.modules.functions.loss import (
     compute_token_mean_loss,
     mask_logits,
 )
-from kwja.modules.components.deberta_v2 import DebertaV2Model
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TAGS,

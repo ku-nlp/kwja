@@ -8,7 +8,7 @@ import torch
 from torch.hub import download_url_to_file
 
 import kwja
-from kwja.cli.config import ModelSize, Device
+from kwja.cli.config import Device, ModelSize
 
 logger = logging.getLogger("kwja_cli")
 

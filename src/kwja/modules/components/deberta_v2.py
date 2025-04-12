@@ -2,8 +2,8 @@
 from typing import Optional, Tuple, Union
 
 import torch
-import torch.nn as nn
 import torch.utils.checkpoint
+from torch import nn
 from transformers.models.deberta_v2.modeling_deberta_v2 import (
     DEBERTA_INPUTS_DOCSTRING,
     DEBERTA_START_DOCSTRING,
@@ -16,9 +16,9 @@ from transformers.models.deberta_v2.modeling_deberta_v2 import (
     DebertaV2SelfOutput,
     LayerNorm,
     Sequence,
-    scaled_size_sqrt,
-    build_rpos,
     build_relative_position,
+    build_rpos,
+    scaled_size_sqrt,
 )
 from transformers.utils import (
     add_code_sample_docstrings,

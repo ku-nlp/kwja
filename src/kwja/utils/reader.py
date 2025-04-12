@@ -1,4 +1,5 @@
-from typing import Iterator, List, TextIO
+from collections.abc import Iterator
+from typing import List, TextIO
 
 from rhoknp import Sentence
 from rhoknp.utils.comment import is_comment_line

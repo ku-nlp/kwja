@@ -4,8 +4,8 @@ from .typo_module_writer import TypoModuleWriter
 from .word_module_writer import WordModuleWriter
 
 __all__ = [
-    "TypoModuleWriter",
     "CharModuleWriter",
     "Seq2SeqModuleWriter",
+    "TypoModuleWriter",
     "WordModuleWriter",
 ]

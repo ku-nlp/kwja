@@ -1,8 +1,9 @@
 import sys
 from collections import defaultdict
+from collections.abc import Iterator
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
-from typing import Dict, Iterator, List
+from typing import Dict, List
 
 from rhoknp import Document
 

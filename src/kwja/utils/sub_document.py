@@ -1,6 +1,7 @@
 import re
+from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Iterator, List, Tuple, Union
+from typing import List, Tuple, Union
 
 from rhoknp import Document, Sentence
 

@@ -285,8 +285,7 @@ def add_named_entities(sentence: Sentence, ne_predictions: List[int]) -> None:
         else:
             _clear_morpheme_buffer(morpheme_buffer, category)
             category = ""
-    else:
-        _clear_morpheme_buffer(morpheme_buffer, category)
+    _clear_morpheme_buffer(morpheme_buffer, category)
 
 
 def _clear_morpheme_buffer(morpheme_buffer: List[Morpheme], category: str) -> None:

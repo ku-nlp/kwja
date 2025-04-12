@@ -1,5 +1,5 @@
 import torch
-import torch.nn as nn
+from torch import nn
 
 from kwja.utils.constants import IGNORE_INDEX, MASKED
 

@@ -4,8 +4,8 @@ from typing import Any, Dict, Generic, List, TypeVar
 
 import hydra
 import pytorch_lightning as pl
-from lightning_fabric import Fabric
 import torch
+from lightning_fabric import Fabric
 from omegaconf import DictConfig, ListConfig, OmegaConf
 from torch.serialization import FILE_LIKE, MAP_LOCATION  # type: ignore
 from typing_extensions import Self

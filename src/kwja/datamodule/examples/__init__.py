@@ -4,13 +4,13 @@ from .typo import TypoExample, TypoInferenceExample
 from .word import SpecialTokenIndexer, WordExample, WordInferenceExample
 
 __all__ = [
-    "TypoExample",
-    "TypoInferenceExample",
     "CharExample",
     "CharInferenceExample",
     "Seq2SeqExample",
     "Seq2SeqInferenceExample",
     "SpecialTokenIndexer",
+    "TypoExample",
+    "TypoInferenceExample",
     "WordExample",
     "WordInferenceExample",
 ]

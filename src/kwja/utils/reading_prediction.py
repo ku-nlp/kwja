@@ -20,10 +20,10 @@ from kwja.utils.constants import (
     LOWER2UPPER,
     PROLONGED_MAP,
     PROLONGED_MAP_FOR_EROW,
+    RESOURCE_TRAVERSABLE,
     UNK,
     UNK_ID,
     VOICED2VOICELESS,
-    RESOURCE_TRAVERSABLE,
 )
 from kwja.utils.kanjidic import KanjiDic
 

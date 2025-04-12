@@ -178,13 +178,12 @@ class SurfForcedDecodingLogitsProcessor(LogitsProcessor):
         ]
         if prev_input_ids[-1] == self.vocab[CANON_TOKEN]:
             prohibited_token_ids += [self.tokenizer.eos_token_id, self.vocab[SURF_TOKEN]]
+        elif prev_input_ids.count(self.vocab[READING_TOKEN]) < len(self.batch_surfs[batch_idx]):
+            prohibited_token_ids += [self.tokenizer.eos_token_id, self.vocab[NO_CANON_TOKEN]]
         else:
-            if prev_input_ids.count(self.vocab[READING_TOKEN]) < len(self.batch_surfs[batch_idx]):
-                prohibited_token_ids += [self.tokenizer.eos_token_id, self.vocab[NO_CANON_TOKEN]]
-            else:
-                prohibited_token_ids += [self.vocab[SURF_TOKEN], self.vocab[NO_CANON_TOKEN]]
-                if logits.argmax().item() == self.tokenizer.eos_token_id:
-                    self.is_finished[batch_idx] = True
+            prohibited_token_ids += [self.vocab[SURF_TOKEN], self.vocab[NO_CANON_TOKEN]]
+            if logits.argmax().item() == self.tokenizer.eos_token_id:
+                self.is_finished[batch_idx] = True
         canon_mask[prohibited_token_ids] = False
         return canon_mask
 

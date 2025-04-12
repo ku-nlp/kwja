@@ -1,8 +1,9 @@
 import logging
 from collections import defaultdict
+from collections.abc import Sequence
 from itertools import product
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pytorch_lightning as pl
 from jinf import Jinf
