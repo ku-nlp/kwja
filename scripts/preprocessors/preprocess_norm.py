@@ -15,11 +15,11 @@ logging.basicConfig()
 logger.setLevel(logging.INFO)
 
 
-def is_hiragana(value):
+def is_hiragana(value: str) -> bool:
     return re.match(r"^[\u3040-\u309F\u30FC]+$", value) is not None
 
 
-def main():
+def main() -> None:
     parser = ArgumentParser()
     parser.add_argument("-io", "--input-orig-path", type=str, required=True)
     parser.add_argument("-ij", "--input-juman-path", type=str, required=True)

@@ -26,7 +26,7 @@ class BaseDataset(Dataset[FeatureType], Generic[ExampleType, FeatureType], ABC):
         self.max_seq_length: int = max_seq_length
         self.examples: list[ExampleType] = []
 
-    def __getitem__(self, index) -> FeatureType:
+    def __getitem__(self, index: int) -> FeatureType:
         return self.encode(self.examples[index])
 
     def __len__(self) -> int:

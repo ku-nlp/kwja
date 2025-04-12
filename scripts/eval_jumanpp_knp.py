@@ -8,7 +8,7 @@ from kwja.metrics.word import WordModuleMetric
 CORPORA: tuple[str, ...] = ("kwdlc", "kyoto", "fuman", "wac")
 
 
-def evaluate_docs(documents: list[Document]):
+def evaluate_docs(documents: list[Document]) -> tuple[dict[str, float], int]:
     word_module_metric = WordModuleMetric(-1)
     knp = KNP(options=["-tab", "-dpnd"])
     (
@@ -65,7 +65,7 @@ def evaluate_docs(documents: list[Document]):
     return metrics, len(gold_documents)
 
 
-def main():
+def main() -> None:
     for corpus in CORPORA:
         knp_dir = Path(sys.argv[1]) / corpus / "test"
         metrics, num_docs = evaluate_docs(

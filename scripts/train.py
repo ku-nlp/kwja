@@ -17,7 +17,7 @@ filter_logs(environment="development")
 
 
 @hydra.main(version_base=None, config_path="../configs")
-def main(cfg: DictConfig):
+def main(cfg: DictConfig) -> None:
     load_dotenv()
     if isinstance(cfg.devices, str):
         cfg.devices = list(map(int, cfg.devices.split(","))) if "," in cfg.devices else int(cfg.devices)

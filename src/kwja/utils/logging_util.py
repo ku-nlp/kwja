@@ -8,7 +8,7 @@ from typing import Literal, Optional, Union
 
 from lightning_fabric.utilities.warnings import PossibleUserWarning
 from rich.console import Console
-from rich.progress import BarColumn, Progress, ProgressColumn, ProgressType, TextColumn
+from rich.progress import BarColumn, Progress, ProgressColumn, ProgressType, Task, TextColumn
 from rich.style import StyleType
 from rich.text import Text
 from transformers.utils import logging as hf_logging
@@ -48,7 +48,7 @@ class CustomPostfixColumn(ProgressColumn):
         self.style = style
         super().__init__()
 
-    def render(self, task) -> Text:
+    def render(self, task: Task) -> Text:
         completed = int(task.completed)
         total = int(task.total) if task.total is not None else "?"
         total_width = len(str(total))
@@ -71,7 +71,7 @@ def track(
     total: Optional[float] = None,
     console: Optional[Console] = None,
     update_period: float = 1.0,
-):
+) -> Iterable[ProgressType]:
     columns: list[ProgressColumn] = [
         TextColumn("[progress.description]{task.description}", style="white"),
         BarColumn(

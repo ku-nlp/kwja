@@ -9,13 +9,13 @@ from transformers import PreTrainedTokenizerBase
 from kwja.datamodule.datasets import WordInferenceDataset
 
 
-def test_init(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[str, Any]):
+def test_init(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[str, Any]) -> None:
     max_seq_length = 256
     document_split_stride = 1
     _ = WordInferenceDataset(word_tokenizer, max_seq_length, document_split_stride, **dataset_kwargs)
 
 
-def test_len(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[str, Any]):
+def test_len(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[str, Any]) -> None:
     max_seq_length = 256
     document_split_stride = 1
     juman_text = dedent(
@@ -38,7 +38,7 @@ def test_len(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[str, 
     assert len(dataset) == 1
 
 
-def test_len_multi_doc(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[str, Any]):
+def test_len_multi_doc(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[str, Any]) -> None:
     max_seq_length = 256
     document_split_stride = 1
     juman_text = dedent(
@@ -67,7 +67,7 @@ def test_len_multi_doc(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: 
     assert len(dataset) == 2
 
 
-def test_getitem(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[str, Any]):
+def test_getitem(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[str, Any]) -> None:
     max_seq_length = 256
     document_split_stride = 1
     juman_text = dedent(

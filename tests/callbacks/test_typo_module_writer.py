@@ -15,7 +15,7 @@ from kwja.datamodule.datasets.typo import get_maps
 
 
 class MockTrainer:
-    def __init__(self, predict_dataloaders: list[DataLoader]):
+    def __init__(self, predict_dataloaders: list[DataLoader]) -> None:
         self.predict_dataloaders = predict_dataloaders
 
 
@@ -27,11 +27,11 @@ class MockTrainer:
         str(Path(TemporaryDirectory().name) / "typo_prediction.juman"),
     ],
 )
-def test_init(destination: Optional[Union[str, Path]], typo_tokenizer: PreTrainedTokenizerBase):
+def test_init(destination: Optional[Union[str, Path]], typo_tokenizer: PreTrainedTokenizerBase) -> None:
     _ = TypoModuleWriter(confidence_threshold=0.9, tokenizer=typo_tokenizer, destination=destination)
 
 
-def test_write_on_batch_end(typo_tokenizer: PreTrainedTokenizerBase):
+def test_write_on_batch_end(typo_tokenizer: PreTrainedTokenizerBase) -> None:
     texts = ["この文は解析されません…", "待つの木が枯れる", "紹介ことなかった", "この文は解析されません…"]
     num_examples = 2  # num_stash = 2
     max_seq_length = 32  # >= 11

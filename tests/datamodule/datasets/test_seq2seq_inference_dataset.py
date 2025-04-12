@@ -7,13 +7,13 @@ from transformers import PreTrainedTokenizerFast
 from kwja.datamodule.datasets import Seq2SeqInferenceDataset
 
 
-def test_init(seq2seq_tokenizer: PreTrainedTokenizerFast):
+def test_init(seq2seq_tokenizer: PreTrainedTokenizerFast) -> None:
     max_src_length = 128
     max_tgt_length = 512
     _ = Seq2SeqInferenceDataset(seq2seq_tokenizer, max_src_length, max_tgt_length)
 
 
-def test_len(seq2seq_tokenizer: PreTrainedTokenizerFast):
+def test_len(seq2seq_tokenizer: PreTrainedTokenizerFast) -> None:
     max_src_length = 128
     max_tgt_length = 512
     juman_text = dedent(
@@ -56,7 +56,7 @@ def test_len(seq2seq_tokenizer: PreTrainedTokenizerFast):
     assert len(dataset) == 4
 
 
-def test_getitem(seq2seq_tokenizer: PreTrainedTokenizerFast):
+def test_getitem(seq2seq_tokenizer: PreTrainedTokenizerFast) -> None:
     max_src_length = 128
     max_tgt_length = 512
     surfs = [

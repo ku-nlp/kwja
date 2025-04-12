@@ -95,7 +95,7 @@ seq2seq_formats: list[str] = [
 ]
 
 
-def test_get_surfs(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast):
+def test_get_surfs(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast) -> None:
     surfs: list[str] = [
         "計算 機 に よる 言語 理解 を 実現 する",
         "また , 校区 で 行わ れる 事業 や 防犯 など 校区 の 情報 も 記載 さ れて い ます 。",
@@ -113,7 +113,7 @@ def test_get_surfs(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast):
             assert seq2seq_formatter.get_surfs(sentence) == surfs[idx].split(" ")
 
 
-def test_get_src_tokens(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast):
+def test_get_src_tokens(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast) -> None:
     src_tokens: list[list[str]] = [
         ["計算", "機", "に", "よ る", "言語", "理解", "を", "実現", "する"],
         [
@@ -157,7 +157,7 @@ def test_get_src_tokens(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFa
             ] == expected_src_tokens[:-1]
 
 
-def test_get_tgt_tokens(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast):
+def test_get_tgt_tokens(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast) -> None:
     seq2seq_formatter = Seq2SeqFormatter(seq2seq_tokenizer)
     juman_dir: Path = data_dir / "modules" / "juman"
     for idx, path in enumerate(sorted(juman_dir.glob("*.juman"))):
@@ -177,7 +177,7 @@ def test_get_tgt_tokens(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFa
             assert seq2seq_formatter.get_tgt_tokens(sentence) == expected_tgt_tokens
 
 
-def test_format_to_sent(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast):
+def test_format_to_sent(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast) -> None:
     seq2seq_formatter = Seq2SeqFormatter(seq2seq_tokenizer)
     juman_dir: Path = data_dir / "modules" / "juman"
     for idx, path in enumerate(sorted(juman_dir.glob("*.juman"))):

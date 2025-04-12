@@ -72,12 +72,12 @@ wellformed_list = [
 
 
 @pytest.mark.parametrize(("surf", "ops", "expected"), wellformed_list)
-def test_gen_normalized_surf(surf, ops, expected):
+def test_gen_normalized_surf(surf: str, ops: list[str], expected: str) -> None:
     assert get_normalized_surf(surf, ops, strict=True) == expected
 
 
 @pytest.mark.parametrize(("surf", "expected", "normalized"), wellformed_list)
-def test_get_normalization_opns(surf, expected, normalized):
+def test_get_normalization_opns(surf: str, expected: list[str], normalized: str) -> None:
     word_norm_op_tags = get_word_norm_op_tags(surf, normalized)
     assert len(word_norm_op_tags) == len(expected)
     assert all([a == b for a, b in zip(word_norm_op_tags, expected)])
@@ -91,17 +91,17 @@ malformed_list = [
 
 
 @pytest.mark.parametrize(("surf", "ops", "expected"), malformed_list)
-def test_gen_normalized_surf_malformed(surf, ops, expected):  # noqa: ARG001
+def test_gen_normalized_surf_malformed(surf: str, ops: list[str], expected: str) -> None:  # noqa: ARG001
     with pytest.raises(ValueError, match=r"(not a small kana \w+ in \w+|no preceding kana for \w+ in \w+)"):
         get_normalized_surf(surf, ops, strict=True)
 
 
 @pytest.mark.parametrize(("surf", "ops", "expected"), malformed_list)
-def test_gen_normalized_surf_malformed_loose(surf, ops, expected):
+def test_gen_normalized_surf_malformed_loose(surf: str, ops: list[str], expected: str) -> None:
     assert get_normalized_surf(surf, ops, strict=False) == expected
 
 
-def test_morpheme_normalizer():
+def test_morpheme_normalizer() -> None:
     jumanpp_text = 'きたー きた きる 動詞 2 * 0 母音動詞 1 タ形 10 "代表表記:着る/きる ドメイン:家庭・暮らし 反義:動詞:脱ぐ/ぬぐ 非標準表記:DPL"'
     expected = ["K", "K", "D"]
     morpheme = Morpheme.from_jumanpp(jumanpp_text)
@@ -121,6 +121,6 @@ def test_morpheme_normalizer():
         ("八ケ岳", "八ヶ岳"),
     ],
 )
-def test_denormalize_deterministic(surf, expected):
+def test_denormalize_deterministic(surf: str, expected: str) -> None:
     md = MorphemeDenormalizer()
     assert md._denormalize_deterministic(surf) == expected

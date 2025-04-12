@@ -43,7 +43,7 @@ class DataModule(pl.LightningDataModule):
             ]
         ] = None
 
-    def prepare_data(self):
+    def prepare_data(self) -> None:
         pass
 
     def setup(self, stage: Optional[str] = None) -> None:

@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s: %(message)s", level=logging.DEBUG)
 
 
-def main():
+def main() -> None:
     parser = ArgumentParser()
     parser.add_argument(
         "-i",

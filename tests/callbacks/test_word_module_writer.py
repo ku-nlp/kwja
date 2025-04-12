@@ -45,7 +45,7 @@ AMBIG_SURF_SPECS = [
 
 
 class MockTrainer:
-    def __init__(self, predict_dataloaders: list[DataLoader]):
+    def __init__(self, predict_dataloaders: list[DataLoader]) -> None:
         self.predict_dataloaders = predict_dataloaders
 
 
@@ -71,11 +71,11 @@ def build_dummy_jumandic() -> JumanDic:
         str(Path(tempfile.TemporaryDirectory().name) / Path("word_prediction.knp")),
     ],
 )
-def test_init(destination: Optional[Union[str, Path]]):
+def test_init(destination: Optional[Union[str, Path]]) -> None:
     _ = WordModuleWriter(AMBIG_SURF_SPECS, destination=destination)
 
 
-def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[str, Any]):
+def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[str, Any]) -> None:
     doc_id_prefix = "test"
     juman_text = dedent(
         f"""\

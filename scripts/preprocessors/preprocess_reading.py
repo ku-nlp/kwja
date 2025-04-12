@@ -12,7 +12,7 @@ from kwja.utils.reading_prediction import ReadingAligner
 logger = logging.getLogger(__name__)
 
 
-def main():
+def main() -> None:
     parser = ArgumentParser()
     parser.add_argument("-m", "--model-name-or-path", type=str, help="model_name_or_path")
     parser.add_argument("-k", "--kanji-dic", type=str, help="path to kanji dic file")

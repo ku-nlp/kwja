@@ -25,7 +25,7 @@ jinf = Jinf()
 STOP_SURFS: set[str] = {'"', "\u3000"}
 
 
-def is_hiragana(value):
+def is_hiragana(value: str) -> bool:
     return re.match(r"^[\u3040-\u309F\u30FC]+$", value) is not None
 
 
@@ -68,7 +68,7 @@ def get_is_excluded(sentence: Sentence) -> bool:
     return is_excluded
 
 
-def main():
+def main() -> None:
     parser = ArgumentParser()
     parser.add_argument("-i", "--input-dirs", nargs="*", required=True)
     parser.add_argument("-o", "--output-dir", type=str, required=True)
@@ -123,7 +123,8 @@ def main():
         target_canons: set[str] = set()
         target_morpheme_indexes: set[int] = set()
         for morpheme in sentence.morphemes:
-            canons: list[str] = get_canons(morpheme)
+            canons = get_canons(morpheme)
+            assert morpheme.canon is not None
             if len(canons) > 1 or sampled_canon2freq.get(morpheme.canon, 0) >= args.max_samples:
                 continue
 
@@ -143,7 +144,6 @@ def main():
                 surf_before: str = copy.deepcopy(morpheme.text)
                 lemma_before: str = copy.deepcopy(morpheme.lemma)
                 morpheme.text = surf
-                morpheme._text_escaped = surf
                 morpheme.lemma = lemma
                 info[morpheme.index] = {
                     "partial_annotation_type": "canon",
@@ -193,8 +193,7 @@ def main():
     with open(output_dir / "sampled2freq.txt", "w") as f:
         for canon, freq in sampled_canon2freq.items():
             f.write(f"{canon}\t{freq}\n")
-    with open(output_dir / "info.json", "w") as f:
-        json.dump(sid2info, f, indent=2, ensure_ascii=False)
+    output_dir.joinpath("info.json").write_text(json.dumps(sid2info, indent=2, ensure_ascii=False))
 
     train_dir: Path = output_dir / "train"
     if train_dir.exists():

@@ -7,14 +7,14 @@ from kwja.datamodule.datasets import CharDataset
 from kwja.utils.constants import IGNORE_INDEX, WORD_NORM_OP_TAGS, WORD_SEGMENTATION_TAGS
 
 
-def test_init(data_dir: Path, char_tokenizer: PreTrainedTokenizerBase):
+def test_init(data_dir: Path, char_tokenizer: PreTrainedTokenizerBase) -> None:
     path = data_dir / "datasets" / "char_files"
     max_seq_length = 512
     denormalize_probability = 0.0
     _ = CharDataset(str(path), char_tokenizer, max_seq_length, denormalize_probability)
 
 
-def test_getitem(data_dir: Path, char_tokenizer: PreTrainedTokenizerBase):
+def test_getitem(data_dir: Path, char_tokenizer: PreTrainedTokenizerBase) -> None:
     path = data_dir / "datasets" / "char_files"
     max_seq_length: int = 512
     denormalize_probability = 0.0
@@ -29,7 +29,7 @@ def test_getitem(data_dir: Path, char_tokenizer: PreTrainedTokenizerBase):
         assert len(feature.word_norm_op_labels) == max_seq_length
 
 
-def test_encode(data_dir: Path, char_tokenizer: PreTrainedTokenizerBase):
+def test_encode(data_dir: Path, char_tokenizer: PreTrainedTokenizerBase) -> None:
     path = data_dir / "datasets" / "char_files"
     max_seq_length = 512
     denormalize_probability = 0.0

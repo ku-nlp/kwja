@@ -53,7 +53,7 @@ class BaseModuleProcessor(ABC):
         self.module: Optional[pl.LightningModule] = None
         self.trainer: Optional[pl.Trainer] = None
 
-    def load(self, **writer_kwargs):
+    def load(self, **writer_kwargs) -> None:
         self.module = self._load_module()
         if self.config.torch_compile is True:
             self.module = torch.compile(self.module)  # type: ignore
@@ -144,7 +144,7 @@ class CharModuleProcessor(BaseModuleProcessor):
 class Seq2SeqModuleProcessor(BaseModuleProcessor):
     input_format = InputFormat.JUMANPP
 
-    def _load_module(self):
+    def _load_module(self) -> pl.LightningModule:
         logger.info("Loading seq2seq module")
         checkpoint_path: Path = download_checkpoint(module="seq2seq", model_size=self.model_size)
         return Seq2SeqModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
@@ -167,7 +167,7 @@ class WordModuleProcessor(BaseModuleProcessor):
         super().__init__(config, batch_size)
         self.from_seq2seq = from_seq2seq
 
-    def load(self):
+    def load(self) -> None:  # type: ignore[override]
         super().load(preserve_reading_lemma_canon=self.from_seq2seq)
 
     def _load_module(self) -> pl.LightningModule:

@@ -7,6 +7,7 @@ import pytorch_lightning as pl
 import torch
 from lightning_fabric import Fabric
 from omegaconf import DictConfig, ListConfig, OmegaConf
+from pytorch_lightning.utilities.types import OptimizerLRScheduler
 from torch.serialization import FILE_LIKE, MAP_LOCATION  # type: ignore
 from typing_extensions import Self
 
@@ -51,7 +52,7 @@ class BaseModule(pl.LightningModule, Generic[MetricType]):
             self.test_corpora: list[str] = list(test_corpora)
             self.test_corpus2metric: dict[str, MetricType] = {corpus: deepcopy(metric) for corpus in test_corpora}
 
-    def configure_optimizers(self):
+    def configure_optimizers(self) -> OptimizerLRScheduler:
         # Split weights in two groups, one with weight decay and the other not.
         no_decay = ("bias", "LayerNorm.weight")
         optimizer_grouped_parameters = [

@@ -53,11 +53,11 @@ def test_get_word_level_readings(
     tokens: list[str],
     subword_map: list[list[bool]],
     expected_output: list[str],
-):
+) -> None:
     assert reading_prediction.get_word_level_readings(readings, tokens, subword_map) == expected_output
 
 
-def test_main(data_dir: Path):
+def test_main(data_dir: Path) -> None:
     script_path = reading_prediction.__file__
     assert script_path is not None
     kanjidic_path = RESOURCE_TRAVERSABLE / "reading_prediction" / "kanjidic"

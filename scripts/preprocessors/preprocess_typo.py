@@ -209,7 +209,7 @@ def build_multi_char_vocab(out_dir: Path) -> None:
                 f.write(f"{vocab}\n")
 
 
-def main():
+def main() -> None:
     parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
     parser.add_argument(
         "-i",

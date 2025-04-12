@@ -41,7 +41,7 @@ def count_cases(documents: list[Document]) -> dict[str, int]:
     return counter
 
 
-def main():
+def main() -> None:
     documents = load_documents(sorted(iter_files(sys.argv[1:])))
     counter = count_cases(documents)
     for k, v in sorted(counter.items(), key=lambda x: x[1], reverse=True):

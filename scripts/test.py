@@ -16,7 +16,7 @@ filter_logs(environment="development")
 
 
 @hydra.main(version_base=None, config_path="../configs", config_name="eval")
-def main(eval_cfg: DictConfig):
+def main(eval_cfg: DictConfig) -> None:
     load_dotenv()
     if isinstance(eval_cfg.devices, str):
         eval_cfg.devices = (

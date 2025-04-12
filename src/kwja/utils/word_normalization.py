@@ -291,7 +291,7 @@ class MorphemeDenormalizer:
         idx = self.rng.choice(len(probs), p=probs)
         return cands[idx][0]
 
-    def _denormalize_deterministic(self, surf, var_prolonged=False) -> str:
+    def _denormalize_deterministic(self, surf: str, var_prolonged: bool = False) -> str:
         # S
         if surf[-1] in UPPER2LOWER:
             surf2 = surf[:-1] + UPPER2LOWER[surf[-1]]
@@ -374,14 +374,14 @@ class MorphemeDenormalizer:
         return surf
 
 
-def is_kana(char):
+def is_kana(char: str) -> bool:
     # this ignores extended kana
     if "\u3040" <= char <= "\u30ff":
         return True
     return False
 
 
-def find_kanji_ga(surf) -> int:
+def find_kanji_ga(surf: str) -> int:
     # "ケ": "ヶ",
     # "ヶ": "ケ",
     pos = surf.find("ケ", 1, len(surf) - 1)

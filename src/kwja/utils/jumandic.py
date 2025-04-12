@@ -80,7 +80,7 @@ class JumanDic:
                 dic[key] = rv
                 return rv
 
-        def _build_reverse_lookup(dic) -> list[str]:
+        def _build_reverse_lookup(dic: dict[str, int]) -> list[str]:
             rv: list[str] = [""] * len(dic)
             for k, v in dic.items():
                 rv[v] = k

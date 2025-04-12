@@ -100,13 +100,16 @@ src = ["src"]
 target-version = "py39"  # The minimum Python version to target
 
 [tool.ruff.lint]
-select = ["F", "E", "W", "I", "B", "PL", "PD", "NPY", "RUF", "UP", "TID", "COM", "PT", "ARG", "PYI", "FA", "G", "FBT"]
+select = ["F", "E", "W", "I", "B", "PL", "PD", "NPY", "RUF", "UP", "TID", "COM", "PT", "ARG", "PYI", "FA", "G", "FBT", "ANN"]
 ignore = [
     "E501",  # Line too long
     "PLR0911",  # Too many return statements
     "PLR0912",  # Too many branches
     "PLR0913",  # Too many arguments in function definition
     "PLR0915",  # Too many statements
+    "ANN002",  # Missing type annotation for `*args`
+    "ANN003",  # Missing type annotation for `**kwargs`
+    "ANN401",  # Dynamically typed expressions (typing.Any) are disallowed in `...`
     "RUF001",  # String contains ambiguous `...` (...). Did you mean `...` (...)?
     "RUF002",  # Docstring contains ambiguous `...` (...). Did you mean `...` (...)?
     "RUF003",  # Comment contains ambiguous `...` (...). Did you mean `...` (...)?
@@ -124,11 +127,13 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "src/kwja/modules/components/deberta_v2.py" = [
     "PLW0127",  # Self-assignment of variable `...`
+    "ANN",  # flake8-annotations
 ]
 "src/kwja/metrics/conll18_ud_eval.py" = [
     "PT027",  # Use `pytest.raises` instead of unittest-style `assertRaises`
     "B023",  # Function definition does not bind loop variable `sentence_start`
     "B904",  # Within an `except` clause, raise exceptions with `raise ... from err` or `raise ... from None` to distinguish them from errors in exception handling
+    "ANN",  # flake8-annotations
 ]
 
 [tool.ruff.lint.flake8-bugbear]

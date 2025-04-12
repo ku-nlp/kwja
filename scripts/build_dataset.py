@@ -51,7 +51,7 @@ UNSUPPORTED_POS_SUBPOS_FALLBACK_TABLE = {
 
 
 class JumanppAugmenter:
-    def __init__(self):
+    def __init__(self) -> None:
         self.jumanpp = Jumanpp(options=["--partial-input"])
 
     def augment_document(self, original_document: Document, update_original: bool = True) -> Document:
@@ -344,13 +344,13 @@ def assign_features_and_save(
         output_root.joinpath(f"{split}/{doc_id}.knp").write_text(document.to_knp())
 
 
-def test_jumanpp_version():
+def test_jumanpp_version() -> None:
     out = subprocess.run(["jumanpp", "--version"], capture_output=True, encoding="utf-8", text=True, check=False)
     match = re.match(r"Juman\+\+ Version: 2\.0\.0-dev\.(\d{8}).+", out.stdout)
     assert match is not None and int(match.group(1)) >= 20220605, "Juman++ version is old. Please update Juman++."
 
 
-def test_jumanpp_augmenter():
+def test_jumanpp_augmenter() -> None:
     jumanpp_augmenter = JumanppAugmenter()
 
     sentence = Sentence.from_knp(
@@ -500,7 +500,7 @@ def test_jumanpp_augmenter():
     assert document.to_knp() == expected
 
 
-def main():
+def main() -> None:
     parser = ArgumentParser()
     parser.add_argument("INPUT", type=str, help="path to input knp dir")
     parser.add_argument("OUTPUT", type=str, help="path to output dir")

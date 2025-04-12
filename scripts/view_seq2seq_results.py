@@ -3,6 +3,7 @@ import json
 import logging
 import re
 from argparse import ArgumentParser
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
@@ -27,12 +28,12 @@ class DiffType:
 
 
 class DiffPart:
-    def __init__(self, diff_text: str):
+    def __init__(self, diff_text: str) -> None:
         self.diff_text = diff_text
         self.has_diff: bool = False
         self.diff_part = self._separate_parts(diff_text)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.surf}_{self.reading}_{self.lemma}_{self.canon}"
 
     def _separate_parts(self, text: str) -> tuple[str, str, str, str]:
@@ -60,19 +61,19 @@ class DiffPart:
 class Diff:
     __slots__ = ["data"]
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.data: list[dict] = []
 
-    def __getitem__(self, index: int):
+    def __getitem__(self, index: int) -> dict:
         return self.data[index]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator:
         return iter(self.data)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.data)
 
-    def append(self, diff_type: DiffType, sys_parts, gold_parts) -> None:
+    def append(self, diff_type: DiffType, sys_parts: list, gold_parts: list) -> None:
         if len(self.data) > 0 and self.data[-1]["diff_type"] == diff_type:
             self.data[-1]["sys_parts"].extend(sys_parts)
             self.data[-1]["gold_parts"].extend(gold_parts)
@@ -315,7 +316,7 @@ class MorphologicalAnalysisScorer:
         print("    " + " = ".join(outputs))
 
 
-def main():
+def main() -> None:
     parser = ArgumentParser()
     parser.add_argument("--dataset-dir", type=str, required=True)
     parser.add_argument("--seq2seq-file", type=str, required=True)

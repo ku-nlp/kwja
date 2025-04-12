@@ -26,6 +26,7 @@ repos:
           - transformers==4.50.3
           - tokenizers
           - wandb
+          - rich
           - typer-slim
           - types-PyYAML
           - cohesion-tools==0.5.7
