@@ -26,7 +26,7 @@ repos:
           - transformers==4.50.3
           - tokenizers
           - wandb
-          - typer
+          - typer-slim
           - types-PyYAML
           - cohesion-tools==0.5.7
   - repo: https://github.com/jumanjihouse/pre-commit-hooks
