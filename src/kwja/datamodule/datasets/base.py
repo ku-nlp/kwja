@@ -56,12 +56,12 @@ class FullAnnotatedDocumentLoaderMixin:
 
         self.doc_id2document: dict[str, Document] = {}
         for orig_document in track(orig_documents, description="Splitting documents"):
-            orig_document = self._postprocess_document(orig_document)
+            processed_document = self._postprocess_document(orig_document)
             self.doc_id2document.update(
                 {
                     document.doc_id: document
                     for document in self._split_document(
-                        orig_document,
+                        processed_document,
                         max_seq_length - len(self.tokenizer.additional_special_tokens) - 2,  # -2: [CLS] and [SEP]
                         stride=document_split_stride,
                     )

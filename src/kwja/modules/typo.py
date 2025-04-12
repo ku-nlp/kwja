@@ -55,7 +55,7 @@ class TypoModule(BaseModule[TypoModuleMetric]):
         self.log("train/ins_loss", ins_loss)
         return kdr_loss + ins_loss
 
-    def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
+    def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:  # noqa: ARG002
         kwargs = self.predict_step(batch)
         kwargs.update({"kdr_labels": batch["kdr_labels"], "ins_labels": batch["ins_labels"]})
         metric = self.valid_corpus2metric[self.valid_corpora[dataloader_idx]]
@@ -75,7 +75,7 @@ class TypoModule(BaseModule[TypoModuleMetric]):
             mean_score = mean(metrics_log[corpus][key] for corpus in self.valid_corpora if key in metrics_log[corpus])
             self.log(f"valid/{key}", mean_score)
 
-    def test_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
+    def test_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:  # noqa: ARG002
         kwargs = self.predict_step(batch)
         kwargs.update({"kdr_labels": batch["kdr_labels"], "ins_labels": batch["ins_labels"]})
         metric = self.test_corpus2metric[self.test_corpora[dataloader_idx]]

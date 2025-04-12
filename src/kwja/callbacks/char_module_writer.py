@@ -20,12 +20,12 @@ class CharModuleWriter(BaseModuleWriter):
 
     def write_on_batch_end(
         self,
-        trainer: "pl.Trainer",
-        pl_module: "pl.LightningModule",
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,  # noqa: ARG002
         prediction: Any,
-        batch_indices: Optional[Sequence[int]],
-        batch: Any,
-        batch_idx: int,
+        batch_indices: Optional[Sequence[int]],  # noqa: ARG002
+        batch: Any,  # noqa: ARG002
+        batch_idx: int,  # noqa: ARG002
         dataloader_idx: int,
     ) -> None:
         if isinstance(trainer.predict_dataloaders, dict):

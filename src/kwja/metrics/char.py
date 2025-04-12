@@ -41,7 +41,7 @@ class CharModuleMetric(BaseModuleMetric):
             for dim in dims:
                 size = [self.max_seq_length - s if i == dim else s for i, s in enumerate(value.size())]
                 padding = torch.zeros(size, dtype=value.dtype, device=value.device)
-                value = torch.cat([value, padding], dim=dim)
+                value = torch.cat([value, padding], dim=dim)  # noqa: PLW2901
             kwargs[key] = value
 
     def compute(self) -> dict[str, float]:

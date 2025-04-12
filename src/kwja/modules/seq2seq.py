@@ -52,7 +52,7 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
         self.log("train/loss", ret["loss"])
         return ret["loss"]
 
-    def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
+    def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:  # noqa: ARG002
         kwargs = self(batch)
         kwargs.update({"example_ids": batch["example_ids"], "loss": kwargs["loss"]})
         metric = self.valid_corpus2metric[self.valid_corpora[dataloader_idx]]
@@ -70,7 +70,7 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
             mean_score = mean(metrics_log[corpus][key] for corpus in self.valid_corpora if key in metrics_log[corpus])
             self.log(f"valid/{key}", mean_score)
 
-    def test_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
+    def test_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:  # noqa: ARG002
         kwargs = self(batch)
         kwargs.update({"example_ids": batch["example_ids"], "loss": kwargs["loss"]})
         metric = self.test_corpus2metric[self.test_corpora[dataloader_idx]]

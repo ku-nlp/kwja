@@ -25,11 +25,11 @@ class TypoModuleWriter(BaseModuleWriter):
 
     def write_on_batch_end(
         self,
-        trainer: "pl.Trainer",
-        pl_module: "pl.LightningModule",
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,  # noqa: ARG002
         prediction: Any,
-        batch_indices: Optional[Sequence[int]],
-        batch: Any,
+        batch_indices: Optional[Sequence[int]],  # noqa: ARG002
+        batch: Any,  # noqa: ARG002
         batch_idx: int,
         dataloader_idx: int,
     ) -> None:
@@ -54,7 +54,7 @@ class TypoModuleWriter(BaseModuleWriter):
             if seq_len == 0:
                 continue
 
-            args = (self.confidence_threshold, self.token2token_id, self.token_id2token)
+            args = (self.confidence_threshold, self.token_id2token)
             kdr_tags = convert_typo_predictions_into_tags(kdr_predictions, kdr_probabilities, "R", *args)
             ins_tags = convert_typo_predictions_into_tags(ins_predictions, ins_probabilities, "I", *args)
 

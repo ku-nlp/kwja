@@ -98,7 +98,7 @@ class WordModuleMetric(BaseModuleMetric):
                 else:
                     fill_value = MASKED if torch.is_floating_point(value) else 0
                 padding = torch.full(size, fill_value, dtype=value.dtype, device=value.device)
-                value = torch.cat([value, padding], dim=dim)
+                value = torch.cat([value, padding], dim=dim)  # noqa: PLW2901
             kwargs[key] = value
 
     def compute(self) -> dict[str, float]:

@@ -56,8 +56,8 @@ class Seq2SeqDataset(BaseDataset[Seq2SeqExample, Seq2SeqModuleFeatures]):
         examples: list[Seq2SeqExample] = []
         example_id: int = 0
         for document in track(documents, description="Loading examples"):
-            document = self._postprocess_document(document)
-            for sentence in document.sentences:
+            processed_document = self._postprocess_document(document)
+            for sentence in processed_document.sentences:
                 src_tokens: list[str] = self.formatter.get_src_tokens(sentence)
                 src_input_ids: list[int] = [
                     *self.tokenizer.convert_tokens_to_ids(src_tokens),

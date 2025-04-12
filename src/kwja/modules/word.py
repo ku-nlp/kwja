@@ -202,7 +202,7 @@ class WordModule(BaseModule[WordModuleMetric]):
         self.log_dict({f"train/{key}": value for key, value in loss_log.items()})
         return torch.stack(list(loss_log.values())).sum()
 
-    def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
+    def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:  # noqa: ARG002
         kwargs = self.predict_step(batch)
         kwargs.update({"discourse_labels": batch["discourse_labels"]})
         metric = self.valid_corpus2metric[self.valid_corpora[dataloader_idx]]
@@ -236,7 +236,7 @@ class WordModule(BaseModule[WordModuleMetric]):
             mean_score = mean(metrics_log[corpus][key] for corpus in self.valid_corpora if key in metrics_log[corpus])
             self.log(f"valid/{key}", mean_score)
 
-    def test_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
+    def test_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:  # noqa: ARG002
         kwargs = self.predict_step(batch)
         kwargs.update({"discourse_labels": batch["discourse_labels"]})
         metric = self.test_corpus2metric[self.test_corpora[dataloader_idx]]

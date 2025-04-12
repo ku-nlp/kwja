@@ -256,7 +256,7 @@ class ReadingAligner:
     def _extend_kanji_reading_list(kanji_reading_list_orig: list[str]) -> list[str]:
         kanji_reading_list = []
         for kanji_reading in kanji_reading_list_orig:
-            kanji_reading = re.sub("-", "", kanji_reading)
+            kanji_reading = re.sub("-", "", kanji_reading)  # noqa: PLW2901
             if "." in kanji_reading:
                 base, ending = kanji_reading.split(".")
                 if base not in kanji_reading_list:

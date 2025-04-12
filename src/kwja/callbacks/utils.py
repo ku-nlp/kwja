@@ -41,15 +41,14 @@ def convert_typo_predictions_into_tags(
     probabilities: list[float],
     prefix: Literal["R", "I"],
     confidence_threshold: float,
-    token2token_id: dict[str, int],
     token_id2token: dict[int, str],
 ) -> list[str]:
     typo_corr_op_tags: list[str] = []
     for token_id, probability in zip(predictions, probabilities):
+        token: str = token_id2token[token_id]
         # do not edit if the probability (replace, delete, and insert) is less than "confidence_threshold"
         if probability < confidence_threshold:
-            token_id = token2token_id["<k>"] if prefix == "R" else token2token_id["<_>"]
-        token: str = token_id2token[token_id]
+            token = "<k>" if prefix == "R" else "<_>"
         typo_corr_op_tag = TOKEN2TYPO_CORR_OP_TAG.get(token, f"{prefix}:{token}")
         typo_corr_op_tags.append(typo_corr_op_tag)
     return typo_corr_op_tags

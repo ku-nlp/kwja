@@ -64,7 +64,7 @@ class CharModule(BaseModule[CharModuleMetric]):
         self.log("train/word_normalization_loss", word_normalization_loss)
         return sent_segmentation_loss + word_segmentation_loss + word_normalization_loss
 
-    def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
+    def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:  # noqa: ARG002
         kwargs = self.predict_step(batch)
         kwargs.update({"word_norm_op_labels": batch["word_norm_op_labels"]})
         metric = self.valid_corpus2metric[self.valid_corpora[dataloader_idx]]
@@ -88,7 +88,7 @@ class CharModule(BaseModule[CharModuleMetric]):
             mean_score = mean(metrics_log[corpus][key] for corpus in self.valid_corpora if key in metrics_log[corpus])
             self.log(f"valid/{key}", mean_score)
 
-    def test_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
+    def test_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:  # noqa: ARG002
         kwargs = self.predict_step(batch)
         kwargs.update({"word_norm_op_labels": batch["word_norm_op_labels"]})
         metric = self.test_corpus2metric[self.test_corpora[dataloader_idx]]

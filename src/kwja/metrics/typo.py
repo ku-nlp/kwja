@@ -37,7 +37,7 @@ class TypoModuleMetric(BaseModuleMetric):
             for dim in dims:
                 size = [self.max_seq_length - s if i == dim else s for i, s in enumerate(value.size())]
                 padding = torch.zeros(size, dtype=value.dtype, device=value.device)
-                value = torch.cat([value, padding], dim=dim)
+                value = torch.cat([value, padding], dim=dim)  # noqa: PLW2901
             kwargs[key] = value
 
     def compute(self) -> dict[str, float]:
@@ -68,7 +68,7 @@ class TypoModuleMetric(BaseModuleMetric):
             if seq_len == 0:
                 continue
 
-            args = (confidence_threshold, self.dataset.token2token_id, self.dataset.token_id2token)
+            args = (confidence_threshold, self.dataset.token_id2token)
             kdr_tags = convert_typo_predictions_into_tags(kdr_predictions, kdr_probabilities, "R", *args)
             ins_tags = convert_typo_predictions_into_tags(ins_predictions, ins_probabilities, "I", *args)
 

@@ -99,6 +99,41 @@ indent-width = 4
 src = ["src"]
 target-version = "py39"  # The minimum Python version to target
 
+[tool.ruff.lint]
+select = ["F", "E", "W", "I", "B", "PL", "PD", "NPY", "RUF", "UP", "TID", "COM", "PT", "ARG", "PYI", "FA", "G", "FBT"]
+ignore = [
+    "E501",  # Line too long
+    "PLR0911",  # Too many return statements
+    "PLR0912",  # Too many branches
+    "PLR0913",  # Too many arguments in function definition
+    "PLR0915",  # Too many statements
+    "RUF001",  # String contains ambiguous `...` (...). Did you mean `...` (...)?
+    "RUF002",  # Docstring contains ambiguous `...` (...). Did you mean `...` (...)?
+    "RUF003",  # Comment contains ambiguous `...` (...). Did you mean `...` (...)?
+    "UP037",  # Remove quotes from type annotation
+    "COM812",  # Trailing comma missing
+    "PLR2004",  # Magic value used in comparison
+    "PT018",  # Assertion should be broken down into multiple parts
+    "FA100",  # Missing `from __future__ import annotations`, but uses `...`
+    "G004",  # Logging statement uses f-string
+    "FBT001",  # Boolean-typed positional argument in function definition
+    "FBT002",  # Boolean default positional argument in function definition
+    "FBT003",  # Boolean positional value in function call
+]
+
+[tool.ruff.lint.per-file-ignores]
+"src/kwja/modules/components/deberta_v2.py" = [
+    "PLW0127",  # Self-assignment of variable `...`
+]
+"src/kwja/metrics/conll18_ud_eval.py" = [
+    "PT027",  # Use `pytest.raises` instead of unittest-style `assertRaises`
+    "B023",  # Function definition does not bind loop variable `sentence_start`
+    "B904",  # Within an `except` clause, raise exceptions with `raise ... from err` or `raise ... from None` to distinguish them from errors in exception handling
+]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["typer.Option"]
+
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
 
