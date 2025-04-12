@@ -6,7 +6,7 @@ from collections.abc import Iterator
 from enum import Enum
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Annotated, Dict, List, Optional, Set, TextIO, Tuple
+from typing import Annotated, Optional, TextIO
 from unicodedata import normalize
 
 import hydra
@@ -187,9 +187,9 @@ class WordModuleProcessor(BaseModuleProcessor):
 
 
 class CLIProcessor:
-    def __init__(self, config: CLIConfig, tasks: List[str]) -> None:
+    def __init__(self, config: CLIConfig, tasks: list[str]) -> None:
         self.initial_destination = Path(NamedTemporaryFile(delete=False).name)
-        self._task2processors: Dict[str, BaseModuleProcessor] = {
+        self._task2processors: dict[str, BaseModuleProcessor] = {
             "typo": TypoModuleProcessor(config, config.typo_batch_size),
             "char": CharModuleProcessor(config, config.char_batch_size),
             "seq2seq": Seq2SeqModuleProcessor(config, config.seq2seq_batch_size),
@@ -199,7 +199,7 @@ class CLIProcessor:
                 from_seq2seq="seq2seq" in tasks,
             ),
         }
-        self.processors: List[BaseModuleProcessor] = [self._task2processors[task] for task in tasks]
+        self.processors: list[BaseModuleProcessor] = [self._task2processors[task] for task in tasks]
 
     def load_all_modules(self) -> None:
         for processor in self.processors:
@@ -210,7 +210,7 @@ class CLIProcessor:
         for processor in self._task2processors.values():
             processor.destination.unlink(missing_ok=True)
 
-    def run(self, input_documents: List[Document], interactive: bool = False) -> str:
+    def run(self, input_documents: list[Document], interactive: bool = False) -> str:
         input_documents = [document for document in input_documents if document.text != ""]
         if len(input_documents) == 0:
             return ""
@@ -285,8 +285,8 @@ def _version_callback(value: bool) -> None:
 
 def _tasks_callback(value: str) -> str:
     """sort and validate specified tasks"""
-    values: List[str] = [v for v in value.split(",") if v]
-    tasks: List[str] = []
+    values: list[str] = [v for v in value.split(",") if v]
+    tasks: list[str] = []
     for candidate_task in ("typo", "char", "seq2seq", "word"):
         if candidate_task in values:
             tasks.append(candidate_task)
@@ -303,7 +303,7 @@ def _tasks_callback(value: str) -> str:
 @app.command()
 def main(
     text: Annotated[Optional[str], typer.Option(help="Text to be analyzed.")] = None,
-    filename: List[Path] = typer.Option([], dir_okay=False, help="Files to be analyzed."),
+    filename: list[Path] = typer.Option([], dir_okay=False, help="Files to be analyzed."),
     model_size: Annotated[
         Optional[ModelSize], typer.Option(case_sensitive=False, help="Model size to be used.")
     ] = None,
@@ -321,8 +321,8 @@ def main(
     input_format: Annotated[InputFormat, typer.Option(case_sensitive=False, help="Input format.")] = InputFormat.RAW,
 ) -> None:
     # validate task combination
-    specified_tasks: List[str] = tasks.split(",")
-    valid_task_combinations: Set[Tuple[str, ...]] = {
+    specified_tasks: list[str] = tasks.split(",")
+    valid_task_combinations: set[tuple[str, ...]] = {
         ("typo",),
         ("typo", "char"),
         ("typo", "char", "seq2seq"),
@@ -350,7 +350,7 @@ def main(
         elif specified_tasks[0] in ("seq2seq", "word"):
             logger.warning("WARNING: with seq2seq or word task, your input text will be treated as a word sequence.")
 
-    input_documents: Optional[List[Document]] = None
+    input_documents: Optional[list[Document]] = None
     if text is not None and len(filename) > 0:
         logger.error("ERROR: Please provide text or filename, not both")
         raise typer.Abort

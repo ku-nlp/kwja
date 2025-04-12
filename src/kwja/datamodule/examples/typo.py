@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import List
 
 
 @dataclass(frozen=True)
@@ -8,8 +7,8 @@ class TypoExample:
     doc_id: str
     pre_text: str
     post_text: str
-    kdr_tags: List[str]
-    ins_tags: List[str]
+    kdr_tags: list[str]
+    ins_tags: list[str]
 
 
 @dataclass(frozen=True)

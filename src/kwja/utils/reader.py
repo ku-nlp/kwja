@@ -1,12 +1,12 @@
 from collections.abc import Iterator
-from typing import List, TextIO
+from typing import TextIO
 
 from rhoknp import Sentence
 from rhoknp.utils.comment import is_comment_line
 
 
 def chunk_by_document_for_line_by_line_text(f: TextIO) -> Iterator[str]:
-    sentences: List[Sentence] = []
+    sentences: list[Sentence] = []
     prev_doc_id = ""
     for sentence_text in chunk_by_sentence_for_line_by_line_text(f):
         sentence = Sentence.from_raw_text(sentence_text)

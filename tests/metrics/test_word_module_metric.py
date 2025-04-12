@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 import torch
@@ -26,7 +26,7 @@ from kwja.utils.constants import (
 def test_word_module_metric(
     data_dir: Path,
     word_tokenizer: PreTrainedTokenizerBase,
-    dataset_kwargs: Dict[str, Any],
+    dataset_kwargs: dict[str, Any],
 ) -> None:
     path = data_dir / "datasets" / "word_files"
     max_seq_length = 20

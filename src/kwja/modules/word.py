@@ -1,7 +1,7 @@
 import os
 from functools import reduce
 from statistics import mean
-from typing import Any, Dict, List
+from typing import Any
 
 import hydra
 import torch
@@ -50,19 +50,19 @@ class WordModule(BaseModule[WordModuleMetric]):
     def __init__(self, hparams: DictConfig) -> None:
         super().__init__(hparams, WordModuleMetric(hparams.max_seq_length))
 
-        self.training_tasks: List[WordTask] = list(map(WordTask, self.hparams.training_tasks))
+        self.training_tasks: list[WordTask] = list(map(WordTask, self.hparams.training_tasks))
         self.head_dropout_prob: float = 0.05
 
         self.encoder: PreTrainedModel = hydra.utils.call(hparams.encoder.from_config)
         pretrained_model_config: PretrainedConfig = self.encoder.config
         if hasattr(hparams, "special_tokens"):
             self.encoder.resize_token_embeddings(pretrained_model_config.vocab_size + len(hparams.special_tokens))
-        head_kwargs: Dict[str, Any] = dict(
+        head_kwargs: dict[str, Any] = dict(
             hidden_size=pretrained_model_config.hidden_size, hidden_dropout_prob=self.head_dropout_prob
         )
 
         # ---------- reading prediction ----------
-        self.reading_id2reading: Dict[int, str] = {v: k for k, v in get_reading2reading_id().items()}
+        self.reading_id2reading: dict[int, str] = {v: k for k, v in get_reading2reading_id().items()}
         self.reading_tagger = SequenceLabelingHead(len(self.reading_id2reading), **head_kwargs)
 
         # ---------- morphological analysis ----------
@@ -117,7 +117,7 @@ class WordModule(BaseModule[WordModuleMetric]):
             if hasattr(self.hparams, "special_tokens"):
                 self.encoder.resize_token_embeddings(self.encoder.config.vocab_size + len(self.hparams.special_tokens))
 
-    def forward(self, batch: Any) -> Dict[str, torch.Tensor]:
+    def forward(self, batch: Any) -> dict[str, torch.Tensor]:
         encoder_kwargs = {
             "input_ids": batch["input_ids"],
             "attention_mask": batch["attention_mask"],
@@ -159,8 +159,8 @@ class WordModule(BaseModule[WordModuleMetric]):
         }
 
     def training_step(self, batch: Any) -> torch.Tensor:
-        ret: Dict[str, torch.Tensor] = self(batch)
-        loss_log: Dict[str, torch.Tensor] = {}
+        ret: dict[str, torch.Tensor] = self(batch)
+        loss_log: dict[str, torch.Tensor] = {}
         if WordTask.READING_PREDICTION in self.training_tasks:
             loss_log["reading_prediction_loss"] = compute_token_mean_loss(
                 ret["reading_logits"], batch["reading_labels"]
@@ -209,7 +209,7 @@ class WordModule(BaseModule[WordModuleMetric]):
         metric.update(kwargs)
 
     def on_validation_epoch_end(self) -> None:
-        metrics_log: Dict[str, Dict[str, float]] = {}
+        metrics_log: dict[str, dict[str, float]] = {}
         for corpus, metric in self.valid_corpus2metric.items():
             metric.set_properties(
                 {
@@ -243,7 +243,7 @@ class WordModule(BaseModule[WordModuleMetric]):
         metric.update(kwargs)
 
     def on_test_epoch_end(self) -> None:
-        metrics_log: Dict[str, Dict[str, float]] = {}
+        metrics_log: dict[str, dict[str, float]] = {}
         for corpus, metric in self.test_corpus2metric.items():
             metric.set_properties(
                 {
@@ -270,8 +270,8 @@ class WordModule(BaseModule[WordModuleMetric]):
             mean_score = mean(metrics_log[corpus][key] for corpus in self.test_corpora if key in metrics_log[corpus])
             self.log(f"test/{key}", mean_score)
 
-    def predict_step(self, batch: Any) -> Dict[str, torch.Tensor]:
-        ret: Dict[str, torch.Tensor] = self(batch)
+    def predict_step(self, batch: Any) -> dict[str, torch.Tensor]:
+        ret: dict[str, torch.Tensor] = self(batch)
         ne_predictions = self.crf.viterbi_decode(ret["ne_logits"], batch["ne_mask"])
         discourse_probabilities = ret["discourse_logits"].softmax(dim=3)
         discourse_max_probabilities, discourse_predictions = discourse_probabilities.max(dim=3)

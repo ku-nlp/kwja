@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 from omegaconf import ListConfig
 from rhoknp import Document, RegexSenter
@@ -27,7 +27,7 @@ class CharInferenceDataset(BaseDataset[CharInferenceExample, CharModuleFeatures]
         **_,
     ) -> None:
         super().__init__(tokenizer, max_seq_length)
-        documents: List[Document]
+        documents: list[Document]
         if len(texts) > 0:
             documents = create_documents_from_raw_texts(texts)
         elif raw_text_file is not None:
@@ -39,9 +39,9 @@ class CharInferenceDataset(BaseDataset[CharInferenceExample, CharModuleFeatures]
         add_doc_ids(documents, doc_id_prefix)
         documents = self._add_tentative_sentence_boundary(documents)
         super(BaseDataset, self).__init__(documents, tokenizer, max_seq_length, -1)  # document_split_stride must be -1
-        self.examples: List[CharInferenceExample] = self._load_examples(self.doc_id2document)
+        self.examples: list[CharInferenceExample] = self._load_examples(self.doc_id2document)
 
-    def _load_examples(self, doc_id2document: Dict[str, Document]) -> List[CharInferenceExample]:
+    def _load_examples(self, doc_id2document: dict[str, Document]) -> list[CharInferenceExample]:
         examples = []
         example_id = 0
         for document in track(doc_id2document.values(), description="Loading examples"):
@@ -72,7 +72,7 @@ class CharInferenceDataset(BaseDataset[CharInferenceExample, CharModuleFeatures]
         )
 
     @staticmethod
-    def _add_tentative_sentence_boundary(documents: List[Document]) -> List[Document]:
+    def _add_tentative_sentence_boundary(documents: list[Document]) -> list[Document]:
         senter = RegexSenter()
         documents = [senter.apply_to_document(doc) if doc.is_senter_required() else doc for doc in documents]
         add_sent_ids(documents)

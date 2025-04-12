@@ -1,7 +1,7 @@
 import copy
 import json
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Optional
 
 import pytest
 import torch
@@ -15,7 +15,7 @@ from kwja.modules.components.logits_processor import (
 )
 from kwja.utils.constants import HALF_SPACE_TOKEN, LEMMA_TOKEN
 
-SPECIAL_TOKENS: List[str] = [f"<extra_id_{idx}>" for idx in range(100)]
+SPECIAL_TOKENS: list[str] = [f"<extra_id_{idx}>" for idx in range(100)]
 
 
 def test_get_char2tokens() -> None:
@@ -35,8 +35,8 @@ def test_get_char2tokens() -> None:
         "京区": 208641,
         "▁京公网安备": 234066,
     }
-    mt5_underscore_tokens: Set[str] = {x for x in mt5_tokenizer.vocab if x.startswith("▁")}
-    mt5_non_underscore_tokens: Set[str] = {x for x in mt5_tokenizer.vocab if not x.startswith("▁")}
+    mt5_underscore_tokens: set[str] = {x for x in mt5_tokenizer.vocab if x.startswith("▁")}
+    mt5_non_underscore_tokens: set[str] = {x for x in mt5_tokenizer.vocab if not x.startswith("▁")}
     assert len(mt5_underscore_tokens) == 56369
     assert len(mt5_non_underscore_tokens) == 193831
 
@@ -67,14 +67,14 @@ def test_get_char2tokens() -> None:
         "京阪": 14311,
         "京都市立": 24756,
     }
-    t5_underscore_tokens: Set[str] = {x for x in t5_tokenizer.vocab if x.startswith("▁")}
-    t5_non_underscore_tokens: Set[str] = {x for x in t5_tokenizer.vocab if not x.startswith("▁")}
+    t5_underscore_tokens: set[str] = {x for x in t5_tokenizer.vocab if x.startswith("▁")}
+    t5_non_underscore_tokens: set[str] = {x for x in t5_tokenizer.vocab if not x.startswith("▁")}
     assert len(t5_underscore_tokens) == 531
     assert len(t5_non_underscore_tokens) == 31569
 
 
 def test_get_target_property(data_dir: Path) -> None:
-    model2pretrained_model_name_or_path: Dict[str, str] = {
+    model2pretrained_model_name_or_path: dict[str, str] = {
         "mt5": "google/mt5-small",
         "t5": "retrieva-jp/t5-small-short",
     }
@@ -83,8 +83,8 @@ def test_get_target_property(data_dir: Path) -> None:
             pretrained_model_name_or_path,
             additional_special_tokens=SPECIAL_TOKENS,
         )
-        reading_candidate_token_ids: List[int] = get_reading_candidate_token_ids(tokenizer)
-        char2token_items: Dict[str, Dict[str, int]] = get_char2token_items(tokenizer)
+        reading_candidate_token_ids: list[int] = get_reading_candidate_token_ids(tokenizer)
+        char2token_items: dict[str, dict[str, int]] = get_char2token_items(tokenizer)
         test_case_path: Path = data_dir / "modules" / "permitted_tokens.json"
         with open(test_case_path) as f:
             test_cases = json.load(f)
@@ -96,7 +96,7 @@ def test_get_target_property(data_dir: Path) -> None:
                 char2token_items=char2token_items,
                 reading_candidate_token_ids=reading_candidate_token_ids,
             )
-            input_ids: List[int] = tokenizer.convert_tokens_to_ids(test_case[model]["input_tokens"])
+            input_ids: list[int] = tokenizer.convert_tokens_to_ids(test_case[model]["input_tokens"])
             target_property: TargetProperty = processor._get_target_property(input_ids)
             assert target_property.surf == (test_case["target_property"] == "surf")
             assert target_property.reading == (test_case["target_property"] == "reading")
@@ -149,7 +149,7 @@ def test_get_target_property(data_dir: Path) -> None:
         ),
     ],
 )
-def test_get_ungenerated_surf(input_tokens: List[str], surfs: List[str], expected_ungenerated_surf: str) -> None:
+def test_get_ungenerated_surf(input_tokens: list[str], surfs: list[str], expected_ungenerated_surf: str) -> None:
     for pretrained_model_name_or_path in ["google/mt5-small", "retrieva-jp/t5-small-short"]:
         tokenizer: PreTrainedTokenizerFast = AutoTokenizer.from_pretrained(
             pretrained_model_name_or_path=pretrained_model_name_or_path,
@@ -165,7 +165,7 @@ def test_get_ungenerated_surf(input_tokens: List[str], surfs: List[str], expecte
             char2token_items=char2token_items,
             reading_candidate_token_ids=reading_candidate_token_ids,
         )
-        input_ids: List[int] = tokenizer.convert_tokens_to_ids(input_tokens)
+        input_ids: list[int] = tokenizer.convert_tokens_to_ids(input_tokens)
         assert processor._get_ungenerated_surf(input_ids, surfs) == expected_ungenerated_surf
 
 
@@ -176,7 +176,7 @@ def test_get_ungenerated_surf(input_tokens: List[str], surfs: List[str], expecte
         ([HALF_SPACE_TOKEN, "研究", "を", "する"], [HALF_SPACE_TOKEN]),
     ],
 )
-def test_get_permitted_token_ids(surfs: List[str], expected_permitted_tokens: List[str]) -> None:
+def test_get_permitted_token_ids(surfs: list[str], expected_permitted_tokens: list[str]) -> None:
     for pretrained_model_name_or_path in ["google/mt5-small", "retrieva-jp/t5-small-short"]:
         tokenizer: PreTrainedTokenizerFast = AutoTokenizer.from_pretrained(
             pretrained_model_name_or_path,
@@ -192,12 +192,12 @@ def test_get_permitted_token_ids(surfs: List[str], expected_permitted_tokens: Li
             char2token_items=char2token_items,
             reading_candidate_token_ids=reading_candidate_token_ids,
         )
-        permitted_token_ids: List[int] = processor._get_permitted_token_ids("".join(surfs))
+        permitted_token_ids: list[int] = processor._get_permitted_token_ids("".join(surfs))
         assert sorted(permitted_token_ids) == sorted(tokenizer.convert_tokens_to_ids(expected_permitted_tokens))
 
 
 def test_get_mask(data_dir: Path) -> None:
-    model2pretrained_model_name_or_path: Dict[str, str] = {
+    model2pretrained_model_name_or_path: dict[str, str] = {
         "mt5": "google/mt5-small",
         "t5": "retrieva-jp/t5-small-short",
     }
@@ -209,16 +209,16 @@ def test_get_mask(data_dir: Path) -> None:
         vocab_size: int = len(tokenizer.get_vocab())
         char2token_items = get_char2token_items(tokenizer)
         reading_candidate_token_ids = get_reading_candidate_token_ids(tokenizer)
-        reading_candidate_tokens: Set[str] = {
+        reading_candidate_tokens: set[str] = {
             tokenizer.convert_ids_to_tokens(reading_candidate_token_id)
             for reading_candidate_token_id in reading_candidate_token_ids
         }
-        all_tokens: Set[str] = set(tokenizer.vocab.keys())
+        all_tokens: set[str] = set(tokenizer.vocab.keys())
 
         test_case_path: Path = data_dir / "modules" / "permitted_tokens.json"
         with open(test_case_path) as f:
             test_cases = json.load(f)
-        for k, test_case in test_cases.items():
+        for _k, test_case in test_cases.items():
             assert test_case["target_property"] in ["surf", "reading", "lemma", "canon", "init"]
             processor = SurfForcedDecodingLogitsProcessor(
                 batch_surfs=[test_case["surfs"]],
@@ -237,13 +237,13 @@ def test_get_mask(data_dir: Path) -> None:
                 assert warped_scores is not None
                 assert warped_scores.shape == orig_scores.shape
             assert warped_scores is not None
-            permitted_tokens: Set[str] = set()
+            permitted_tokens: set[str] = set()
             for token_id, score in enumerate(warped_scores.tolist()[0]):
                 if score == 0.5:
                     permitted_tokens.add(tokenizer.convert_ids_to_tokens(token_id))
 
             if test_case[model]["permitted_tokens"] == "reading_candidates":
-                expected_permitted_tokens: Set[str] = reading_candidate_tokens
+                expected_permitted_tokens: set[str] = reading_candidate_tokens
                 expected_permitted_tokens.add(LEMMA_TOKEN)
             elif len(test_case[model]["permitted_tokens"]) == 0:
                 expected_permitted_tokens = copy.deepcopy(all_tokens)

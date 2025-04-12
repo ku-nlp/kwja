@@ -29,18 +29,18 @@ def main():
     args = parser.parse_args()
     if not Path(args.input_dir).is_dir():
         sys.stderr.write("--input must be an existing JumanDIC root directory\n")
-        exit(1)
+        sys.exit(1)
     input_path = Path(args.input_dir) / "kwja_dic" / "kwja.dic"
     if not input_path.is_file():
         sys.stderr.write(
             "JumanDIC KWJA dictionary not found\nmake sure you have built the KWJA dictionary by calling 'make kwja'\n"
         )
-        exit(1)
+        sys.exit(1)
     outdir = Path(args.output_dir)
     if outdir.exists():
         if not outdir.is_dir():
             sys.stderr.write("--output-dir must be a directory\n")
-            exit(1)
+            sys.exit(1)
     else:
         outdir.mkdir(parents=True)
 

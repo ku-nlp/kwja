@@ -1,5 +1,5 @@
 import math
-from typing import List, Union
+from typing import Union
 
 import hydra
 import pytorch_lightning as pl
@@ -28,7 +28,7 @@ def main(cfg: DictConfig):
     cfg.seed = pl.seed_everything(seed=cfg.seed, workers=True)
 
     logger: Union[Logger, bool] = cfg.get("logger", False) and hydra.utils.instantiate(cfg.get("logger"))
-    callbacks: List[Callback] = list(map(hydra.utils.instantiate, cfg.get("callbacks", {}).values()))
+    callbacks: list[Callback] = list(map(hydra.utils.instantiate, cfg.get("callbacks", {}).values()))
 
     # Calculate gradient_accumulation_steps assuming DDP
     num_devices: int = 1

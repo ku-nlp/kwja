@@ -4,7 +4,7 @@ import warnings
 from collections.abc import Iterable, Sequence
 from datetime import timedelta
 from functools import partial
-from typing import List, Literal, Optional, Union
+from typing import Literal, Optional, Union
 
 from lightning_fabric.utilities.warnings import PossibleUserWarning
 from rich.console import Console
@@ -72,7 +72,7 @@ def track(
     console: Optional[Console] = None,
     update_period: float = 1.0,
 ):
-    columns: List[ProgressColumn] = [
+    columns: list[ProgressColumn] = [
         TextColumn("[progress.description]{task.description}", style="white"),
         BarColumn(
             style="bar.back",

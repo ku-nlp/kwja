@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import numpy as np
 import pytest
@@ -24,18 +24,18 @@ from kwja.utils.constants import (
 
 
 @pytest.fixture
-def split_into_words_word_tokenizer(special_tokens: List[str]) -> PreTrainedTokenizerBase:
+def split_into_words_word_tokenizer(special_tokens: list[str]) -> PreTrainedTokenizerBase:
     return AutoTokenizer.from_pretrained("nlp-waseda/roberta-base-japanese", additional_special_tokens=special_tokens)
 
 
-def test_init(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
+def test_init(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[str, Any]):
     path = data_dir / "datasets" / "word_files"
     max_seq_length = 256
     document_split_stride = 1
     _ = WordDataset(str(path), word_tokenizer, max_seq_length, document_split_stride, **dataset_kwargs)
 
 
-def test_getitem(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
+def test_getitem(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[str, Any]):
     path = data_dir / "datasets" / "word_files"
     max_seq_length = 256
     document_split_stride = 1
@@ -73,7 +73,7 @@ def test_getitem(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, datase
         assert np.array(feature.discourse_labels).shape == (max_seq_length, max_seq_length)
 
 
-def test_encode(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
+def test_encode(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[str, Any]):
     path = data_dir / "datasets" / "word_files"
     max_seq_length = 64
     document_split_stride = 1
@@ -359,7 +359,7 @@ def test_encode(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, dataset
 
 
 def test_split_into_words_encode(
-    data_dir: Path, split_into_words_word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]
+    data_dir: Path, split_into_words_word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[str, Any]
 ):
     path = data_dir / "datasets" / "word_files"
     max_seq_length = 256

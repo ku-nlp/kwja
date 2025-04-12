@@ -1,12 +1,12 @@
 from collections.abc import Iterable, Iterator, Sequence
 from datetime import datetime
-from typing import List, Optional, TextIO
+from typing import Optional, TextIO
 
 from rhoknp import Document
 
 
-def create_documents_from_raw_texts(texts: Iterable[str]) -> List[Document]:
-    documents: List[Document] = []
+def create_documents_from_raw_texts(texts: Iterable[str]) -> list[Document]:
+    documents: list[Document] = []
     for text in texts:
         raw_text = ""
         doc_id = ""

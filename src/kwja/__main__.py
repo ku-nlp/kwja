@@ -1,3 +1,3 @@
-from .cli.cli import app
+from kwja.cli.cli import app
 
 app()

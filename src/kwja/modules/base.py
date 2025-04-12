@@ -1,6 +1,6 @@
 import os
 from copy import deepcopy
-from typing import Any, Dict, Generic, List, TypeVar
+from typing import Any, Generic, TypeVar
 
 import hydra
 import pytorch_lightning as pl
@@ -18,7 +18,7 @@ class DummyModuleMetric:
     def update(self, *args: Any, **kwargs: Any) -> None:
         pass
 
-    def compute(self) -> Dict[str, float]:
+    def compute(self) -> dict[str, float]:
         return {}
 
     def reset(self) -> None:
@@ -45,11 +45,11 @@ class BaseModule(pl.LightningModule, Generic[MetricType]):
         self.save_hyperparameters(hparams)
 
         if valid_corpora := getattr(hparams.datamodule, "valid", None):
-            self.valid_corpora: List[str] = list(valid_corpora)
-            self.valid_corpus2metric: Dict[str, MetricType] = {corpus: deepcopy(metric) for corpus in valid_corpora}
+            self.valid_corpora: list[str] = list(valid_corpora)
+            self.valid_corpus2metric: dict[str, MetricType] = {corpus: deepcopy(metric) for corpus in valid_corpora}
         if test_corpora := getattr(hparams.datamodule, "test", None):
-            self.test_corpora: List[str] = list(test_corpora)
-            self.test_corpus2metric: Dict[str, MetricType] = {corpus: deepcopy(metric) for corpus in test_corpora}
+            self.test_corpora: list[str] = list(test_corpora)
+            self.test_corpus2metric: dict[str, MetricType] = {corpus: deepcopy(metric) for corpus in test_corpora}
 
     def configure_optimizers(self):
         # Split weights in two groups, one with weight decay and the other not.
@@ -79,7 +79,7 @@ class BaseModule(pl.LightningModule, Generic[MetricType]):
         lr_scheduler = hydra.utils.instantiate(self.hparams.scheduler, optimizer=optimizer)
         return {"optimizer": optimizer, "lr_scheduler": {"scheduler": lr_scheduler, "interval": "step", "frequency": 1}}
 
-    def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
+    def on_save_checkpoint(self, checkpoint: dict[str, Any]) -> None:
         hparams: DictConfig = deepcopy(checkpoint["hyper_parameters"])
         OmegaConf.set_struct(hparams, False)
         if self.hparams.ignore_hparams_on_save:
@@ -96,7 +96,7 @@ class BaseModule(pl.LightningModule, Generic[MetricType]):
         checkpoint = torch.load(checkpoint_path, map_location=map_location, weights_only=False)
         with Fabric().init_module(empty_init=True):
             module = cls(hparams=checkpoint[cls.CHECKPOINT_HYPER_PARAMS_KEY])  # type: ignore
-        state_dict: Dict[str, torch.Tensor] = checkpoint["state_dict"]
+        state_dict: dict[str, torch.Tensor] = checkpoint["state_dict"]
         # from transformers 4.31.0, `encoder.embeddings.position_ids` is a non-persistent buffer
         # https://github.com/huggingface/transformers/commit/8e5d1619b3e57367701d74647e87b95f8dba5409#diff-6f3cd40371ba02671abf26407e722aa56cf116263be410253f58c8aa063f14adR866
         if strict is True and "encoder.embeddings.position_ids" in state_dict:

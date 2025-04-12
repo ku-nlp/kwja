@@ -3,7 +3,7 @@ from importlib.metadata import version
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import pytest
 import torch
@@ -16,7 +16,7 @@ from kwja.utils.constants import CANON_TOKEN, LEMMA_TOKEN, READING_TOKEN, SURF_T
 
 
 class MockTrainer:
-    def __init__(self, predict_dataloaders: List[DataLoader]):
+    def __init__(self, predict_dataloaders: list[DataLoader]):
         self.predict_dataloaders = predict_dataloaders
 
 

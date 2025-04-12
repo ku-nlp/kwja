@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from textwrap import dedent
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 from Levenshtein import opcodes
 
@@ -40,11 +40,11 @@ def normalize_example(example: dict) -> None:
         diff["post_str"] = normalize_text(diff["post_str"])
 
 
-def decompose(pre_text: str, post_text: str, diffs: List[dict]) -> Optional[List[Component]]:
+def decompose(pre_text: str, post_text: str, diffs: list[dict]) -> Optional[list[Component]]:
     # decompose texts into components
     # return None if alignment fails
-    components: List[Component] = []
-    monitor: Dict[str, str] = {"pre_text": pre_text, "post_text": post_text}
+    components: list[Component] = []
+    monitor: dict[str, str] = {"pre_text": pre_text, "post_text": post_text}
     for diff in diffs:
         if len(diff["pre_str"]) == 0:
             src, tgt = "post", "pre"
@@ -90,11 +90,11 @@ def decompose(pre_text: str, post_text: str, diffs: List[dict]) -> Optional[List
     return components
 
 
-def convert_components_into_tags(components: List[Component], length: int) -> Tuple[List[str], List[str]]:
+def convert_components_into_tags(components: list[Component], length: int) -> tuple[list[str], list[str]]:
     # Keep ("K"), Delete ("D"), Replace ("R:x")
-    kdr_tags: List[str] = ["K"] * length
+    kdr_tags: list[str] = ["K"] * length
     # Insert ("I:x"), Nothing ("_")
-    ins_tags: List[str] = ["_"] * length
+    ins_tags: list[str] = ["_"] * length
 
     cursor = 0
     for component in components:
@@ -130,16 +130,16 @@ def convert_components_into_tags(components: List[Component], length: int) -> Tu
     return kdr_tags, ins_tags
 
 
-def load_examples(in_dir: Path, split: str) -> Tuple[Dict[str, List[Dict[str, str]]], List[Dict[str, str]]]:
-    category2examples: Dict[str, List[Dict[str, str]]] = defaultdict(list)
-    other_examples: List[Dict[str, str]] = []
+def load_examples(in_dir: Path, split: str) -> tuple[dict[str, list[dict[str, str]]], list[dict[str, str]]]:
+    category2examples: dict[str, list[dict[str, str]]] = defaultdict(list)
+    other_examples: list[dict[str, str]] = []
     with (in_dir / f"{split}.jsonl").open() as f:
         for line in f:
             example: dict = json.loads(line)
             normalize_example(example)
             diffs = [diff for diff in example["diffs"] if diff["category"] != "not-typo"]
             assert len(diffs) > 0
-            components: Optional[List[Component]] = decompose(example["pre_text"], example["post_text"], diffs)
+            components: Optional[list[Component]] = decompose(example["pre_text"], example["post_text"], diffs)
             if components is None:
                 continue
             kdr_tags, ins_tags = convert_components_into_tags(components, len(example["pre_text"]) + 1)
@@ -157,16 +157,16 @@ def load_examples(in_dir: Path, split: str) -> Tuple[Dict[str, List[Dict[str, st
 
 
 def save_examples(
-    category2examples: Dict[str, List[Dict[str, str]]],
-    other_examples: List[Dict[str, str]],
+    category2examples: dict[str, list[dict[str, str]]],
+    other_examples: list[dict[str, str]],
     out_dir: Path,
     split: str,
     num_valid_examples_per_category: int,
 ) -> None:
     if split == "train":
-        train_examples: List[Dict[str, str]] = other_examples
-        valid_examples: List[Dict[str, str]] = []
-        for category, examples in category2examples.items():
+        train_examples: list[dict[str, str]] = other_examples
+        valid_examples: list[dict[str, str]] = []
+        for _category, examples in category2examples.items():
             train_examples.extend(examples[num_valid_examples_per_category:])
             valid_examples.extend(examples[:num_valid_examples_per_category])
 
@@ -190,7 +190,7 @@ def save_examples(
 
 
 def build_multi_char_vocab(out_dir: Path) -> None:
-    multi_char_vocab: List[str] = []
+    multi_char_vocab: list[str] = []
     with (out_dir / "train" / "train.jsonl").open() as f:
         for line in f:
             train_example: dict = json.loads(line)

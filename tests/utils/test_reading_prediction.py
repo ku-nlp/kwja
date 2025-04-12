@@ -1,6 +1,5 @@
 import subprocess
 from pathlib import Path
-from typing import List
 
 import pytest
 
@@ -50,10 +49,10 @@ from kwja.utils.constants import RESOURCE_TRAVERSABLE
     ],
 )
 def test_get_word_level_readings(
-    readings: List[str],
-    tokens: List[str],
-    subword_map: List[List[bool]],
-    expected_output: List[str],
+    readings: list[str],
+    tokens: list[str],
+    subword_map: list[list[bool]],
+    expected_output: list[str],
 ):
     assert reading_prediction.get_word_level_readings(readings, tokens, subword_map) == expected_output
 

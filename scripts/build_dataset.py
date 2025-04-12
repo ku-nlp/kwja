@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 from itertools import product
 from pathlib import Path
 from subprocess import PIPE, Popen
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 from rhoknp import KNP, Document, Jumanpp, Morpheme, Sentence
 from rhoknp.props import FeatureDict, NamedEntity, NamedEntityCategory
@@ -116,7 +116,7 @@ class JumanppAugmenter:
                 keys = []
 
 
-def align_morphemes(morphemes1: List[Morpheme], morphemes2: List[Morpheme]) -> Optional[Dict[str, List[Morpheme]]]:
+def align_morphemes(morphemes1: list[Morpheme], morphemes2: list[Morpheme]) -> Optional[dict[str, list[Morpheme]]]:
     alignment = {}
     idx1, idx2 = 0, 0
     for _ in range(max(len(morphemes1), len(morphemes2))):
@@ -142,7 +142,7 @@ def align_morphemes(morphemes1: List[Morpheme], morphemes2: List[Morpheme]) -> O
     return alignment
 
 
-def extract_named_entities(tagged_sentence: Sentence) -> List[Tuple[str, List[Morpheme]]]:
+def extract_named_entities(tagged_sentence: Sentence) -> list[tuple[str, list[Morpheme]]]:
     named_entities = []
     category, morphemes_buff = "", []
     for morpheme in tagged_sentence.morphemes:
@@ -161,7 +161,7 @@ def extract_named_entities(tagged_sentence: Sentence) -> List[Tuple[str, List[Mo
     return named_entities
 
 
-def set_named_entities(document: Document, sid2tagged_sentence: Dict[str, Sentence]) -> None:
+def set_named_entities(document: Document, sid2tagged_sentence: dict[str, Sentence]) -> None:
     for sentence in document.sentences:
         # 既にneタグが付与されている文は対象としない
         if sentence.sid in sid2tagged_sentence and len(sentence.named_entities) == 0:
@@ -244,10 +244,10 @@ def refresh(document: Document) -> None:
 
 
 def assign_features_and_save(
-    knp_texts: List[str],
+    knp_texts: list[str],
     output_root: Path,
-    doc_id2split: Dict[str, str],
-    sid2tagged_sentence: Optional[Dict[str, Sentence]] = None,
+    doc_id2split: dict[str, str],
+    sid2tagged_sentence: Optional[dict[str, Sentence]] = None,
 ) -> None:
     jumanpp_augmenter = JumanppAugmenter()
     knp = KNP(options=["-tab", "-dpnd-fast", "-read-feature"])
@@ -261,8 +261,8 @@ def assign_features_and_save(
             continue
 
         morpheme_features = []
-        unsupported_conjugations: Dict[int, Tuple[str, int, str, int]] = {}
-        unsupported_pos_subpos: Dict[int, Tuple[str, int, str, int]] = {}
+        unsupported_conjugations: dict[int, tuple[str, int, str, int]] = {}
+        unsupported_pos_subpos: dict[int, tuple[str, int, str, int]] = {}
         for morpheme in document.morphemes:
             morpheme_features.append(morpheme.features.copy())
             morpheme.features.clear()

@@ -2,14 +2,14 @@ import unicodedata
 from importlib.abc import Traversable
 from importlib.resources import as_file
 from pathlib import Path
-from typing import Any, Dict, Union
+from typing import Any, Union
 
 from kwja.utils.constants import KATA2HIRA
 
 
 class KanjiDic:
     def __init__(self, fpath: Union[Path, Traversable]) -> None:
-        self.entries: Dict[str, Any] = {
+        self.entries: dict[str, Any] = {
             "°": {
                 "reading": ["ど"],
             },
@@ -297,7 +297,7 @@ class KanjiDic:
                 if len(line) <= 0 or line[0] == "#":
                     continue
                 fields = line.rstrip().split(" ")
-                struct: Dict[str, Any] = {
+                struct: dict[str, Any] = {
                     "has_nanori": False,
                 }
                 self.entries[fields.pop(0)] = struct

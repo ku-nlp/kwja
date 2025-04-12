@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import Union
 
 import hydra
 import pytorch_lightning as pl
@@ -34,7 +34,7 @@ def main(eval_cfg: DictConfig):
     assert isinstance(cfg, DictConfig)
 
     logger: Union[Logger, bool] = cfg.get("logger", False) and hydra.utils.instantiate(cfg.get("logger"))
-    callbacks: List[Callback] = list(map(hydra.utils.instantiate, cfg.get("callbacks", {}).values()))
+    callbacks: list[Callback] = list(map(hydra.utils.instantiate, cfg.get("callbacks", {}).values()))
 
     num_devices: int = len(cfg.devices) if isinstance(cfg.devices, (list, ListConfig)) else cfg.devices
     cfg.effective_batch_size = cfg.max_batches_per_device * num_devices

@@ -5,7 +5,6 @@ import re
 import shutil
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Dict, List
 
 from jinf import Jinf
 from rhoknp import KNP, Document, Sentence
@@ -32,8 +31,8 @@ def main():
     knp = KNP()
     jinf = Jinf()
 
-    partials: List[Dict[str, str]] = []
-    partial: Dict[str, str] = {}
+    partials: list[dict[str, str]] = []
+    partial: dict[str, str] = {}
     with Path(args.input_orig_path).open() as f:
         for line in f:
             if line := line.rstrip("\n"):
@@ -41,7 +40,7 @@ def main():
                     annos = line.split("\t")
                     partial["text"] = partial.get("text", "") + annos[1]
                     partial["surf"] = annos[1]
-                    for anno_idx, anno in enumerate(annos[2:]):
+                    for _anno_idx, anno in enumerate(annos[2:]):
                         if anno.startswith("baseform:"):
                             partial["lemma"] = anno.removeprefix("baseform:")
                         elif anno.startswith("conjtype:"):
@@ -58,9 +57,9 @@ def main():
         partials.append(partial)
     logger.info(f"Loaded {len(partials)} partials")
 
-    sid2knp_str: Dict[str, str] = {}
-    sid2info: Dict[str, Dict[int, Dict[str, str]]] = {}
-    excluded_nums: Dict[str, int] = {}
+    sid2knp_str: dict[str, str] = {}
+    sid2info: dict[str, dict[int, dict[str, str]]] = {}
+    excluded_nums: dict[str, int] = {}
     with Path(args.input_juman_path).open() as f:
         document: Document = Document.from_jumanpp(f.read())
         for sentence_idx, sentence in enumerate(tqdm(document.sentences)):
@@ -70,7 +69,7 @@ def main():
                     f"Text mismatch: {sentence.text} != {partials[sentence_idx]['text']} at sentence index {sentence_idx}"
                 )
                 continue
-            info: Dict[int, Dict[str, str]] = {}
+            info: dict[int, dict[str, str]] = {}
             for morpheme in sentence.morphemes:
                 pseudo_canon_type: str = ""
                 if "代表表記" not in morpheme.semantics:
@@ -112,13 +111,13 @@ def main():
                 excluded_nums["no_attribution_error"] = excluded_nums.get("no_attribution_error", 0) + 1
                 continue
 
-    sid2knp_str_list: List[tuple[str, str]] = list(sid2knp_str.items())
+    sid2knp_str_list: list[tuple[str, str]] = list(sid2knp_str.items())
     random.shuffle(sid2knp_str_list)
     train_size: int = int(len(sid2knp_str_list) * 0.9)
     valid_size: int = int(len(sid2knp_str_list) * 0.05)
-    train_list: List[tuple[str, str]] = sid2knp_str_list[:train_size]
-    valid_list: List[tuple[str, str]] = sid2knp_str_list[train_size : train_size + valid_size]
-    test_list: List[tuple[str, str]] = sid2knp_str_list[train_size + valid_size :]
+    train_list: list[tuple[str, str]] = sid2knp_str_list[:train_size]
+    valid_list: list[tuple[str, str]] = sid2knp_str_list[train_size : train_size + valid_size]
+    test_list: list[tuple[str, str]] = sid2knp_str_list[train_size + valid_size :]
 
     output_dir: Path = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)

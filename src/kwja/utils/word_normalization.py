@@ -1,5 +1,4 @@
 import logging
-from typing import List, Tuple
 
 import numpy as np
 from jinf import Jinf
@@ -23,7 +22,7 @@ class MorphemeNormalizer:
     def __init__(self) -> None:
         self.jinf = Jinf()
 
-    def get_word_norm_op_tags(self, morpheme: Morpheme) -> List[str]:
+    def get_word_norm_op_tags(self, morpheme: Morpheme) -> list[str]:
         try:
             if morpheme.conjtype == "*":
                 norm = morpheme.lemma
@@ -35,11 +34,11 @@ class MorphemeNormalizer:
             return [IGNORE_WORD_NORM_OP_TAG] * len(morpheme.surf)
 
 
-def get_word_norm_op_tags(surf: str, norm: str) -> List[str]:
+def get_word_norm_op_tags(surf: str, norm: str) -> list[str]:
     m, n = len(surf) + 1, len(norm) + 1
     if m < n:
         raise ValueError(f"failed to get word norm op tags from {surf} and {norm}")
-    dp: List[List[Tuple[float, str]]] = [[(float("inf"), "_") for _ in range(n)] for _ in range(m)]  # (m, n)
+    dp: list[list[tuple[float, str]]] = [[(float("inf"), "_") for _ in range(n)] for _ in range(m)]  # (m, n)
     dp[0][0] = (0.0, "")
     for j in range(1, n):
         cj = norm[j - 1]
@@ -85,7 +84,7 @@ def get_word_norm_op_tags(surf: str, norm: str) -> List[str]:
     return word_norm_op_tags
 
 
-def get_normalized_surf(surf: str, word_norm_op_tags: List[str], strict: bool = True) -> str:
+def get_normalized_surf(surf: str, word_norm_op_tags: list[str], strict: bool = True) -> str:
     assert len(surf) == len(word_norm_op_tags)
     norm = ""
     for i, (c, word_norm_op_tag) in enumerate(zip(surf, word_norm_op_tags)):
@@ -151,24 +150,25 @@ def get_normalized_surf(surf: str, word_norm_op_tags: List[str], strict: bool = 
 
 
 class SentenceDenormalizer:
-    def __init__(self):
+    def __init__(self) -> None:
         self.mn = MorphemeNormalizer()
         self.md = MorphemeDenormalizer()
+        self.rng = np.random.default_rng()
 
-    def denormalize(self, sentence: Sentence, p=0.5) -> None:
+    def denormalize(self, sentence: Sentence, p: float = 0.5) -> None:
         prob = p
         for morpheme in reversed(sentence.morphemes):
             if not self._is_normal_morpheme(morpheme):
                 continue
             surf2 = self.md.denormalize(morpheme)
             if surf2 != morpheme.text:
-                if np.random.rand() < prob:
+                if self.rng.random() < prob:
                     morpheme.text = surf2
                     prob *= 0.1
             else:
                 prob = min(prob * 1.5, p)
 
-    def _is_normal_morpheme(self, morpheme):
+    def _is_normal_morpheme(self, morpheme: Morpheme) -> bool:
         opn = self.mn.get_word_norm_op_tags(morpheme)
         if opn[0] == IGNORE_WORD_NORM_OP_TAG:
             return False
@@ -176,6 +176,9 @@ class SentenceDenormalizer:
 
 
 class MorphemeDenormalizer:
+    def __init__(self) -> None:
+        self.rng = np.random.default_rng()
+
     def denormalize(self, morpheme: Morpheme) -> str:
         return self._denormalize(morpheme.surf)
 
@@ -183,7 +186,7 @@ class MorphemeDenormalizer:
         if len(surf) == 1:
             return surf
         surf2 = self._denormalize_deterministic(surf, var_prolonged=True)
-        cands: List[Tuple[str, float]] = [(surf, 10.0)]
+        cands: list[tuple[str, float]] = [(surf, 10.0)]
         # D: ー, っ
         if is_kana(surf2[-1]):
             d = 0.1
@@ -285,11 +288,10 @@ class MorphemeDenormalizer:
             return surf2
         probs = np.array(list(map(lambda x: x[1], cands)))
         probs /= probs.sum()
-        idx = np.random.choice(len(probs), p=probs)
+        idx = self.rng.choice(len(probs), p=probs)
         return cands[idx][0]
 
-    @staticmethod
-    def _denormalize_deterministic(surf, var_prolonged=False) -> str:
+    def _denormalize_deterministic(self, surf, var_prolonged=False) -> str:
         # S
         if surf[-1] in UPPER2LOWER:
             surf2 = surf[:-1] + UPPER2LOWER[surf[-1]]
@@ -301,7 +303,7 @@ class MorphemeDenormalizer:
             surf2 = surf[:pos] + c + surf[pos + 1 :]
             return surf2
         # P, E
-        if var_prolonged and np.random.rand() < 0.1:
+        if var_prolonged and self.rng.random() < 0.1:
             prolonged = "〜"
         else:
             prolonged = "ー"

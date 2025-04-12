@@ -91,8 +91,8 @@ malformed_list = [
 
 
 @pytest.mark.parametrize(("surf", "ops", "expected"), malformed_list)
-def test_gen_normalized_surf_malformed(surf, ops, expected):
-    with pytest.raises(ValueError):
+def test_gen_normalized_surf_malformed(surf, ops, expected):  # noqa: ARG001
+    with pytest.raises(ValueError, match=r"(not a small kana \w+ in \w+|no preceding kana for \w+ in \w+)"):
         get_normalized_surf(surf, ops, strict=True)
 
 

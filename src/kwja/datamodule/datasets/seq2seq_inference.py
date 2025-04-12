@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 from rhoknp import Document
 from rhoknp.utils.reader import chunk_by_document
@@ -37,18 +37,19 @@ class Seq2SeqInferenceDataset(BaseDataset[Seq2SeqInferenceExample, Seq2SeqModule
                 ]
         else:
             documents = []
-        self.examples: List[Seq2SeqInferenceExample] = self._load_example(documents)
+        self.examples: list[Seq2SeqInferenceExample] = self._load_example(documents)
 
-    def _load_example(self, documents: List[Document]) -> List[Seq2SeqInferenceExample]:
+    def _load_example(self, documents: list[Document]) -> list[Seq2SeqInferenceExample]:
         examples = []
         example_id: int = 0
         for document in track(documents, description="Loading examples"):
             for sentence in document.sentences:
-                src_tokens: List[str] = self.formatter.get_src_tokens(sentence)
-                src_input_ids: List[int] = self.tokenizer.convert_tokens_to_ids(src_tokens) + [
-                    self.tokenizer.eos_token_id
+                src_tokens: list[str] = self.formatter.get_src_tokens(sentence)
+                src_input_ids: list[int] = [
+                    *self.tokenizer.convert_tokens_to_ids(src_tokens),
+                    self.tokenizer.eos_token_id,
                 ]
-                src_attention_mask: List[int] = [1] * len(src_input_ids)
+                src_attention_mask: list[int] = [1] * len(src_input_ids)
                 src_input_ids += [self.tokenizer.pad_token_id] * (self.max_src_length - len(src_input_ids))
                 src_attention_mask += [0] * (self.max_src_length - len(src_attention_mask))
                 examples.append(

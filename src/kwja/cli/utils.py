@@ -2,7 +2,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import Optional, Union
 
 import torch
 from torch.hub import download_url_to_file
@@ -17,7 +17,7 @@ ENV_XDG_CACHE_HOME = "XDG_CACHE_HOME"
 DEFAULT_CACHE_DIR = Path.home() / ".cache"
 
 _CHECKPOINT_BASE_URL = "https://lotus.kuee.kyoto-u.ac.jp"
-_CHECKPOINT_FILE_NAMES: Dict[ModelSize, Dict[str, str]] = {
+_CHECKPOINT_FILE_NAMES: dict[ModelSize, dict[str, str]] = {
     ModelSize.TINY: {
         "typo": "typo_deberta-v2-tiny-wwm.ckpt",
         "char": "char_deberta-v2-tiny-wwm.ckpt",

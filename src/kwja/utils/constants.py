@@ -2,7 +2,7 @@ import re
 from enum import Enum
 from importlib.abc import Traversable
 from importlib.resources import files
-from typing import Dict, Optional, Tuple
+from typing import Optional
 
 from rhoknp.props import DepType, NamedEntityCategory
 
@@ -20,7 +20,7 @@ TYPO_CORR_OP_TAG2TOKEN = {
     "D": "<d>",
     "_": "<_>",
 }
-TOKEN2TYPO_CORR_OP_TAG: Dict[str, str] = {v: k for k, v in TYPO_CORR_OP_TAG2TOKEN.items()}
+TOKEN2TYPO_CORR_OP_TAG: dict[str, str] = {v: k for k, v in TYPO_CORR_OP_TAG2TOKEN.items()}
 DUMMY_TOKEN = "<dummy>"
 
 
@@ -194,7 +194,7 @@ KATA2HIRA = str.maketrans(_KATAKANA, _HIRAGANA)
 
 # ---------- char module|text normalization ----------
 # 制御文字(\t,\nを含む)は削除
-TRANSLATION_TABLE: Dict[int, Optional[int]] = str.maketrans(
+TRANSLATION_TABLE: dict[int, Optional[int]] = str.maketrans(
     '"#▁', "”＃▂", "".join(chr(i) for i in [*range(32), *range(127, 160), 5760, *range(8232, 8234)])
 )
 
@@ -208,7 +208,7 @@ NO_CANON_TOKEN: str = "<extra_id_4>"  # control token to represent no canonical 
 MORPHEME_DELIMITER_TOKEN: str = "<extra_id_5>"  # control token to segment input text into morphemes
 # special tokens
 HALF_SPACE_TOKEN: str = "<extra_id_6>"
-RARE2SPECIAL: Dict[str, str] = {
+RARE2SPECIAL: dict[str, str] = {
     "ゔ": "<extra_id_7>",
     "榕": "<extra_id_8>",
     "謄": "<extra_id_9>",
@@ -229,7 +229,7 @@ RARE2SPECIAL: Dict[str, str] = {
     "Ӧ": "<extra_id_24>",
     "溢": "<extra_id_25>",
 }
-SPECIAL2RARE: Dict[str, str] = {v: k for k, v in RARE2SPECIAL.items()}
+SPECIAL2RARE: dict[str, str] = {v: k for k, v in RARE2SPECIAL.items()}
 
 
 # ---------- word module ----------
@@ -278,7 +278,7 @@ POS_TAG2POS_ID = {
 POS_TAGS = tuple(POS_TAG2POS_ID.keys())
 
 # 品詞細分類
-POS_TAG_SUBPOS_TAG2SUBPOS_ID: Dict[str, Dict[str, int]] = {
+POS_TAG_SUBPOS_TAG2SUBPOS_ID: dict[str, dict[str, int]] = {
     "特殊": {
         "句点": 1,
         "読点": 2,
@@ -334,11 +334,14 @@ POS_TAG_SUBPOS_TAG2SUBPOS_ID: Dict[str, Dict[str, int]] = {
         "動詞性接尾辞": 7,
     },
 }
-SUBPOS_TAGS = ("*",) + tuple(
-    subpos_tag
-    for subpos_tag2subpos_ids in POS_TAG_SUBPOS_TAG2SUBPOS_ID.values()
-    for subpos_tag in subpos_tag2subpos_ids
-    if subpos_tag != "*"
+SUBPOS_TAGS = (
+    "*",
+    *tuple(
+        subpos_tag
+        for subpos_tag2subpos_ids in POS_TAG_SUBPOS_TAG2SUBPOS_ID.values()
+        for subpos_tag in subpos_tag2subpos_ids
+        if subpos_tag != "*"
+    ),
 )
 
 # 活用型
@@ -379,7 +382,7 @@ CONJTYPE_TAGS = (
 )
 
 # 活用形
-CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID: Dict[str, Dict[str, int]] = {
+CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID: dict[str, dict[str, int]] = {
     "*": {"*": 0},
     "母音動詞": {
         "*": 0,
@@ -1081,11 +1084,11 @@ INFLECTABLE |= {("接尾辞", subpos_tag) for subpos_tag in ["形容詞性述語
 
 # ---------- word module|word feature tagging ----------
 SUB_WORD_FEATURES = ("用言表記先頭", "用言表記末尾")  # メンテナンスしない単語素性
-WORD_FEATURES: Tuple[str, ...] = ("基本句-主辞", "基本句-区切", "文節-区切", *SUB_WORD_FEATURES)
+WORD_FEATURES: tuple[str, ...] = ("基本句-主辞", "基本句-区切", "文節-区切", *SUB_WORD_FEATURES)
 
 
 # ---------- word module|ner ----------
-NE_TAGS: Tuple[str, ...] = sum(
+NE_TAGS: tuple[str, ...] = sum(
     [(f"B-{cat.value}", f"I-{cat.value}") for cat in NamedEntityCategory if cat != NamedEntityCategory.OPTIONAL], ("O",)
 )
 
@@ -1171,7 +1174,7 @@ IGNORE_VALUE_FEATURE_PAT = re.compile(r"節-(前向き)?機能疑?")
 
 
 # ---------- word module|dependency parsing ----------
-DEPENDENCY_TYPES: Tuple[DepType, ...] = tuple(DepType)
+DEPENDENCY_TYPES: tuple[DepType, ...] = tuple(DepType)
 
 
 # ---------- word module|discourse relation analysis ----------

@@ -2,7 +2,7 @@ import tempfile
 from importlib.metadata import version
 from pathlib import Path
 from textwrap import dedent
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 import pytest
 import pytorch_lightning as pl
@@ -45,7 +45,7 @@ AMBIG_SURF_SPECS = [
 
 
 class MockTrainer:
-    def __init__(self, predict_dataloaders: List[DataLoader]):
+    def __init__(self, predict_dataloaders: list[DataLoader]):
         self.predict_dataloaders = predict_dataloaders
 
 
@@ -75,7 +75,7 @@ def test_init(destination: Optional[Union[str, Path]]):
     _ = WordModuleWriter(AMBIG_SURF_SPECS, destination=destination)
 
 
-def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
+def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[str, Any]):
     doc_id_prefix = "test"
     juman_text = dedent(
         f"""\

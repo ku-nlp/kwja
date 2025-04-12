@@ -6,7 +6,6 @@ import re
 import shutil
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Dict, List, Set
 
 from jinf import Jinf
 from rhoknp import Jumanpp, Morpheme, Sentence
@@ -23,15 +22,15 @@ logger.setLevel(logging.INFO)
 
 jinf = Jinf()
 
-STOP_SURFS: Set[str] = {'"', "\u3000"}
+STOP_SURFS: set[str] = {'"', "\u3000"}
 
 
 def is_hiragana(value):
     return re.match(r"^[\u3040-\u309F\u30FC]+$", value) is not None
 
 
-def get_canons(morpheme: Morpheme) -> List[str]:
-    canons: List[str] = []
+def get_canons(morpheme: Morpheme) -> list[str]:
+    canons: list[str] = []
     if morpheme.canon is not None:
         canons.append(morpheme.canon)
     for feature in morpheme.features:
@@ -40,7 +39,7 @@ def get_canons(morpheme: Morpheme) -> List[str]:
     return canons
 
 
-def set_other_canons(sentence: Sentence, target_morpheme_indexes: Set[int]) -> None:
+def set_other_canons(sentence: Sentence, target_morpheme_indexes: set[int]) -> None:
     for morpheme in sentence.morphemes:
         if morpheme.index in target_morpheme_indexes:
             continue
@@ -80,13 +79,13 @@ def main():
 
     jumanpp = Jumanpp()
 
-    input_paths: List[Path] = []
+    input_paths: list[Path] = []
     for input_dir in args.input_dirs:
         input_paths.extend(list(Path(input_dir).glob("**/*.txt")))
 
-    sentences: List[Sentence] = []
-    canon2freq: Dict[str, int] = {}
-    excluded_nums: Dict[str, int] = {}
+    sentences: list[Sentence] = []
+    canon2freq: dict[str, int] = {}
+    excluded_nums: dict[str, int] = {}
     for input_path in tqdm(input_paths):
         with input_path.open() as f:
             for knp in chunk_by_sentence(f):
@@ -98,8 +97,8 @@ def main():
 
                 juman_sentence: Sentence = jumanpp.apply_to_sentence(sentence.text)
 
-                kwja_words: List[str] = [morpheme.text for morpheme in sentence.morphemes]
-                juman_words: List[str] = [morpheme.text for morpheme in juman_sentence.morphemes]
+                kwja_words: list[str] = [morpheme.text for morpheme in sentence.morphemes]
+                juman_words: list[str] = [morpheme.text for morpheme in juman_sentence.morphemes]
                 if kwja_words != juman_words:
                     excluded_nums["word_segmentation"] = excluded_nums.get("word_segmentation", 0) + 1
                     continue
@@ -107,24 +106,24 @@ def main():
                 for morpheme in sentence.morphemes:
                     if morpheme.pos not in {"名詞", "動詞", "形容詞", "接頭辞", "接尾辞", "副詞", "連体詞"}:
                         continue
-                    canons: List[str] = get_canons(morpheme)
+                    canons: list[str] = get_canons(morpheme)
                     if len(canons) > 1:
                         for canon in canons:
                             canon2freq[canon] = canon2freq.get(canon, 0) + 1
                 sentences.append(sentence)
     print(f"num_sentences: {len(sentences)}")
 
-    sid2knp_str: Dict[str, str] = {}
-    sid2info: Dict[str, Dict[int, Dict[str, str]]] = {}
-    sampled_canon2freq: Dict[str, int] = {}
+    sid2knp_str: dict[str, str] = {}
+    sid2info: dict[str, dict[int, dict[str, str]]] = {}
+    sampled_canon2freq: dict[str, int] = {}
     for sentence in sentences:
         if get_is_excluded(sentence):
             continue
-        info: Dict[int, Dict[str, str]] = {}
-        target_canons: Set[str] = set()
-        target_morpheme_indexes: Set[int] = set()
+        info: dict[int, dict[str, str]] = {}
+        target_canons: set[str] = set()
+        target_morpheme_indexes: set[int] = set()
         for morpheme in sentence.morphemes:
-            canons: List[str] = get_canons(morpheme)
+            canons: list[str] = get_canons(morpheme)
             if len(canons) > 1 or sampled_canon2freq.get(morpheme.canon, 0) >= args.max_samples:
                 continue
 
@@ -177,13 +176,13 @@ def main():
         if len(sid2knp_str) >= 5000:
             break
 
-    sid2knp_str_list: List[tuple[str, str]] = list(sid2knp_str.items())
+    sid2knp_str_list: list[tuple[str, str]] = list(sid2knp_str.items())
     random.shuffle(sid2knp_str_list)
     train_size: int = int(len(sid2knp_str_list) * 0.9)
     valid_size: int = int(len(sid2knp_str_list) * 0.05)
-    train_list: List[tuple[str, str]] = sid2knp_str_list[:train_size]
-    valid_list: List[tuple[str, str]] = sid2knp_str_list[train_size : train_size + valid_size]
-    test_list: List[tuple[str, str]] = sid2knp_str_list[train_size + valid_size :]
+    train_list: list[tuple[str, str]] = sid2knp_str_list[:train_size]
+    valid_list: list[tuple[str, str]] = sid2knp_str_list[train_size : train_size + valid_size]
+    test_list: list[tuple[str, str]] = sid2knp_str_list[train_size + valid_size :]
 
     output_dir: Path = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)

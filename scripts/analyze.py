@@ -3,7 +3,6 @@ import sys
 import tempfile
 from pathlib import Path
 from time import time
-from typing import List
 
 import hydra
 import pytorch_lightning as pl
@@ -45,7 +44,7 @@ def main(eval_cfg: DictConfig):
     cfg = OmegaConf.merge(train_cfg, eval_cfg)
     assert isinstance(cfg, DictConfig)
 
-    callbacks: List[Callback] = []
+    callbacks: list[Callback] = []
     for k, v in cfg.get("callbacks", {}).items():
         if k in {"prediction_writer", "progress_bar"}:
             callbacks.append(hydra.utils.instantiate(v))

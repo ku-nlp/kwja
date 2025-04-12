@@ -1,7 +1,6 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List
 
 from rhoknp import Document
 from transformers import BatchEncoding, PreTrainedTokenizerBase
@@ -26,11 +25,11 @@ logger = logging.getLogger(__name__)
 @dataclass(frozen=True)
 class CharModuleFeatures:
     example_ids: int
-    input_ids: List[int]
-    attention_mask: List[int]
-    sent_segmentation_labels: List[int]
-    word_segmentation_labels: List[int]
-    word_norm_op_labels: List[int]
+    input_ids: list[int]
+    attention_mask: list[int]
+    sent_segmentation_labels: list[int]
+    word_segmentation_labels: list[int]
+    word_norm_op_labels: list[int]
 
 
 class CharDataset(BaseDataset[CharExample, CharModuleFeatures], FullAnnotatedDocumentLoaderMixin):
@@ -49,11 +48,11 @@ class CharDataset(BaseDataset[CharExample, CharModuleFeatures], FullAnnotatedDoc
         )
         self.denormalize_probability: float = denormalize_probability if is_training else 0.0
         super(BaseDataset, self).__init__(self.path, tokenizer, max_seq_length, -1)  # document_split_stride must be -1
-        self.examples: List[CharExample] = self._load_examples(self.doc_id2document)
+        self.examples: list[CharExample] = self._load_examples(self.doc_id2document)
         if is_training is True:
             del self.doc_id2document  # for saving memory
 
-    def _load_examples(self, doc_id2document: Dict[str, Document]) -> List[CharExample]:
+    def _load_examples(self, doc_id2document: dict[str, Document]) -> list[CharExample]:
         examples = []
         example_id = 0
         for document in track(doc_id2document.values(), description="Loading examples"):
@@ -78,17 +77,17 @@ class CharDataset(BaseDataset[CharExample, CharModuleFeatures], FullAnnotatedDoc
         return examples
 
     def encode(self, example: CharExample) -> CharModuleFeatures:
-        sent_segmentation_labels: List[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
+        sent_segmentation_labels: list[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
         for char_global_index, sent_segmentation_tag in example.char_global_index2sent_segmentation_tag.items():
             # 先頭の[CLS]をIGNORE_INDEXにするため+1
             sent_segmentation_labels[char_global_index + 1] = SENT_SEGMENTATION_TAGS.index(sent_segmentation_tag)
 
-        word_segmentation_labels: List[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
+        word_segmentation_labels: list[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
         for char_global_index, word_segmentation_tag in example.char_global_index2word_segmentation_tag.items():
             # 先頭の[CLS]をIGNORE_INDEXにするため+1
             word_segmentation_labels[char_global_index + 1] = WORD_SEGMENTATION_TAGS.index(word_segmentation_tag)
 
-        word_norm_op_labels: List[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
+        word_norm_op_labels: list[int] = [IGNORE_INDEX for _ in range(self.max_seq_length)]
         for char_global_index, word_norm_op_tag in example.char_global_index2word_norm_op_tag.items():
             # 先頭の[CLS]をIGNORE_INDEXにするため+1
             if word_norm_op_tag == IGNORE_WORD_NORM_OP_TAG:

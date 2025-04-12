@@ -1,7 +1,7 @@
 import copy
 import logging
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Union
+from typing import Optional, Union
 
 from cohesion_tools.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
 from cohesion_tools.extractors.base import BaseExtractor
@@ -18,16 +18,16 @@ class CohesionBasePhrase:
     """A wrapper class of BasePhrase for cohesion analysis"""
 
     head_morpheme_global_index: int
-    morpheme_global_indices: List[int]
+    morpheme_global_indices: list[int]
     is_target: bool
-    antecedent_candidates: Optional[List["CohesionBasePhrase"]] = None
+    antecedent_candidates: Optional[list["CohesionBasePhrase"]] = None
     # case -> argument_tags / "=" -> mention_tags
-    rel2tags: Optional[Dict[str, List[str]]] = None
+    rel2tags: Optional[dict[str, list[str]]] = None
 
 
 def wrap_base_phrases(
-    base_phrases: List[BasePhrase], extractor: BaseExtractor, cases: List[str], restrict_cohesion_target: bool
-) -> List[CohesionBasePhrase]:
+    base_phrases: list[BasePhrase], extractor: BaseExtractor, cases: list[str], restrict_cohesion_target: bool
+) -> list[CohesionBasePhrase]:
     cohesion_base_phrases = [
         CohesionBasePhrase(
             base_phrase.head.global_index,
@@ -43,7 +43,7 @@ def wrap_base_phrases(
             antecedent_candidates = extractor.get_candidates(base_phrase, base_phrase.document.base_phrases)
             all_rels = extractor.extract_rels(base_phrase)
             if isinstance(extractor, (PasExtractor, BridgingExtractor)):
-                rel2tags: Dict[str, List[str]] = {case: _get_argument_tags(all_rels[case]) for case in cases}
+                rel2tags: dict[str, list[str]] = {case: _get_argument_tags(all_rels[case]) for case in cases}
             else:
                 assert isinstance(extractor, CoreferenceExtractor)
                 rel2tags = {"=": _get_referent_tags(all_rels)}
@@ -55,7 +55,7 @@ def wrap_base_phrases(
     return cohesion_base_phrases
 
 
-def _get_argument_tags(arguments: List[Argument]) -> List[str]:
+def _get_argument_tags(arguments: list[Argument]) -> list[str]:
     """Get argument tags.
 
     Note:
@@ -63,7 +63,7 @@ def _get_argument_tags(arguments: List[Argument]) -> List[str]:
         exophora argument: exophora referent
         no argument: [NULL]
     """
-    argument_tags: List[str] = []
+    argument_tags: list[str] = []
     for argument in arguments:
         if isinstance(argument, EndophoraArgument):
             argument_tag = str(argument.base_phrase.global_index)
@@ -76,7 +76,7 @@ def _get_argument_tags(arguments: List[Argument]) -> List[str]:
     return argument_tags or ["[NULL]"]
 
 
-def _get_referent_tags(referents: List[Union[BasePhrase, ExophoraReferent]]) -> List[str]:
+def _get_referent_tags(referents: list[Union[BasePhrase, ExophoraReferent]]) -> list[str]:
     """Get referent tags.
 
     Note:
@@ -84,7 +84,7 @@ def _get_referent_tags(referents: List[Union[BasePhrase, ExophoraReferent]]) -> 
         exophora referent: exophora referent text wrapped by []
         no referent: [NA]
     """
-    mention_tags: List[str] = []
+    mention_tags: list[str] = []
     for referent in referents:
         if isinstance(referent, BasePhrase):
             mention_tag = str(referent.global_index)

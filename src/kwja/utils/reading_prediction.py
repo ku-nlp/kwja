@@ -5,7 +5,7 @@ import unicodedata
 from collections import defaultdict
 from dataclasses import dataclass
 from importlib.resources import as_file
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Optional, Union
 
 import numpy as np
 from rhoknp import Morpheme
@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 READING_VOCAB_TRAVERSABLE = RESOURCE_TRAVERSABLE / "reading_prediction" / "vocab.txt"
 
 
-def get_reading2reading_id() -> Dict[str, int]:
+def get_reading2reading_id() -> dict[str, int]:
     reading2reading_id = {UNK: UNK_ID, ID: ID_ID}
     with as_file(READING_VOCAB_TRAVERSABLE) as path:
         with open(path) as f:
@@ -50,9 +50,9 @@ class ReadingAligner:
         self.tokenizer = tokenizer
         self.kanji_dic = kanji_dic
 
-    def align(self, morphemes: List[Morpheme]) -> List[str]:
+    def align(self, morphemes: list[Morpheme]) -> list[str]:
         # assumption: morphemes are never combined
-        tokenizer_input: Union[List[str], str] = [m.text for m in morphemes]
+        tokenizer_input: Union[list[str], str] = [m.text for m in morphemes]
         encoding = self.tokenizer(tokenizer_input, add_special_tokens=False, is_split_into_words=True).encodings[0]
         word_id2subwords = defaultdict(list)
         for token_id, word_id in enumerate(encoding.word_ids):
@@ -62,12 +62,12 @@ class ReadingAligner:
             f"inconsistent segmentation: {subwords_per_morpheme} / {morphemes}"
         )
 
-        readings: List[str] = []
+        readings: list[str] = []
         for morpheme, subwords in zip(morphemes, subwords_per_morpheme):
             readings.extend(self._align_morpheme(morpheme, subwords))
         return readings
 
-    def _align_morpheme(self, morpheme: Morpheme, subwords: List[str]) -> List[str]:
+    def _align_morpheme(self, morpheme: Morpheme, subwords: list[str]) -> list[str]:
         # trivial
         if len(subwords) == 1:
             return [morpheme.reading]
@@ -100,17 +100,17 @@ class ReadingAligner:
 
         # build lattice
         # no node can cross boundaries
-        td_lattice: List[List[List[Node]]] = []
-        td_holder: List[List[Tuple[Optional[Node], Optional[Node], float]]] = []
+        td_lattice: list[list[list[Node]]] = []
+        td_holder: list[list[tuple[Optional[Node], Optional[Node], float]]] = []
         node: Optional[Node] = None
         node_prev: Optional[Node]
-        for i in range(len(surf)):
+        for _ in range(len(surf)):
             td_lattice.append([])
-            for j in range(len(reading) + 1):  # +1 for zero-width reading
+            for _ in range(len(reading) + 1):  # +1 for zero-width reading
                 td_lattice[-1].append([])
-        for i in range(len(surf) + 1):
+        for _ in range(len(surf) + 1):
             td_holder.append([])
-            for j in range(len(reading) + 1):
+            for _ in range(len(reading) + 1):
                 td_holder[-1].append((None, None, np.inf))
         td_holder[0][0] = (None, None, 0)
 
@@ -253,7 +253,7 @@ class ReadingAligner:
         return subreadings
 
     @staticmethod
-    def _extend_kanji_reading_list(kanji_reading_list_orig: List[str]) -> List[str]:
+    def _extend_kanji_reading_list(kanji_reading_list_orig: list[str]) -> list[str]:
         kanji_reading_list = []
         for kanji_reading in kanji_reading_list_orig:
             kanji_reading = re.sub("-", "", kanji_reading)
@@ -270,7 +270,7 @@ class ReadingAligner:
         return kanji_reading_list
 
 
-def get_word_level_readings(readings: List[str], tokens: List[str], subword_map: List[List[bool]]) -> List[str]:
+def get_word_level_readings(readings: list[str], tokens: list[str], subword_map: list[list[bool]]) -> list[str]:
     """サブワードレベルの読みを単語レベルの読みに変換．
 
     Args:
@@ -278,7 +278,7 @@ def get_word_level_readings(readings: List[str], tokens: List[str], subword_map:
         tokens: list[str] サブワードレベルの表層．
         subword_map: list[list[bool]] subword_map[i][j] = True ならば i 番目の単語は j 番目のトークンを含む．
     """
-    ret: List[str] = []
+    ret: list[str] = []
     for flags in subword_map:
         item = ""
         for token, reading, flag in zip(tokens, readings, flags):

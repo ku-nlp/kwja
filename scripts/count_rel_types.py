@@ -3,14 +3,13 @@ from collections import defaultdict
 from collections.abc import Iterator
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
-from typing import Dict, List
 
 from rhoknp import Document
 
 sys.setrecursionlimit(10000)
 
 
-def iter_files(input_paths: List[str], ext: str = "knp") -> Iterator[Path]:
+def iter_files(input_paths: list[str], ext: str = "knp") -> Iterator[Path]:
     for path_str in input_paths:
         path = Path(path_str)
         if path.exists() is False:
@@ -21,7 +20,7 @@ def iter_files(input_paths: List[str], ext: str = "knp") -> Iterator[Path]:
             yield path
 
 
-def load_documents(paths: List[Path]) -> List[Document]:
+def load_documents(paths: list[Path]) -> list[Document]:
     documents = []
     with ProcessPoolExecutor(8) as executor:
         for document in executor.map(load_document, paths):
@@ -33,8 +32,8 @@ def load_document(path: Path) -> Document:
     return Document.from_knp(path.read_text())
 
 
-def count_cases(documents: List[Document]) -> Dict[str, int]:
-    counter: Dict[str, int] = defaultdict(int)
+def count_cases(documents: list[Document]) -> dict[str, int]:
+    counter: dict[str, int] = defaultdict(int)
     for document in documents:
         for base_phrase in document.base_phrases:
             for rel_tag in base_phrase.rel_tags:

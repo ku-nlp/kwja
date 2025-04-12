@@ -3,7 +3,7 @@ from collections import defaultdict
 from collections.abc import Sequence
 from itertools import product
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Optional, Union
 
 import pytorch_lightning as pl
 from jinf import Jinf
@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 class WordModuleWriter(BaseModuleWriter):
     def __init__(
         self,
-        ambig_surf_specs: List[Dict[str, str]],
+        ambig_surf_specs: list[dict[str, str]],
         preserve_reading_lemma_canon: bool = False,
         destination: Optional[Union[str, Path]] = None,
     ) -> None:
@@ -55,7 +55,7 @@ class WordModuleWriter(BaseModuleWriter):
 
         self.preserve_reading_lemma_canon: bool = preserve_reading_lemma_canon
 
-        self.doc_id_sid2predicted_sentence: Dict[str, Dict[str, Sentence]] = defaultdict(dict)
+        self.doc_id_sid2predicted_sentence: dict[str, dict[str, Sentence]] = defaultdict(dict)
         self.prev_doc_id = ""
 
     def write_on_batch_end(
@@ -121,7 +121,7 @@ class WordModuleWriter(BaseModuleWriter):
                 )
             orig_doc_id = to_orig_doc_id(document.doc_id)
             # 解析済みの文とマージ
-            sentences: List[Sentence] = [
+            sentences: list[Sentence] = [
                 self.doc_id_sid2predicted_sentence[orig_doc_id].get(s.sid, s) for s in predicted_document.sentences
             ]
             predicted_document = Document.from_sentences(sentences)
@@ -158,13 +158,13 @@ class WordModuleWriter(BaseModuleWriter):
 
     def _build_morphemes(
         self,
-        surfs: List[str],
-        norms: List[str],
-        reading_predictions: List[str],
-        morpheme_attribute_predictions: Tuple[List[int], List[int], List[int], List[int]],
-        canons: List[Optional[str]],
+        surfs: list[str],
+        norms: list[str],
+        reading_predictions: list[str],
+        morpheme_attribute_predictions: tuple[list[int], list[int], list[int], list[int]],
+        canons: list[Optional[str]],
         preserve_lemma: bool,
-    ) -> List[Morpheme]:
+    ) -> list[Morpheme]:
         assert len(surfs) == len(norms) == len(reading_predictions)
         morphemes = []
         for surf, norm, reading, pos_index, subpos_index, conjtype_index, conjform_index, canon in zip(
@@ -179,7 +179,7 @@ class WordModuleWriter(BaseModuleWriter):
             conjform = CONJFORM_TAGS[conjform_index]
             conjform_id = CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID[conjtype][conjform]
 
-            homograph_ops: List[Dict[str, Any]] = []
+            homograph_ops: list[dict[str, Any]] = []
             if preserve_lemma is True:
                 lemma = norm
             else:
@@ -205,7 +205,7 @@ class WordModuleWriter(BaseModuleWriter):
         return morphemes
 
     def _get_lemma(
-        self, norm: str, pos: str, subpos: str, conjtype: str, conjform: str, homograph_ops: List[Dict[str, Any]]
+        self, norm: str, pos: str, subpos: str, conjtype: str, conjform: str, homograph_ops: list[dict[str, Any]]
     ) -> str:
         # get lemma using norm, pos, subpos, conjtype and conjform
         if conjtype == "*":
@@ -221,7 +221,7 @@ class WordModuleWriter(BaseModuleWriter):
                     if entry["pos"] == pos and entry["subpos"] == subpos and entry["conjtype"] == conjtype
                 ]
                 if len(matched) > 0:
-                    lemmas: List[str] = [*{entry["lemma"] for entry in matched}]
+                    lemmas: list[str] = [*{entry["lemma"] for entry in matched}]
                     lemma = lemmas[0]
                     if len(lemmas) > 1:
                         homograph_ops.append({"type": "lemma", "values": lemmas[1:]})
@@ -246,7 +246,7 @@ class WordModuleWriter(BaseModuleWriter):
         subpos: str,
         conjtype: str,
         canon: Optional[str],
-        homograph_ops: List[Dict[str, Any]],
+        homograph_ops: list[dict[str, Any]],
     ) -> SemanticsDict:
         if canon is not None:
             matched = [
@@ -290,7 +290,7 @@ class WordModuleWriter(BaseModuleWriter):
         return semantics
 
     @staticmethod
-    def _add_homographs(homograph_ops: List[Dict[str, Any]], morpheme: Morpheme, semantics: SemanticsDict) -> None:
+    def _add_homographs(homograph_ops: list[dict[str, Any]], morpheme: Morpheme, semantics: SemanticsDict) -> None:
         range_list = [range(len(homograph_op["values"])) for homograph_op in homograph_ops]
         for op_idx_list in product(*range_list):
             homograph_lemma = morpheme.lemma

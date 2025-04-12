@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import List
 
 from transformers import PreTrainedTokenizerFast
 
@@ -44,7 +43,7 @@ def test_encode(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast):
     )
     num_examples = len(dataset)
 
-    expected_tokens: List[List[str]] = [
+    expected_tokens: list[list[str]] = [
         [
             SURF_TOKEN,
             "太郎",

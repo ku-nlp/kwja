@@ -3,7 +3,7 @@ import sys
 from abc import ABC
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
-from typing import Dict, Generic, List, TypeVar, Union
+from typing import Generic, TypeVar, Union
 
 from rhoknp import Document, Sentence
 from torch.utils.data import Dataset
@@ -24,7 +24,7 @@ class BaseDataset(Dataset[FeatureType], Generic[ExampleType, FeatureType], ABC):
     def __init__(self, tokenizer: PreTrainedTokenizerBase, max_seq_length: int) -> None:
         self.tokenizer: PreTrainedTokenizerBase = tokenizer
         self.max_seq_length: int = max_seq_length
-        self.examples: List[ExampleType] = []
+        self.examples: list[ExampleType] = []
 
     def __getitem__(self, index) -> FeatureType:
         return self.encode(self.examples[index])
@@ -39,7 +39,7 @@ class BaseDataset(Dataset[FeatureType], Generic[ExampleType, FeatureType], ABC):
 class FullAnnotatedDocumentLoaderMixin:
     def __init__(
         self,
-        source: Union[Path, List[Document]],
+        source: Union[Path, list[Document]],
         tokenizer: PreTrainedTokenizerBase,
         max_seq_length: int,
         document_split_stride: int,
@@ -47,14 +47,14 @@ class FullAnnotatedDocumentLoaderMixin:
     ) -> None:
         self.tokenizer: PreTrainedTokenizerBase = tokenizer
 
-        orig_documents: List[Document]
+        orig_documents: list[Document]
         if isinstance(source, Path):
             assert source.is_dir()
             orig_documents = self._load_documents(source, ext)
         else:
             orig_documents = source
 
-        self.doc_id2document: Dict[str, Document] = {}
+        self.doc_id2document: dict[str, Document] = {}
         for orig_document in track(orig_documents, description="Splitting documents"):
             orig_document = self._postprocess_document(orig_document)
             self.doc_id2document.update(
@@ -69,7 +69,7 @@ class FullAnnotatedDocumentLoaderMixin:
             )
 
     @staticmethod
-    def _load_documents(document_dir: Path, ext: str) -> List[Document]:
+    def _load_documents(document_dir: Path, ext: str) -> list[Document]:
         documents = []
         # Use a ProcessPoolExecutor to parallelize the loading of documents
         with ProcessPoolExecutor(4) as executor:
@@ -89,13 +89,13 @@ class FullAnnotatedDocumentLoaderMixin:
     def _postprocess_document(self, document: Document) -> Document:
         return document
 
-    def _split_document(self, document: Document, max_token_length: int, stride: int) -> List[Document]:
+    def _split_document(self, document: Document, max_token_length: int, stride: int) -> list[Document]:
         sentence_tokens = [self._get_tokenized_len(sentence) for sentence in document.sentences]
         if sum(sentence_tokens) <= max_token_length:
             return [document]
 
         splitter = SequenceSplitter(sentence_tokens, max_token_length, stride)
-        sub_documents: List[Document] = []
+        sub_documents: list[Document] = []
         sub_idx = 0
         for span in splitter.split_into_spans():
             assert isinstance(span, SpanCandidate)

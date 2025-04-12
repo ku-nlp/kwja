@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import pytest
 from omegaconf import ListConfig
@@ -40,43 +40,43 @@ def char_tokenizer() -> PreTrainedTokenizerBase:
 
 
 @pytest.fixture
-def word_tokenizer(special_tokens: List[str]) -> PreTrainedTokenizerBase:
+def word_tokenizer(special_tokens: list[str]) -> PreTrainedTokenizerBase:
     return AutoTokenizer.from_pretrained("ku-nlp/deberta-v2-tiny-japanese", additional_special_tokens=special_tokens)
 
 
 @pytest.fixture
-def cohesion_tasks() -> List[str]:
+def cohesion_tasks() -> list[str]:
     return ["pas_analysis", "bridging_reference_resolution", "coreference_resolution"]
 
 
 @pytest.fixture
-def exophora_referents() -> List[str]:
+def exophora_referents() -> list[str]:
     return ["著者", "読者", "不特定:人", "不特定:物"]
 
 
 @pytest.fixture
-def pas_cases() -> List[str]:
+def pas_cases() -> list[str]:
     return ["ガ", "ヲ", "ニ", "ガ２"]
 
 
 @pytest.fixture
-def br_cases() -> List[str]:
+def br_cases() -> list[str]:
     return ["ノ"]
 
 
 @pytest.fixture
-def special_tokens(exophora_referents: List[str]) -> List[str]:
+def special_tokens(exophora_referents: list[str]) -> list[str]:
     return [f"[{e}]" for e in exophora_referents] + ["[NULL]", "[NA]", "[ROOT]"]
 
 
 @pytest.fixture
 def dataset_kwargs(
-    cohesion_tasks: List[str],
-    exophora_referents: List[str],
-    pas_cases: List[str],
-    br_cases: List[str],
-    special_tokens: List[str],
-) -> Dict[str, Any]:
+    cohesion_tasks: list[str],
+    exophora_referents: list[str],
+    pas_cases: list[str],
+    br_cases: list[str],
+    special_tokens: list[str],
+) -> dict[str, Any]:
     return {
         "cohesion_tasks": ListConfig(cohesion_tasks),
         "exophora_referents": ListConfig(exophora_referents),

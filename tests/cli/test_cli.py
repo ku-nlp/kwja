@@ -2,7 +2,6 @@ import io
 import re
 import tempfile
 import textwrap
-from typing import List, Set, Tuple
 
 import pytest
 from rhoknp import Document
@@ -20,8 +19,8 @@ def test_version() -> None:
 
 
 def test_device_validation() -> None:
-    devices: List[str] = ["", "auto", "cpu", "gpu", "INVALID"]
-    base_args: List[str] = ["--model-size", "tiny", "--text", ""]
+    devices: list[str] = ["", "auto", "cpu", "gpu", "INVALID"]
+    base_args: list[str] = ["--model-size", "tiny", "--text", ""]
     for device in devices:
         ret = runner.invoke(app, args=[*base_args, "--device", device])
         if device not in {"auto", "cpu", "gpu"}:
@@ -31,7 +30,7 @@ def test_device_validation() -> None:
 
 
 def test_task_combination_validation() -> None:
-    tasks: List[str] = [
+    tasks: list[str] = [
         "",
         "dummy",
         "typo",
@@ -47,7 +46,7 @@ def test_task_combination_validation() -> None:
         "seq2seq,word",
         "word",
     ]
-    valid_tasks_raw_input: Set[Tuple[str, ...]] = {
+    valid_tasks_raw_input: set[tuple[str, ...]] = {
         ("typo",),
         ("typo", "char"),
         ("typo", "char", "seq2seq"),
@@ -58,12 +57,12 @@ def test_task_combination_validation() -> None:
         ("char", "word"),
         ("char", "seq2seq", "word"),
     }
-    valid_tasks_jumanpp_input: Set[Tuple[str, ...]] = valid_tasks_raw_input | {
+    valid_tasks_jumanpp_input: set[tuple[str, ...]] = valid_tasks_raw_input | {
         ("seq2seq",),
         ("seq2seq", "word"),
         ("word",),
     }
-    base_args: List[str] = ["--model-size", "tiny", "--text", ""]
+    base_args: list[str] = ["--model-size", "tiny", "--text", ""]
     for task in tasks:
         ret = runner.invoke(app, args=[*base_args, "--task", task, "--input-format", "raw"])
         if tuple(task.split(",")) not in valid_tasks_raw_input:
@@ -74,8 +73,8 @@ def test_task_combination_validation() -> None:
 
 
 def test_input_format_validation() -> None:
-    input_formats: List[str] = ["", "raw", "jumanpp", "knp", "INVALID"]
-    base_args: List[str] = ["--model-size", "tiny", "--text", ""]
+    input_formats: list[str] = ["", "raw", "jumanpp", "knp", "INVALID"]
+    base_args: list[str] = ["--model-size", "tiny", "--text", ""]
     for input_format in input_formats:
         ret = runner.invoke(app, args=[*base_args, "--input-format", input_format])
         if input_format not in {"raw", "jumanpp", "knp"}:
@@ -212,7 +211,7 @@ def test_input_format_jumanpp(tasks: str) -> None:
         app, args=["--model-size", "tiny", "--tasks", tasks, "--text", jumanpp_text, "--input-format", "jumanpp"]
     )
     assert ret.exception is None
-    documents: List[Document] = []
+    documents: list[Document] = []
     for out_text in chunk_by_document(io.StringIO(ret.stdout)):
         if tasks.split(",")[-1] == "word":
             documents.append(Document.from_knp(out_text))
@@ -268,7 +267,7 @@ def test_input_format_jumanpp_with_sid(tasks: str) -> None:
         app, args=["--model-size", "tiny", "--tasks", tasks, "--text", jumanpp_text, "--input-format", "jumanpp"]
     )
     assert ret.exception is None
-    documents: List[Document] = []
+    documents: list[Document] = []
     for out_text in chunk_by_document(io.StringIO(ret.stdout)):
         if tasks.split(",")[-1] == "word":
             documents.append(Document.from_knp(out_text))
@@ -328,7 +327,7 @@ def test_input_format_knp(tasks: str) -> None:
         app, args=["--model-size", "tiny", "--tasks", tasks, "--text", knp_text, "--input-format", "knp"]
     )
     assert ret.exception is None
-    documents: List[Document] = []
+    documents: list[Document] = []
     for out_text in chunk_by_document(io.StringIO(ret.stdout)):
         if tasks.split(",")[-1] == "word":
             documents.append(Document.from_knp(out_text))

@@ -1,5 +1,5 @@
 # Copied from https://github.com/huggingface/transformers/blob/v4.49-release/src/transformers/models/deberta_v2/modeling_deberta_v2.py
-from typing import Optional, Tuple, Union
+from typing import Optional, Union
 
 import torch
 import torch.utils.checkpoint
@@ -49,7 +49,7 @@ class DebertaV2Attention(nn.Module):
         query_states=None,
         relative_pos=None,
         rel_embeddings=None,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+    ) -> tuple[torch.Tensor, Optional[torch.Tensor]]:
         self_output, att_matrix = self.self(
             hidden_states,
             attention_mask,
@@ -84,7 +84,7 @@ class DebertaV2Layer(nn.Module):
         relative_pos=None,
         rel_embeddings=None,
         output_attentions: bool = False,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+    ) -> tuple[torch.Tensor, Optional[torch.Tensor]]:
         attention_output, att_matrix = self.attention(
             hidden_states,
             attention_mask,
@@ -204,7 +204,7 @@ class DebertaV2Encoder(nn.Module):
             hidden_states, special_token_indices, query_states, relative_pos
         )  # (b, query, key)
 
-        all_hidden_states: Optional[Tuple[torch.Tensor]] = (hidden_states,) if output_hidden_states else None
+        all_hidden_states: Optional[tuple[torch.Tensor]] = (hidden_states,) if output_hidden_states else None
         all_attentions = () if output_attentions else None
 
         next_kv = hidden_states
@@ -231,13 +231,13 @@ class DebertaV2Encoder(nn.Module):
                 )
 
             if output_attentions:
-                all_attentions = all_attentions + (attn_weights,)
+                all_attentions = (*all_attentions, attn_weights)
 
             if i == 0 and self.conv is not None:
                 output_states = self.conv(hidden_states, output_states, input_mask)
 
             if output_hidden_states:
-                all_hidden_states = all_hidden_states + (output_states,)
+                all_hidden_states = (*all_hidden_states, output_states)
 
             if query_states is not None:
                 query_states = output_states
@@ -515,7 +515,7 @@ class DebertaV2Model(DebertaV2PreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-    ) -> Union[Tuple, BaseModelOutput]:
+    ) -> Union[tuple, BaseModelOutput]:
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states

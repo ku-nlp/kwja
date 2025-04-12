@@ -1,6 +1,6 @@
 import os
 from statistics import mean
-from typing import Any, Dict
+from typing import Any
 
 import hydra
 import torch
@@ -25,7 +25,7 @@ class CharModule(BaseModule[CharModuleMetric]):
         self.encoder: PreTrainedModel = hydra.utils.call(hparams.encoder.from_config)
         if hasattr(hparams, "special_tokens"):
             self.encoder.resize_token_embeddings(self.encoder.config.vocab_size + len(hparams.special_tokens))
-        head_kwargs: Dict[str, Any] = dict(hidden_size=self.encoder.config.hidden_size, hidden_dropout_prob=0.05)
+        head_kwargs: dict[str, Any] = dict(hidden_size=self.encoder.config.hidden_size, hidden_dropout_prob=0.05)
 
         # ---------- sentence segmentation ----------
         self.sent_segmentation_tagger = SequenceLabelingHead(len(SENT_SEGMENTATION_TAGS), **head_kwargs)
@@ -42,7 +42,7 @@ class CharModule(BaseModule[CharModuleMetric]):
             if hasattr(self.hparams, "special_tokens"):
                 self.encoder.resize_token_embeddings(self.encoder.config.vocab_size + len(self.hparams.special_tokens))
 
-    def forward(self, batch: Any) -> Dict[str, torch.Tensor]:
+    def forward(self, batch: Any) -> dict[str, torch.Tensor]:
         encoded = self.encoder(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"])
         return {
             "sent_segmentation_logits": self.sent_segmentation_tagger(encoded.last_hidden_state),
@@ -51,7 +51,7 @@ class CharModule(BaseModule[CharModuleMetric]):
         }
 
     def training_step(self, batch: Any) -> torch.Tensor:
-        ret: Dict[str, torch.Tensor] = self(batch)
+        ret: dict[str, torch.Tensor] = self(batch)
         sent_segmentation_loss = compute_token_mean_loss(
             ret["sent_segmentation_logits"], batch["sent_segmentation_labels"]
         )
@@ -71,7 +71,7 @@ class CharModule(BaseModule[CharModuleMetric]):
         metric.update(kwargs)
 
     def on_validation_epoch_end(self) -> None:
-        metrics_log: Dict[str, Dict[str, float]] = {}
+        metrics_log: dict[str, dict[str, float]] = {}
         for corpus, metric in self.valid_corpus2metric.items():
             dataset = self.trainer.val_dataloaders[corpus].dataset
             metric.set_properties({"dataset": dataset})
@@ -84,7 +84,7 @@ class CharModule(BaseModule[CharModuleMetric]):
 
         for corpus, metrics in metrics_log.items():
             self.log_dict({f"valid_{corpus}/{key}": value for key, value in metrics.items()})
-        for key in list(metrics_log.values())[0].keys():
+        for key in next(iter(metrics_log.values())).keys():
             mean_score = mean(metrics_log[corpus][key] for corpus in self.valid_corpora if key in metrics_log[corpus])
             self.log(f"valid/{key}", mean_score)
 
@@ -95,7 +95,7 @@ class CharModule(BaseModule[CharModuleMetric]):
         metric.update(kwargs)
 
     def on_test_epoch_end(self) -> None:
-        metrics_log: Dict[str, Dict[str, float]] = {}
+        metrics_log: dict[str, dict[str, float]] = {}
         for corpus, metric in self.test_corpus2metric.items():
             dataset = self.trainer.test_dataloaders[corpus].dataset
             metric.set_properties({"dataset": dataset})
@@ -108,12 +108,12 @@ class CharModule(BaseModule[CharModuleMetric]):
 
         for corpus, metrics in metrics_log.items():
             self.log_dict({f"test_{corpus}/{key}": value for key, value in metrics.items()})
-        for key in list(metrics_log.values())[0].keys():
+        for key in next(iter(metrics_log.values())).keys():
             mean_score = mean(metrics_log[corpus][key] for corpus in self.test_corpora if key in metrics_log[corpus])
             self.log(f"test/{key}", mean_score)
 
-    def predict_step(self, batch: Any) -> Dict[str, torch.Tensor]:
-        ret: Dict[str, torch.Tensor] = self(batch)
+    def predict_step(self, batch: Any) -> dict[str, torch.Tensor]:
+        ret: dict[str, torch.Tensor] = self(batch)
         return {
             "example_ids": batch["example_ids"],
             "sent_segmentation_predictions": ret["sent_segmentation_logits"].argmax(dim=2),

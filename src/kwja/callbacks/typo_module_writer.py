@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, List, Optional, Union
+from typing import Any, Optional, Union
 
 import pytorch_lightning as pl
 from transformers import PreTrainedTokenizerBase
@@ -39,8 +39,8 @@ class TypoModuleWriter(BaseModuleWriter):
             dataloader = trainer.predict_dataloaders[dataloader_idx]
         dataset: Union[TypoDataset, TypoInferenceDataset] = dataloader.dataset
 
-        post_texts: List[str] = []
-        doc_ids: List[str] = []
+        post_texts: list[str] = []
+        doc_ids: list[str] = []
         for example_id, kdr_predictions, kdr_probabilities, ins_predictions, ins_probabilities in zip(
             *[v.tolist() for v in prediction.values()]
         ):
