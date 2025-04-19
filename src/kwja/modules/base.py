@@ -92,10 +92,12 @@ class BaseModule(pl.LightningModule, Generic[MetricType]):
         cls,
         checkpoint_path: FILE_LIKE,
         map_location: MAP_LOCATION = None,
+        accelerator: str = "cpu",
         strict: bool = True,
     ) -> Self:
         checkpoint = torch.load(checkpoint_path, map_location=map_location, weights_only=False)
-        with Fabric().init_module(empty_init=True):
+        fabric = Fabric(accelerator=accelerator)
+        with fabric.init_module(empty_init=True):
             module = cls(hparams=checkpoint[cls.CHECKPOINT_HYPER_PARAMS_KEY])  # type: ignore
         state_dict: dict[str, torch.Tensor] = checkpoint["state_dict"]
         # from transformers 4.31.0, `encoder.embeddings.position_ids` is a non-persistent buffer

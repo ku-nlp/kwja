@@ -47,6 +47,7 @@ class BaseModuleProcessor(ABC):
     def __init__(self, config: CLIConfig, batch_size: int) -> None:
         self.config: CLIConfig = config
         self.device = prepare_device(config.device)
+        self.accelerator = self.device.type
         self.model_size: ModelSize = config.model_size
         self.batch_size: int = batch_size
         self.destination = Path(NamedTemporaryFile().name)
@@ -68,7 +69,7 @@ class BaseModuleProcessor(ABC):
                 ),
                 hydra.utils.instantiate(self.module.hparams.callbacks.progress_bar),
             ],
-            accelerator=self.device.type,
+            accelerator=self.accelerator,
             devices=1,
         )
 
@@ -96,7 +97,9 @@ class TypoModuleProcessor(BaseModuleProcessor):
     def _load_module(self) -> pl.LightningModule:
         logger.info("Loading typo module")
         checkpoint_path: Path = download_checkpoint(module="typo", model_size=self.model_size)
-        return TypoModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
+        return TypoModule.fast_load_from_checkpoint(
+            checkpoint_path, map_location=self.device, accelerator=self.accelerator
+        )
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
@@ -121,7 +124,9 @@ class CharModuleProcessor(BaseModuleProcessor):
     def _load_module(self) -> pl.LightningModule:
         logger.info("Loading char module")
         checkpoint_path: Path = download_checkpoint(module="char", model_size=self.model_size)
-        return CharModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
+        return CharModule.fast_load_from_checkpoint(
+            checkpoint_path, map_location=self.device, accelerator=self.accelerator
+        )
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
@@ -147,7 +152,9 @@ class Seq2SeqModuleProcessor(BaseModuleProcessor):
     def _load_module(self) -> pl.LightningModule:
         logger.info("Loading seq2seq module")
         checkpoint_path: Path = download_checkpoint(module="seq2seq", model_size=self.model_size)
-        return Seq2SeqModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
+        return Seq2SeqModule.fast_load_from_checkpoint(
+            checkpoint_path, map_location=self.device, accelerator=self.accelerator
+        )
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
@@ -173,7 +180,9 @@ class WordModuleProcessor(BaseModuleProcessor):
     def _load_module(self) -> pl.LightningModule:
         logger.info("Loading word module")
         checkpoint_path: Path = download_checkpoint(module="word", model_size=self.model_size)
-        return WordModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
+        return WordModule.fast_load_from_checkpoint(
+            checkpoint_path, map_location=self.device, accelerator=self.accelerator
+        )
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
