@@ -54,7 +54,7 @@ torch = ">=2.4.0"
 numpy = "^2.0"
 transformers = { version = "~4.50.3", extras = ["sentencepiece"] }
 tokenizers = "^0.21.1"
-pytorch-lightning = ">=2.4.0"  # As "lightning" comes with many extra dependencies, we stay with "pytorch-lightning"
+lightning = ">=2.4.0"
 omegaconf = "^2.1"
 hydra-core = "^1.2"
 rhoknp = "^1.6"

@@ -3,11 +3,11 @@ from copy import deepcopy
 from typing import Any, Generic, TypeVar
 
 import hydra
-import pytorch_lightning as pl
+import lightning as L
 import torch
-from lightning_fabric import Fabric
+from lightning.fabric import Fabric
+from lightning.pytorch.utilities.types import OptimizerLRScheduler
 from omegaconf import DictConfig, ListConfig, OmegaConf
-from pytorch_lightning.utilities.types import OptimizerLRScheduler
 from torch.serialization import FILE_LIKE, MAP_LOCATION  # type: ignore
 from typing_extensions import Self
 
@@ -40,7 +40,7 @@ else:
 MetricType = TypeVar("MetricType", bound=BaseModuleMetric)
 
 
-class BaseModule(pl.LightningModule, Generic[MetricType]):
+class BaseModule(L.LightningModule, Generic[MetricType]):
     def __init__(self, hparams: DictConfig, metric: MetricType) -> None:
         super().__init__()
         self.save_hyperparameters(hparams)

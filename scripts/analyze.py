@@ -5,12 +5,12 @@ from pathlib import Path
 from time import time
 
 import hydra
-import pytorch_lightning as pl
+import lightning as L
 import torch
 from dotenv import load_dotenv
+from lightning.pytorch.callbacks import Callback
+from lightning.pytorch.trainer.states import TrainerFn
 from omegaconf import DictConfig, ListConfig, OmegaConf
-from pytorch_lightning.callbacks import Callback
-from pytorch_lightning.trainer.states import TrainerFn
 
 from kwja.cli.cli import normalize_text
 from kwja.datamodule.datamodule import DataModule
@@ -33,7 +33,7 @@ def main(eval_cfg: DictConfig) -> None:
         eval_cfg.num_workers = int(eval_cfg.num_workers)
 
     # Load saved model and config
-    model: pl.LightningModule = hydra.utils.call(eval_cfg.module.load_from_checkpoint, _recursive_=False)
+    model: L.LightningModule = hydra.utils.call(eval_cfg.module.load_from_checkpoint, _recursive_=False)
     if eval_cfg.compile is True:
         model = torch.compile(model)  # type: ignore
 
@@ -53,7 +53,7 @@ def main(eval_cfg: DictConfig) -> None:
     cfg.effective_batch_size = cfg.max_batches_per_device * num_devices
     cfg.datamodule.batch_size = cfg.max_batches_per_device
 
-    trainer: pl.Trainer = hydra.utils.instantiate(
+    trainer: L.Trainer = hydra.utils.instantiate(
         cfg.trainer,
         logger=False,
         callbacks=callbacks,

@@ -4,8 +4,8 @@ from pathlib import Path
 from textwrap import dedent
 from typing import Any, Optional, Union
 
+import lightning as L
 import pytest
-import pytorch_lightning as pl
 import torch
 from rhoknp.props import DepType
 from torch.utils.data import DataLoader
@@ -111,7 +111,7 @@ def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwa
 
     trainer = MockTrainer([DataLoader(dataset, batch_size=num_examples)])
 
-    module = pl.LightningModule()
+    module = L.LightningModule()
     module.training_tasks = [
         WordTask.READING_PREDICTION,
         WordTask.MORPHOLOGICAL_ANALYSIS,

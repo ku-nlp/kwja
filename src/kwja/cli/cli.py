@@ -10,10 +10,10 @@ from typing import Annotated, Optional, TextIO
 from unicodedata import normalize
 
 import hydra
-import pytorch_lightning as pl
+import lightning as L
 import torch
 import typer
-from pytorch_lightning.trainer.states import TrainerFn
+from lightning.pytorch.trainer.states import TrainerFn
 from rhoknp import Document, Sentence
 from rhoknp.utils.reader import chunk_by_document, chunk_by_sentence
 
@@ -51,8 +51,8 @@ class BaseModuleProcessor(ABC):
         self.model_size: ModelSize = config.model_size
         self.batch_size: int = batch_size
         self.destination = Path(NamedTemporaryFile().name)
-        self.module: Optional[pl.LightningModule] = None
-        self.trainer: Optional[pl.Trainer] = None
+        self.module: Optional[L.LightningModule] = None
+        self.trainer: Optional[L.Trainer] = None
 
     def load(self, **writer_kwargs) -> None:
         self.module = self._load_module()
@@ -61,7 +61,10 @@ class BaseModuleProcessor(ABC):
         self.module.hparams.datamodule.batch_size = self.batch_size
         self.module.hparams.datamodule.num_workers = self.config.num_workers
 
-        self.trainer = pl.Trainer(
+        # TODO: remove this after new checkpoints are released
+        self._rename_modules_for_backward_compatibility()
+
+        self.trainer = L.Trainer(
             logger=False,
             callbacks=[
                 hydra.utils.instantiate(
@@ -73,8 +76,21 @@ class BaseModuleProcessor(ABC):
             devices=1,
         )
 
-    def _load_module(self) -> pl.LightningModule:
+    def _load_module(self) -> L.LightningModule:
         raise NotImplementedError
+
+    def _rename_modules_for_backward_compatibility(self) -> None:
+        assert self.module is not None, "Module is not loaded"
+        progress_bar_target = self.module.hparams.callbacks.progress_bar._target_
+        if progress_bar_target.startswith("pytorch_lightning"):
+            self.module.hparams.callbacks.progress_bar._target_ = progress_bar_target.replace(
+                "pytorch_lightning", "lightning.pytorch"
+            )
+        prediction_writer_target = self.module.hparams.callbacks.prediction_writer._target_
+        if prediction_writer_target.startswith("pytorch_lightning"):
+            self.module.hparams.callbacks.prediction_writer._target_ = prediction_writer_target.replace(
+                "pytorch_lightning", "lightning.pytorch"
+            )
 
     def delete_module_and_trainer(self) -> None:
         del self.module, self.trainer
@@ -94,7 +110,7 @@ class BaseModuleProcessor(ABC):
 class TypoModuleProcessor(BaseModuleProcessor):
     input_format = InputFormat.RAW
 
-    def _load_module(self) -> pl.LightningModule:
+    def _load_module(self) -> L.LightningModule:
         logger.info("Loading typo module")
         checkpoint_path: Path = download_checkpoint(module="typo", model_size=self.model_size)
         return TypoModule.fast_load_from_checkpoint(
@@ -121,7 +137,7 @@ class TypoModuleProcessor(BaseModuleProcessor):
 class CharModuleProcessor(BaseModuleProcessor):
     input_format = InputFormat.RAW
 
-    def _load_module(self) -> pl.LightningModule:
+    def _load_module(self) -> L.LightningModule:
         logger.info("Loading char module")
         checkpoint_path: Path = download_checkpoint(module="char", model_size=self.model_size)
         return CharModule.fast_load_from_checkpoint(
@@ -149,7 +165,7 @@ class CharModuleProcessor(BaseModuleProcessor):
 class Seq2SeqModuleProcessor(BaseModuleProcessor):
     input_format = InputFormat.JUMANPP
 
-    def _load_module(self) -> pl.LightningModule:
+    def _load_module(self) -> L.LightningModule:
         logger.info("Loading seq2seq module")
         checkpoint_path: Path = download_checkpoint(module="seq2seq", model_size=self.model_size)
         return Seq2SeqModule.fast_load_from_checkpoint(
@@ -177,7 +193,7 @@ class WordModuleProcessor(BaseModuleProcessor):
     def load(self) -> None:  # type: ignore[override]
         super().load(preserve_reading_lemma_canon=self.from_seq2seq)
 
-    def _load_module(self) -> pl.LightningModule:
+    def _load_module(self) -> L.LightningModule:
         logger.info("Loading word module")
         checkpoint_path: Path = download_checkpoint(module="word", model_size=self.model_size)
         return WordModule.fast_load_from_checkpoint(
