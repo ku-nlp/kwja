@@ -3,8 +3,8 @@ from statistics import mean
 from typing import Literal, Optional, Union
 
 import torch
-from cohesion_tools.evaluation import CohesionScore, CohesionScorer
-from cohesion_tools.extractors import PasExtractor
+from cohesion_tools.evaluators import CohesionEvaluator, CohesionScore
+from cohesion_tools.extractors import BridgingExtractor, PasExtractor
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
 from rhoknp.props import DepType, FeatureDict, MemoTag
 from seqeval.metrics import f1_score as seqeval_f1_score
@@ -458,38 +458,28 @@ class WordModuleMetric(BaseModuleMetric):
         assert self.dataset is not None, "dataset isn't set"
         pas_extractor = self.dataset.cohesion_task2extractor[CohesionTask.PAS_ANALYSIS]
         assert isinstance(pas_extractor, PasExtractor), "pas utils isn't set correctly"
+        bridging_extractor = self.dataset.cohesion_task2extractor[CohesionTask.BRIDGING_REFERENCE_RESOLUTION]
+        assert isinstance(bridging_extractor, BridgingExtractor), "bridging utils isn't set correctly"
 
-        scorer = CohesionScorer(
+        evaluator = CohesionEvaluator(
+            tasks=[task.to_cohesion_tools_task() for task in self.dataset.cohesion_tasks],
             exophora_referent_types=self.dataset.exophora_referent_types,
-            pas_cases=pas_extractor.cases if CohesionTask.PAS_ANALYSIS in self.dataset.cohesion_tasks else [],
-            pas_verbal=pas_extractor.verbal_predicate,
-            pas_nominal=pas_extractor.nominal_predicate,
-            bridging=(CohesionTask.BRIDGING_REFERENCE_RESOLUTION in self.dataset.cohesion_tasks),
-            coreference=(CohesionTask.COREFERENCE_RESOLUTION in self.dataset.cohesion_tasks),
+            pas_cases=pas_extractor.cases,
+            bridging_rel_types=bridging_extractor.rel_types,
         )
-        score: CohesionScore = scorer.run(partly_gold_documents2, gold_documents)
+        evaluator.pas_evaluator.is_target_predicate = lambda p: pas_extractor.is_target(p.base_phrase)
+        score: CohesionScore = evaluator.run(partly_gold_documents2, gold_documents)
 
         metrics: dict[str, float] = {}
-        for task, analysis2metric in score.to_dict().items():
-            for analysis, metric in analysis2metric.items():
-                if task not in ("bridging", "coreference"):
-                    key = "pas"
-                    if task != "all_case":
-                        key += f"_{task}"
-                else:
-                    key = task
-                if analysis != "all":
-                    key += f"_{analysis}"
-                key += "_f1"
-                metrics[key] = metric.f1
-        cohesion_analysis_f1s = []
-        if CohesionTask.PAS_ANALYSIS in self.dataset.cohesion_tasks:
-            cohesion_analysis_f1s.append(metrics["pas_f1"])
-        if CohesionTask.BRIDGING_REFERENCE_RESOLUTION in self.dataset.cohesion_tasks:
-            cohesion_analysis_f1s.append(metrics["bridging_f1"])
-        if CohesionTask.COREFERENCE_RESOLUTION in self.dataset.cohesion_tasks:
-            cohesion_analysis_f1s.append(metrics["coreference_f1"])
-        metrics["cohesion_analysis_f1"] = mean(cohesion_analysis_f1s) if cohesion_analysis_f1s else 0.0
+        for task_str, analysis_type_to_metric in score.to_dict().items():
+            for analysis_type, metric in analysis_type_to_metric.items():
+                key = task_str
+                if analysis_type != "all":
+                    key += f"_{analysis_type}"
+                metrics[key + "_f1"] = metric.f1
+        metrics["cohesion_analysis_f1"] = mean(
+            metrics[key] for key in ("pas_f1", "bridging_f1", "coreference_f1") if key in metrics
+        )
         return metrics
 
     @staticmethod

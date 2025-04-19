@@ -334,22 +334,22 @@ colorama = {version = "*", markers = "platform_system == \"Windows\""}
 
 [[package]]
 name = "cohesion-tools"
-version = "0.5.7"
-description = ""
+version = "0.7.5"
+description = "A preprocessing and evaluation tools for Japanese cohesion analysis"
 optional = false
-python-versions = ">=3.8,<4.0"
+python-versions = ">=3.9"
 groups = ["main", "dev"]
 files = [
-    {file = "cohesion_tools-0.5.7-py3-none-any.whl", hash = "sha256:abea07196b7e7cbab4c928dd1fead89e88cfe898ce4d26d62fede8a9fc4dc18f"},
-    {file = "cohesion_tools-0.5.7.tar.gz", hash = "sha256:b96f2ffcbb274e1b9da2f5e4d681d9a16e0643fcd0f06e3c45b44a52373c634b"},
+    {file = "cohesion_tools-0.7.5-py3-none-any.whl", hash = "sha256:6c18b84ea65463fb4e8901af235cdb8c1462fa49b1b0045fcc460346771b4dfe"},
+    {file = "cohesion_tools-0.7.5.tar.gz", hash = "sha256:9deb8281751b3089ae5d4875a270d61d7e5688a36f0f13cb528a58fb0ff88c8c"},
 ]
 
 [package.dependencies]
-pandas = {version = ">=2.0,<3.0", optional = true, markers = "python_version >= \"3.9\" and extra == \"eval\""}
-rhoknp = ">=1.5.1,<1.7"
+pandas = {version = ">=2.1.0", optional = true, markers = "extra == \"eval\""}
+rhoknp = ">=1.5.1"
 
 [package.extras]
-eval = ["pandas (>=2.0,<3.0) ; python_version >= \"3.9\"", "pandas (>=2.0.3,<2.1.0) ; python_version == \"3.8\""]
+eval = ["pandas (>=2.1.0)"]
 
 [[package]]
 name = "colorama"
@@ -3865,4 +3865,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9,<3.13"
-content-hash = "427a680fdd2aa71fd638b3f1a781ab959361174dc8575350c9cabbbdf6b9b150"
+content-hash = "e6b3d0f5cb488a7267ea3ca2718a7d205f80bf542c2e6eeeb6a4e8a5809048e3"

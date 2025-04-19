@@ -43,10 +43,13 @@ def wrap_base_phrases(
             antecedent_candidates = extractor.get_candidates(base_phrase, base_phrase.document.base_phrases)
             all_rels = extractor.extract_rels(base_phrase)
             if isinstance(extractor, (PasExtractor, BridgingExtractor)):
+                assert isinstance(all_rels, dict)
                 rel2tags: dict[str, list[str]] = {case: _get_argument_tags(all_rels[case]) for case in cases}
-            else:
-                assert isinstance(extractor, CoreferenceExtractor)
+            elif isinstance(extractor, CoreferenceExtractor):
+                assert isinstance(all_rels, list)
                 rel2tags = {"=": _get_referent_tags(all_rels)}
+            else:
+                raise AssertionError
             cohesion_base_phrase.is_target = True
             cohesion_base_phrase.antecedent_candidates = [
                 cohesion_base_phrases[cand.global_index] for cand in antecedent_candidates

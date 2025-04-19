@@ -4,6 +4,7 @@ from importlib.abc import Traversable
 from importlib.resources import files
 from typing import Optional
 
+from cohesion_tools.task import Task as CohesionToolsTask
 from rhoknp.props import DepType, NamedEntityCategory
 
 import kwja
@@ -248,6 +249,16 @@ class CohesionTask(Enum):
     PAS_ANALYSIS = "pas_analysis"
     BRIDGING_REFERENCE_RESOLUTION = "bridging_reference_resolution"
     COREFERENCE_RESOLUTION = "coreference_resolution"
+
+    def to_cohesion_tools_task(self) -> CohesionToolsTask:
+        if self == CohesionTask.PAS_ANALYSIS:
+            return CohesionToolsTask.PAS_ANALYSIS
+        elif self == CohesionTask.BRIDGING_REFERENCE_RESOLUTION:
+            return CohesionToolsTask.BRIDGING_REFERENCE_RESOLUTION
+        elif self == CohesionTask.COREFERENCE_RESOLUTION:
+            return CohesionToolsTask.COREFERENCE_RESOLUTION
+        else:
+            raise ValueError(f"Unknown task: {self}")
 
 
 # ---------- word module|reading prediction ----------

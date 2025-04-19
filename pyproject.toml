@@ -64,14 +64,15 @@ pure-cdb = "^4.0"
 rich = ">=12.4"
 pyyaml = "^6.0"
 regex = ">=2024.7.24"
-cohesion-tools = "^0.5.7"
+cohesion-tools = "^0.7.5"
+typing-extensions = { version = ">=4.0", python = "<3.10" }
 
 [tool.poetry.group.dev.dependencies]
 torchmetrics = "^1.0"
 seqeval = "^1.2"
 scikit-learn = "^1.6"
 Levenshtein = ">=0.21.0"
-cohesion-tools = { version = "^0.5.7", extras = ["eval"] }
+cohesion-tools = { version = "^0.7.5", extras = ["eval"] }
 python-dotenv = "^1.0"
 jaconv = "^0.4.0"
 ipython = "^8.13"
