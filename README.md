@@ -3,12 +3,14 @@
 [^1]: Pronunciation: [/kuʒa/](http://ipa-reader.xyz/?text=%20ku%CA%92a)
 
 [![test](https://github.com/ku-nlp/kwja/actions/workflows/test.yml/badge.svg)](https://github.com/ku-nlp/kwja/actions/workflows/test.yml)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![codecov](https://codecov.io/gh/ku-nlp/kwja/branch/main/graph/badge.svg?token=A9FWWPLITO)](https://codecov.io/gh/ku-nlp/kwja)
 [![CodeFactor Grade](https://img.shields.io/codefactor/grade/github/ku-nlp/kwja)](https://www.codefactor.io/repository/github/ku-nlp/kwja)
 [![PyPI](https://img.shields.io/pypi/v/kwja)](https://pypi.org/project/kwja/)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/kwja)
 
-[[Paper]](https://ipsj.ixsq.nii.ac.jp/ej/?action=pages_view_main&active_action=repository_view_main_item_detail&item_id=220232&item_no=1&page_id=13&block_id=8)
+[[Paper (ja)]](https://ipsj.ixsq.nii.ac.jp/ej/?action=pages_view_main&active_action=repository_view_main_item_detail&item_id=220232&item_no=1&page_id=13&block_id=8)
+[[Paper (en)]](https://aclanthology.org/2023.acl-demo.52/)
 [[Slides]](https://speakerdeck.com/nobug/kyoto-waseda-japanese-analyzer)
 
 KWJA is an integrated Japanese text analyzer based on foundation models.
@@ -31,7 +33,8 @@ KWJA performs many text analysis tasks, including:
 
 - Python: 3.9+
 - Dependencies: See [pyproject.toml](./pyproject.toml).
-- GPUs with CUDA 11.7 (optional)
+- GPUs with CUDA (optional)
+- GPUs with MPS (optional)
 
 ## Getting Started
 
@@ -89,23 +92,20 @@ Here are options for `kwja` command:
 
 - `--model-size`: Model size to be used. Specify one of `tiny`, `base` (default), and `large`.
 
-- `--device`: Device to be used. Specify `cpu` or `gpu`. If not specified, the device is automatically selected.
+- `--device`: Device to be used. Specify `cpu`, `cuda`, or `mps`. If not specified, the device is automatically selected.
 
 - `--typo-batch-size`: Batch size for typo module.
-
-- `--senter-batch-size`: Batch size for senter module.
+-
+- `--char-batch-size`: Batch size for character module.
 
 - `--seq2seq-batch-size`: Batch size for seq2seq module.
-
-- `--char-batch-size`: Batch size for character module.
 
 - `--word-batch-size`: Batch size for word module.
 
 - `--tasks`: Tasks to be performed. Specify one or more of the following values separated by commas:
   - `typo`: Typo correction
-  - `senter`: Sentence segmentation
+  - `char`: Sentence segmentation, Word segmentation, and Word normalization
   - `seq2seq`: Word segmentation, Word normalization, Reading prediction, lemmatization, and Canonicalization.
-  - `char`: Word segmentation and Word normalization
   - `word`: Morphological analysis, Named entity recognition, Word feature tagging, Dependency parsing, PAS analysis, Bridging reference resolution, and Coreference resolution
 
 `--config-file`: Path to a custom configuration file.
@@ -168,15 +168,14 @@ device: cpu
 num_workers: 0
 torch_compile: false
 typo_batch_size: 1
-senter_batch_size: 1
-seq2seq_batch_size: 1
 char_batch_size: 1
+seq2seq_batch_size: 1
 word_batch_size: 1
 ```
 
 ## Performance Table
 
-- typo, senter, character, and word modules
+- typo, character, seq2seq, and word modules
   - The performance on each task except typo correction and discourse relation analysis is the mean over all the corpora (KC, KWDLC, Fuman, and WAC) and over three runs with different random seeds.
   - We set the learning rate of RoBERTa<sub>LARGE</sub> (word) to 2e-5 because we failed to fine-tune it with a higher learning rate.
     Other hyperparameters are the same described in configs, which are tuned for DeBERTa<sub>BASE</sub>.
