@@ -19,11 +19,11 @@ def test_version() -> None:
 
 
 def test_device_validation() -> None:
-    devices: list[str] = ["", "auto", "cpu", "cuda", "INVALID"]
+    devices: list[str] = ["", "auto", "cpu", "cuda", "mps", "INVALID"]
     base_args: list[str] = ["--model-size", "tiny", "--text", ""]
     for device in devices:
         ret = runner.invoke(app, args=[*base_args, "--device", device])
-        if device not in {"auto", "cpu", "cuda"}:
+        if device not in {"auto", "cpu", "cuda", "mps"}:
             assert isinstance(ret.exception, SystemExit)
         else:
             assert ret.exception is None
