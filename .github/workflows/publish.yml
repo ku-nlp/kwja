@@ -1,13 +1,20 @@
 name: Publish
 
 on:
-  release:
-    types: [ published ]
+  push:
+    tags:
+      - "v*.*.*"
   workflow_dispatch:
 
 jobs:
   build-publish:
     runs-on: ubuntu-latest
+    # https://github.com/pypa/gh-action-pypi-publish?tab=readme-ov-file#trusted-publishing
+    environment:
+      name: pypi
+      url: https://pypi.org/p/kwja
+    permissions:
+      id-token: write
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python 3.9
@@ -23,8 +30,7 @@ jobs:
       - name: Build package
         run: poetry build
 
-      - name: Publish package
+      - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
           verbose: true
