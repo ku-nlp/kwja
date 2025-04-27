@@ -28,8 +28,9 @@ jobs:
         env:
           POETRY_PYTHON: ${{ steps.setup-python.outputs.python-path }}
         run: |
+          poetry config virtualenvs.in-project true
           poetry env use $POETRY_PYTHON
-          poetry build
+          poetry build -o dist
       - name: Install KWJA from wheel (non-Windows)
         if: ${{ matrix.os != 'windows-latest' }}
         run: |
