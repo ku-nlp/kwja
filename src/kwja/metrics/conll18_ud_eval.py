@@ -96,7 +96,6 @@ import sys
 # import unicodedata  # COMMENT OUT
 import unittest
 from dataclasses import dataclass  # ADD
-from typing import List
 
 # CoNLL-U column names
 ID, FORM, LEMMA, UPOS, XPOS, FEATS, HEAD, DEPREL, DEPS, MISC = range(10)
@@ -181,7 +180,7 @@ def _encode(text):
 
 # Load given CoNLL-U file into internal representation
 # def load_conllu(file):  # COMMENT OUT
-def load_conllu(lines: List[str]):  # ADD
+def load_conllu(lines: list[str]):  # ADD
     # Internal representation classes
     class UDRepresentation:
         def __init__(self):
@@ -325,11 +324,7 @@ def load_conllu(lines: List[str]):  # ADD
                 raise UDError(f"Cannot parse word ID '{_encode(columns[ID])}'")
             if word_id != len(ud.words) - sentence_start + 1:
                 raise UDError(
-                    "Incorrect word ID '{}' for word '{}', expected '{}'".format(
-                        _encode(columns[ID]),
-                        _encode(columns[FORM]),
-                        len(ud.words) - sentence_start + 1,
-                    )
+                    f"Incorrect word ID '{_encode(columns[ID])}' for word '{_encode(columns[FORM])}', expected '{len(ud.words) - sentence_start + 1}'"
                 )
 
             try:
@@ -492,19 +487,18 @@ def evaluate(gold_ud, system_ud):
                             g += 1
                         else:
                             s += 1
+            # B: No multi-word token => align according to spans.
+            elif (gold_words[gi].span.start, gold_words[gi].span.end) == (
+                system_words[si].span.start,
+                system_words[si].span.end,
+            ):
+                alignment.append_aligned_words(gold_words[gi], system_words[si])
+                gi += 1
+                si += 1
+            elif gold_words[gi].span.start <= system_words[si].span.start:
+                gi += 1
             else:
-                # B: No multi-word token => align according to spans.
-                if (gold_words[gi].span.start, gold_words[gi].span.end) == (
-                    system_words[si].span.start,
-                    system_words[si].span.end,
-                ):
-                    alignment.append_aligned_words(gold_words[gi], system_words[si])
-                    gi += 1
-                    si += 1
-                elif gold_words[gi].span.start <= system_words[si].span.start:
-                    gi += 1
-                else:
-                    si += 1
+                si += 1
 
         return alignment
 
@@ -576,7 +570,7 @@ def evaluate(gold_ud, system_ud):
 # def load_conllu_file(path):  # COMMENT OUT
 #     _file = open(path, mode="r", **({"encoding": "utf-8"} if sys.version_info >= (3, 0) else {}))  # COMMENT OUT
 #     return load_conllu(_file)  # COMMENT OUT
-def load_conllu_lines(lines: List[str]):  # ADD
+def load_conllu_lines(lines: list[str]):  # ADD
     return load_conllu(lines)  # ADD
 
 
@@ -593,8 +587,8 @@ def evaluate_wrapper(args):  # ADD
 
 @dataclass(frozen=True)  # ADD
 class Args:  # ADD
-    gold_lines: List[str]  # ADD
-    system_lines: List[str]  # ADD
+    gold_lines: list[str]  # ADD
+    system_lines: list[str]  # ADD
     verbose: bool  # ADD
     counts: bool  # ADD
 
@@ -669,7 +663,7 @@ class TestAlignment(unittest.TestCase):
                 for part in parts[1:]:
                     num_words += 1
                     lines.append(f"{num_words}\t{part}\t_\t_\t_\t_\t{int(num_words > 1)}\t_\t_\t_")
-        return load_conllu(lines + ["\n"])
+        return load_conllu([*lines, "\n"])
         # return load_conllu(  # COMMENT OUT
         #     (io.StringIO if sys.version_info >= (3, 0) else io.BytesIO)(  # COMMENT OUT
         #         "\n".join(lines + ["\n"])  # COMMENT OUT
@@ -683,13 +677,10 @@ class TestAlignment(unittest.TestCase):
         metrics = evaluate(self._load_words(gold), self._load_words(system))
         gold_words = sum(max(1, len(word.split(" ")) - 1) for word in gold)
         system_words = sum(max(1, len(word.split(" ")) - 1) for word in system)
-        self.assertEqual(
-            (metrics["Words"].precision, metrics["Words"].recall, metrics["Words"].f1),
-            (
-                correct / system_words,
-                correct / gold_words,
-                2 * correct / (gold_words + system_words),
-            ),
+        assert (metrics["Words"].precision, metrics["Words"].recall, metrics["Words"].f1) == (
+            correct / system_words,
+            correct / gold_words,
+            2 * correct / (gold_words + system_words),
         )
 
     def test_exception(self):

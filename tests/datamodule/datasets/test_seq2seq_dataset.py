@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import List
 
 from transformers import PreTrainedTokenizerFast
 
@@ -7,14 +6,14 @@ from kwja.datamodule.datasets import Seq2SeqDataset
 from kwja.utils.constants import CANON_TOKEN, IGNORE_INDEX, LEMMA_TOKEN, NO_CANON_TOKEN, READING_TOKEN, SURF_TOKEN
 
 
-def test_init(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast):
+def test_init(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast) -> None:
     path = data_dir / "datasets" / "word_files"
     max_src_length = 128
     max_tgt_length = 512
     _ = Seq2SeqDataset(str(path), seq2seq_tokenizer, max_src_length, max_tgt_length)
 
 
-def test_getitem(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast):
+def test_getitem(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast) -> None:
     path = data_dir / "datasets" / "word_files"
     max_src_length = 128
     max_tgt_length = 512
@@ -32,7 +31,7 @@ def test_getitem(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast):
         assert len(feature.seq2seq_labels) == max_tgt_length
 
 
-def test_encode(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast):
+def test_encode(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast) -> None:
     path = data_dir / "datasets" / "word_files"
     max_src_length = 128
     max_tgt_length = 512
@@ -44,7 +43,7 @@ def test_encode(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast):
     )
     num_examples = len(dataset)
 
-    expected_tokens: List[List[str]] = [
+    expected_tokens: list[list[str]] = [
         [
             SURF_TOKEN,
             "太郎",

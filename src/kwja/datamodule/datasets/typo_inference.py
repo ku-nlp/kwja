@@ -1,6 +1,6 @@
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 from omegaconf import ListConfig
 from rhoknp import Document
@@ -24,7 +24,7 @@ class TypoInferenceDataset(BaseDataset[TypoInferenceExample, TypoModuleFeatures]
         raw_text_file: Optional[Path] = None,
     ) -> None:
         super().__init__(tokenizer, max_seq_length)
-        documents: List[Document]
+        documents: list[Document]
         if len(texts) > 0:
             documents = create_documents_from_raw_texts(texts)
         elif raw_text_file is not None:
@@ -32,8 +32,8 @@ class TypoInferenceDataset(BaseDataset[TypoInferenceExample, TypoModuleFeatures]
                 documents = create_documents_from_raw_texts(chunk_by_document(f))
         else:
             documents = []
-        self.examples: List[TypoInferenceExample] = []
-        self.stash: Dict[int, List[Tuple[str, str]]] = defaultdict(list)
+        self.examples: list[TypoInferenceExample] = []
+        self.stash: dict[int, list[tuple[str, str]]] = defaultdict(list)
         example_id = 0
         for document in track(documents, description="Loading documents"):
             text = document.text.strip()

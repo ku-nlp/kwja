@@ -1,7 +1,8 @@
 import json
 import struct
+from importlib.abc import Traversable
 from pathlib import Path
-from typing import Dict, List
+from typing import Union
 
 import cdblib
 
@@ -9,16 +10,16 @@ from kwja.utils.logging_util import track
 
 
 class JumanDic:
-    def __init__(self, dic_dir: Path) -> None:
+    def __init__(self, dic_dir: Union[Path, Traversable]) -> None:
         self.jumandic = cdblib.Reader(dic_dir.joinpath("jumandic.db").read_bytes())
         self.jumandic_canon = cdblib.Reader(dic_dir.joinpath("jumandic_canon.db").read_bytes())
-        self.grammar_data: Dict[str, List[str]] = json.loads(dic_dir.joinpath("grammar.json").read_text())
+        self.grammar_data: dict[str, list[str]] = json.loads(dic_dir.joinpath("grammar.json").read_text())
 
-    def lookup_by_norm(self, surf: str) -> List[Dict[str, str]]:
+    def lookup_by_norm(self, surf: str) -> list[dict[str, str]]:
         buf = self.jumandic.get(surf.encode("utf-8"))
         if buf is None:
             return []
-        matches: List[Dict[str, str]] = []
+        matches: list[dict[str, str]] = []
         for reading_id, lemma_id, pos_id, subpos_id, conjtype_id, conjform_id, semantics_id in struct.iter_unpack(
             "IIHHHHI", buf
         ):
@@ -36,11 +37,11 @@ class JumanDic:
             )
         return matches
 
-    def lookup_by_canon(self, canon: str) -> List[Dict[str, str]]:
+    def lookup_by_canon(self, canon: str) -> list[dict[str, str]]:
         buf = self.jumandic_canon.get(canon.encode("utf-8"))
         if buf is None:
             return []
-        matches: List[Dict[str, str]] = []
+        matches: list[dict[str, str]] = []
         for reading_id, lemma_id, pos_id, subpos_id, conjtype_id, conjform_id, semantics_id in struct.iter_unpack(
             "IIHHHHI", buf
         ):
@@ -59,19 +60,19 @@ class JumanDic:
         return matches
 
     @classmethod
-    def build(cls, out_dir: Path, entries: List[List[str]]) -> None:
-        surf2entries: Dict[str, bytes] = {}
-        canon2entries: Dict[str, bytes] = {}
+    def build(cls, out_dir: Path, entries: list[list[str]]) -> None:
+        surf2entries: dict[str, bytes] = {}
+        canon2entries: dict[str, bytes] = {}
 
-        reading2id: Dict[str, int] = {}
-        lemma2id: Dict[str, int] = {}
-        pos2id: Dict[str, int] = {}
-        subpos2id: Dict[str, int] = {}
-        conjtype2id: Dict[str, int] = {}
-        conjform2id: Dict[str, int] = {}
-        semantics2id: Dict[str, int] = {}
+        reading2id: dict[str, int] = {}
+        lemma2id: dict[str, int] = {}
+        pos2id: dict[str, int] = {}
+        subpos2id: dict[str, int] = {}
+        conjtype2id: dict[str, int] = {}
+        conjform2id: dict[str, int] = {}
+        semantics2id: dict[str, int] = {}
 
-        def _get_counter(dic: Dict[str, int], key: str) -> int:
+        def _get_counter(dic: dict[str, int], key: str) -> int:
             if key in dic:
                 return dic[key]
             else:
@@ -79,8 +80,8 @@ class JumanDic:
                 dic[key] = rv
                 return rv
 
-        def _build_reverse_lookup(dic) -> List[str]:
-            rv: List[str] = [""] * len(dic)
+        def _build_reverse_lookup(dic: dict[str, int]) -> list[str]:
+            rv: list[str] = [""] * len(dic)
             for k, v in dic.items():
                 rv[v] = k
             return rv

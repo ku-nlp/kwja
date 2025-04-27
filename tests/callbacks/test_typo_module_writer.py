@@ -1,7 +1,7 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import pytest
 import torch
@@ -12,11 +12,10 @@ from transformers import PreTrainedTokenizerBase
 from kwja.callbacks import TypoModuleWriter
 from kwja.datamodule.datasets import TypoInferenceDataset
 from kwja.datamodule.datasets.typo import get_maps
-from kwja.utils.constants import RESOURCE_PATH
 
 
 class MockTrainer:
-    def __init__(self, predict_dataloaders: List[DataLoader]):
+    def __init__(self, predict_dataloaders: list[DataLoader]) -> None:
         self.predict_dataloaders = predict_dataloaders
 
 
@@ -28,16 +27,16 @@ class MockTrainer:
         str(Path(TemporaryDirectory().name) / "typo_prediction.juman"),
     ],
 )
-def test_init(destination: Optional[Union[str, Path]], typo_tokenizer: PreTrainedTokenizerBase):
+def test_init(destination: Optional[Union[str, Path]], typo_tokenizer: PreTrainedTokenizerBase) -> None:
     _ = TypoModuleWriter(confidence_threshold=0.9, tokenizer=typo_tokenizer, destination=destination)
 
 
-def test_write_on_batch_end(typo_tokenizer: PreTrainedTokenizerBase):
+def test_write_on_batch_end(typo_tokenizer: PreTrainedTokenizerBase) -> None:
     texts = ["この文は解析されません…", "待つの木が枯れる", "紹介ことなかった", "この文は解析されません…"]
     num_examples = 2  # num_stash = 2
     max_seq_length = 32  # >= 11
 
-    token2token_id, _ = get_maps(typo_tokenizer, RESOURCE_PATH / "typo_correction" / "multi_char_vocab.txt")
+    token2token_id, _ = get_maps(typo_tokenizer)
 
     kdr_probabilities = torch.zeros((num_examples, max_seq_length, len(token2token_id)), dtype=torch.float)
     kdr_probabilities[0, 0, token2token_id["<k>"]] = 1.0  # [CLS]

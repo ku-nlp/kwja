@@ -3,15 +3,14 @@ import sys
 import tempfile
 from pathlib import Path
 from time import time
-from typing import List
 
 import hydra
-import pytorch_lightning as pl
+import lightning as L
 import torch
 from dotenv import load_dotenv
+from lightning.pytorch.callbacks import Callback
+from lightning.pytorch.trainer.states import TrainerFn
 from omegaconf import DictConfig, ListConfig, OmegaConf
-from pytorch_lightning.callbacks import Callback
-from pytorch_lightning.trainer.states import TrainerFn
 
 from kwja.cli.cli import normalize_text
 from kwja.datamodule.datamodule import DataModule
@@ -22,7 +21,7 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
 @hydra.main(version_base=None, config_path="../configs", config_name="eval")
-def main(eval_cfg: DictConfig):
+def main(eval_cfg: DictConfig) -> None:
     load_dotenv()
     if isinstance(eval_cfg.devices, str):
         eval_cfg.devices = (
@@ -34,7 +33,7 @@ def main(eval_cfg: DictConfig):
         eval_cfg.num_workers = int(eval_cfg.num_workers)
 
     # Load saved model and config
-    model: pl.LightningModule = hydra.utils.call(eval_cfg.module.load_from_checkpoint, _recursive_=False)
+    model: L.LightningModule = hydra.utils.call(eval_cfg.module.load_from_checkpoint, _recursive_=False)
     if eval_cfg.compile is True:
         model = torch.compile(model)  # type: ignore
 
@@ -45,7 +44,7 @@ def main(eval_cfg: DictConfig):
     cfg = OmegaConf.merge(train_cfg, eval_cfg)
     assert isinstance(cfg, DictConfig)
 
-    callbacks: List[Callback] = []
+    callbacks: list[Callback] = []
     for k, v in cfg.get("callbacks", {}).items():
         if k in {"prediction_writer", "progress_bar"}:
             callbacks.append(hydra.utils.instantiate(v))
@@ -54,7 +53,7 @@ def main(eval_cfg: DictConfig):
     cfg.effective_batch_size = cfg.max_batches_per_device * num_devices
     cfg.datamodule.batch_size = cfg.max_batches_per_device
 
-    trainer: pl.Trainer = hydra.utils.instantiate(
+    trainer: L.Trainer = hydra.utils.instantiate(
         cfg.trainer,
         logger=False,
         callbacks=callbacks,

@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Optional, Union
 
 from cohesion_tools.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
 from cohesion_tools.extractors.base import BaseExtractor
@@ -24,7 +24,7 @@ from kwja.utils.constants import (
     IGNORE_INDEX,
     NE_TAGS,
     POS_TAGS,
-    RESOURCE_PATH,
+    RESOURCE_TRAVERSABLE,
     SUBPOS_TAGS,
     WORD_FEATURES,
     CohesionTask,
@@ -40,26 +40,26 @@ logger = logging.getLogger(__name__)
 @dataclass(frozen=True)
 class WordModuleFeatures:
     example_ids: int
-    input_ids: List[int]
-    attention_mask: List[int]
-    special_token_indices: List[int]
-    subword_map: List[List[bool]]
-    reading_labels: List[int]
-    reading_subword_map: List[List[bool]]
-    pos_labels: List[int]
-    subpos_labels: List[int]
-    conjtype_labels: List[int]
-    conjform_labels: List[int]
-    word_feature_labels: List[List[int]]
-    ne_labels: List[int]
-    ne_mask: List[bool]
-    base_phrase_feature_labels: List[List[int]]
-    dependency_labels: List[int]
-    dependency_mask: List[List[bool]]  # True/False = keep/mask
-    dependency_type_labels: List[int]
-    cohesion_labels: List[List[List[int]]]
-    cohesion_mask: List[List[List[bool]]]  # True/False = keep/mask
-    discourse_labels: List[List[int]]
+    input_ids: list[int]
+    attention_mask: list[int]
+    special_token_indices: list[int]
+    subword_map: list[list[bool]]
+    reading_labels: list[int]
+    reading_subword_map: list[list[bool]]
+    pos_labels: list[int]
+    subpos_labels: list[int]
+    conjtype_labels: list[int]
+    conjform_labels: list[int]
+    word_feature_labels: list[list[int]]
+    ne_labels: list[int]
+    ne_mask: list[bool]
+    base_phrase_feature_labels: list[list[int]]
+    dependency_labels: list[int]
+    dependency_mask: list[list[bool]]  # True/False = keep/mask
+    dependency_type_labels: list[int]
+    cohesion_labels: list[list[list[int]]]
+    cohesion_mask: list[list[list[bool]]]  # True/False = keep/mask
+    discourse_labels: list[list[int]]
 
 
 class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDocumentLoaderMixin):
@@ -83,16 +83,16 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         self.skip_cohesion_ne_discourse = self.path.parts[-2] == "kyoto_ed"
 
         # ---------- reading prediction ----------
-        reading_resource_path = RESOURCE_PATH / "reading_prediction"
-        self.reading2reading_id = get_reading2reading_id(reading_resource_path / "vocab.txt")
-        self.reading_aligner = ReadingAligner(self.tokenizer, KanjiDic(str(reading_resource_path / "kanjidic")))
+        self.reading2reading_id = get_reading2reading_id()
+        kanjidic_traversable = RESOURCE_TRAVERSABLE / "reading_prediction" / "kanjidic"
+        self.reading_aligner = ReadingAligner(self.tokenizer, KanjiDic(kanjidic_traversable))
 
         # ---------- cohesion analysis ----------
-        self.cohesion_tasks: List[CohesionTask] = [task for task in CohesionTask if task.value in cohesion_tasks]
-        self.exophora_referent_types: List[ExophoraReferentType] = [
+        self.cohesion_tasks: list[CohesionTask] = [task for task in CohesionTask if task.value in cohesion_tasks]
+        self.exophora_referent_types: list[ExophoraReferentType] = [
             ExophoraReferent(er).type for er in exophora_referents
         ]
-        self.cohesion_task2extractor: Dict[CohesionTask, BaseExtractor] = {
+        self.cohesion_task2extractor: dict[CohesionTask, BaseExtractor] = {
             CohesionTask.PAS_ANALYSIS: PasExtractor(
                 list(pas_cases),
                 self.exophora_referent_types,
@@ -102,7 +102,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             CohesionTask.BRIDGING_REFERENCE_RESOLUTION: BridgingExtractor(list(br_cases), self.exophora_referent_types),
             CohesionTask.COREFERENCE_RESOLUTION: CoreferenceExtractor(self.exophora_referent_types),
         }
-        self.cohesion_task2rels: Dict[CohesionTask, List[str]] = {
+        self.cohesion_task2rels: dict[CohesionTask, list[str]] = {
             CohesionTask.PAS_ANALYSIS: list(pas_cases),
             CohesionTask.BRIDGING_REFERENCE_RESOLUTION: list(br_cases),
             CohesionTask.COREFERENCE_RESOLUTION: ["="],
@@ -110,7 +110,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         self.restrict_cohesion_target: bool = restrict_cohesion_target
 
         # ---------- dependency parsing & cohesion analysis ----------
-        self.special_tokens: List[str] = [st for st in special_tokens if st != " "]
+        self.special_tokens: list[str] = [st for st in special_tokens if st != " "]
         self.special_encoding: Encoding = self.tokenizer(
             self.special_tokens,
             add_special_tokens=False,
@@ -119,7 +119,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             is_split_into_words=True,
         ).encodings[0]
 
-        self.examples: List[WordExample] = self._load_examples(self.doc_id2document)
+        self.examples: list[WordExample] = self._load_examples(self.doc_id2document)
         is_training = self.path.parts[-1] == "train" or (
             self.path.parts[-2] == "kyoto_ed" and self.path.parts[-1] == "all"
         )
@@ -127,14 +127,14 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             del self.doc_id2document  # for saving memory
 
     def _get_tokenized_len(self, document_or_sentence: Union[Document, Sentence]) -> int:
-        tokenizer_input: Union[List[str], str] = [m.text for m in document_or_sentence.morphemes]
+        tokenizer_input: Union[list[str], str] = [m.text for m in document_or_sentence.morphemes]
         return len(self.tokenizer.tokenize(tokenizer_input, is_split_into_words=True))
 
-    def _load_examples(self, doc_id2document: Dict[str, Document]) -> List[WordExample]:
+    def _load_examples(self, doc_id2document: dict[str, Document]) -> list[WordExample]:
         examples = []
         example_id = 0
         for document in track(doc_id2document.values(), description="Loading examples"):
-            tokenizer_input: Union[List[str], str] = [normalize_text(m.text) for m in document.morphemes]
+            tokenizer_input: Union[list[str], str] = [normalize_text(m.text) for m in document.morphemes]
             encoding: Encoding = self.tokenizer(
                 tokenizer_input,
                 padding=PaddingStrategy.DO_NOT_PAD,
@@ -169,8 +169,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             example_id += 1
         if len(examples) == 0:
             logger.error(
-                "No examples to process. "
-                f"Make sure there exist any documents in {self.path} and they are not too long."
+                f"No examples to process. Make sure there exist any documents in {self.path} and they are not too long."
             )
         return examples
 
@@ -219,7 +218,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
 
         # ---------- ner ----------
         ne_mask = [False] * self.max_seq_length if self.skip_cohesion_ne_discourse is True else target_mask
-        ne_labels: List[int] = [NE_TAGS.index("O")] * self.max_seq_length
+        ne_labels: list[int] = [NE_TAGS.index("O")] * self.max_seq_length
         for named_entity in example.named_entities:
             category = named_entity.category.value
             for i, morpheme in enumerate(named_entity.morphemes):
@@ -234,7 +233,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
                 base_phrase_feature_labels[morpheme_global_index][i] = int(base_phrase_feature in feature_set)
 
         # ---------- dependency parsing ----------
-        dependency_labels: List[int] = [IGNORE_INDEX] * self.max_seq_length
+        dependency_labels: list[int] = [IGNORE_INDEX] * self.max_seq_length
         root_index = example.special_token_indexer.get_morpheme_level_index("[ROOT]")
         for morpheme_global_index, dependency in example.morpheme_global_index2dependency.items():
             dependency_labels[morpheme_global_index] = root_index if dependency == -1 else dependency
@@ -243,13 +242,13 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             for head_candidate_global_index in head_candidates:
                 dependency_mask[morpheme_global_index][head_candidate_global_index] = True
             dependency_mask[morpheme_global_index][root_index] = True
-        dependency_type_labels: List[int] = [IGNORE_INDEX] * self.max_seq_length
+        dependency_type_labels: list[int] = [IGNORE_INDEX] * self.max_seq_length
         for morpheme_global_index, dependency_type in example.morpheme_global_index2dependency_type.items():
             dependency_type_labels[morpheme_global_index] = DEPENDENCY_TYPES.index(dependency_type)
 
         # ---------- cohesion analysis ----------
-        cohesion_labels: List[List[List[int]]] = []  # (rel, seq, seq)
-        cohesion_mask: List[List[List[bool]]] = []  # (rel, seq, seq)
+        cohesion_labels: list[list[list[int]]] = []  # (rel, seq, seq)
+        cohesion_mask: list[list[list[bool]]] = []  # (rel, seq, seq)
         for cohesion_task in self.cohesion_tasks:
             cohesion_rels = self.cohesion_task2rels[cohesion_task]
             cohesion_base_phrases = example.cohesion_task2base_phrases[cohesion_task]
@@ -304,10 +303,10 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
 
     def _generate_subword_map(
         self,
-        word_ids: List[Union[int, None]],
+        word_ids: list[Union[int, None]],
         special_token_indexer: SpecialTokenIndexer,
         include_special_tokens: bool = True,
-    ) -> List[List[bool]]:
+    ) -> list[list[bool]]:
         subword_map = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
         for token_index, word_id in enumerate(word_ids):
             if word_id is None or token_index in special_token_indexer.token_level_indices:
@@ -333,10 +332,10 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
 
     def _convert_cohesion_base_phrases_into_rel_labels(
         self,
-        cohesion_base_phrases: List[CohesionBasePhrase],
+        cohesion_base_phrases: list[CohesionBasePhrase],
         rel: str,
         special_token_indexer: SpecialTokenIndexer,
-    ) -> List[List[int]]:
+    ) -> list[list[int]]:
         rel_labels = [[0] * self.max_seq_length for _ in range(self.max_seq_length)]
         if self.skip_cohesion_ne_discourse is True:
             return rel_labels
@@ -355,9 +354,9 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
 
     def _convert_cohesion_base_phrases_into_rel_mask(
         self,
-        cohesion_base_phrases: List[CohesionBasePhrase],
+        cohesion_base_phrases: list[CohesionBasePhrase],
         special_token_indexer: SpecialTokenIndexer,
-    ) -> List[List[bool]]:
+    ) -> list[list[bool]]:
         rel_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
         for cohesion_base_phrase in cohesion_base_phrases:
             if cohesion_base_phrase.is_target is False:

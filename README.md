@@ -29,7 +29,7 @@ KWJA performs many text analysis tasks, including:
 
 ## Requirements
 
-- Python: 3.8+
+- Python: 3.9+
 - Dependencies: See [pyproject.toml](./pyproject.toml).
 - GPUs with CUDA 11.7 (optional)
 

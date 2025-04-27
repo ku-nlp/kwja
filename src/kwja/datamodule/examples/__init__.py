@@ -1,16 +1,16 @@
-from .char import CharExample, CharInferenceExample
-from .seq2seq import Seq2SeqExample, Seq2SeqInferenceExample
-from .typo import TypoExample, TypoInferenceExample
-from .word import SpecialTokenIndexer, WordExample, WordInferenceExample
+from kwja.datamodule.examples.char import CharExample, CharInferenceExample
+from kwja.datamodule.examples.seq2seq import Seq2SeqExample, Seq2SeqInferenceExample
+from kwja.datamodule.examples.typo import TypoExample, TypoInferenceExample
+from kwja.datamodule.examples.word import SpecialTokenIndexer, WordExample, WordInferenceExample
 
 __all__ = [
-    "TypoExample",
-    "TypoInferenceExample",
     "CharExample",
     "CharInferenceExample",
     "Seq2SeqExample",
     "Seq2SeqInferenceExample",
     "SpecialTokenIndexer",
+    "TypoExample",
+    "TypoInferenceExample",
     "WordExample",
     "WordInferenceExample",
 ]

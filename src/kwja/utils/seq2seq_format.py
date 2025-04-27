@@ -1,5 +1,3 @@
-from typing import Dict, List
-
 from rhoknp import Sentence
 from transformers import PreTrainedTokenizerFast
 
@@ -20,18 +18,18 @@ class Seq2SeqFormatter:
     def __init__(self, tokenizer: PreTrainedTokenizerFast) -> None:
         self.tokenizer: PreTrainedTokenizerFast = tokenizer
 
-        self.word2token: Dict[str, str] = {" ": HALF_SPACE_TOKEN}
-        self.token2word: Dict[str, str] = {v: k for k, v in self.word2token.items()}
+        self.word2token: dict[str, str] = {" ": HALF_SPACE_TOKEN}
+        self.token2word: dict[str, str] = {v: k for k, v in self.word2token.items()}
 
-    def get_surfs(self, sentence: Sentence) -> List[str]:
-        surfs: List[str] = []
+    def get_surfs(self, sentence: Sentence) -> list[str]:
+        surfs: list[str] = []
         for morpheme in sentence.morphemes:
             surf: str = morpheme.surf
             for word, token in self.word2token.items():
                 surf = surf.replace(word, token)
             for k, v in RARE2SPECIAL.items():
                 surf = surf.replace(k, v)
-            tokenized_surf: List[str] = [x for x in self.tokenizer.tokenize(surf) if x != "▁"]
+            tokenized_surf: list[str] = [x for x in self.tokenizer.tokenize(surf) if x != "▁"]
             decoded: str = self.tokenizer.decode(self.tokenizer.convert_tokens_to_ids(tokenized_surf))
             for token in self.word2token.values():
                 decoded = decoded.replace(f"{token} ", token)
@@ -40,7 +38,7 @@ class Seq2SeqFormatter:
             surfs.append(decoded.replace(" ", HALF_SPACE_TOKEN))
         return surfs
 
-    def get_src_tokens(self, sentence: Sentence) -> List[str]:
+    def get_src_tokens(self, sentence: Sentence) -> list[str]:
         src_text: str = MORPHEME_DELIMITER_TOKEN.join(m.surf for m in sentence.morphemes)
         for word, token in self.word2token.items():
             src_text = src_text.replace(word, token)
@@ -48,7 +46,7 @@ class Seq2SeqFormatter:
             src_text = src_text.replace(rare, special)
         return [x for x in self.tokenizer.tokenize(src_text) if x != "▁"]
 
-    def get_tgt_tokens(self, sentence: Sentence) -> List[str]:
+    def get_tgt_tokens(self, sentence: Sentence) -> list[str]:
         seq2seq_format: str = ""
         for morpheme in sentence.morphemes:
             if morpheme.surf == " ":
@@ -67,7 +65,7 @@ class Seq2SeqFormatter:
                 lemma = morpheme.lemma
                 if morpheme.canon is not None:
                     canon = morpheme.canon
-                    canon_list: List[str] = canon.split("/")
+                    canon_list: list[str] = canon.split("/")
                     if len(canon_list) > 2 and canon_list[0] and canon_list[1]:
                         canon = f"{canon_list[0]}/{canon_list[1]}"
                 else:

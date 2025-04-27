@@ -45,7 +45,7 @@ sequence_output = torch.tensor(
 )
 
 
-def test_first_pooling():
+def test_first_pooling() -> None:
     # (b, word, hid) = (2, 3, 4)
     pooled_output = pool_subwords(sequence_output, subword_map, PoolingStrategy.FIRST)
     expected_output = torch.tensor(
@@ -66,7 +66,7 @@ def test_first_pooling():
     assert pooled_output == pytest.approx(expected_output)
 
 
-def test_last_pooling():
+def test_last_pooling() -> None:
     # (b, word, hid) = (2, 3, 4)
     pooled_output = pool_subwords(sequence_output, subword_map, PoolingStrategy.LAST)
     expected_output = torch.tensor(
@@ -87,7 +87,7 @@ def test_last_pooling():
     assert pooled_output == pytest.approx(expected_output)
 
 
-def test_max_pooling():
+def test_max_pooling() -> None:
     # (b, word, hid) = (2, 3, 4)
     pooled_output = pool_subwords(sequence_output, subword_map, PoolingStrategy.MAX)
     expected_output = torch.tensor(
@@ -108,7 +108,7 @@ def test_max_pooling():
     assert pooled_output == pytest.approx(expected_output)
 
 
-def test_average_pooling():
+def test_average_pooling() -> None:
     # (b, word, hid) = (2, 3, 4)
     pooled_output = pool_subwords(sequence_output, subword_map, PoolingStrategy.AVE)
     expected_output = torch.tensor(
@@ -129,6 +129,6 @@ def test_average_pooling():
     assert pooled_output == pytest.approx(expected_output)
 
 
-def test_error():
+def test_error() -> None:
     with pytest.raises(ValueError, match="Unknown pooling strategy: INVALID"):
         _ = pool_subwords(sequence_output, subword_map, "INVALID")  # type: ignore

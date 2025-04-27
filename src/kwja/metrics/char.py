@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 import torch
 from rhoknp import Document, Sentence
@@ -32,7 +32,7 @@ class CharModuleMetric(BaseModuleMetric):
         self.word_norm_op_predictions: torch.Tensor
         self.word_norm_op_labels: torch.Tensor
 
-    def _pad(self, kwargs: Dict[str, torch.Tensor]) -> None:
+    def _pad(self, kwargs: dict[str, torch.Tensor]) -> None:
         for key, value in kwargs.items():
             if key in {"example_ids"} or value.numel() == 0:
                 continue
@@ -41,10 +41,10 @@ class CharModuleMetric(BaseModuleMetric):
             for dim in dims:
                 size = [self.max_seq_length - s if i == dim else s for i, s in enumerate(value.size())]
                 padding = torch.zeros(size, dtype=value.dtype, device=value.device)
-                value = torch.cat([value, padding], dim=dim)
+                value = torch.cat([value, padding], dim=dim)  # noqa: PLW2901
             kwargs[key] = value
 
-    def compute(self) -> Dict[str, float]:
+    def compute(self) -> dict[str, float]:
         if isinstance(self.example_ids, torch.Tensor) is False:
             self.example_ids = torch.cat(self.example_ids, dim=0)  # type: ignore
         sorted_indices = unique(self.example_ids)
@@ -62,12 +62,12 @@ class CharModuleMetric(BaseModuleMetric):
             **self.compute_word_normalization_metrics(self.word_norm_op_predictions, self.word_norm_op_labels),
         }
 
-    def _build_documents(self) -> Tuple[List[Document], List[Document], List[Document]]:
+    def _build_documents(self) -> tuple[list[Document], list[Document], list[Document]]:
         assert self.dataset is not None, "dataset isn't set"
 
-        doc_id2predicted_sentences: Dict[str, List[Sentence]] = defaultdict(list)
-        doc_id2partly_gold_sentences: Dict[str, List[Sentence]] = defaultdict(list)
-        doc_id2gold_sentences: Dict[str, List[Sentence]] = defaultdict(list)
+        doc_id2predicted_sentences: dict[str, list[Sentence]] = defaultdict(list)
+        doc_id2partly_gold_sentences: dict[str, list[Sentence]] = defaultdict(list)
+        doc_id2gold_sentences: dict[str, list[Sentence]] = defaultdict(list)
         special_ids = {
             getattr(self.dataset.tokenizer, f"{prefix}_token_id")
             for prefix in ["bos", "eos", "sep", "pad", "cls", "mask"]
@@ -115,9 +115,9 @@ class CharModuleMetric(BaseModuleMetric):
 
     @staticmethod
     def _convert_doc_id2sentences_into_documents(
-        doc_id2sentences: Dict[str, List[Sentence]],
+        doc_id2sentences: dict[str, list[Sentence]],
         from_sentences: bool = False,
-    ) -> List[Document]:
+    ) -> list[Document]:
         # Build documents that do not have clauses, phrases, or base phrases, but morphemes only
         return [
             (
@@ -129,8 +129,8 @@ class CharModuleMetric(BaseModuleMetric):
         ]
 
     def compute_sent_segmentation_metrics(
-        self, predicted_documents: List[Document], gold_documents: List[Document]
-    ) -> Dict[str, float]:
+        self, predicted_documents: list[Document], gold_documents: list[Document]
+    ) -> dict[str, float]:
         labels = [self._convert_document_into_sent_segmentation_tags(d) for d in gold_documents]
         predictions = [self._convert_document_into_sent_segmentation_tags(d) for d in predicted_documents]
         return {
@@ -139,15 +139,15 @@ class CharModuleMetric(BaseModuleMetric):
         }
 
     @staticmethod
-    def _convert_document_into_sent_segmentation_tags(document: Document) -> List[str]:
+    def _convert_document_into_sent_segmentation_tags(document: Document) -> list[str]:
         sent_segmentation_tags = []
         for sentence in document.sentences:
             sent_segmentation_tags.extend(["B"] + ["I"] * (len(sentence.text) - 1))
         return sent_segmentation_tags
 
     def compute_word_segmentation_metrics(
-        self, predicted_documents: List[Document], gold_documents: List[Document]
-    ) -> Dict[str, float]:
+        self, predicted_documents: list[Document], gold_documents: list[Document]
+    ) -> dict[str, float]:
         labels = [self._convert_document_into_word_segmentation_tags(d) for d in gold_documents]
         predictions = [self._convert_document_into_word_segmentation_tags(d) for d in predicted_documents]
         return {
@@ -156,19 +156,19 @@ class CharModuleMetric(BaseModuleMetric):
         }
 
     @staticmethod
-    def _convert_document_into_word_segmentation_tags(document: Document) -> List[str]:
+    def _convert_document_into_word_segmentation_tags(document: Document) -> list[str]:
         word_segmentation_tags = []
         for morpheme in document.morphemes:
             word_segmentation_tags.extend(["B"] + ["I"] * (len(morpheme.text) - 1))
         return word_segmentation_tags
 
     @staticmethod
-    def compute_word_normalization_metrics(predictions: torch.Tensor, labels: torch.Tensor) -> Dict[str, float]:
+    def compute_word_normalization_metrics(predictions: torch.Tensor, labels: torch.Tensor) -> dict[str, float]:
         ignored_indices = labels.eq(IGNORE_INDEX)
         predictions = predictions[~ignored_indices]
         labels = labels[~ignored_indices]
 
-        metrics: Dict[str, float] = {
+        metrics: dict[str, float] = {
             "word_normalization_accuracy": accuracy_score(y_true=labels, y_pred=predictions).item()
         }
 

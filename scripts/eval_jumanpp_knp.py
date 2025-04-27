@@ -1,15 +1,14 @@
 import sys
 from pathlib import Path
-from typing import Dict, List, Tuple
 
 from rhoknp import KNP, Document, Sentence
 
 from kwja.metrics.word import WordModuleMetric
 
-CORPORA: Tuple[str, ...] = ("kwdlc", "kyoto", "fuman", "wac")
+CORPORA: tuple[str, ...] = ("kwdlc", "kyoto", "fuman", "wac")
 
 
-def evaluate_docs(documents: List[Document]):
+def evaluate_docs(documents: list[Document]) -> tuple[dict[str, float], int]:
     word_module_metric = WordModuleMetric(-1)
     knp = KNP(options=["-tab", "-dpnd"])
     (
@@ -24,7 +23,7 @@ def evaluate_docs(documents: List[Document]):
         [],
     )
     for document in documents:
-        parsed_sentences: List[Sentence] = []
+        parsed_sentences: list[Sentence] = []
         for sentence in document.sentences:
             parsed_sentence = knp.apply_to_sentence(sentence.text)
             parsed_sentence.sid = sentence.sid
@@ -53,7 +52,7 @@ def evaluate_docs(documents: List[Document]):
         partly_gold_documents2.append(partly_gold_document2)
         predicted_documents.append(predicted_document)
 
-    metrics: Dict[str, float] = {}
+    metrics: dict[str, float] = {}
     metrics.update(word_module_metric.compute_reading_prediction_metrics(predicted_documents, gold_documents))
     # metrics.update(word_module_metric.compute_morphological_analysis_metrics(predicted_documents, gold_documents))
     # metrics.update(word_module_metric.compute_word_feature_tagging_metrics(predicted_documents, gold_documents))
@@ -66,7 +65,7 @@ def evaluate_docs(documents: List[Document]):
     return metrics, len(gold_documents)
 
 
-def main():
+def main() -> None:
     for corpus in CORPORA:
         knp_dir = Path(sys.argv[1]) / corpus / "test"
         metrics, num_docs = evaluate_docs(

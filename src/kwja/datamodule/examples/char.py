@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Optional
 
 from rhoknp import Document, Morpheme
 from transformers import BatchEncoding
@@ -15,13 +15,13 @@ class CharExample:
         self.doc_id: Optional[str] = None
 
         # ---------- sentence segmentation ----------
-        self.char_global_index2sent_segmentation_tag: Dict[int, str] = {}
+        self.char_global_index2sent_segmentation_tag: dict[int, str] = {}
 
         # ---------- word segmentation ----------
-        self.char_global_index2word_segmentation_tag: Dict[int, str] = {}
+        self.char_global_index2word_segmentation_tag: dict[int, str] = {}
 
         # ---------- word normalization ----------
-        self.char_global_index2word_norm_op_tag: Dict[int, str] = {}
+        self.char_global_index2word_norm_op_tag: dict[int, str] = {}
 
         self.normalizer: MorphemeNormalizer = MorphemeNormalizer()
 

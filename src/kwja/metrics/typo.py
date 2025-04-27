@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 import torch
 from Levenshtein import opcodes
@@ -18,7 +18,7 @@ class TypoModuleMetric(BaseModuleMetric):
         "ins_probabilities",
     )
 
-    def __init__(self, max_seq_length: int, confidence_thresholds: Tuple[float, ...] = (0.0, 0.8, 0.9)) -> None:
+    def __init__(self, max_seq_length: int, confidence_thresholds: tuple[float, ...] = (0.0, 0.8, 0.9)) -> None:
         super().__init__(max_seq_length)
         self.confidence_thresholds = confidence_thresholds
         self.dataset: Optional[TypoDataset] = None
@@ -28,7 +28,7 @@ class TypoModuleMetric(BaseModuleMetric):
         self.ins_predictions: torch.Tensor
         self.ins_probabilities: torch.Tensor
 
-    def _pad(self, kwargs: Dict[str, torch.Tensor]) -> None:
+    def _pad(self, kwargs: dict[str, torch.Tensor]) -> None:
         for key, value in kwargs.items():
             if key in {"example_ids"} or value.numel() == 0:
                 continue
@@ -37,10 +37,10 @@ class TypoModuleMetric(BaseModuleMetric):
             for dim in dims:
                 size = [self.max_seq_length - s if i == dim else s for i, s in enumerate(value.size())]
                 padding = torch.zeros(size, dtype=value.dtype, device=value.device)
-                value = torch.cat([value, padding], dim=dim)
+                value = torch.cat([value, padding], dim=dim)  # noqa: PLW2901
             kwargs[key] = value
 
-    def compute(self) -> Dict[str, float]:
+    def compute(self) -> dict[str, float]:
         if isinstance(self.example_ids, torch.Tensor) is False:
             self.example_ids = torch.cat(self.example_ids, dim=0)  # type: ignore
         sorted_indices = unique(self.example_ids)
@@ -50,13 +50,13 @@ class TypoModuleMetric(BaseModuleMetric):
                 state = torch.cat(state, dim=0)
             setattr(self, state_name, state[sorted_indices])
 
-        metrics: Dict[str, float] = {}
+        metrics: dict[str, float] = {}
         for confidence_threshold in self.confidence_thresholds:
             texts = self._build_texts(confidence_threshold)
             metrics.update(self.compute_typo_correction_metrics(texts, confidence_threshold))
         return metrics
 
-    def _build_texts(self, confidence_threshold: float) -> List[Tuple[str, str, str]]:
+    def _build_texts(self, confidence_threshold: float) -> list[tuple[str, str, str]]:
         example_id2texts = {}
         for example_id, kdr_predictions, kdr_probabilities, ins_predictions, ins_probabilities in zip(
             *[getattr(self, state_name).tolist() for state_name in self.STATE_NAMES]
@@ -68,7 +68,7 @@ class TypoModuleMetric(BaseModuleMetric):
             if seq_len == 0:
                 continue
 
-            args = (confidence_threshold, self.dataset.token2token_id, self.dataset.token_id2token)
+            args = (confidence_threshold, self.dataset.token_id2token)
             kdr_tags = convert_typo_predictions_into_tags(kdr_predictions, kdr_probabilities, "R", *args)
             ins_tags = convert_typo_predictions_into_tags(ins_predictions, ins_probabilities, "I", *args)
 
@@ -81,8 +81,8 @@ class TypoModuleMetric(BaseModuleMetric):
         return list(example_id2texts.values())
 
     def compute_typo_correction_metrics(
-        self, texts: List[Tuple[str, str, str]], confidence_threshold: float
-    ) -> Dict[str, float]:
+        self, texts: list[tuple[str, str, str]], confidence_threshold: float
+    ) -> dict[str, float]:
         tp, fp, fn = 0, 0, 0
         for pre_text, predicted_text, gold_text in texts:
             predicted_diffs = self._get_diffs(pre_text, predicted_text)
@@ -93,9 +93,9 @@ class TypoModuleMetric(BaseModuleMetric):
                 if predicted_diff in queue:
                     intersection.append(predicted_text)
                     queue.remove(predicted_diff)
-            assert (
-                len(predicted_diffs) - len(intersection) >= 0 and len(gold_diffs) - len(intersection) >= 0
-            ), "invalid computation of tp"
+            assert len(predicted_diffs) - len(intersection) >= 0 and len(gold_diffs) - len(intersection) >= 0, (
+                "invalid computation of tp"
+            )
             tp += len(intersection)
             fp += len(predicted_diffs) - len(intersection)
             fn += len(gold_diffs) - len(intersection)
@@ -116,8 +116,8 @@ class TypoModuleMetric(BaseModuleMetric):
         }
 
     @staticmethod
-    def _get_diffs(pre_text: str, post_text: str) -> List[Tuple[str, str]]:
-        diffs: List[Tuple[str, str]] = []
+    def _get_diffs(pre_text: str, post_text: str) -> list[tuple[str, str]]:
+        diffs: list[tuple[str, str]] = []
         for tag, i1, i2, j1, j2 in opcodes(pre_text, post_text):
             if tag == "delete":
                 for pre_char in pre_text[i1:i2]:

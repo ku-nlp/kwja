@@ -2,20 +2,20 @@ import logging
 import os
 import sys
 from abc import ABC
+from collections.abc import Iterator
 from enum import Enum
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Dict, Iterator, List, Optional, Set, TextIO, Tuple
+from typing import Annotated, Optional, TextIO
 from unicodedata import normalize
 
 import hydra
-import pytorch_lightning as pl
+import lightning as L
 import torch
 import typer
-from pytorch_lightning.trainer.states import TrainerFn
+from lightning.pytorch.trainer.states import TrainerFn
 from rhoknp import Document, Sentence
 from rhoknp.utils.reader import chunk_by_document, chunk_by_sentence
-from typing_extensions import Annotated
 
 import kwja
 from kwja.cli.config import CLIConfig, Device, ModelSize, get_kwja_config_file
@@ -46,21 +46,25 @@ class BaseModuleProcessor(ABC):
 
     def __init__(self, config: CLIConfig, batch_size: int) -> None:
         self.config: CLIConfig = config
-        self.device_name, self.device = prepare_device(config.device.value)
+        self.device = prepare_device(config.device)
+        self.accelerator = self.device.type
         self.model_size: ModelSize = config.model_size
         self.batch_size: int = batch_size
         self.destination = Path(NamedTemporaryFile().name)
-        self.module: Optional[pl.LightningModule] = None
-        self.trainer: Optional[pl.Trainer] = None
+        self.module: Optional[L.LightningModule] = None
+        self.trainer: Optional[L.Trainer] = None
 
-    def load(self, **writer_kwargs):
+    def load(self, **writer_kwargs) -> None:
         self.module = self._load_module()
         if self.config.torch_compile is True:
             self.module = torch.compile(self.module)  # type: ignore
         self.module.hparams.datamodule.batch_size = self.batch_size
         self.module.hparams.datamodule.num_workers = self.config.num_workers
 
-        self.trainer = pl.Trainer(
+        # TODO: remove this after new checkpoints are released
+        self._rename_modules_for_backward_compatibility()
+
+        self.trainer = L.Trainer(
             logger=False,
             callbacks=[
                 hydra.utils.instantiate(
@@ -68,12 +72,25 @@ class BaseModuleProcessor(ABC):
                 ),
                 hydra.utils.instantiate(self.module.hparams.callbacks.progress_bar),
             ],
-            accelerator=self.device_name,
+            accelerator=self.accelerator,
             devices=1,
         )
 
-    def _load_module(self) -> pl.LightningModule:
+    def _load_module(self) -> L.LightningModule:
         raise NotImplementedError
+
+    def _rename_modules_for_backward_compatibility(self) -> None:
+        assert self.module is not None, "Module is not loaded"
+        progress_bar_target = self.module.hparams.callbacks.progress_bar._target_
+        if progress_bar_target.startswith("pytorch_lightning"):
+            self.module.hparams.callbacks.progress_bar._target_ = progress_bar_target.replace(
+                "pytorch_lightning", "lightning.pytorch"
+            )
+        prediction_writer_target = self.module.hparams.callbacks.prediction_writer._target_
+        if prediction_writer_target.startswith("pytorch_lightning"):
+            self.module.hparams.callbacks.prediction_writer._target_ = prediction_writer_target.replace(
+                "pytorch_lightning", "lightning.pytorch"
+            )
 
     def delete_module_and_trainer(self) -> None:
         del self.module, self.trainer
@@ -93,10 +110,12 @@ class BaseModuleProcessor(ABC):
 class TypoModuleProcessor(BaseModuleProcessor):
     input_format = InputFormat.RAW
 
-    def _load_module(self) -> pl.LightningModule:
+    def _load_module(self) -> L.LightningModule:
         logger.info("Loading typo module")
         checkpoint_path: Path = download_checkpoint(module="typo", model_size=self.model_size)
-        return TypoModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
+        return TypoModule.fast_load_from_checkpoint(
+            checkpoint_path, map_location=self.device, accelerator=self.accelerator
+        )
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
@@ -118,10 +137,12 @@ class TypoModuleProcessor(BaseModuleProcessor):
 class CharModuleProcessor(BaseModuleProcessor):
     input_format = InputFormat.RAW
 
-    def _load_module(self) -> pl.LightningModule:
+    def _load_module(self) -> L.LightningModule:
         logger.info("Loading char module")
         checkpoint_path: Path = download_checkpoint(module="char", model_size=self.model_size)
-        return CharModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
+        return CharModule.fast_load_from_checkpoint(
+            checkpoint_path, map_location=self.device, accelerator=self.accelerator
+        )
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
@@ -144,10 +165,12 @@ class CharModuleProcessor(BaseModuleProcessor):
 class Seq2SeqModuleProcessor(BaseModuleProcessor):
     input_format = InputFormat.JUMANPP
 
-    def _load_module(self):
+    def _load_module(self) -> L.LightningModule:
         logger.info("Loading seq2seq module")
         checkpoint_path: Path = download_checkpoint(module="seq2seq", model_size=self.model_size)
-        return Seq2SeqModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
+        return Seq2SeqModule.fast_load_from_checkpoint(
+            checkpoint_path, map_location=self.device, accelerator=self.accelerator
+        )
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
@@ -167,13 +190,15 @@ class WordModuleProcessor(BaseModuleProcessor):
         super().__init__(config, batch_size)
         self.from_seq2seq = from_seq2seq
 
-    def load(self):
+    def load(self) -> None:  # type: ignore[override]
         super().load(preserve_reading_lemma_canon=self.from_seq2seq)
 
-    def _load_module(self) -> pl.LightningModule:
+    def _load_module(self) -> L.LightningModule:
         logger.info("Loading word module")
         checkpoint_path: Path = download_checkpoint(module="word", model_size=self.model_size)
-        return WordModule.fast_load_from_checkpoint(checkpoint_path, map_location=self.device)
+        return WordModule.fast_load_from_checkpoint(
+            checkpoint_path, map_location=self.device, accelerator=self.accelerator
+        )
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
         assert self.module is not None
@@ -187,9 +212,9 @@ class WordModuleProcessor(BaseModuleProcessor):
 
 
 class CLIProcessor:
-    def __init__(self, config: CLIConfig, tasks: List[str]) -> None:
+    def __init__(self, config: CLIConfig, tasks: list[str]) -> None:
         self.initial_destination = Path(NamedTemporaryFile(delete=False).name)
-        self._task2processors: Dict[str, BaseModuleProcessor] = {
+        self._task2processors: dict[str, BaseModuleProcessor] = {
             "typo": TypoModuleProcessor(config, config.typo_batch_size),
             "char": CharModuleProcessor(config, config.char_batch_size),
             "seq2seq": Seq2SeqModuleProcessor(config, config.seq2seq_batch_size),
@@ -199,7 +224,7 @@ class CLIProcessor:
                 from_seq2seq="seq2seq" in tasks,
             ),
         }
-        self.processors: List[BaseModuleProcessor] = [self._task2processors[task] for task in tasks]
+        self.processors: list[BaseModuleProcessor] = [self._task2processors[task] for task in tasks]
 
     def load_all_modules(self) -> None:
         for processor in self.processors:
@@ -210,7 +235,7 @@ class CLIProcessor:
         for processor in self._task2processors.values():
             processor.destination.unlink(missing_ok=True)
 
-    def run(self, input_documents: List[Document], interactive: bool = False) -> str:
+    def run(self, input_documents: list[Document], interactive: bool = False) -> str:
         input_documents = [document for document in input_documents if document.text != ""]
         if len(input_documents) == 0:
             return ""
@@ -285,8 +310,8 @@ def _version_callback(value: bool) -> None:
 
 def _tasks_callback(value: str) -> str:
     """sort and validate specified tasks"""
-    values: List[str] = [v for v in value.split(",") if v]
-    tasks: List[str] = []
+    values: list[str] = [v for v in value.split(",") if v]
+    tasks: list[str] = []
     for candidate_task in ("typo", "char", "seq2seq", "word"):
         if candidate_task in values:
             tasks.append(candidate_task)
@@ -303,7 +328,7 @@ def _tasks_callback(value: str) -> str:
 @app.command()
 def main(
     text: Annotated[Optional[str], typer.Option(help="Text to be analyzed.")] = None,
-    filename: List[Path] = typer.Option([], dir_okay=False, help="Files to be analyzed."),
+    filename: list[Path] = typer.Option([], dir_okay=False, help="Files to be analyzed."),
     model_size: Annotated[
         Optional[ModelSize], typer.Option(case_sensitive=False, help="Model size to be used.")
     ] = None,
@@ -321,8 +346,8 @@ def main(
     input_format: Annotated[InputFormat, typer.Option(case_sensitive=False, help="Input format.")] = InputFormat.RAW,
 ) -> None:
     # validate task combination
-    specified_tasks: List[str] = tasks.split(",")
-    valid_task_combinations: Set[Tuple[str, ...]] = {
+    specified_tasks: list[str] = tasks.split(",")
+    valid_task_combinations: set[tuple[str, ...]] = {
         ("typo",),
         ("typo", "char"),
         ("typo", "char", "seq2seq"),
@@ -350,7 +375,7 @@ def main(
         elif specified_tasks[0] in ("seq2seq", "word"):
             logger.warning("WARNING: with seq2seq or word task, your input text will be treated as a word sequence.")
 
-    input_documents: Optional[List[Document]] = None
+    input_documents: Optional[list[Document]] = None
     if text is not None and len(filename) > 0:
         logger.error("ERROR: Please provide text or filename, not both")
         raise typer.Abort

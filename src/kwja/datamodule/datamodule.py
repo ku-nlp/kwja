@@ -1,11 +1,11 @@
 from dataclasses import fields, is_dataclass
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 import hydra
-import pytorch_lightning as pl
+import lightning as L
 import torch
+from lightning.pytorch.trainer.states import TrainerFn
 from omegaconf import DictConfig
-from pytorch_lightning.trainer.states import TrainerFn
 from torch import Tensor
 from torch.utils.data import ConcatDataset, DataLoader, Dataset
 
@@ -22,14 +22,14 @@ from kwja.datamodule.datasets import (
 from kwja.utils.constants import IGNORE_INDEX
 
 
-class DataModule(pl.LightningDataModule):
+class DataModule(L.LightningDataModule):
     def __init__(self, cfg: DictConfig) -> None:
         super().__init__()
         self.cfg: DictConfig = cfg
 
         self.train_dataset: Optional[ConcatDataset] = None
-        self.valid_datasets: Dict[str, Union[TypoDataset, Seq2SeqDataset, CharDataset, WordDataset]] = {}
-        self.test_datasets: Dict[str, Union[TypoDataset, Seq2SeqDataset, CharDataset, WordDataset]] = {}
+        self.valid_datasets: dict[str, Union[TypoDataset, Seq2SeqDataset, CharDataset, WordDataset]] = {}
+        self.test_datasets: dict[str, Union[TypoDataset, Seq2SeqDataset, CharDataset, WordDataset]] = {}
         self.predict_dataset: Optional[
             Union[
                 TypoDataset,
@@ -43,7 +43,7 @@ class DataModule(pl.LightningDataModule):
             ]
         ] = None
 
-    def prepare_data(self):
+    def prepare_data(self) -> None:
         pass
 
     def setup(self, stage: Optional[str] = None) -> None:
@@ -60,10 +60,10 @@ class DataModule(pl.LightningDataModule):
         assert self.train_dataset is not None
         return self._get_dataloader(self.train_dataset, shuffle=True)
 
-    def val_dataloader(self) -> Dict[str, DataLoader]:
+    def val_dataloader(self) -> dict[str, DataLoader]:
         return {corpus: self._get_dataloader(dataset, shuffle=False) for corpus, dataset in self.valid_datasets.items()}
 
-    def test_dataloader(self) -> Dict[str, DataLoader]:
+    def test_dataloader(self) -> dict[str, DataLoader]:
         return {corpus: self._get_dataloader(dataset, shuffle=False) for corpus, dataset in self.test_datasets.items()}
 
     def predict_dataloader(self) -> DataLoader:
@@ -85,13 +85,13 @@ class DataModule(pl.LightningDataModule):
         )
 
 
-def token_dataclass_data_collator(batch_features: List[Any]) -> Dict[str, Union[Tensor, List[str]]]:
+def token_dataclass_data_collator(batch_features: list[Any]) -> dict[str, Union[Tensor, list[str]]]:
     first_features: Any = batch_features[0]
     assert is_dataclass(first_features), "Data must be a dataclass"
 
     token_indices = torch.arange(max(sum(fs.attention_mask) for fs in batch_features))
 
-    batch: Dict[str, Union[Tensor, List[str]]] = {}
+    batch: dict[str, Union[Tensor, list[str]]] = {}
     for field in fields(first_features):
         features = [getattr(fs, field.name) for fs in batch_features]
         if field.name in {"surfs"}:
@@ -109,14 +109,14 @@ def token_dataclass_data_collator(batch_features: List[Any]) -> Dict[str, Union[
     return batch
 
 
-def word_dataclass_data_collator(batch_features: List[Any]) -> Dict[str, Union[Tensor, List[str]]]:
+def word_dataclass_data_collator(batch_features: list[Any]) -> dict[str, Union[Tensor, list[str]]]:
     first_features: Any = batch_features[0]
     assert is_dataclass(first_features), "Data must be a dataclass"
 
     token_indices = torch.arange(max(sum(fs.attention_mask) for fs in batch_features))
     word_indices = torch.arange(max(sum(any(row) for row in fs.subword_map) for fs in batch_features))
 
-    batch: Dict[str, Union[Tensor, List[str]]] = {}
+    batch: dict[str, Union[Tensor, list[str]]] = {}
     for field in fields(first_features):
         features = [getattr(fs, field.name) for fs in batch_features]
         value = torch.as_tensor(features)

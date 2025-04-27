@@ -4,12 +4,12 @@ from transformers import PreTrainedTokenizerBase
 from kwja.datamodule.datasets import CharInferenceDataset
 
 
-def test_init(char_tokenizer: PreTrainedTokenizerBase):
+def test_init(char_tokenizer: PreTrainedTokenizerBase) -> None:
     max_seq_length = 512
     _ = CharInferenceDataset(ListConfig([]), char_tokenizer, max_seq_length)
 
 
-def test_len(char_tokenizer: PreTrainedTokenizerBase):
+def test_len(char_tokenizer: PreTrainedTokenizerBase) -> None:
     texts = ListConfig(
         [
             "今日は晴れだ。散歩に行こう。",
@@ -21,7 +21,7 @@ def test_len(char_tokenizer: PreTrainedTokenizerBase):
     assert len(dataset) == 2
 
 
-def test_getitem(char_tokenizer: PreTrainedTokenizerBase):
+def test_getitem(char_tokenizer: PreTrainedTokenizerBase) -> None:
     texts = ListConfig(
         [
             "今日は晴れだ。散歩に行こう。",

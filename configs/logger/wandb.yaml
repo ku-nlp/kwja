@@ -1,4 +1,4 @@
-_target_: pytorch_lightning.loggers.WandbLogger
+_target_: lightning.pytorch.loggers.WandbLogger
 name: ${name}-${hydra:job.num}
 save_dir: ${work_dir}
 project: ${project}

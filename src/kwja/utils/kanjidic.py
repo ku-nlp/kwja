@@ -1,12 +1,15 @@
 import unicodedata
-from typing import Any, Dict
+from importlib.abc import Traversable
+from importlib.resources import as_file
+from pathlib import Path
+from typing import Any, Union
 
 from kwja.utils.constants import KATA2HIRA
 
 
 class KanjiDic:
-    def __init__(self, fpath: str) -> None:
-        self.entries: Dict[str, Any] = {
+    def __init__(self, fpath: Union[Path, Traversable]) -> None:
+        self.entries: dict[str, Any] = {
             "°": {
                 "reading": ["ど"],
             },
@@ -282,15 +285,19 @@ class KanjiDic:
                 # "じゅう", "じゅっ", "ひゃく", "ひゃっ", "せん", "まん", "おく", "おっ", "ちょう"],
             },
         }
-        self._parse(fpath)
+        if isinstance(fpath, Traversable):
+            with as_file(fpath) as path:
+                self._parse(path)
+        else:
+            self._parse(fpath)
 
-    def _parse(self, fpath: str) -> None:
-        with open(fpath) as fp:
+    def _parse(self, path: Path) -> None:
+        with open(path) as fp:
             for line in fp:
                 if len(line) <= 0 or line[0] == "#":
                     continue
                 fields = line.rstrip().split(" ")
-                struct: Dict[str, Any] = {
+                struct: dict[str, Any] = {
                     "has_nanori": False,
                 }
                 self.entries[fields.pop(0)] = struct

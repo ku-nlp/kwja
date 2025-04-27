@@ -1,14 +1,14 @@
 from math import sqrt
-from typing import List, Literal, Optional, Tuple
+from typing import Literal, Optional
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 from kwja.utils.constants import MASKED
 
 
 class CRF(nn.Module):
-    def __init__(self, tags: Tuple[str, ...]) -> None:
+    def __init__(self, tags: tuple[str, ...]) -> None:
         super().__init__()
         self.tags = tags
         self.num_tags = len(tags)
@@ -19,7 +19,7 @@ class CRF(nn.Module):
 
         self._initialize_parameters(tags)
 
-    def _initialize_parameters(self, tags: Tuple[str, ...]) -> None:
+    def _initialize_parameters(self, tags: tuple[str, ...]) -> None:
         bound = sqrt(6 / self.num_tags)
         nn.init.uniform_(self.start_transitions, -bound, bound)
         nn.init.uniform_(self.transitions, -bound, bound)
@@ -120,7 +120,7 @@ class CRF(nn.Module):
         max_tail_index = int(tail_indices.max())
 
         score: torch.Tensor = self.start_transitions + emissions[indices, head_indices]  # (b, num_tags)
-        history: List[torch.Tensor] = []
+        history: list[torch.Tensor] = []
         for j in range(min_head_index + 1, max_tail_index + 1):
             condition = torch.logical_and(mask[:, j] == 1, head_indices != j)
             broadcast_score: torch.Tensor = score.unsqueeze(2)  # (b, num_tags, 1)
@@ -133,15 +133,17 @@ class CRF(nn.Module):
             history.append(max_indices)
         score += self.end_transitions  # (b, num_tags)
 
-        batch_best_tags: List[List[int]] = []
+        batch_best_tags: list[list[int]] = []
         for i in range(batch_size):
             head_index, tail_index = int(head_indices[i]), int(tail_indices[i])
             _, best_tag = score[i].max(dim=0)
-            assert isinstance(best_tag_int := best_tag.item(), int)
-            best_tags: List[int] = [best_tag_int]
+            best_tag_int = best_tag.item()
+            assert isinstance(best_tag_int, int)
+            best_tags: list[int] = [best_tag_int]
             for max_indices in history[head_index - min_head_index : tail_index - min_head_index][::-1]:
                 best_tag = max_indices[i][best_tags[-1]]
-                assert isinstance(best_tag_int := best_tag.item(), int)
+                best_tag_int = best_tag.item()
+                assert isinstance(best_tag_int, int)
                 best_tags.append(best_tag_int)
             best_tags += [self.tags.index("O")] * head_index
             best_tags = best_tags[::-1]

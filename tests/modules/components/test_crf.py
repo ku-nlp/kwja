@@ -1,5 +1,3 @@
-from typing import Tuple
-
 import pytest
 import torch
 
@@ -79,7 +77,7 @@ def test_loss_mask(batch_size: int, seq_length: int, reduction: str) -> None:
         (2, 3, (1, 2)),
     ],
 )
-def test_viterbi_decode(batch_size: int, seq_length: int, target_span: Tuple[int, int]) -> None:
+def test_viterbi_decode(batch_size: int, seq_length: int, target_span: tuple[int, int]) -> None:
     crf = CRF(NE_TAGS)
 
     crf.start_transitions.data = torch.zeros_like(crf.start_transitions)

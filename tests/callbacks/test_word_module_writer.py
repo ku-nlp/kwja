@@ -2,10 +2,10 @@ import tempfile
 from importlib.metadata import version
 from pathlib import Path
 from textwrap import dedent
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
+import lightning as L
 import pytest
-import pytorch_lightning as pl
 import torch
 from rhoknp.props import DepType
 from torch.utils.data import DataLoader
@@ -21,7 +21,6 @@ from kwja.utils.constants import (
     DISCOURSE_RELATIONS,
     NE_TAGS,
     POS_TAGS,
-    RESOURCE_PATH,
     SUBPOS_TAGS,
     WORD_FEATURES,
     WordTask,
@@ -46,7 +45,7 @@ AMBIG_SURF_SPECS = [
 
 
 class MockTrainer:
-    def __init__(self, predict_dataloaders: List[DataLoader]):
+    def __init__(self, predict_dataloaders: list[DataLoader]) -> None:
         self.predict_dataloaders = predict_dataloaders
 
 
@@ -72,11 +71,11 @@ def build_dummy_jumandic() -> JumanDic:
         str(Path(tempfile.TemporaryDirectory().name) / Path("word_prediction.knp")),
     ],
 )
-def test_init(destination: Optional[Union[str, Path]]):
+def test_init(destination: Optional[Union[str, Path]]) -> None:
     _ = WordModuleWriter(AMBIG_SURF_SPECS, destination=destination)
 
 
-def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: Dict[str, Any]):
+def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[str, Any]) -> None:
     doc_id_prefix = "test"
     juman_text = dedent(
         f"""\
@@ -112,7 +111,7 @@ def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwa
 
     trainer = MockTrainer([DataLoader(dataset, batch_size=num_examples)])
 
-    module = pl.LightningModule()
+    module = L.LightningModule()
     module.training_tasks = [
         WordTask.READING_PREDICTION,
         WordTask.MORPHOLOGICAL_ANALYSIS,
@@ -124,8 +123,7 @@ def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwa
         WordTask.DISCOURSE_RELATION_ANALYSIS,
     ]
 
-    reading_resource_path = RESOURCE_PATH / "reading_prediction"
-    reading2reading_id = get_reading2reading_id(reading_resource_path / "vocab.txt")
+    reading2reading_id = get_reading2reading_id()
     reading_logits = torch.zeros((num_examples, max_seq_length, len(reading2reading_id)), dtype=torch.float)
     reading_logits[0, 1, reading2reading_id["たろう"]] = 1.0  # 太郎 -> たろう
     reading_logits[0, 2, reading2reading_id["[ID]"]] = 1.0  # と

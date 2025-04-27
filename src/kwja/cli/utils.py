@@ -2,22 +2,22 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Union
+from typing import Optional, Union
 
 import torch
 from torch.hub import download_url_to_file
 
 import kwja
-from kwja.cli.config import ModelSize
+from kwja.cli.config import Device, ModelSize
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("kwja_cli")
 
 ENV_KWJA_CACHE_DIR = "KWJA_CACHE_DIR"
 ENV_XDG_CACHE_HOME = "XDG_CACHE_HOME"
 DEFAULT_CACHE_DIR = Path.home() / ".cache"
 
 _CHECKPOINT_BASE_URL = "https://lotus.kuee.kyoto-u.ac.jp"
-_CHECKPOINT_FILE_NAMES: Dict[ModelSize, Dict[str, str]] = {
+_CHECKPOINT_FILE_NAMES: dict[ModelSize, dict[str, str]] = {
     ModelSize.TINY: {
         "typo": "typo_deberta-v2-tiny-wwm.ckpt",
         "char": "char_deberta-v2-tiny-wwm.ckpt",
@@ -92,20 +92,29 @@ def _get_model_version() -> str:
         ("2", "2"): "v2.2",
         ("2", "3"): "v2.2",
         ("2", "4"): "v2.4",
+        ("2", "5"): "v2.4",
     }
     version_fields = kwja.__version__.split(".")
     return version_map[(version_fields[0], version_fields[1])]
 
 
-def prepare_device(device_name: str) -> Tuple[str, torch.device]:
-    n_gpu = torch.cuda.device_count()
-    if device_name == "auto":
-        if n_gpu > 0:
-            device_name = "gpu"
+def prepare_device(device_type: Device) -> torch.device:
+    is_cuda_available = torch.cuda.is_available()
+    is_mps_available = torch.backends.mps.is_available()
+
+    if device_type == Device.AUTO:
+        if is_cuda_available:
+            device_type = Device.CUDA
+        elif is_mps_available:
+            device_type = Device.MPS
         else:
-            device_name = "cpu"
-    if device_name == "gpu" and n_gpu == 0:
-        logger.warning("There's no GPU available on this machine. Using CPU instead.")
-        return "cpu", torch.device("cpu")
-    else:
-        return device_name, torch.device("cuda:0" if device_name == "gpu" else "cpu")
+            device_type = Device.CPU
+
+    if device_type == Device.CUDA and not is_cuda_available:
+        logger.warning("There's no CUDA device available on this machine. Using CPU instead.")
+        device_type = Device.CPU
+    elif device_type == Device.MPS and not is_mps_available:
+        logger.warning("MPS is not available on this machine. Using CPU instead.")
+        device_type = Device.CPU
+
+    return torch.device(device_type.value)

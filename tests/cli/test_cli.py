@@ -2,7 +2,6 @@ import io
 import re
 import tempfile
 import textwrap
-from typing import List, Set, Tuple
 
 import pytest
 from rhoknp import Document
@@ -14,24 +13,24 @@ from kwja.cli.cli import app
 runner = CliRunner(mix_stderr=False)
 
 
-def test_version():
+def test_version() -> None:
     ret = runner.invoke(app, args=["--version"])
     assert re.match(r"KWJA \d+\.\d+\.\d+", ret.stdout) is not None
 
 
-def test_device_validation():
-    devices: List[str] = ["", "auto", "cpu", "gpu", "INVALID"]
-    base_args: List[str] = ["--model-size", "tiny", "--text", ""]
+def test_device_validation() -> None:
+    devices: list[str] = ["", "auto", "cpu", "cuda", "mps", "INVALID"]
+    base_args: list[str] = ["--model-size", "tiny", "--text", ""]
     for device in devices:
         ret = runner.invoke(app, args=[*base_args, "--device", device])
-        if device not in {"auto", "cpu", "gpu"}:
+        if device not in {"auto", "cpu", "cuda", "mps"}:
             assert isinstance(ret.exception, SystemExit)
         else:
             assert ret.exception is None
 
 
-def test_task_combination_validation():
-    tasks: List[str] = [
+def test_task_combination_validation() -> None:
+    tasks: list[str] = [
         "",
         "dummy",
         "typo",
@@ -47,7 +46,7 @@ def test_task_combination_validation():
         "seq2seq,word",
         "word",
     ]
-    valid_tasks_raw_input: Set[Tuple[str, ...]] = {
+    valid_tasks_raw_input: set[tuple[str, ...]] = {
         ("typo",),
         ("typo", "char"),
         ("typo", "char", "seq2seq"),
@@ -58,12 +57,12 @@ def test_task_combination_validation():
         ("char", "word"),
         ("char", "seq2seq", "word"),
     }
-    valid_tasks_jumanpp_input: Set[Tuple[str, ...]] = valid_tasks_raw_input | {
+    valid_tasks_jumanpp_input: set[tuple[str, ...]] = valid_tasks_raw_input | {
         ("seq2seq",),
         ("seq2seq", "word"),
         ("word",),
     }
-    base_args: List[str] = ["--model-size", "tiny", "--text", ""]
+    base_args: list[str] = ["--model-size", "tiny", "--text", ""]
     for task in tasks:
         ret = runner.invoke(app, args=[*base_args, "--task", task, "--input-format", "raw"])
         if tuple(task.split(",")) not in valid_tasks_raw_input:
@@ -73,9 +72,9 @@ def test_task_combination_validation():
             assert isinstance(ret.exception, SystemExit)
 
 
-def test_input_format_validation():
-    input_formats: List[str] = ["", "raw", "jumanpp", "knp", "INVALID"]
-    base_args: List[str] = ["--model-size", "tiny", "--text", ""]
+def test_input_format_validation() -> None:
+    input_formats: list[str] = ["", "raw", "jumanpp", "knp", "INVALID"]
+    base_args: list[str] = ["--model-size", "tiny", "--text", ""]
     for input_format in input_formats:
         ret = runner.invoke(app, args=[*base_args, "--input-format", input_format])
         if input_format not in {"raw", "jumanpp", "knp"}:
@@ -84,7 +83,7 @@ def test_input_format_validation():
             assert ret.exception is None
 
 
-def test_text_input():
+def test_text_input() -> None:
     ret = runner.invoke(app, args=["--model-size", "tiny", "--text", "おはよう"])
     assert ret.exception is None
     assert Document.from_knp(ret.stdout).text == "おはよう"
@@ -102,7 +101,7 @@ def test_text_input():
         ("おはよう。EOD", "おはよう。EOD\nEOD\n"),
     ],
 )
-def test_normalization_and_typo_module(text: str, output: str):
+def test_normalization_and_typo_module(text: str, output: str) -> None:
     ret = runner.invoke(app, args=["--model-size", "tiny", "--tasks", "typo", "--text", text])
     assert ret.exception is None
     assert ret.stdout == output
@@ -114,14 +113,14 @@ def test_normalization_and_typo_module(text: str, output: str):
         ("今日は${day}日です", "今日は${day}日です"),
     ],
 )
-def test_normalization_and_char_module(text: str, output: str):
+def test_normalization_and_char_module(text: str, output: str) -> None:
     ret = runner.invoke(app, args=["--model-size", "tiny", "--tasks", "char", "--text", text])
     assert ret.exception is None
     restored_output = "".join([line for line in ret.stdout.splitlines() if not line.startswith("#")]).replace(" ", "")
     assert restored_output == output.replace(" ", "")
 
 
-def test_file_input():
+def test_file_input() -> None:
     with tempfile.NamedTemporaryFile("wt") as f:
         f.write(
             textwrap.dedent(
@@ -147,12 +146,12 @@ def test_file_input():
         "KWJAは日本語の統合解析ツールです。\n汎用言語モデルを利用し、様々な言語解析を統一的な方法で解いています。\nEOD\n",
     ],
 )
-def test_interactive_mode(text: str):
+def test_interactive_mode(text: str) -> None:
     ret = runner.invoke(app, args=["--model-size", "tiny", "--tasks", "char,word"], input=text)
     assert ret.exception is None
 
 
-def test_sanity():
+def test_sanity() -> None:
     with tempfile.NamedTemporaryFile("wt") as f:
         f.write(
             textwrap.dedent(
@@ -197,7 +196,7 @@ def test_sanity():
         "typo,char,seq2seq,word",
     ],
 )
-def test_input_format_jumanpp(tasks: str):
+def test_input_format_jumanpp(tasks: str) -> None:
     jumanpp_text = textwrap.dedent(
         """\
         こんにちは こんにちは こんにちは 感動詞 12 * 0 * 0 * 0 "代表表記:こんにちは/こんにちは"
@@ -212,7 +211,7 @@ def test_input_format_jumanpp(tasks: str):
         app, args=["--model-size", "tiny", "--tasks", tasks, "--text", jumanpp_text, "--input-format", "jumanpp"]
     )
     assert ret.exception is None
-    documents: List[Document] = []
+    documents: list[Document] = []
     for out_text in chunk_by_document(io.StringIO(ret.stdout)):
         if tasks.split(",")[-1] == "word":
             documents.append(Document.from_knp(out_text))
@@ -251,7 +250,7 @@ def test_input_format_jumanpp(tasks: str):
         "typo,char,seq2seq,word",
     ],
 )
-def test_input_format_jumanpp_with_sid(tasks: str):
+def test_input_format_jumanpp_with_sid(tasks: str) -> None:
     jumanpp_text = textwrap.dedent(
         """\
         # S-ID:test-0 kwja:0.1.0
@@ -268,7 +267,7 @@ def test_input_format_jumanpp_with_sid(tasks: str):
         app, args=["--model-size", "tiny", "--tasks", tasks, "--text", jumanpp_text, "--input-format", "jumanpp"]
     )
     assert ret.exception is None
-    documents: List[Document] = []
+    documents: list[Document] = []
     for out_text in chunk_by_document(io.StringIO(ret.stdout)):
         if tasks.split(",")[-1] == "word":
             documents.append(Document.from_knp(out_text))
@@ -307,7 +306,7 @@ def test_input_format_jumanpp_with_sid(tasks: str):
         "typo,char,seq2seq,word",
     ],
 )
-def test_input_format_knp(tasks: str):
+def test_input_format_knp(tasks: str) -> None:
     knp_text = textwrap.dedent(
         """\
         # S-ID:test-0 kwja:0.1.0
@@ -328,7 +327,7 @@ def test_input_format_knp(tasks: str):
         app, args=["--model-size", "tiny", "--tasks", tasks, "--text", knp_text, "--input-format", "knp"]
     )
     assert ret.exception is None
-    documents: List[Document] = []
+    documents: list[Document] = []
     for out_text in chunk_by_document(io.StringIO(ret.stdout)):
         if tasks.split(",")[-1] == "word":
             documents.append(Document.from_knp(out_text))

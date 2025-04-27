@@ -1,0 +1,5 @@
+defaults:
+  - base
+  - _self_
+
+pretrained_model_name_or_path: sbintuitions/modernbert-ja-310m

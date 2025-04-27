@@ -3,7 +3,7 @@ from importlib.metadata import version
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import pytest
 import torch
@@ -16,7 +16,7 @@ from kwja.utils.constants import CANON_TOKEN, LEMMA_TOKEN, READING_TOKEN, SURF_T
 
 
 class MockTrainer:
-    def __init__(self, predict_dataloaders: List[DataLoader]):
+    def __init__(self, predict_dataloaders: list[DataLoader]) -> None:
         self.predict_dataloaders = predict_dataloaders
 
 
@@ -28,11 +28,11 @@ class MockTrainer:
         str(Path(TemporaryDirectory().name) / Path("seq2seq_prediction.seq2seq")),
     ],
 )
-def test_init(destination: Optional[Union[str, Path]], seq2seq_tokenizer: PreTrainedTokenizerFast):
+def test_init(destination: Optional[Union[str, Path]], seq2seq_tokenizer: PreTrainedTokenizerFast) -> None:
     _ = Seq2SeqModuleWriter(tokenizer=seq2seq_tokenizer, destination=destination)
 
 
-def test_write_on_batch_end(seq2seq_tokenizer: PreTrainedTokenizerFast):
+def test_write_on_batch_end(seq2seq_tokenizer: PreTrainedTokenizerFast) -> None:
     max_src_length = 32
     max_tgt_length = 128
     doc_id_prefix = "test"

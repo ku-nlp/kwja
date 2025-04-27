@@ -2,7 +2,6 @@ import logging
 from argparse import ArgumentParser
 from collections import Counter
 from pathlib import Path
-from typing import Dict
 
 from rhoknp import Document
 from transformers import AutoTokenizer
@@ -13,7 +12,7 @@ from kwja.utils.reading_prediction import ReadingAligner
 logger = logging.getLogger(__name__)
 
 
-def main():
+def main() -> None:
     parser = ArgumentParser()
     parser.add_argument("-m", "--model-name-or-path", type=str, help="model_name_or_path")
     parser.add_argument("-k", "--kanji-dic", type=str, help="path to kanji dic file")
@@ -21,10 +20,10 @@ def main():
     args = parser.parse_args()
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
-    kanji_dic = KanjiDic(args.kanji_dic)
+    kanji_dic = KanjiDic(Path(args.kanji_dic))
     reading_aligner = ReadingAligner(tokenizer, kanji_dic)
 
-    reading_counter: Dict[str, int] = Counter()
+    reading_counter: dict[str, int] = Counter()
     for path in args.in_dir.glob("**/*.knp"):
         logger.info(f"processing {path}")
         with path.open() as f:

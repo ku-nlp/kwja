@@ -1,6 +1,7 @@
 import re
+from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Iterator, List, Tuple, Union
+from typing import Union
 
 from rhoknp import Document, Sentence
 
@@ -19,7 +20,7 @@ def to_orig_doc_id(doc_id: str) -> str:
         return match["did"]
 
 
-def extract_target_sentences(document: Document) -> List[Sentence]:
+def extract_target_sentences(document: Document) -> list[Sentence]:
     return [sentence for sentence in document.sentences if is_target_sentence(sentence)]
 
 
@@ -56,7 +57,7 @@ class SequenceSplitter:
         stride: The stride of the sub-sequence span. -1 to dynamically determine the maximum stride by eliminating overlap.
     """
 
-    def __init__(self, sequence_lengths: List[int], max_length: int, stride: int) -> None:
+    def __init__(self, sequence_lengths: list[int], max_length: int, stride: int) -> None:
         self.sequence_lengths = sequence_lengths
         self.max_length = max_length
         self.stride = stride
@@ -66,7 +67,7 @@ class SequenceSplitter:
 
     def split_into_spans(
         self, return_candidates: bool = False
-    ) -> Iterator[Union[Tuple[SpanCandidate, List[SpanCandidate]], SpanCandidate]]:
+    ) -> Iterator[Union[tuple[SpanCandidate, list[SpanCandidate]], SpanCandidate]]:
         """
         This function splits a sequence into sub-sequences. Each sub-sequence is represented as a span.
 
@@ -85,14 +86,14 @@ class SequenceSplitter:
             else:
                 yield span
 
-    def search_sub_sequence_span(self, prev_start: int, prev_end: int) -> Tuple[SpanCandidate, List[SpanCandidate]]:
+    def search_sub_sequence_span(self, prev_start: int, prev_end: int) -> tuple[SpanCandidate, list[SpanCandidate]]:
         if self.stride == -1:
             start = prev_end
             end = self._search_end(start, initial=prev_end + 1)
             span = self._gen_span_candidate(start, end, stride=end - prev_end)
             return span, [span]
 
-        candidates: List[SpanCandidate] = []
+        candidates: list[SpanCandidate] = []
         # search start index
         for start in range(prev_start, len(self.sequence_lengths)):
             if start > prev_end:
@@ -128,7 +129,7 @@ class SequenceSplitter:
     def _get_sub_sequence_length(self, start: int, end: int) -> int:
         return self._cumulative_lengths[end] - self._cumulative_lengths[start]
 
-    def _choose_best_candidate(self, candidates: List[SpanCandidate]) -> SpanCandidate:
+    def _choose_best_candidate(self, candidates: list[SpanCandidate]) -> SpanCandidate:
         return sorted(candidates, key=self._get_priority_score, reverse=True)[0]
 
     def _get_priority_score(self, span: SpanCandidate) -> int:

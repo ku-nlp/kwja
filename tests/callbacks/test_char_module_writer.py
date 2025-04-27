@@ -2,7 +2,7 @@ from importlib.metadata import version
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import pytest
 import torch
@@ -16,7 +16,7 @@ from kwja.utils.constants import SENT_SEGMENTATION_TAGS, WORD_NORM_OP_TAGS, WORD
 
 
 class MockTrainer:
-    def __init__(self, predict_dataloaders: List[DataLoader]):
+    def __init__(self, predict_dataloaders: list[DataLoader]) -> None:
         self.predict_dataloaders = predict_dataloaders
 
 
@@ -28,11 +28,11 @@ class MockTrainer:
         str(Path(TemporaryDirectory().name) / Path("char_prediction.juman")),
     ],
 )
-def test_init(destination: Optional[Union[str, Path]]):
+def test_init(destination: Optional[Union[str, Path]]) -> None:
     _ = CharModuleWriter(destination=destination)
 
 
-def test_write_on_batch_end(char_tokenizer: PreTrainedTokenizerBase):
+def test_write_on_batch_end(char_tokenizer: PreTrainedTokenizerBase) -> None:
     texts = ListConfig(["花咲ガニを買ぅ", "うまそーですね〜〜"])
     max_seq_length = 32
     doc_id_prefix = "test"

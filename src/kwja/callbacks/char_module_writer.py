@@ -1,7 +1,8 @@
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Optional, Sequence, Union
+from typing import Any, Optional, Union
 
-import pytorch_lightning as pl
+import lightning as L
 
 import kwja
 from kwja.callbacks.base_module_writer import BaseModuleWriter
@@ -19,12 +20,12 @@ class CharModuleWriter(BaseModuleWriter):
 
     def write_on_batch_end(
         self,
-        trainer: "pl.Trainer",
-        pl_module: "pl.LightningModule",
+        trainer: L.Trainer,
+        pl_module: L.LightningModule,  # noqa: ARG002
         prediction: Any,
-        batch_indices: Optional[Sequence[int]],
-        batch: Any,
-        batch_idx: int,
+        batch_indices: Optional[Sequence[int]],  # noqa: ARG002
+        batch: Any,  # noqa: ARG002
+        batch_idx: int,  # noqa: ARG002
         dataloader_idx: int,
     ) -> None:
         if isinstance(trainer.predict_dataloaders, dict):

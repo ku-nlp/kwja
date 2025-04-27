@@ -1,10 +1,11 @@
 import sys
+from collections.abc import Sequence
 from io import TextIOBase
 from pathlib import Path
-from typing import Any, Optional, Sequence, TextIO, Union
+from typing import Any, Optional, TextIO, Union
 
-import pytorch_lightning as pl
-from pytorch_lightning.callbacks import BasePredictionWriter
+import lightning as L
+from lightning.pytorch.callbacks import BasePredictionWriter
 
 
 class BaseModuleWriter(BasePredictionWriter):
@@ -28,8 +29,8 @@ class BaseModuleWriter(BasePredictionWriter):
 
     def write_on_batch_end(
         self,
-        trainer: "pl.Trainer",
-        pl_module: "pl.LightningModule",
+        trainer: L.Trainer,
+        pl_module: L.LightningModule,
         prediction: Any,
         batch_indices: Optional[Sequence[int]],
         batch: Any,
@@ -40,8 +41,8 @@ class BaseModuleWriter(BasePredictionWriter):
 
     def write_on_epoch_end(
         self,
-        trainer: pl.Trainer,
-        pl_module: pl.LightningModule,
+        trainer: L.Trainer,
+        pl_module: L.LightningModule,
         predictions: Sequence[Any],
         batch_indices: Optional[Sequence[Any]] = None,
     ) -> None:

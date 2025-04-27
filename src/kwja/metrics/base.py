@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Any, Dict, Tuple
+from typing import Any
 
 import torch
 from torchmetrics import Metric
@@ -7,7 +7,7 @@ from torchmetrics import Metric
 
 class BaseModuleMetric(Metric, ABC):
     full_state_update = False
-    STATE_NAMES: Tuple[str, ...]
+    STATE_NAMES: tuple[str, ...]
 
     def __init__(self, max_seq_length: int) -> None:
         super().__init__()
@@ -15,10 +15,10 @@ class BaseModuleMetric(Metric, ABC):
         for state_name in self.STATE_NAMES:
             self.add_state(state_name, default=[], dist_reduce_fx="cat")
 
-    def _pad(self, kwargs: Dict[str, torch.Tensor]) -> None:
+    def _pad(self, kwargs: dict[str, torch.Tensor]) -> None:
         raise NotImplementedError
 
-    def update(self, kwargs: Dict[str, torch.Tensor]) -> None:
+    def update(self, kwargs: dict[str, torch.Tensor]) -> None:
         self._pad(kwargs)
         for state_name in self.STATE_NAMES:
             state = getattr(self, state_name)
@@ -37,7 +37,7 @@ class BaseModuleMetric(Metric, ABC):
             #     new_value = value
             # setattr(self, state_name, new_value)
 
-    def set_properties(self, kwargs: Dict[str, Any]) -> None:
+    def set_properties(self, kwargs: dict[str, Any]) -> None:
         for key, value in kwargs.items():
             setattr(self, key, value)
 

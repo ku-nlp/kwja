@@ -1,12 +1,12 @@
 import random
-from typing import Any, Dict, List
+from typing import Any
 
 import pytest
 
 from kwja.utils.sub_document import SequenceSplitter, SpanCandidate
 
 
-def test_split_spans():
+def test_split_spans() -> None:
     splitter = SequenceSplitter(sequence_lengths=[20, 40, 30, 50, 20, 50], max_length=100, stride=1)
     actual_spans = list(splitter.split_into_spans())
     expected_spans = [
@@ -20,7 +20,7 @@ def test_split_spans():
         assert (actual_span.start, actual_span.end) == expected_span
 
 
-def test_split_spans_auto_stride():
+def test_split_spans_auto_stride() -> None:
     splitter = SequenceSplitter(sequence_lengths=[20, 40, 30, 50, 20, 50], max_length=100, stride=-1)
     actual_spans = list(splitter.split_into_spans())
     expected_spans = [
@@ -47,8 +47,8 @@ random.seed(0)
         for _ in range(999)
     ],
 )
-def test_split_conditions(case: Dict[str, Any]):
-    sequence_lengths: List[int] = case["sequence_lengths"]
+def test_split_conditions(case: dict[str, Any]) -> None:
+    sequence_lengths: list[int] = case["sequence_lengths"]
     max_length: int = case["max_length"]
     stride: int = case["stride"]
     splitter = SequenceSplitter(sequence_lengths, max_length, stride)
@@ -57,7 +57,7 @@ def test_split_conditions(case: Dict[str, Any]):
     for idx, item in enumerate(splitter.split_into_spans(return_candidates=True)):
         assert isinstance(item, tuple)
         span: SpanCandidate
-        candidates: List[SpanCandidate]
+        candidates: list[SpanCandidate]
         span, candidates = item
         assert 0 <= span.start < span.end <= len(sequence_lengths)  # start and end index are in valid range
         union_ids.update(sequence_ids[span.start : span.end])
@@ -88,8 +88,8 @@ def test_split_conditions(case: Dict[str, Any]):
         for _ in range(99)
     ],
 )
-def test_split_conditions_auto_stride(case: Dict[str, Any]):
-    sequence_lengths: List[int] = case["sequence_lengths"]
+def test_split_conditions_auto_stride(case: dict[str, Any]) -> None:
+    sequence_lengths: list[int] = case["sequence_lengths"]
     max_length: int = case["max_length"]
     splitter = SequenceSplitter(sequence_lengths, max_length, stride=-1)
     sequence_ids = list(range(len(sequence_lengths)))
@@ -97,7 +97,7 @@ def test_split_conditions_auto_stride(case: Dict[str, Any]):
     for item in splitter.split_into_spans(return_candidates=True):
         assert isinstance(item, tuple)
         span: SpanCandidate
-        candidates: List[SpanCandidate]
+        candidates: list[SpanCandidate]
         span, candidates = item
         assert len(candidates) == 1
         assert span == candidates[0]

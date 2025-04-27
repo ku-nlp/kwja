@@ -1,5 +1,5 @@
 from logging import getLogger
-from typing import Dict, List, Literal, Optional, Set, Tuple
+from typing import Literal, Optional
 
 import numpy as np
 from cohesion_tools.extractors.base import BaseExtractor
@@ -37,25 +37,24 @@ logger = getLogger(__name__)
 
 # ---------- typo module writer ----------
 def convert_typo_predictions_into_tags(
-    predictions: List[int],  # kdr_predictions or ins_predictions
-    probabilities: List[float],
+    predictions: list[int],  # kdr_predictions or ins_predictions
+    probabilities: list[float],
     prefix: Literal["R", "I"],
     confidence_threshold: float,
-    token2token_id: Dict[str, int],
-    token_id2token: Dict[int, str],
-) -> List[str]:
-    typo_corr_op_tags: List[str] = []
+    token_id2token: dict[int, str],
+) -> list[str]:
+    typo_corr_op_tags: list[str] = []
     for token_id, probability in zip(predictions, probabilities):
+        token: str = token_id2token[token_id]
         # do not edit if the probability (replace, delete, and insert) is less than "confidence_threshold"
         if probability < confidence_threshold:
-            token_id = token2token_id["<k>"] if prefix == "R" else token2token_id["<_>"]
-        token: str = token_id2token[token_id]
+            token = "<k>" if prefix == "R" else "<_>"
         typo_corr_op_tag = TOKEN2TYPO_CORR_OP_TAG.get(token, f"{prefix}:{token}")
         typo_corr_op_tags.append(typo_corr_op_tag)
     return typo_corr_op_tags
 
 
-def apply_edit_operations(pre_text: str, kdr_tags: List[str], ins_tags: List[str]) -> str:
+def apply_edit_operations(pre_text: str, kdr_tags: list[str], ins_tags: list[str]) -> str:
     assert len(pre_text) + 1 == len(kdr_tags) + 1 == len(ins_tags)
     post_text = ""
     for i, char in enumerate(pre_text):
@@ -75,19 +74,19 @@ def apply_edit_operations(pre_text: str, kdr_tags: List[str], ins_tags: List[str
 
 # ---------- char module writer ----------
 def convert_char_predictions_into_tags(
-    sent_segmentation_predictions: List[int],
-    word_segmentation_predictions: List[int],
-    word_norm_op_predictions: List[int],
-    indices: List[int],
-) -> Tuple[List[str], List[str], List[str]]:
+    sent_segmentation_predictions: list[int],
+    word_segmentation_predictions: list[int],
+    word_norm_op_predictions: list[int],
+    indices: list[int],
+) -> tuple[list[str], list[str], list[str]]:
     sent_segmentation_tags = [SENT_SEGMENTATION_TAGS[sent_segmentation_predictions[i]] for i in indices]
     word_segmentation_tags = [WORD_SEGMENTATION_TAGS[word_segmentation_predictions[i]] for i in indices]
     word_norm_op_tags = [WORD_NORM_OP_TAGS[word_norm_op_predictions[i]] for i in indices]
     return sent_segmentation_tags, word_segmentation_tags, word_norm_op_tags
 
 
-def set_sentences(document: Document, sent_segmentation_tags: List[str]) -> None:
-    sentences: List[Sentence] = []
+def set_sentences(document: Document, sent_segmentation_tags: list[str]) -> None:
+    sentences: list[Sentence] = []
     surf: str = ""
     for char, sent_segmentation_tag in zip(document.text, sent_segmentation_tags):
         if sent_segmentation_tag == "B" and surf:
@@ -99,11 +98,11 @@ def set_sentences(document: Document, sent_segmentation_tags: List[str]) -> None
     document.sentences = sentences
 
 
-def set_morphemes(document: Document, word_segmentation_tags: List[str], word_norm_op_tags: List[str]) -> None:
+def set_morphemes(document: Document, word_segmentation_tags: list[str], word_norm_op_tags: list[str]) -> None:
     cursor = 0
     for sentence in document.sentences:
         Morpheme.count = 0
-        morphemes: List[Morpheme] = []
+        morphemes: list[Morpheme] = []
         surf = ""
         for char in sentence.text:
             # 半角スペースで強制分割
@@ -141,20 +140,20 @@ def _build_morpheme(surf: str, norm: str) -> Morpheme:
 
 # ---------- word module writer ----------
 def get_morpheme_attribute_predictions(
-    pos_logits: List[List[float]],
-    subpos_logits: List[List[float]],
-    conjtype_logits: List[List[float]],
-    conjform_logits: List[List[float]],
-) -> Tuple[List[int], List[int], List[int], List[int]]:
-    pos_predictions: List[int] = np.array(pos_logits).argmax(axis=1).tolist()
-    subpos_predictions: List[int] = []
-    conjtype_predictions: List[int] = np.array(conjtype_logits).argmax(axis=1).tolist()
-    conjform_predictions: List[int] = []
+    pos_logits: list[list[float]],
+    subpos_logits: list[list[float]],
+    conjtype_logits: list[list[float]],
+    conjform_logits: list[list[float]],
+) -> tuple[list[int], list[int], list[int], list[int]]:
+    pos_predictions: list[int] = np.array(pos_logits).argmax(axis=1).tolist()
+    subpos_predictions: list[int] = []
+    conjtype_predictions: list[int] = np.array(conjtype_logits).argmax(axis=1).tolist()
+    conjform_predictions: list[int] = []
     for i, (pos_index, subpos_logit_list, conjtype_index, conjform_logit_list) in enumerate(
         zip(pos_predictions, subpos_logits, conjtype_predictions, conjform_logits)
     ):
         pos_tag = POS_TAGS[pos_index]
-        possible_subpos_tags: Set[str] = set(POS_TAG_SUBPOS_TAG2SUBPOS_ID[pos_tag].keys())
+        possible_subpos_tags: set[str] = set(POS_TAG_SUBPOS_TAG2SUBPOS_ID[pos_tag].keys())
         for subpos_index, subpos_tag in enumerate(SUBPOS_TAGS):
             if subpos_tag not in possible_subpos_tags:
                 subpos_logit_list[subpos_index] = MASKED
@@ -165,7 +164,7 @@ def get_morpheme_attribute_predictions(
 
         conjtype_tag = CONJTYPE_TAGS[conjtype_index]
         if (pos_tag, subpos_tag) in INFLECTABLE:
-            possible_conjform_tags: Set[str] = set(CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID[conjtype_tag].keys())
+            possible_conjform_tags: set[str] = set(CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID[conjtype_tag].keys())
             for conjform_index, conjform_tag in enumerate(CONJFORM_TAGS):
                 if conjform_tag not in possible_conjform_tags:
                     conjform_logit_list[conjform_index] = MASKED
@@ -181,11 +180,11 @@ def get_morpheme_attribute_predictions(
 
 
 def build_morphemes(
-    surfs: List[str],
-    lemmas: List[str],
-    reading_predictions: List[str],
-    morpheme_attribute_predictions: Tuple[List[int], List[int], List[int], List[int]],
-) -> List[Morpheme]:
+    surfs: list[str],
+    lemmas: list[str],
+    reading_predictions: list[str],
+    morpheme_attribute_predictions: tuple[list[int], list[int], list[int], list[int]],
+) -> list[Morpheme]:
     morphemes = []
     for surf, lemma, reading, pos_index, subpos_index, conjtype_index, conjform_index in zip(
         surfs, lemmas, reading_predictions, *morpheme_attribute_predictions
@@ -217,13 +216,13 @@ def build_morphemes(
 
 
 def chunk_morphemes(
-    document: Document, morphemes: List[Morpheme], word_feature_probabilities: List[List[float]]
+    document: Document, morphemes: list[Morpheme], word_feature_probabilities: list[list[float]]
 ) -> Document:
     predicted_sentences = []
     for sentence in document.sentences:
-        morpheme_buffer: List[Morpheme] = []
-        base_phrase_buffer: List[BasePhrase] = []
-        phrase_buffer: List[Phrase] = []
+        morpheme_buffer: list[Morpheme] = []
+        base_phrase_buffer: list[BasePhrase] = []
+        phrase_buffer: list[Phrase] = []
         for i in [m.global_index for m in sentence.morphemes]:
             morpheme = morphemes[i]
 
@@ -270,9 +269,9 @@ def chunk_morphemes(
     return Document.from_sentences(predicted_sentences)
 
 
-def add_named_entities(sentence: Sentence, ne_predictions: List[int]) -> None:
+def add_named_entities(sentence: Sentence, ne_predictions: list[int]) -> None:
     category = ""
-    morpheme_buffer: List[Morpheme] = []
+    morpheme_buffer: list[Morpheme] = []
     for morpheme in sentence.morphemes:
         ne_index = ne_predictions[morpheme.global_index]
         ne_tag: str = NE_TAGS[ne_index]
@@ -285,18 +284,17 @@ def add_named_entities(sentence: Sentence, ne_predictions: List[int]) -> None:
         else:
             _clear_morpheme_buffer(morpheme_buffer, category)
             category = ""
-    else:
-        _clear_morpheme_buffer(morpheme_buffer, category)
+    _clear_morpheme_buffer(morpheme_buffer, category)
 
 
-def _clear_morpheme_buffer(morpheme_buffer: List[Morpheme], category: str) -> None:
+def _clear_morpheme_buffer(morpheme_buffer: list[Morpheme], category: str) -> None:
     if morpheme_buffer:
         named_entity = NamedEntity(category=NamedEntityCategory(category), morphemes=morpheme_buffer)
         morpheme_buffer[-1].base_phrase.features["NE"] = f"{named_entity.category.value}:{named_entity.text}"
     morpheme_buffer.clear()
 
 
-def add_base_phrase_features(sentence: Sentence, base_phrase_feature_probabilities: List[List[float]]) -> None:
+def add_base_phrase_features(sentence: Sentence, base_phrase_feature_probabilities: list[list[float]]) -> None:
     phrases = sentence.phrases
     clause_boundary_feature, clause_start_index = None, 0
     for phrase in phrases:
@@ -327,8 +325,8 @@ def add_base_phrase_features(sentence: Sentence, base_phrase_feature_probabiliti
 
 def add_dependency(
     sentence: Sentence,
-    dependency_predictions: List[List[int]],
-    dependency_type_predictions: List[List[int]],
+    dependency_predictions: list[list[int]],
+    dependency_type_predictions: list[list[int]],
     special_token_indexer: SpecialTokenIndexer,
 ) -> None:
     base_phrases = sentence.base_phrases
@@ -392,9 +390,9 @@ def _resolve_dependency(base_phrase: BasePhrase, dependency_manager: DependencyM
 
 def add_cohesion(
     document: Document,
-    cohesion_logits: List[List[List[float]]],  # (rel, seq, seq)
-    cohesion_task2extractor: Dict[CohesionTask, BaseExtractor],
-    cohesion_task2rels: Dict[CohesionTask, List[str]],
+    cohesion_logits: list[list[list[float]]],  # (rel, seq, seq)
+    cohesion_task2extractor: dict[CohesionTask, BaseExtractor],
+    cohesion_task2rels: dict[CohesionTask, list[str]],
     restrict_cohesion_target: bool,
     special_token_indexer: SpecialTokenIndexer,
 ) -> None:
@@ -424,10 +422,10 @@ def add_cohesion(
 
 def _to_rel_tag(
     rel: str,
-    rel_logits: List[float],  # (seq, )
-    base_phrases: List[BasePhrase],
+    rel_logits: list[float],  # (seq, )
+    base_phrases: list[BasePhrase],
     special_token_indexer: SpecialTokenIndexer,
-    exophora_referent_types: List[ExophoraReferentType],
+    exophora_referent_types: list[ExophoraReferentType],
 ) -> Optional[RelTag]:
     logits = [rel_logits[bp.head.global_index] for bp in base_phrases]
     logits += [rel_logits[i] for i in special_token_indexer.get_morpheme_level_indices()]
@@ -457,7 +455,7 @@ def _to_rel_tag(
     return None
 
 
-def add_discourse(document: Document, discourse_predictions: List[List[int]]) -> None:
+def add_discourse(document: Document, discourse_predictions: list[list[int]]) -> None:
     if document.is_clause_tag_required():
         logger.warning("failed to output clause boundaries")
         return

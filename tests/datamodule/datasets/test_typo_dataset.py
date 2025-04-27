@@ -7,13 +7,13 @@ from kwja.datamodule.datasets import TypoDataset
 from kwja.utils.constants import IGNORE_INDEX
 
 
-def test_init(data_dir: Path, typo_tokenizer: PreTrainedTokenizerBase):
+def test_init(data_dir: Path, typo_tokenizer: PreTrainedTokenizerBase) -> None:
     path = data_dir / "datasets" / "typo_files"
     max_seq_length = 256
     _ = TypoDataset(str(path), typo_tokenizer, max_seq_length)
 
 
-def test_getitem(data_dir: Path, typo_tokenizer: PreTrainedTokenizerBase):
+def test_getitem(data_dir: Path, typo_tokenizer: PreTrainedTokenizerBase) -> None:
     path = data_dir / "datasets" / "typo_files"
     max_seq_length = 256
     dataset = TypoDataset(str(path), typo_tokenizer, max_seq_length)
@@ -30,7 +30,7 @@ def test_getitem(data_dir: Path, typo_tokenizer: PreTrainedTokenizerBase):
         assert len(dataset.examples[i].pre_text) == len(kdr_labels) == len(ins_labels) - 1
 
 
-def test_encode(data_dir: Path, typo_tokenizer: PreTrainedTokenizerBase):
+def test_encode(data_dir: Path, typo_tokenizer: PreTrainedTokenizerBase) -> None:
     path = data_dir / "datasets" / "typo_files"
     max_seq_length = 256
     dataset = TypoDataset(str(path), typo_tokenizer, max_seq_length)

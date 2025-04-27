@@ -1,6 +1,5 @@
 from pathlib import Path
 from textwrap import dedent
-from typing import List
 
 import jaconv
 from rhoknp import Sentence
@@ -18,7 +17,7 @@ from kwja.utils.constants import (
 from kwja.utils.normalization import normalize_morpheme
 from kwja.utils.seq2seq_format import Seq2SeqFormatter
 
-seq2seq_formats: List[str] = [
+seq2seq_formats: list[str] = [
     dedent(
         f"""\
         計算 けいさん 計算 計算/けいさん
@@ -96,8 +95,8 @@ seq2seq_formats: List[str] = [
 ]
 
 
-def test_get_surfs(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast):
-    surfs: List[str] = [
+def test_get_surfs(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast) -> None:
+    surfs: list[str] = [
         "計算 機 に よる 言語 理解 を 実現 する",
         "また , 校区 で 行わ れる 事業 や 防犯 など 校区 の 情報 も 記載 さ れて い ます 。",
         "「 核 の 歴史 ... ヒロシマ 、 ナガサキ を 超えて 」 。",
@@ -114,8 +113,8 @@ def test_get_surfs(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast):
             assert seq2seq_formatter.get_surfs(sentence) == surfs[idx].split(" ")
 
 
-def test_get_src_tokens(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast):
-    src_tokens: List[List[str]] = [
+def test_get_src_tokens(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast) -> None:
+    src_tokens: list[list[str]] = [
         ["計算", "機", "に", "よ る", "言語", "理解", "を", "実現", "する"],
         [
             "また",
@@ -150,7 +149,7 @@ def test_get_src_tokens(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFa
             sentence = Sentence.from_jumanpp(f.read())
             for morpheme in sentence.morphemes:
                 normalize_morpheme(morpheme)
-            expected_src_tokens: List[str] = []
+            expected_src_tokens: list[str] = []
             for morphemes in src_tokens[idx]:
                 expected_src_tokens.extend([*morphemes.split(" "), MORPHEME_DELIMITER_TOKEN])
             assert [
@@ -158,7 +157,7 @@ def test_get_src_tokens(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFa
             ] == expected_src_tokens[:-1]
 
 
-def test_get_tgt_tokens(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast):
+def test_get_tgt_tokens(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast) -> None:
     seq2seq_formatter = Seq2SeqFormatter(seq2seq_tokenizer)
     juman_dir: Path = data_dir / "modules" / "juman"
     for idx, path in enumerate(sorted(juman_dir.glob("*.juman"))):
@@ -168,17 +167,17 @@ def test_get_tgt_tokens(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFa
                 normalize_morpheme(morpheme)
             expected_seq2seq_format: str = ""
             for line in seq2seq_formats[idx].rstrip("\n").split("\n"):
-                mrphs: List[str] = line.split(" ")
+                mrphs: list[str] = line.split(" ")
                 expected_seq2seq_format += (
                     f"{SURF_TOKEN}{mrphs[0]}{READING_TOKEN}{mrphs[1]}{LEMMA_TOKEN}{mrphs[2]}{CANON_TOKEN}{mrphs[3]}"
                 )
-            expected_tgt_tokens: List[str] = [
+            expected_tgt_tokens: list[str] = [
                 x for x in seq2seq_tokenizer.tokenize(expected_seq2seq_format) if x != "▁"
             ]
             assert seq2seq_formatter.get_tgt_tokens(sentence) == expected_tgt_tokens
 
 
-def test_format_to_sent(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast):
+def test_format_to_sent(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast) -> None:
     seq2seq_formatter = Seq2SeqFormatter(seq2seq_tokenizer)
     juman_dir: Path = data_dir / "modules" / "juman"
     for idx, path in enumerate(sorted(juman_dir.glob("*.juman"))):
@@ -187,9 +186,9 @@ def test_format_to_sent(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFa
             for morpheme in expected_sentence.morphemes:
                 normalize_morpheme(morpheme)
 
-        seq2seq_format: List[str] = []
+        seq2seq_format: list[str] = []
         for line in seq2seq_formats[idx].rstrip("\n").split("\n"):
-            morphemes: List[str] = line.split(" ")
+            morphemes: list[str] = line.split(" ")
             seq2seq_format.extend(
                 f"{SURF_TOKEN} {morphemes[0]} {READING_TOKEN} {morphemes[1]} {LEMMA_TOKEN} {morphemes[2]} {CANON_TOKEN} {morphemes[3]}".split(
                     " "

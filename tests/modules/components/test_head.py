@@ -48,7 +48,7 @@ def test_lora_sequential_multi_labeling_head(
         (1, 2, 0.1),
     ],
 )
-def test_word_selection_head(num_labels: int, hidden_size: int, hidden_dropout_prob: float):
+def test_word_selection_head(num_labels: int, hidden_size: int, hidden_dropout_prob: float) -> None:
     head = WordSelectionHead(num_labels, hidden_size, hidden_dropout_prob)
     batch_size, seq_length = 2, 5
     input_ = torch.ones(batch_size, seq_length, hidden_size)
@@ -63,7 +63,7 @@ def test_word_selection_head(num_labels: int, hidden_size: int, hidden_dropout_p
         (1, 2, 0.1),
     ],
 )
-def test_relation_wise_word_selection_head(num_labels: int, hidden_size: int, hidden_dropout_prob: float):
+def test_relation_wise_word_selection_head(num_labels: int, hidden_size: int, hidden_dropout_prob: float) -> None:
     head = RelationWiseWordSelectionHead(num_labels, hidden_size, hidden_dropout_prob)
     batch_size, seq_length = 2, 5
     input_ = torch.ones(batch_size, seq_length, hidden_size)

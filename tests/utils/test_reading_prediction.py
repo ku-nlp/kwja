@@ -1,11 +1,10 @@
 import subprocess
 from pathlib import Path
-from typing import List
 
 import pytest
 
 from kwja.utils import reading_prediction
-from kwja.utils.constants import RESOURCE_PATH
+from kwja.utils.constants import RESOURCE_TRAVERSABLE
 
 
 @pytest.mark.parametrize(
@@ -50,18 +49,18 @@ from kwja.utils.constants import RESOURCE_PATH
     ],
 )
 def test_get_word_level_readings(
-    readings: List[str],
-    tokens: List[str],
-    subword_map: List[List[bool]],
-    expected_output: List[str],
-):
+    readings: list[str],
+    tokens: list[str],
+    subword_map: list[list[bool]],
+    expected_output: list[str],
+) -> None:
     assert reading_prediction.get_word_level_readings(readings, tokens, subword_map) == expected_output
 
 
-def test_main(data_dir: Path):
+def test_main(data_dir: Path) -> None:
     script_path = reading_prediction.__file__
     assert script_path is not None
-    kanjidic_path = RESOURCE_PATH / "reading_prediction" / "kanjidic"
+    kanjidic_path = RESOURCE_TRAVERSABLE / "reading_prediction" / "kanjidic"
     input_path = data_dir / "datasets" / "word_files"
     subprocess.run(
         [

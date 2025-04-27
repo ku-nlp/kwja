@@ -1,7 +1,8 @@
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, List, Optional, Sequence, Union
+from typing import Any, Optional, Union
 
-import pytorch_lightning as pl
+import lightning as L
 from transformers import PreTrainedTokenizerBase
 
 from kwja.callbacks.base_module_writer import BaseModuleWriter
@@ -9,7 +10,6 @@ from kwja.callbacks.utils import apply_edit_operations, convert_typo_predictions
 from kwja.datamodule.datasets import TypoDataset, TypoInferenceDataset
 from kwja.datamodule.datasets.typo import get_maps
 from kwja.datamodule.examples import TypoExample, TypoInferenceExample
-from kwja.utils.constants import RESOURCE_PATH
 
 
 class TypoModuleWriter(BaseModuleWriter):
@@ -21,18 +21,15 @@ class TypoModuleWriter(BaseModuleWriter):
     ) -> None:
         super().__init__(destination=destination)
         self.confidence_threshold = confidence_threshold
-        self.token2token_id, self.token_id2token = get_maps(
-            tokenizer,
-            RESOURCE_PATH / "typo_correction" / "multi_char_vocab.txt",
-        )
+        self.token2token_id, self.token_id2token = get_maps(tokenizer)
 
     def write_on_batch_end(
         self,
-        trainer: "pl.Trainer",
-        pl_module: "pl.LightningModule",
+        trainer: L.Trainer,
+        pl_module: L.LightningModule,  # noqa: ARG002
         prediction: Any,
-        batch_indices: Optional[Sequence[int]],
-        batch: Any,
+        batch_indices: Optional[Sequence[int]],  # noqa: ARG002
+        batch: Any,  # noqa: ARG002
         batch_idx: int,
         dataloader_idx: int,
     ) -> None:
@@ -42,8 +39,8 @@ class TypoModuleWriter(BaseModuleWriter):
             dataloader = trainer.predict_dataloaders[dataloader_idx]
         dataset: Union[TypoDataset, TypoInferenceDataset] = dataloader.dataset
 
-        post_texts: List[str] = []
-        doc_ids: List[str] = []
+        post_texts: list[str] = []
+        doc_ids: list[str] = []
         for example_id, kdr_predictions, kdr_probabilities, ins_predictions, ins_probabilities in zip(
             *[v.tolist() for v in prediction.values()]
         ):
@@ -57,7 +54,7 @@ class TypoModuleWriter(BaseModuleWriter):
             if seq_len == 0:
                 continue
 
-            args = (self.confidence_threshold, self.token2token_id, self.token_id2token)
+            args = (self.confidence_threshold, self.token_id2token)
             kdr_tags = convert_typo_predictions_into_tags(kdr_predictions, kdr_probabilities, "R", *args)
             ins_tags = convert_typo_predictions_into_tags(ins_predictions, ins_probabilities, "I", *args)
 

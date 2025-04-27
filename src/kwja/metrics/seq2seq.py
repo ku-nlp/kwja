@@ -1,5 +1,3 @@
-from typing import Dict
-
 import torch
 
 from kwja.metrics.base import BaseModuleMetric
@@ -17,10 +15,10 @@ class Seq2SeqModuleMetric(BaseModuleMetric):
         self.example_ids: torch.Tensor
         self.loss: torch.Tensor
 
-    def _pad(self, kwargs: Dict[str, torch.Tensor]) -> None:
+    def _pad(self, kwargs: dict[str, torch.Tensor]) -> None:
         pass
 
-    def compute(self) -> Dict[str, float]:
+    def compute(self) -> dict[str, float]:
         if isinstance(self.example_ids, torch.Tensor) is False:
             self.example_ids = torch.cat(self.example_ids, dim=0)  # type: ignore
         sorted_indices = unique(self.example_ids)

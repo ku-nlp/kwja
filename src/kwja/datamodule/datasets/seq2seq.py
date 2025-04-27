@@ -1,7 +1,6 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List
 
 from rhoknp import Document
 from transformers import PreTrainedTokenizerFast
@@ -19,10 +18,10 @@ logger = logging.getLogger(__name__)
 @dataclass(frozen=True)
 class Seq2SeqModuleFeatures:
     example_ids: int
-    surfs: List[str]
-    input_ids: List[int]
-    attention_mask: List[int]
-    seq2seq_labels: List[int]
+    surfs: list[str]
+    input_ids: list[int]
+    attention_mask: list[int]
+    seq2seq_labels: list[int]
 
 
 class Seq2SeqDataset(BaseDataset[Seq2SeqExample, Seq2SeqModuleFeatures]):
@@ -42,36 +41,38 @@ class Seq2SeqDataset(BaseDataset[Seq2SeqExample, Seq2SeqModuleFeatures]):
 
         self.formatter: Seq2SeqFormatter = Seq2SeqFormatter(tokenizer)
 
-        self.documents: List[Document] = self._load_documents(self.path, ext)
+        self.documents: list[Document] = self._load_documents(self.path, ext)
         is_train: bool = self.path.name == "train"
-        self.examples: List[Seq2SeqExample] = self._load_examples(self.documents, is_train)
+        self.examples: list[Seq2SeqExample] = self._load_examples(self.documents, is_train)
 
     @staticmethod
-    def _load_documents(document_dir: Path, ext: str = "knp") -> List[Document]:
+    def _load_documents(document_dir: Path, ext: str = "knp") -> list[Document]:
         documents = []
         for path in track(sorted(document_dir.glob(f"*.{ext}")), description="Loading documents"):
             documents.append(Document.from_knp(path.read_text()))
         return documents
 
-    def _load_examples(self, documents: List[Document], is_train: bool) -> List[Seq2SeqExample]:
-        examples: List[Seq2SeqExample] = []
+    def _load_examples(self, documents: list[Document], is_train: bool) -> list[Seq2SeqExample]:
+        examples: list[Seq2SeqExample] = []
         example_id: int = 0
         for document in track(documents, description="Loading examples"):
-            document = self._postprocess_document(document)
-            for sentence in document.sentences:
-                src_tokens: List[str] = self.formatter.get_src_tokens(sentence)
-                src_input_ids: List[int] = self.tokenizer.convert_tokens_to_ids(src_tokens) + [
-                    self.tokenizer.eos_token_id
+            processed_document = self._postprocess_document(document)
+            for sentence in processed_document.sentences:
+                src_tokens: list[str] = self.formatter.get_src_tokens(sentence)
+                src_input_ids: list[int] = [
+                    *self.tokenizer.convert_tokens_to_ids(src_tokens),
+                    self.tokenizer.eos_token_id,
                 ]
-                src_attention_mask: List[int] = [1] * len(src_input_ids)
+                src_attention_mask: list[int] = [1] * len(src_input_ids)
                 src_input_ids += [self.tokenizer.pad_token_id] * (self.max_src_length - len(src_input_ids))
                 src_attention_mask += [0] * (self.max_src_length - len(src_attention_mask))
                 if len(src_input_ids) > self.max_src_length:
                     logger.warning(f"Length of source sentence is too long: {sentence.text}")
                     continue
-                tgt_tokens: List[str] = self.formatter.get_tgt_tokens(sentence)
-                tgt_input_ids: List[int] = self.tokenizer.convert_tokens_to_ids(tgt_tokens) + [
-                    self.tokenizer.eos_token_id
+                tgt_tokens: list[str] = self.formatter.get_tgt_tokens(sentence)
+                tgt_input_ids: list[int] = [
+                    *self.tokenizer.convert_tokens_to_ids(tgt_tokens),
+                    self.tokenizer.eos_token_id,
                 ]
                 tgt_input_ids += [self.tokenizer.pad_token_id] * (self.max_tgt_length - len(tgt_input_ids))
                 if len(tgt_input_ids) > self.max_tgt_length:
@@ -95,12 +96,12 @@ class Seq2SeqDataset(BaseDataset[Seq2SeqExample, Seq2SeqModuleFeatures]):
         if not is_train:
             # sort by length of input sentences for efficient inference in validation and test
             examples = sorted(examples, key=lambda x: len(x.surfs))
-            for i, example in enumerate(examples):
+            for i, _example in enumerate(examples):
                 examples[i].example_id = i
         return examples
 
     def encode(self, example: Seq2SeqExample) -> Seq2SeqModuleFeatures:
-        seq2seq_labels: List[int] = [
+        seq2seq_labels: list[int] = [
             (seq2seq_tag if seq2seq_tag != self.tokenizer.pad_token_id else IGNORE_INDEX)
             for seq2seq_tag in example.tgt_input_ids
         ]

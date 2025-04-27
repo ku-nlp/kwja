@@ -1,13 +1,13 @@
-from typing import List, Union
+from typing import Union
 
 import hydra
-import pytorch_lightning as pl
+import lightning as L
 import torch
 from dotenv import load_dotenv
+from lightning.pytorch.callbacks import Callback
+from lightning.pytorch.loggers import Logger
+from lightning.pytorch.trainer.states import TrainerFn
 from omegaconf import DictConfig, ListConfig, OmegaConf
-from pytorch_lightning.callbacks import Callback
-from pytorch_lightning.loggers import Logger
-from pytorch_lightning.trainer.states import TrainerFn
 
 from kwja.datamodule.datamodule import DataModule
 from kwja.utils.logging_util import filter_logs
@@ -16,7 +16,7 @@ filter_logs(environment="development")
 
 
 @hydra.main(version_base=None, config_path="../configs", config_name="eval")
-def main(eval_cfg: DictConfig):
+def main(eval_cfg: DictConfig) -> None:
     load_dotenv()
     if isinstance(eval_cfg.devices, str):
         eval_cfg.devices = (
@@ -24,7 +24,7 @@ def main(eval_cfg: DictConfig):
         )
 
     # Load saved model and config
-    model: pl.LightningModule = hydra.utils.call(eval_cfg.module.load_from_checkpoint, _recursive_=False)
+    model: L.LightningModule = hydra.utils.call(eval_cfg.module.load_from_checkpoint, _recursive_=False)
     if eval_cfg.compile is True:
         model = torch.compile(model)  # type: ignore
 
@@ -34,13 +34,13 @@ def main(eval_cfg: DictConfig):
     assert isinstance(cfg, DictConfig)
 
     logger: Union[Logger, bool] = cfg.get("logger", False) and hydra.utils.instantiate(cfg.get("logger"))
-    callbacks: List[Callback] = list(map(hydra.utils.instantiate, cfg.get("callbacks", {}).values()))
+    callbacks: list[Callback] = list(map(hydra.utils.instantiate, cfg.get("callbacks", {}).values()))
 
     num_devices: int = len(cfg.devices) if isinstance(cfg.devices, (list, ListConfig)) else cfg.devices
     cfg.effective_batch_size = cfg.max_batches_per_device * num_devices
     cfg.datamodule.batch_size = cfg.max_batches_per_device
 
-    trainer: pl.Trainer = hydra.utils.instantiate(
+    trainer: L.Trainer = hydra.utils.instantiate(
         cfg.trainer,
         logger=logger,
         callbacks=callbacks,

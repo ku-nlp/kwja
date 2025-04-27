@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Optional
 
 from cohesion_tools.extractors.base import BaseExtractor
 from rhoknp import BasePhrase, Clause, Document, Morpheme, Phrase
@@ -23,29 +23,29 @@ logger = logging.getLogger(__name__)
 
 
 class SpecialTokenIndexer:
-    def __init__(self, special_tokens: List[str], num_tokens: int, num_morphemes: int) -> None:
-        self.special_tokens: List[str] = special_tokens
-        self._special_token2token_level_index: Dict[str, int] = {
+    def __init__(self, special_tokens: list[str], num_tokens: int, num_morphemes: int) -> None:
+        self.special_tokens: list[str] = special_tokens
+        self._special_token2token_level_index: dict[str, int] = {
             st: num_tokens + i for i, st in enumerate(special_tokens)
         }
-        self._special_token2morpheme_level_index: Dict[str, int] = {
+        self._special_token2morpheme_level_index: dict[str, int] = {
             st: num_morphemes + i for i, st in enumerate(special_tokens)
         }
 
     def get_morpheme_level_index(self, special_token: str) -> int:
         return self._special_token2morpheme_level_index[special_token]
 
-    def get_morpheme_level_indices(self, only_cohesion: bool = False) -> List[int]:
+    def get_morpheme_level_indices(self, only_cohesion: bool = False) -> list[int]:
         return [
             i for st, i in self._special_token2morpheme_level_index.items() if not (only_cohesion and st == "[ROOT]")
         ]
 
     @cached_property
-    def token_level_indices(self) -> List[int]:
+    def token_level_indices(self) -> list[int]:
         return list(self._special_token2token_level_index.values())
 
     @cached_property
-    def token_and_morpheme_level_indices(self) -> List[Tuple[int, int]]:
+    def token_and_morpheme_level_indices(self) -> list[tuple[int, int]]:
         return list(
             zip(self._special_token2token_level_index.values(), self._special_token2morpheme_level_index.values())
         )
@@ -57,43 +57,43 @@ class WordExample:
         self.encoding = encoding
         self.special_token_indexer = special_token_indexer
         self.doc_id: Optional[str] = None
-        self.analysis_target_morpheme_indices: List[int] = []
+        self.analysis_target_morpheme_indices: list[int] = []
 
         # ---------- reading prediction ----------
-        self.readings: Optional[List[str]] = None
+        self.readings: Optional[list[str]] = None
 
         # ---------- morphological analysis ----------
-        self.morpheme_global_index2morpheme_attributes: Dict[int, Tuple[str, str, str, str]] = {}
+        self.morpheme_global_index2morpheme_attributes: dict[int, tuple[str, str, str, str]] = {}
 
         # ---------- word feature tagging ----------
-        self.morpheme_global_index2word_feature_set: Dict[int, Set[str]] = {}
+        self.morpheme_global_index2word_feature_set: dict[int, set[str]] = {}
 
         # ---------- ner ----------
-        self.named_entities: List[NamedEntity] = []
+        self.named_entities: list[NamedEntity] = []
 
         # ---------- base phrase feature tagging ----------
-        self.morpheme_global_index2base_phrase_feature_set: Dict[int, Set[str]] = {}
+        self.morpheme_global_index2base_phrase_feature_set: dict[int, set[str]] = {}
 
         # ---------- dependency parsing ----------
-        self.morpheme_global_index2dependency: Dict[int, int] = {}
+        self.morpheme_global_index2dependency: dict[int, int] = {}
         # 形態素単位係り先候補
-        self.morpheme_global_index2head_candidates: Dict[int, List[int]] = {}
-        self.morpheme_global_index2dependency_type: Dict[int, DepType] = {}
+        self.morpheme_global_index2head_candidates: dict[int, list[int]] = {}
+        self.morpheme_global_index2dependency_type: dict[int, DepType] = {}
 
         # ---------- cohesion analysis ----------
         # wrapされた基本句のリスト
-        self.cohesion_task2base_phrases: Dict[CohesionTask, List[CohesionBasePhrase]] = {}
+        self.cohesion_task2base_phrases: dict[CohesionTask, list[CohesionBasePhrase]] = {}
 
         # ---------- discourse relation analysis ----------
         # (modifier morpheme global index, head morpheme global index) -> 談話関係
-        self.morpheme_global_indices2discourse_relation: Dict[Tuple[int, int], str] = {}
+        self.morpheme_global_indices2discourse_relation: dict[tuple[int, int], str] = {}
 
     def load_document(
         self,
         document: Document,
         reading_aligner: ReadingAligner,
-        cohesion_task2extractor: Dict[CohesionTask, BaseExtractor],
-        cohesion_task2rels: Dict[CohesionTask, List[str]],
+        cohesion_task2extractor: dict[CohesionTask, BaseExtractor],
+        cohesion_task2rels: dict[CohesionTask, list[str]],
         restrict_cohesion_target: bool,
     ) -> None:
         self.doc_id = document.doc_id
@@ -114,13 +114,13 @@ class WordExample:
     def load_discourse_document(self, discourse_document: Document) -> None:
         self._set_discourse_relation(discourse_document.clauses)
 
-    def _set_readings(self, morphemes: List[Morpheme], reading_aligner: ReadingAligner) -> None:
+    def _set_readings(self, morphemes: list[Morpheme], reading_aligner: ReadingAligner) -> None:
         try:
             self.readings = reading_aligner.align(morphemes)
         except Exception as e:
             logger.warning(e)
 
-    def _set_morpheme_attributes(self, morphemes: List[Morpheme]) -> None:
+    def _set_morpheme_attributes(self, morphemes: list[Morpheme]) -> None:
         for morpheme in morphemes:
             self.morpheme_global_index2morpheme_attributes[morpheme.global_index] = (
                 morpheme.pos,
@@ -130,7 +130,7 @@ class WordExample:
             )
 
     def _set_word_feature_set(
-        self, phrases: List[Phrase], base_phrases: List[BasePhrase], morphemes: List[Morpheme]
+        self, phrases: list[Phrase], base_phrases: list[BasePhrase], morphemes: list[Morpheme]
     ) -> None:
         for morpheme in morphemes:
             self.morpheme_global_index2word_feature_set.setdefault(morpheme.global_index, set())
@@ -145,10 +145,10 @@ class WordExample:
         for phrase in phrases:
             self.morpheme_global_index2word_feature_set[phrase.morphemes[-1].global_index].add("文節-区切")
 
-    def _set_named_entities(self, named_entities: List[NamedEntity]) -> None:
+    def _set_named_entities(self, named_entities: list[NamedEntity]) -> None:
         self.named_entities += named_entities
 
-    def _set_base_phrase_feature_set(self, base_phrases: List[BasePhrase]) -> None:
+    def _set_base_phrase_feature_set(self, base_phrases: list[BasePhrase]) -> None:
         target_base_phrase_feature_set = set(BASE_PHRASE_FEATURES)
         for base_phrase in base_phrases:
             base_phrase_feature_set = {
@@ -159,7 +159,7 @@ class WordExample:
                 base_phrase_feature_set & target_base_phrase_feature_set
             )
 
-    def _set_dependencies(self, morphemes: List[Morpheme]) -> None:
+    def _set_dependencies(self, morphemes: list[Morpheme]) -> None:
         for morpheme in morphemes:
             dependency = morpheme.parent.global_index if morpheme.parent is not None else -1
             self.morpheme_global_index2dependency[morpheme.global_index] = dependency
@@ -176,9 +176,9 @@ class WordExample:
 
     def _set_cohesion_base_phrases(
         self,
-        base_phrases: List[BasePhrase],
-        cohesion_task2extractor: Dict[CohesionTask, BaseExtractor],
-        cohesion_task2rels: Dict[CohesionTask, List[str]],
+        base_phrases: list[BasePhrase],
+        cohesion_task2extractor: dict[CohesionTask, BaseExtractor],
+        cohesion_task2rels: dict[CohesionTask, list[str]],
         restrict_cohesion_target: bool,
     ) -> None:
         for cohesion_task, cohesion_extractor in cohesion_task2extractor.items():
@@ -187,7 +187,7 @@ class WordExample:
                 base_phrases, cohesion_extractor, cohesion_rels, restrict_cohesion_target
             )
 
-    def _set_discourse_relation(self, clauses: List[Clause]) -> None:
+    def _set_discourse_relation(self, clauses: list[Clause]) -> None:
         for modifier in clauses:
             modifier_morpheme_global_index = modifier.end.morphemes[0].global_index
             for head in clauses:
@@ -207,4 +207,4 @@ class WordInferenceExample:
     encoding: Encoding
     special_token_indexer: SpecialTokenIndexer
     doc_id: str
-    analysis_target_morpheme_indices: List[int]
+    analysis_target_morpheme_indices: list[int]

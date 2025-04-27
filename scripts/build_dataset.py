@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 from itertools import product
 from pathlib import Path
 from subprocess import PIPE, Popen
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 from rhoknp import KNP, Document, Jumanpp, Morpheme, Sentence
 from rhoknp.props import FeatureDict, NamedEntity, NamedEntityCategory
@@ -51,7 +51,7 @@ UNSUPPORTED_POS_SUBPOS_FALLBACK_TABLE = {
 
 
 class JumanppAugmenter:
-    def __init__(self):
+    def __init__(self) -> None:
         self.jumanpp = Jumanpp(options=["--partial-input"])
 
     def augment_document(self, original_document: Document, update_original: bool = True) -> Document:
@@ -116,7 +116,7 @@ class JumanppAugmenter:
                 keys = []
 
 
-def align_morphemes(morphemes1: List[Morpheme], morphemes2: List[Morpheme]) -> Optional[Dict[str, List[Morpheme]]]:
+def align_morphemes(morphemes1: list[Morpheme], morphemes2: list[Morpheme]) -> Optional[dict[str, list[Morpheme]]]:
     alignment = {}
     idx1, idx2 = 0, 0
     for _ in range(max(len(morphemes1), len(morphemes2))):
@@ -142,7 +142,7 @@ def align_morphemes(morphemes1: List[Morpheme], morphemes2: List[Morpheme]) -> O
     return alignment
 
 
-def extract_named_entities(tagged_sentence: Sentence) -> List[Tuple[str, List[Morpheme]]]:
+def extract_named_entities(tagged_sentence: Sentence) -> list[tuple[str, list[Morpheme]]]:
     named_entities = []
     category, morphemes_buff = "", []
     for morpheme in tagged_sentence.morphemes:
@@ -161,7 +161,7 @@ def extract_named_entities(tagged_sentence: Sentence) -> List[Tuple[str, List[Mo
     return named_entities
 
 
-def set_named_entities(document: Document, sid2tagged_sentence: Dict[str, Sentence]) -> None:
+def set_named_entities(document: Document, sid2tagged_sentence: dict[str, Sentence]) -> None:
     for sentence in document.sentences:
         # 既にneタグが付与されている文は対象としない
         if sentence.sid in sid2tagged_sentence and len(sentence.named_entities) == 0:
@@ -169,8 +169,8 @@ def set_named_entities(document: Document, sid2tagged_sentence: Dict[str, Senten
             alignment = align_morphemes(tagged_sentence.morphemes, sentence.morphemes)
             if alignment is None:
                 logger.warning(
-                    f'alignment ({" ".join(morpheme.surf for morpheme in tagged_sentence.morphemes)} | '
-                    f'{" ".join(morpheme.surf for morpheme in sentence.morphemes)}) not found'
+                    f"alignment ({' '.join(morpheme.surf for morpheme in tagged_sentence.morphemes)} | "
+                    f"{' '.join(morpheme.surf for morpheme in sentence.morphemes)}) not found"
                 )
                 continue
 
@@ -187,8 +187,8 @@ def set_named_entities(document: Document, sid2tagged_sentence: Dict[str, Senten
                     morphemes[-1].base_phrase.features["NE"] = f"{named_entity.category.value}:{named_entity.text}"
                 else:
                     logger.warning(
-                        f'morpheme span of {" ".join(morpheme.surf for morpheme in morphemes_buff)} not found in '
-                        f'{" ".join(morpheme.surf for morpheme in sentence.morphemes)}'
+                        f"morpheme span of {' '.join(morpheme.surf for morpheme in morphemes_buff)} not found in "
+                        f"{' '.join(morpheme.surf for morpheme in sentence.morphemes)}"
                     )
 
 
@@ -235,8 +235,8 @@ def refresh(document: Document) -> None:
                 # あるnamed entityの一部もまたnamed entityである場合、外側だけ残す
                 if len(span1 & span2) > 0 and len(span1) < len(span2):
                     logger.warning(
-                        f'NE tag {" ".join(morpheme.surf for morpheme in ne1.morphemes)} removed '
-                        f'due to the named entity {" ".join(morpheme.surf for morpheme in ne2.morphemes)} '
+                        f"NE tag {' '.join(morpheme.surf for morpheme in ne1.morphemes)} removed "
+                        f"due to the named entity {' '.join(morpheme.surf for morpheme in ne2.morphemes)} "
                         f"({sentence.sid}:{sentence.text})"
                     )
                     del ne1.morphemes[-1].base_phrase.features["NE"]
@@ -244,10 +244,10 @@ def refresh(document: Document) -> None:
 
 
 def assign_features_and_save(
-    knp_texts: List[str],
+    knp_texts: list[str],
     output_root: Path,
-    doc_id2split: Dict[str, str],
-    sid2tagged_sentence: Optional[Dict[str, Sentence]] = None,
+    doc_id2split: dict[str, str],
+    sid2tagged_sentence: Optional[dict[str, Sentence]] = None,
 ) -> None:
     jumanpp_augmenter = JumanppAugmenter()
     knp = KNP(options=["-tab", "-dpnd-fast", "-read-feature"])
@@ -261,8 +261,8 @@ def assign_features_and_save(
             continue
 
         morpheme_features = []
-        unsupported_conjugations: Dict[int, Tuple[str, int, str, int]] = {}
-        unsupported_pos_subpos: Dict[int, Tuple[str, int, str, int]] = {}
+        unsupported_conjugations: dict[int, tuple[str, int, str, int]] = {}
+        unsupported_pos_subpos: dict[int, tuple[str, int, str, int]] = {}
         for morpheme in document.morphemes:
             morpheme_features.append(morpheme.features.copy())
             morpheme.features.clear()
@@ -316,9 +316,9 @@ def assign_features_and_save(
             Path(f"knp_error_{document.doc_id}.knp").write_text(document.to_knp())
             continue
 
-        assert len(document.to_knp().split("\n")) == len(
-            knp_text.split("\n")
-        ), f"knp text length mismatch: {document.doc_id}"
+        assert len(document.to_knp().split("\n")) == len(knp_text.split("\n")), (
+            f"knp text length mismatch: {document.doc_id}"
+        )
 
         # 初めから付いていた素性およびKNPサポート外の活用・品詞の付与
         for morpheme, features in zip(document.morphemes, morpheme_features):
@@ -344,13 +344,13 @@ def assign_features_and_save(
         output_root.joinpath(f"{split}/{doc_id}.knp").write_text(document.to_knp())
 
 
-def test_jumanpp_version():
-    out = subprocess.run(["jumanpp", "--version"], capture_output=True, encoding="utf-8", text=True)
+def test_jumanpp_version() -> None:
+    out = subprocess.run(["jumanpp", "--version"], capture_output=True, encoding="utf-8", text=True, check=False)
     match = re.match(r"Juman\+\+ Version: 2\.0\.0-dev\.(\d{8}).+", out.stdout)
     assert match is not None and int(match.group(1)) >= 20220605, "Juman++ version is old. Please update Juman++."
 
 
-def test_jumanpp_augmenter():
+def test_jumanpp_augmenter() -> None:
     jumanpp_augmenter = JumanppAugmenter()
 
     sentence = Sentence.from_knp(
@@ -500,7 +500,7 @@ def test_jumanpp_augmenter():
     assert document.to_knp() == expected
 
 
-def main():
+def main() -> None:
     parser = ArgumentParser()
     parser.add_argument("INPUT", type=str, help="path to input knp dir")
     parser.add_argument("OUTPUT", type=str, help="path to output dir")
@@ -530,9 +530,8 @@ def main():
         if output_root.parts[-1] == "kyoto_ed":
             if id_file.stem != "all":
                 continue
-        else:
-            if id_file.stem not in {"train", "dev", "test"}:
-                continue
+        elif id_file.stem not in {"train", "dev", "test"}:
+            continue
         split = "valid" if id_file.stem == "dev" else id_file.stem
         output_root.joinpath(split).mkdir(parents=True, exist_ok=True)
         for doc_id in id_file.read_text().splitlines():
