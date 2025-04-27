@@ -1,7 +1,7 @@
 [tool.poetry]
 package-mode = true
 name = "kwja"
-version = "2.4.0"
+version = "2.5.0"
 description = "A unified Japanese analyzer based on foundation models"
 license = "MIT"
 authors = [
