@@ -1,6 +1,7 @@
 import os
 from copy import deepcopy
-from typing import Any, Generic, TypeVar
+from pathlib import Path
+from typing import Any, Generic, Optional, TypeVar, Union
 
 import hydra
 import lightning as L
@@ -8,7 +9,6 @@ import torch
 from lightning.fabric import Fabric
 from lightning.pytorch.utilities.types import OptimizerLRScheduler
 from omegaconf import DictConfig, ListConfig, OmegaConf
-from torch.serialization import FILE_LIKE, MAP_LOCATION  # type: ignore
 from typing_extensions import Self
 
 
@@ -90,8 +90,8 @@ class BaseModule(L.LightningModule, Generic[MetricType]):
     @classmethod
     def fast_load_from_checkpoint(
         cls,
-        checkpoint_path: FILE_LIKE,
-        map_location: MAP_LOCATION = None,
+        checkpoint_path: Path,
+        map_location: Optional[Union[torch.device, str]] = None,
         accelerator: str = "cpu",
         strict: bool = True,
     ) -> Self:
