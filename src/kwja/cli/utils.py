@@ -103,14 +103,14 @@ def prepare_device(device_type: Device) -> torch.device:
 
     if device_type == Device.AUTO:
         if is_cuda_available:
-            device_type = Device.GPU
+            device_type = Device.CUDA
         elif is_mps_available:
             device_type = Device.MPS
         else:
             device_type = Device.CPU
 
-    if device_type == Device.GPU and not is_cuda_available:
-        logger.warning("There's no GPU available on this machine. Using CPU instead.")
+    if device_type == Device.CUDA and not is_cuda_available:
+        logger.warning("There's no CUDA device available on this machine. Using CPU instead.")
         device_type = Device.CPU
     elif device_type == Device.MPS and not is_mps_available:
         logger.warning("MPS is not available on this machine. Using CPU instead.")

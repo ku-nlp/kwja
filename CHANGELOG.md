@@ -15,7 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ```
 
 ### Fixed
-- Fix `ImportError: cannot import name 'FILE_LIKE' from 'torch.serialization'` when using `torch==2.6.0`
+- Fix `ImportError: cannot import name 'FILE_LIKE' from 'torch.serialization'` when using `torch==2.6.0`.
+
+### Changed
+- Use device name `cuda` instead of `gpu` in the CLI.
 
 ### Removed
 - Drop support for Python 3.8.

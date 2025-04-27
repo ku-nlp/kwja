@@ -22,7 +22,7 @@ def get_kwja_config_file() -> Path:
 class Device(str, Enum):
     AUTO = "auto"
     CPU = "cpu"
-    GPU = "gpu"
+    CUDA = "cuda"
     MPS = "mps"
 
 
