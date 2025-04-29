@@ -7,7 +7,7 @@ jobs:
     name: Run tests with pytest
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 5
+      max-parallel: 4
       fail-fast: false
       matrix:
         python-version: [ "3.9", "3.10", "3.11", "3.12" ]
@@ -25,16 +25,21 @@ jobs:
       - name: Install dependencies
         run: |
           poetry install --no-interaction --without dev --no-cache
-      - name: Run tests
+      - name: Run tests with coverage
+        if: ${{ matrix.python-version == 3.11 }}
         run: |
-          poetry run pytest --cov=./ --cov-report=xml
+          poetry run pytest --cov=./ --cov-report=xml -v ./tests
+      - name: Run tests without coverage
+        if: ${{ matrix.python-version != 3.11 }}
+        run: |
+          poetry run pytest -v ./tests
       - name: Upload coverage to Codecov
+        if: ${{ matrix.python-version == 3.11 }}
         uses: codecov/codecov-action@v5
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.xml
-          root_dir: true
           name: codecov-umbrella
+          token: ${{ secrets.CODECOV_TOKEN }}
           verbose: true
 
   test-cli:
