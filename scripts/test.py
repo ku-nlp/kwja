@@ -26,7 +26,7 @@ def main(eval_cfg: DictConfig) -> None:
     # Load saved model and config
     model: L.LightningModule = hydra.utils.call(eval_cfg.module.load_from_checkpoint, _recursive_=False)
     if eval_cfg.compile is True:
-        model = torch.compile(model)  # type: ignore
+        model = torch.compile(model)
 
     train_cfg: DictConfig = model.hparams
     OmegaConf.set_struct(train_cfg, False)  # enable to add new key-value pairs

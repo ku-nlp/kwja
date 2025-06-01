@@ -103,7 +103,7 @@ def test_write_on_batch_end(seq2seq_tokenizer: PreTrainedTokenizerFast) -> None:
             tokenizer=seq2seq_tokenizer,
             destination=tmp_dir / Path("seq2seq_prediction.seq2seq"),
         )
-        writer.write_on_batch_end(trainer, ..., prediction, None, ..., 0, 0)  # type: ignore
+        writer.write_on_batch_end(trainer, ..., prediction, None, ..., 0, 0)
         assert isinstance(writer.destination, Path), "destination isn't set"
         assert writer.destination.read_text() == dedent(
             f"""\

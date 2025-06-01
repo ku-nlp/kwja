@@ -121,6 +121,6 @@ def test_write_on_batch_end(typo_tokenizer: PreTrainedTokenizerBase) -> None:
             dataset = TypoInferenceDataset(ListConfig(texts), typo_tokenizer, max_seq_length)
             trainer = MockTrainer([DataLoader(dataset, batch_size=num_examples)])
             writer = TypoModuleWriter(confidence_threshold, typo_tokenizer, destination=destination)
-            writer.write_on_batch_end(trainer, ..., prediction, None, ..., 0, 0)  # type: ignore
+            writer.write_on_batch_end(trainer, ..., prediction, None, ..., 0, 0)
             assert isinstance(writer.destination, Path), "destination isn't set"
             assert writer.destination.read_text() == expected_text

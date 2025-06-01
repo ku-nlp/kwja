@@ -57,9 +57,9 @@ class BaseModuleProcessor(ABC):
     def load(self, **writer_kwargs) -> None:
         self.module = self._load_module()
         if self.config.torch_compile is True:
-            self.module = torch.compile(self.module)  # type: ignore
-        self.module.hparams.datamodule.batch_size = self.batch_size
-        self.module.hparams.datamodule.num_workers = self.config.num_workers
+            self.module = torch.compile(self.module)
+        self.module.hparams.datamodule.batch_size = self.batch_size  # type: ignore[union-attr]
+        self.module.hparams.datamodule.num_workers = self.config.num_workers  # type: ignore[union-attr]
 
         # TODO: remove this after new checkpoints are released
         self._rename_modules_for_backward_compatibility()
@@ -68,9 +68,11 @@ class BaseModuleProcessor(ABC):
             logger=False,
             callbacks=[
                 hydra.utils.instantiate(
-                    self.module.hparams.callbacks.prediction_writer, destination=self.destination, **writer_kwargs
+                    self.module.hparams.callbacks.prediction_writer,  # type: ignore[union-attr]
+                    destination=self.destination,
+                    **writer_kwargs,
                 ),
-                hydra.utils.instantiate(self.module.hparams.callbacks.progress_bar),
+                hydra.utils.instantiate(self.module.hparams.callbacks.progress_bar),  # type: ignore[union-attr]
             ],
             accelerator=self.accelerator,
             devices=1,
