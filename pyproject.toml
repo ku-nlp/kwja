@@ -137,6 +137,7 @@ ignore = [
 "src/kwja/modules/components/deberta_v2.py" = [
     "PLW0127",  # Self-assignment of variable `...`
     "ANN",  # flake8-annotations
+    "RUF005",  # Consider iterable unpacking instead of concatenation
 ]
 "src/kwja/metrics/conll18_ud_eval.py" = [
     "PT027",  # Use `pytest.raises` instead of unittest-style `assertRaises`
