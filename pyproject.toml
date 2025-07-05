@@ -22,9 +22,13 @@ maintainers = [
 readme = "README.md"
 keywords = ["NLP", "Japanese"]
 classifiers = [
-    "Environment :: GPU",
-    "Environment :: MacOS X",
+    "License :: OSI Approved :: MIT License",
     "Natural Language :: Japanese",
+    "Environment :: GPU",
+    "Environment :: Console",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
