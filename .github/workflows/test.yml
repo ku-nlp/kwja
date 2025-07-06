@@ -5,11 +5,12 @@ on: [ push, pull_request ]
 jobs:
   test:
     name: Run tests with pytest
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
-      max-parallel: 4
+      max-parallel: 12
       fail-fast: false
       matrix:
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
         python-version: [ "3.9", "3.10", "3.11", "3.12" ]
     steps:
       - name: Checkout repository
@@ -44,11 +45,12 @@ jobs:
 
   test-cli:
     name: Install KWJA from pip and run CLI
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
-      max-parallel: 4
+      max-parallel: 12
       fail-fast: false
       matrix:
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
         python-version: [ "3.9", "3.10", "3.11", "3.12" ]
     steps:
       - name: Checkout repository
