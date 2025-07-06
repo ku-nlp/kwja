@@ -1,14 +1,14 @@
 import os
 from copy import deepcopy
-from typing import Any, Generic, TypeVar
+from pathlib import Path
+from typing import Any, Generic, Optional, TypeVar, Union
 
 import hydra
-import pytorch_lightning as pl
+import lightning as L
 import torch
-from lightning_fabric import Fabric
+from lightning.fabric import Fabric
+from lightning.pytorch.utilities.types import OptimizerLRScheduler
 from omegaconf import DictConfig, ListConfig, OmegaConf
-from pytorch_lightning.utilities.types import OptimizerLRScheduler
-from torch.serialization import FILE_LIKE, MAP_LOCATION  # type: ignore
 from typing_extensions import Self
 
 
@@ -40,7 +40,7 @@ else:
 MetricType = TypeVar("MetricType", bound=BaseModuleMetric)
 
 
-class BaseModule(pl.LightningModule, Generic[MetricType]):
+class BaseModule(L.LightningModule, Generic[MetricType]):
     def __init__(self, hparams: DictConfig, metric: MetricType) -> None:
         super().__init__()
         self.save_hyperparameters(hparams)
@@ -90,12 +90,14 @@ class BaseModule(pl.LightningModule, Generic[MetricType]):
     @classmethod
     def fast_load_from_checkpoint(
         cls,
-        checkpoint_path: FILE_LIKE,
-        map_location: MAP_LOCATION = None,
+        checkpoint_path: Path,
+        map_location: Optional[Union[torch.device, str]] = None,
+        accelerator: str = "cpu",
         strict: bool = True,
     ) -> Self:
         checkpoint = torch.load(checkpoint_path, map_location=map_location, weights_only=False)
-        with Fabric().init_module(empty_init=True):
+        fabric = Fabric(accelerator=accelerator)
+        with fabric.init_module(empty_init=True):
             module = cls(hparams=checkpoint[cls.CHECKPOINT_HYPER_PARAMS_KEY])  # type: ignore
         state_dict: dict[str, torch.Tensor] = checkpoint["state_dict"]
         # from transformers 4.31.0, `encoder.embeddings.position_ids` is a non-persistent buffer

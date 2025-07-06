@@ -83,7 +83,7 @@ class TypoDataset(BaseDataset[TypoExample, TypoModuleFeatures]):
             kdr_labels.append(kdr_label)
         kdr_labels.append(IGNORE_INDEX)
         # padding
-        kdr_labels = [IGNORE_INDEX] + kdr_labels[: self.max_seq_length - 2] + [IGNORE_INDEX]
+        kdr_labels = [IGNORE_INDEX, *kdr_labels[: self.max_seq_length - 2], IGNORE_INDEX]
         kdr_labels += [IGNORE_INDEX] * (self.max_seq_length - len(kdr_labels))
 
         ins_labels: list[int] = []
@@ -95,7 +95,7 @@ class TypoDataset(BaseDataset[TypoExample, TypoModuleFeatures]):
                 ins_label = self.token2token_id.get(ins_tag[2:], self.tokenizer.unk_token_id)
             ins_labels.append(ins_label)
         # padding
-        ins_labels = [IGNORE_INDEX] + ins_labels[: self.max_seq_length - 2] + [IGNORE_INDEX]
+        ins_labels = [IGNORE_INDEX, *ins_labels[: self.max_seq_length - 2], IGNORE_INDEX]
         ins_labels += [IGNORE_INDEX] * (self.max_seq_length - len(ins_labels))
 
         return TypoModuleFeatures(

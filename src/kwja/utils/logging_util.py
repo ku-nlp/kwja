@@ -6,7 +6,7 @@ from datetime import timedelta
 from functools import partial
 from typing import Literal, Optional, Union
 
-from lightning_fabric.utilities.warnings import PossibleUserWarning
+from lightning.fabric.utilities.warnings import PossibleUserWarning
 from rich.console import Console
 from rich.progress import BarColumn, Progress, ProgressColumn, ProgressType, Task, TextColumn
 from rich.style import StyleType
@@ -21,7 +21,8 @@ def filter_logs(environment: Literal["development", "production"]) -> None:
         warnings.filterwarnings("ignore")
         logging.getLogger("kwja").setLevel(logging.ERROR)
         logging.getLogger("torch").setLevel(logging.ERROR)
-        logging.getLogger("pytorch_lightning").setLevel(logging.ERROR)
+        logging.getLogger("lightning").setLevel(logging.ERROR)
+        logging.getLogger("lightning.pytorch.utilities.rank_zero").setLevel(logging.ERROR)
     elif environment == "development":
         warnings.filterwarnings(
             "ignore",

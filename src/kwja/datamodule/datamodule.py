@@ -2,10 +2,10 @@ from dataclasses import fields, is_dataclass
 from typing import Any, Optional, Union
 
 import hydra
-import pytorch_lightning as pl
+import lightning as L
 import torch
+from lightning.pytorch.trainer.states import TrainerFn
 from omegaconf import DictConfig
-from pytorch_lightning.trainer.states import TrainerFn
 from torch import Tensor
 from torch.utils.data import ConcatDataset, DataLoader, Dataset
 
@@ -22,7 +22,7 @@ from kwja.datamodule.datasets import (
 from kwja.utils.constants import IGNORE_INDEX
 
 
-class DataModule(pl.LightningDataModule):
+class DataModule(L.LightningDataModule):
     def __init__(self, cfg: DictConfig) -> None:
         super().__init__()
         self.cfg: DictConfig = cfg

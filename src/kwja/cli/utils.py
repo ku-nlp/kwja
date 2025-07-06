@@ -92,6 +92,7 @@ def _get_model_version() -> str:
         ("2", "2"): "v2.2",
         ("2", "3"): "v2.2",
         ("2", "4"): "v2.4",
+        ("2", "5"): "v2.4",
     }
     version_fields = kwja.__version__.split(".")
     return version_map[(version_fields[0], version_fields[1])]
@@ -103,14 +104,14 @@ def prepare_device(device_type: Device) -> torch.device:
 
     if device_type == Device.AUTO:
         if is_cuda_available:
-            device_type = Device.GPU
+            device_type = Device.CUDA
         elif is_mps_available:
             device_type = Device.MPS
         else:
             device_type = Device.CPU
 
-    if device_type == Device.GPU and not is_cuda_available:
-        logger.warning("There's no GPU available on this machine. Using CPU instead.")
+    if device_type == Device.CUDA and not is_cuda_available:
+        logger.warning("There's no CUDA device available on this machine. Using CPU instead.")
         device_type = Device.CPU
     elif device_type == Device.MPS and not is_mps_available:
         logger.warning("MPS is not available on this machine. Using CPU instead.")

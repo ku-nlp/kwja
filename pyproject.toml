@@ -1,33 +1,34 @@
-[tool.poetry]
-package-mode = true
+[project]
 name = "kwja"
-version = "2.4.0"
+version = "2.5.0"
 description = "A unified Japanese analyzer based on foundation models"
 license = "MIT"
 authors = [
-    "Hirokazu Kiyomaru <kiyomaru@i.kyoto-u.ac.jp>",
-    "Nobuhiro Ueda <ueda@nlp.i.kyoto-u.ac.jp>",
-    "Kazumasa Omura <omura@nlp.i.kyoto-u.ac.jp>",
-    "Takashi Kodama <kodama@nlp.i.kyoto-u.ac.jp>",
-    "Yugo Murawaki <murawaki@i.kyoto-u.ac.jp>",
-    "Daisuke Kawahara <dkw@waseda.jp>",
-    "Sadao Kurohashi <kuro@i.kyoto-u.ac.jp>"
+    { name = "Hirokazu Kiyomaru", email = "kiyomaru@i.kyoto-u.ac.jp"},
+    { name = "Nobuhiro Ueda", email = "ueda@nlp.i.kyoto-u.ac.jp"},
+    { name = "Kazumasa Omura", email = "omura@nlp.i.kyoto-u.ac.jp"},
+    { name = "Takashi Kodama", email = "kodama@nlp.i.kyoto-u.ac.jp"},
+    { name = "Yugo Murawaki", email = "murawaki@i.kyoto-u.ac.jp"},
+    { name = "Daisuke Kawahara", email = "dkw@waseda.jp"},
+    { name = "Sadao Kurohashi", email = "kuro@i.kyoto-u.ac.jp"}
 ]
 maintainers = [
-    "Hirokazu Kiyomaru <kiyomaru@i.kyoto-u.ac.jp>",
-    "Nobuhiro Ueda <ueda@nlp.i.kyoto-u.ac.jp>",
-    "Kazumasa Omura <omura@nlp.i.kyoto-u.ac.jp>",
-    "Takashi Kodama <kodama@nlp.i.kyoto-u.ac.jp>",
-    "Yugo Murawaki <murawaki@i.kyoto-u.ac.jp>"
+    { name = "Hirokazu Kiyomaru", email = "kiyomaru@i.kyoto-u.ac.jp"},
+    { name = "Nobuhiro Ueda", email = "ueda@nlp.i.kyoto-u.ac.jp"},
+    { name = "Kazumasa Omura", email = "omura@nlp.i.kyoto-u.ac.jp"},
+    { name = "Takashi Kodama", email = "kodama@nlp.i.kyoto-u.ac.jp"},
+    { name = "Yugo Murawaki", email = "murawaki@i.kyoto-u.ac.jp"},
 ]
 readme = "README.md"
-homepage = "https://github.com/ku-nlp/kwja"
-repository = "https://github.com/ku-nlp/kwja"
 keywords = ["NLP", "Japanese"]
 classifiers = [
-    "Environment :: GPU",
-    "Environment :: MacOS X",
+    "License :: OSI Approved :: MIT License",
     "Natural Language :: Japanese",
+    "Environment :: GPU",
+    "Environment :: Console",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
@@ -37,42 +38,56 @@ classifiers = [
     "Topic :: Scientific/Engineering",
     "Topic :: Text Processing",
 ]
-#urls = {
-#    Issues = "https://github.com/ku-nlp/kwja/issues",
-#    Changelog = "https://github.com/ku-nlp/kwja/blob/main/CHANGELOG.md",
-#}
+requires-python = ">=3.9,<3.14"
 
+dependencies = [
+    "torch>=2.4.0",
+    "numpy>=2.0",
+    "transformers[sentencepiece]>=4.50.3,<4.51.0",
+    "tokenizers>=0.21.1",
+    "lightning>=2.4.0",
+    "omegaconf>=2.1",
+    "hydra-core>=1.2",
+    "rhoknp>=1.6",
+    "typer-slim>=0.15.2",
+    "jinf>=1.0.4",
+    "pure-cdb>=4.0",
+    "rich>=12.4",
+    "pyyaml>=6.0",
+    "regex>=2024.7.24",
+    "cohesion-tools>=0.7.5,<0.8.0",
+    'typing-extensions>=4.0; python_version < "3.10"'
+]
+
+[project.urls]
+Homepage = "https://github.com/ku-nlp/kwja"
+Repository = "https://github.com/ku-nlp/kwja"
+Issues = "https://github.com/ku-nlp/kwja/issues"
+Changelog = "https://github.com/ku-nlp/kwja/blob/main/CHANGELOG.md"
+
+[project.scripts]
+kwja = "kwja.cli.cli:app"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+package-mode = true
 packages = [
     { include = "kwja", from = "src" }
 ]
 exclude = [
     "src/kwja/metrics/**/*"
 ]
-
-[tool.poetry.dependencies]
-python = ">=3.9,<3.14"
-torch = ">=2.4.0"
-numpy = "^2.0"
-transformers = { version = "~4.50.3", extras = ["sentencepiece"] }
-tokenizers = "^0.21.1"
-pytorch-lightning = ">=2.4.0"  # As "lightning" comes with many extra dependencies, we stay with "pytorch-lightning"
-omegaconf = "^2.1"
-hydra-core = "^1.2"
-rhoknp = "^1.6"
-typer-slim = "^0.15.2"
-jinf = "^1.0.4"
-pure-cdb = "^4.0"
-rich = ">=12.4"
-pyyaml = "^6.0"
-regex = ">=2024.7.24"
-cohesion-tools = "^0.5.7"
+requires-poetry = ">=2.0"
 
 [tool.poetry.group.dev.dependencies]
 torchmetrics = "^1.0"
 seqeval = "^1.2"
 scikit-learn = "^1.6"
 Levenshtein = ">=0.21.0"
-cohesion-tools = { version = "^0.5.7", extras = ["eval"] }
+cohesion-tools = { version = "^0.7.5", extras = ["eval"] }
 python-dotenv = "^1.0"
 jaconv = "^0.4.0"
 ipython = "^8.13"
@@ -90,9 +105,6 @@ jaconv = "^0.4.0"
 pytest = "^8.0"
 pytest-cov = "^6.0"
 pytest-profiling = "^1.7"
-
-[tool.poetry.scripts]
-kwja = "kwja.cli.cli:app"
 
 [tool.ruff]
 line-length = 120
@@ -129,6 +141,7 @@ ignore = [
 "src/kwja/modules/components/deberta_v2.py" = [
     "PLW0127",  # Self-assignment of variable `...`
     "ANN",  # flake8-annotations
+    "RUF005",  # Consider iterable unpacking instead of concatenation
 ]
 "src/kwja/metrics/conll18_ud_eval.py" = [
     "PT027",  # Use `pytest.raises` instead of unittest-style `assertRaises`
@@ -158,7 +171,3 @@ filterwarnings = [
     # note the use of single quote below to denote "raw" strings in TOML
     'ignore::UserWarning',
 ]
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"

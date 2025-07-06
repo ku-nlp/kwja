@@ -5,7 +5,7 @@ from itertools import product
 from pathlib import Path
 from typing import Any, Optional, Union
 
-import pytorch_lightning as pl
+import lightning as L
 from jinf import Jinf
 from rhoknp import Document, Morpheme, Sentence
 from rhoknp.props import SemanticsDict
@@ -60,8 +60,8 @@ class WordModuleWriter(BaseModuleWriter):
 
     def write_on_batch_end(
         self,
-        trainer: pl.Trainer,
-        pl_module: pl.LightningModule,  # noqa: ARG002
+        trainer: L.Trainer,
+        pl_module: L.LightningModule,  # noqa: ARG002
         prediction: Any,
         batch_indices: Optional[Sequence[int]],  # noqa: ARG002
         batch: Any,  # noqa: ARG002

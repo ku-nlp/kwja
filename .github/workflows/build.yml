@@ -23,29 +23,30 @@ jobs:
       - name: Install Poetry
         run: |
             pipx install poetry
-            echo "$HOME/.local/bin" >> $GITHUB_PATH
-      - name: Install dependencies
+            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Build package
         env:
           POETRY_PYTHON: ${{ steps.setup-python.outputs.python-path }}
         run: |
-          poetry env use $POETRY_PYTHON
-          poetry install --no-interaction --without dev,test --no-cache
-      - name: Build KWJA
-        run: |
-          poetry build
+          poetry config virtualenvs.in-project true
+          poetry env use "$POETRY_PYTHON"
+          poetry build -o dist
       - name: Install KWJA from wheel (non-Windows)
         if: ${{ matrix.os != 'windows-latest' }}
         run: |
-          pip3 install dist/*.whl
+          source .venv/bin/activate
+          pip install dist/*.whl
       - name: Install KWJA from wheel (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
-          $whlFile = (Get-ChildItem -Path dist -Filter *.whl).FullName
-          pip3 install $whlFile
+          .\.venv\Scripts\Activate
+          $wheelFile = (Get-ChildItem -Path dist -Filter *.whl).FullName
+          pip install "${wheelFile}"
         shell: pwsh
       - name: Run KWJA (Ubuntu)
         if: ${{ matrix.os == 'ubuntu-latest' }}
         run: |
+          source .venv/bin/activate
           kwja --version
           kwja --help
           kwja --tasks typo,char,word --model-size tiny --text "自然言語処理"
@@ -53,6 +54,7 @@ jobs:
       - name: Run KWJA (macOS)
         if: ${{ matrix.os == 'macos-latest' }}
         run: |
+          source .venv/bin/activate
           kwja --version
           kwja --help
           kwja --tasks typo,char,word --model-size tiny --text "自然言語処理" --device cpu  # avoid OOM
@@ -60,8 +62,10 @@ jobs:
       - name: Run KWJA (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
+          .\.venv\Scripts\Activate
           $env:PYTHONUTF8 = "1"
           kwja --version
           kwja --help
           kwja --tasks typo,char,word --model-size tiny --text "自然言語処理"
           kwja --tasks typo,char,seq2seq,word --model-size tiny --text "自然言語処理"
+        shell: pwsh

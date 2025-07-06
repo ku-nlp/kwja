@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import hydra
-import pytorch_lightning as pl
+import lightning as L
 from hydra import compose, initialize
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import OmegaConf
@@ -27,7 +27,7 @@ def test_init() -> None:
 
 
 def test_steps(data_dir: Path) -> None:
-    trainer: pl.Trainer = hydra.utils.instantiate(
+    trainer: L.Trainer = hydra.utils.instantiate(
         cfg.trainer,
         logger=False,
         enable_checkpointing=False,
