@@ -38,13 +38,13 @@ repos:
           - types-click
           - types-PyYAML
           - cohesion-tools==0.7.5
-  - repo: https://github.com/jumanjihouse/pre-commit-hooks
-    rev: 3.0.0
-    hooks:
-      - id: shellcheck
-        files: ^scripts/
-        types: [ shell ]
-        args: [ --exclude=SC2002 ]
+  -   repo: https://github.com/shellcheck-py/shellcheck-py
+      rev: v0.10.0.1
+      hooks:
+        - id: shellcheck
+          files: ^scripts/
+          types: [ shell ]
+          args: [ --exclude=SC2002 ]
   - repo: https://github.com/rhysd/actionlint
     rev: v1.7.7
     hooks:
