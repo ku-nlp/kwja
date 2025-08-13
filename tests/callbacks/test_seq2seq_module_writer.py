@@ -58,16 +58,19 @@ def test_write_on_batch_end(seq2seq_tokenizer: PreTrainedTokenizerFast) -> None:
         EOS
         """
     )
-    juman_file = tempfile.NamedTemporaryFile("wt")
-    juman_file.write(juman_text)
-    juman_file.seek(0)
+    with tempfile.NamedTemporaryFile("wt", delete=False) as juman_file:
+        juman_file.write(juman_text)
+        juman_file_path = Path(juman_file.name)
 
-    dataset = Seq2SeqInferenceDataset(
-        seq2seq_tokenizer,
-        max_src_length,
-        max_tgt_length,
-        juman_file=Path(juman_file.name),
-    )
+    try:
+        dataset = Seq2SeqInferenceDataset(
+            seq2seq_tokenizer,
+            max_src_length,
+            max_tgt_length,
+            juman_file=juman_file_path,
+        )
+    finally:
+        juman_file_path.unlink(missing_ok=True)
     num_examples = len(dataset)
 
     trainer = MockTrainer([DataLoader(dataset, batch_size=num_examples)])

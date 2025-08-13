@@ -28,13 +28,16 @@ def test_len(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[str, 
         EOS
         """
     )
-    juman_file = tempfile.NamedTemporaryFile("wt")
-    juman_file.write(juman_text)
-    juman_file.seek(0)
+    with tempfile.NamedTemporaryFile("wt", delete=False) as juman_file:
+        juman_file.write(juman_text)
+        juman_file_path = Path(juman_file.name)
 
-    dataset = WordInferenceDataset(
-        word_tokenizer, max_seq_length, document_split_stride, juman_file=Path(juman_file.name), **dataset_kwargs
-    )
+    try:
+        dataset = WordInferenceDataset(
+            word_tokenizer, max_seq_length, document_split_stride, juman_file=Path(juman_file.name), **dataset_kwargs
+        )
+    finally:
+        juman_file_path.unlink(missing_ok=True)
     assert len(dataset) == 1
 
 

@@ -43,16 +43,19 @@ def test_len(seq2seq_tokenizer: PreTrainedTokenizerFast) -> None:
         EOS
         """
     )
-    juman_file = tempfile.NamedTemporaryFile("wt")
-    juman_file.write(juman_text)
-    juman_file.seek(0)
+    with tempfile.NamedTemporaryFile("wt", delete=False) as juman_file:
+        juman_file.write(juman_text)
+        juman_file_path = Path(juman_file.name)
 
-    dataset = Seq2SeqInferenceDataset(
-        seq2seq_tokenizer,
-        max_src_length,
-        max_tgt_length,
-        juman_file=Path(juman_file.name),
-    )
+    try:
+        dataset = Seq2SeqInferenceDataset(
+            seq2seq_tokenizer,
+            max_src_length,
+            max_tgt_length,
+            juman_file=juman_file_path,
+        )
+    finally:
+        juman_file_path.unlink(missing_ok=True)
     assert len(dataset) == 4
 
 
@@ -92,16 +95,20 @@ def test_getitem(seq2seq_tokenizer: PreTrainedTokenizerFast) -> None:
         EOS
         """
     )
-    juman_file = tempfile.NamedTemporaryFile("wt")
-    juman_file.write(juman_text)
-    juman_file.seek(0)
+    with tempfile.NamedTemporaryFile("wt", delete=False) as juman_file:
+        juman_file.write(juman_text)
+        juman_file_path = Path(juman_file.name)
 
-    dataset = Seq2SeqInferenceDataset(
-        seq2seq_tokenizer,
-        max_src_length,
-        max_tgt_length,
-        juman_file=Path(juman_file.name),
-    )
+    try:
+        dataset = Seq2SeqInferenceDataset(
+            seq2seq_tokenizer,
+            max_src_length,
+            max_tgt_length,
+            juman_file=juman_file_path,
+        )
+    finally:
+        juman_file_path.unlink(missing_ok=True)
+
     for i in range(len(dataset)):
         feature = dataset[i]
         assert feature.example_ids == i
