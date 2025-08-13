@@ -21,14 +21,24 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install Poetry
         run: |
-            pipx install poetry
-            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-      - name: Install dependencies (with torch cpu version)
+          pipx install poetry
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Install dependencies
         run: |
           poetry install --no-interaction --without dev --no-cache
-          torch_version="$(poetry run pip show torch | grep Version | cut -d' ' -f2)"
-          poetry run pip uninstall -y torch
-          poetry run pip install torch=="$torch_version" --index-url https://download.pytorch.org/whl/cpu
+      - name: Create config file
+        run: |
+          mkdir -p ~/.config/kwja
+          cat > ~/.config/kwja/config.yaml << 'EOF'
+          model_size: tiny
+          device: cpu
+          num_workers: 0
+          torch_compile: false
+          typo_batch_size: 1
+          char_batch_size: 1
+          seq2seq_batch_size: 1
+          word_batch_size: 1
+          EOF
       - name: Run tests with coverage
         if: ${{ matrix.python-version == 3.11 && matrix.os == 'ubuntu-latest' }}
         run: |
