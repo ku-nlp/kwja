@@ -10,7 +10,7 @@ jobs:
       max-parallel: 12
       fail-fast: false
       matrix:
-        os: [ macos-latest ]
+        os: [ windows-latest ]
         python-version: [ "3.9", "3.12" ]
     steps:
       - name: Checkout repository
