@@ -10,8 +10,8 @@ jobs:
       max-parallel: 12
       fail-fast: false
       matrix:
-        os: [ windows-latest ]
-        python-version: [ "3.9", "3.12" ]
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
+        python-version: [ "3.10" ]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -20,13 +20,12 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install Poetry
-        run: |
-            pipx install poetry
-            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+        run: pipx install poetry
       - name: Install dependencies
         run: |
           poetry install --no-interaction --without dev --no-cache
-      - name: Create config file
+      - name: Create config file (Unix/Linux/macOS)
+        if: runner.os != 'Windows'
         run: |
           mkdir -p ~/.config/kwja
           cat > ~/.config/kwja/config.yaml << 'EOF'
@@ -39,6 +38,21 @@ jobs:
           seq2seq_batch_size: 1
           word_batch_size: 1
           EOF
+      - name: Create config file (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.config\kwja"
+          @"
+          model_size: tiny
+          device: cpu
+          num_workers: 0
+          torch_compile: false
+          typo_batch_size: 1
+          char_batch_size: 1
+          seq2seq_batch_size: 1
+          word_batch_size: 1
+          "@ | Set-Content -Path "$env:USERPROFILE\.config\kwja\config.yaml"
+        shell: pwsh
       - name: Run tests with coverage
         if: ${{ matrix.python-version == 3.11 && matrix.os == 'ubuntu-latest' }}
         run: |
