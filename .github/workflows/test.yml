@@ -24,8 +24,8 @@ jobs:
       - name: Install dependencies
         run: |
           poetry install --no-interaction --without dev --no-cache
-      - name: Create config file
-        if: matrix.os != 'windows-latest'
+      - name: Create config file (Unix/Linux/macOS)
+        if: runner.os != 'Windows'
         run: |
           mkdir -p ~/.config/kwja
           cat > ~/.config/kwja/config.yaml << 'EOF'
@@ -39,7 +39,7 @@ jobs:
           word_batch_size: 1
           EOF
       - name: Create config file (Windows)
-        if: matrix.os != 'windows-latest'
+        if: runner.os == 'Windows'
         run: |
           New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.config\kwja"
           @"
