@@ -26,9 +26,9 @@ jobs:
       - name: Install dependencies (with torch cpu version)
         run: |
           poetry install --no-interaction --without dev --no-cache
-          torch_version="$(pip show torch | grep Version | cut -d' ' -f2)"
-          pip uninstall -y torch
-          pip install torch=="$torch_version" --index-url https://download.pytorch.org/whl/cpu
+          torch_version="$(poetry run pip show torch | grep Version | cut -d' ' -f2)"
+          poetry run pip uninstall -y torch
+          poetry run pip install torch=="$torch_version" --index-url https://download.pytorch.org/whl/cpu
       - name: Run tests with coverage
         if: ${{ matrix.python-version == 3.11 && matrix.os == 'ubuntu-latest' }}
         run: |
