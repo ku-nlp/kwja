@@ -1,7 +1,7 @@
 import re
 from enum import Enum
-from importlib.abc import Traversable
 from importlib.resources import files
+from importlib.resources.abc import Traversable
 from typing import Optional
 
 from cohesion_tools.task import Task as CohesionToolsTask
