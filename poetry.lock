@@ -862,8 +862,8 @@ files = [
 ]
 
 [package.dependencies]
-decorator = {version = "*", markers = "python_version > \"3.6\" and python_version < \"3.11\""}
-ipython = {version = ">=7.31.1", markers = "python_version > \"3.6\" and python_version < \"3.11\""}
+decorator = {version = "*", markers = "python_version > \"3.6\""}
+ipython = {version = ">=7.31.1", markers = "python_version > \"3.6\""}
 tomli = {version = "*", markers = "python_version > \"3.6\" and python_version < \"3.11\""}
 
 [[package]]
@@ -3961,5 +3961,5 @@ propcache = ">=0.2.1"
 
 [metadata]
 lock-version = "2.1"
-python-versions = ">=3.9,<3.13"
-content-hash = "15ad2ec19ec4f8ab0a773508c3617ac8301bd2da5f4ee122b3ad9825b2f873f1"
+python-versions = ">=3.9,<3.14"
+content-hash = "c4ad1d38c4b6aa0aba02ff796a10b4c5dac78e301f43f3684701ba406b85ab83"
