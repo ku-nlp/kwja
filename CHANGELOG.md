@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ```shell
   kwja --text "自然言語処理" --device mps
   ```
+- Support Python 3.13.
 
 ### Fixed
 - Fix the checkpoint loading error caused when using `torch==2.6.0`.
