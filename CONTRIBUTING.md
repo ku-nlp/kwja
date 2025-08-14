@@ -147,7 +147,7 @@ poetry run pytest
 - Checkout the `dev` branch
 - Make sure the new version is supported in `_get_model_version` function in `src/kwja/cli/utils.py`
 - Update `CHANGELOG.md`
-- Edit `pyproject.toml` to update `tool.poetry.version`
+- Edit `pyproject.toml` to update `project.version`
 - Update dependencies (edit `pyproject.toml` if necessary)
 
     ```shell
