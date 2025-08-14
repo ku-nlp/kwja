@@ -1,6 +1,6 @@
 import unicodedata
+from importlib.abc import Traversable
 from importlib.resources import as_file
-from importlib.resources.abc import Traversable
 from pathlib import Path
 from typing import Any, Union
 
