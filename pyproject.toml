@@ -1,6 +1,6 @@
 [project]
 name = "kwja"
-version = "2.5.0"
+version = "2.5.1"
 description = "A unified Japanese analyzer based on foundation models"
 license = "MIT"
 authors = [
