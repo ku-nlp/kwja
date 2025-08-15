@@ -99,14 +99,17 @@ def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwa
         EOS
         """
     )
-    juman_file = tempfile.NamedTemporaryFile("wt")
-    juman_file.write(juman_text)
-    juman_file.seek(0)
+    with tempfile.NamedTemporaryFile("wt", delete=False) as juman_file:
+        juman_file.write(juman_text)
+        juman_file_path = Path(juman_file.name)
 
-    max_seq_length = 32  # >= 17
-    dataset = WordInferenceDataset(
-        word_tokenizer, max_seq_length, document_split_stride=1, juman_file=Path(juman_file.name), **dataset_kwargs
-    )
+    try:
+        max_seq_length = 32  # >= 17
+        dataset = WordInferenceDataset(
+            word_tokenizer, max_seq_length, document_split_stride=1, juman_file=juman_file_path, **dataset_kwargs
+        )
+    finally:
+        juman_file_path.unlink(missing_ok=True)
     num_examples = len(dataset)
 
     trainer = MockTrainer([DataLoader(dataset, batch_size=num_examples)])
@@ -385,7 +388,7 @@ def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwa
     with tempfile.TemporaryDirectory() as tmp_dir:
         writer = WordModuleWriter(AMBIG_SURF_SPECS, destination=tmp_dir / Path("word_prediction.knp"))
         writer.jumandic = build_dummy_jumandic()
-        writer.write_on_batch_end(trainer, module, prediction, None, ..., 0, 0)  # type: ignore
+        writer.write_on_batch_end(trainer, module, prediction, None, ..., 0, 0)
         assert isinstance(writer.destination, Path), "destination isn't set"
         assert writer.destination.read_text() == dedent(
             f"""\
@@ -425,4 +428,3 @@ def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwa
             EOS
             """
         )
-        juman_file.close()

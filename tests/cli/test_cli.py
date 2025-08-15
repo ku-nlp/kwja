@@ -2,6 +2,7 @@ import io
 import re
 import tempfile
 import textwrap
+from pathlib import Path
 
 import pytest
 from rhoknp import Document
@@ -10,7 +11,7 @@ from typer.testing import CliRunner
 
 from kwja.cli.cli import app
 
-runner = CliRunner(mix_stderr=False)
+runner = CliRunner(mix_stderr=False)  # Remove the option when click>=8.2.0 and typer-slim>=0.16.0
 
 
 def test_version() -> None:
@@ -121,7 +122,7 @@ def test_normalization_and_char_module(text: str, output: str) -> None:
 
 
 def test_file_input() -> None:
-    with tempfile.NamedTemporaryFile("wt") as f:
+    with tempfile.NamedTemporaryFile("wt", delete=False) as f:
         f.write(
             textwrap.dedent(
                 """\
@@ -133,9 +134,13 @@ def test_file_input() -> None:
                 """
             )
         )
-        f.seek(0)
-        ret = runner.invoke(app, args=["--model-size", "tiny", "--filename", f.name])
+        file_path = Path(f.name)
+
+    try:
+        ret = runner.invoke(app, args=["--model-size", "tiny", "--filename", str(file_path)])
         assert ret.exception is None
+    finally:
+        file_path.unlink(missing_ok=True)
 
 
 @pytest.mark.parametrize(
@@ -152,7 +157,7 @@ def test_interactive_mode(text: str) -> None:
 
 
 def test_sanity() -> None:
-    with tempfile.NamedTemporaryFile("wt") as f:
+    with tempfile.NamedTemporaryFile("wt", delete=False) as f:
         f.write(
             textwrap.dedent(
                 """\
@@ -165,21 +170,26 @@ def test_sanity() -> None:
                 """
             )
         )
-        f.seek(0)
-        ret = runner.invoke(app, args=["--model-size", "tiny", "--filename", f.name])
-        documents: list[Document] = []
-        for knp_text in chunk_by_document(io.StringIO(ret.stdout)):
-            documents.append(Document.from_knp(knp_text))
-        assert len(documents) == 2
-        assert (
-            documents[0].text
-            == "KWJAは日本語の統合解析ツールです。汎用言語モデルを利用し、様々な言語解析を統一的な方法で解いています。"
-        )
-        assert documents[1].text == (
-            "計算機による言語理解を実現するためには、計算機に常識・世界知識を与える必要があります。10年前にはこれは非常に難しい問題でしたが、"
-            + "近年の計算機パワー、計算機ネットワークの飛躍的進展によって計算機が超大規模テキストを取り扱えるようになり、そこから常識を"
-            + "自動獲得することが少しずつ可能になってきました。"
-        )
+        file_path = Path(f.name)
+
+    try:
+        ret = runner.invoke(app, args=["--model-size", "tiny", "--filename", str(file_path)])
+    finally:
+        file_path.unlink(missing_ok=True)
+
+    documents: list[Document] = []
+    for knp_text in chunk_by_document(io.StringIO(ret.stdout)):
+        documents.append(Document.from_knp(knp_text))
+    assert len(documents) == 2
+    assert (
+        documents[0].text
+        == "KWJAは日本語の統合解析ツールです。汎用言語モデルを利用し、様々な言語解析を統一的な方法で解いています。"
+    )
+    assert documents[1].text == (
+        "計算機による言語理解を実現するためには、計算機に常識・世界知識を与える必要があります。10年前にはこれは非常に難しい問題でしたが、"
+        + "近年の計算機パワー、計算機ネットワークの飛躍的進展によって計算機が超大規模テキストを取り扱えるようになり、そこから常識を"
+        + "自動獲得することが少しずつ可能になってきました。"
+    )
 
 
 @pytest.mark.parametrize(
