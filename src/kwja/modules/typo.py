@@ -23,7 +23,7 @@ class TypoModule(BaseModule[TypoModuleMetric]):
     def __init__(self, hparams: DictConfig) -> None:
         super().__init__(hparams, TypoModuleMetric(hparams.max_seq_length))
 
-        self.encoder: PreTrainedModel = hydra.utils.call(hparams.encoder.from_config)
+        self.encoder: PreTrainedModel = hydra.utils.call(hparams.encoder.from_config, torch_dtype=torch.float32)
         if hasattr(hparams, "special_tokens"):
             self.encoder.resize_token_embeddings(self.encoder.config.vocab_size + len(hparams.special_tokens))
         head_kwargs: dict[str, Any] = dict(hidden_size=self.encoder.config.hidden_size, hidden_dropout_prob=0.05)
