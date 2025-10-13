@@ -1,7 +1,7 @@
 import copy
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 import pytest
 import torch
@@ -96,7 +96,8 @@ def test_get_target_property(data_dir: Path) -> None:
                 char2token_items=char2token_items,
                 reading_candidate_token_ids=reading_candidate_token_ids,
             )
-            input_ids: list[int] = tokenizer.convert_tokens_to_ids(test_case[model]["input_tokens"])
+            input_ids: Union[int, list[int]] = tokenizer.convert_tokens_to_ids(test_case[model]["input_tokens"])
+            assert isinstance(input_ids, list)
             target_property: TargetProperty = processor._get_target_property(input_ids)
             assert target_property.surf == (test_case["target_property"] == "surf")
             assert target_property.reading == (test_case["target_property"] == "reading")
@@ -165,7 +166,8 @@ def test_get_ungenerated_surf(input_tokens: list[str], surfs: list[str], expecte
             char2token_items=char2token_items,
             reading_candidate_token_ids=reading_candidate_token_ids,
         )
-        input_ids: list[int] = tokenizer.convert_tokens_to_ids(input_tokens)
+        input_ids: Union[int, list[int]] = tokenizer.convert_tokens_to_ids(input_tokens)
+        assert isinstance(input_ids, list)
         assert processor._get_ungenerated_surf(input_ids, surfs) == expected_ungenerated_surf
 
 
@@ -193,7 +195,7 @@ def test_get_permitted_token_ids(surfs: list[str], expected_permitted_tokens: li
             reading_candidate_token_ids=reading_candidate_token_ids,
         )
         permitted_token_ids: list[int] = processor._get_permitted_token_ids("".join(surfs))
-        assert sorted(permitted_token_ids) == sorted(tokenizer.convert_tokens_to_ids(expected_permitted_tokens))
+        assert sorted(permitted_token_ids) == sorted(tokenizer.convert_tokens_to_ids(expected_permitted_tokens))  # type: ignore[arg-type]
 
 
 def test_get_mask(data_dir: Path) -> None:
@@ -208,9 +210,9 @@ def test_get_mask(data_dir: Path) -> None:
         )
         vocab_size: int = len(tokenizer.get_vocab())
         char2token_items = get_char2token_items(tokenizer)
-        reading_candidate_token_ids = get_reading_candidate_token_ids(tokenizer)
+        reading_candidate_token_ids: list[int] = get_reading_candidate_token_ids(tokenizer)
         reading_candidate_tokens: set[str] = {
-            tokenizer.convert_ids_to_tokens(reading_candidate_token_id)
+            tokenizer.convert_ids_to_tokens(reading_candidate_token_id)  # type: ignore[misc]
             for reading_candidate_token_id in reading_candidate_token_ids
         }
         all_tokens: set[str] = set(tokenizer.vocab.keys())
@@ -240,7 +242,7 @@ def test_get_mask(data_dir: Path) -> None:
             permitted_tokens: set[str] = set()
             for token_id, score in enumerate(warped_scores.tolist()[0]):
                 if score == 0.5:
-                    permitted_tokens.add(tokenizer.convert_ids_to_tokens(token_id))
+                    permitted_tokens.add(tokenizer.convert_ids_to_tokens(token_id))  # type: ignore[arg-type]
 
             if test_case[model]["permitted_tokens"] == "reading_candidates":
                 expected_permitted_tokens: set[str] = reading_candidate_tokens

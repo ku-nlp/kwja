@@ -6,7 +6,7 @@ import hydra
 import torch
 from omegaconf import DictConfig
 from transformers import PreTrainedModel, PreTrainedTokenizerFast
-from transformers.generation import LogitsProcessorList
+from transformers.generation import GenerationMixin, LogitsProcessorList
 
 from kwja.modules.base import BaseModule
 from kwja.modules.components.logits_processor import (
@@ -89,6 +89,7 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
             self.log(f"test/{key}", mean_score)
 
     def predict_step(self, batch: Any) -> dict[str, Any]:
+        assert isinstance(self.encoder_decoder, GenerationMixin)
         generations = self.encoder_decoder.generate(
             input_ids=batch["input_ids"],
             attention_mask=batch["attention_mask"],

@@ -82,8 +82,10 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
         self.examples: list[WordInferenceExample] = self._load_examples(self.doc_id2document)
 
     def _get_tokenized_len(self, document_or_sentence: Union[Document, Sentence]) -> int:
-        tokenizer_input: Union[list[str], str] = [m.text for m in document_or_sentence.morphemes]
-        return len(self.tokenizer.tokenize(tokenizer_input, is_split_into_words=True))
+        tokenizer_input: list[str] = [m.text for m in document_or_sentence.morphemes]
+        return len(
+            self.tokenizer.encode_plus(tokenizer_input, add_special_tokens=False, is_split_into_words=True).tokens()
+        )
 
     def _load_examples(self, doc_id2document: dict[str, Document]) -> list[WordInferenceExample]:
         examples = []
