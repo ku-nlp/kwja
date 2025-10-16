@@ -1,7 +1,12 @@
 import re
+import sys
 from enum import Enum
-from importlib.abc import Traversable
 from importlib.resources import files
+
+if sys.version_info >= (3, 11):
+    from importlib.resources.abc import Traversable
+else:
+    from importlib_resources.abc import Traversable
 from typing import Optional
 
 from cohesion_tools.task import Task as CohesionToolsTask

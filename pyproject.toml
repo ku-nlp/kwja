@@ -4,20 +4,20 @@ version = "2.5.1"
 description = "A unified Japanese analyzer based on foundation models"
 license = "MIT"
 authors = [
-    { name = "Hirokazu Kiyomaru", email = "kiyomaru@i.kyoto-u.ac.jp"},
-    { name = "Nobuhiro Ueda", email = "ueda@nlp.i.kyoto-u.ac.jp"},
-    { name = "Kazumasa Omura", email = "omura@nlp.i.kyoto-u.ac.jp"},
-    { name = "Takashi Kodama", email = "kodama@nlp.i.kyoto-u.ac.jp"},
-    { name = "Yugo Murawaki", email = "murawaki@i.kyoto-u.ac.jp"},
-    { name = "Daisuke Kawahara", email = "dkw@waseda.jp"},
-    { name = "Sadao Kurohashi", email = "kuro@i.kyoto-u.ac.jp"}
+    { name = "Hirokazu Kiyomaru", email = "kiyomaru@i.kyoto-u.ac.jp" },
+    { name = "Nobuhiro Ueda", email = "ueda@nlp.i.kyoto-u.ac.jp" },
+    { name = "Kazumasa Omura", email = "omura@nlp.i.kyoto-u.ac.jp" },
+    { name = "Takashi Kodama", email = "kodama@nlp.i.kyoto-u.ac.jp" },
+    { name = "Yugo Murawaki", email = "murawaki@i.kyoto-u.ac.jp" },
+    { name = "Daisuke Kawahara", email = "dkw@waseda.jp" },
+    { name = "Sadao Kurohashi", email = "kuro@i.kyoto-u.ac.jp" }
 ]
 maintainers = [
-    { name = "Hirokazu Kiyomaru", email = "kiyomaru@i.kyoto-u.ac.jp"},
-    { name = "Nobuhiro Ueda", email = "ueda@nlp.i.kyoto-u.ac.jp"},
-    { name = "Kazumasa Omura", email = "omura@nlp.i.kyoto-u.ac.jp"},
-    { name = "Takashi Kodama", email = "kodama@nlp.i.kyoto-u.ac.jp"},
-    { name = "Yugo Murawaki", email = "murawaki@i.kyoto-u.ac.jp"},
+    { name = "Hirokazu Kiyomaru", email = "kiyomaru@i.kyoto-u.ac.jp" },
+    { name = "Nobuhiro Ueda", email = "ueda@nlp.i.kyoto-u.ac.jp" },
+    { name = "Kazumasa Omura", email = "omura@nlp.i.kyoto-u.ac.jp" },
+    { name = "Takashi Kodama", email = "kodama@nlp.i.kyoto-u.ac.jp" },
+    { name = "Yugo Murawaki", email = "murawaki@i.kyoto-u.ac.jp" },
 ]
 readme = "README.md"
 keywords = ["NLP", "Japanese"]
@@ -50,14 +50,15 @@ dependencies = [
     "omegaconf>=2.3.0,<2.4.0",
     "hydra-core>=1.2",
     "rhoknp>=1.6",
-    "typer-slim>=0.15.0,<0.16.0",  # TODO: Remove the upper constraint after dropping support for Python 3.9
+    "typer-slim>=0.18.0,<0.20.0",
     "jinf>=1.0.4",
     "pure-cdb>=4.0",
     "rich>=14.0.0,<15.0.0",
     "pyyaml>=6.0",
     "regex>=2024.7.24",
     "cohesion-tools>=0.7.5,<0.8.0",
-    'typing-extensions>=4.0; python_version < "3.10"'
+    "typing-extensions>=4.0; python_version < '3.10'",
+    "importlib-resources>=6.0,<7.0; python_version < '3.11'",
 ]
 
 [project.urls]
