@@ -4,7 +4,7 @@ import warnings
 from collections.abc import Iterable, Sequence
 from datetime import timedelta
 from functools import partial
-from typing import Literal, Optional, Union
+from typing import Literal
 
 from lightning.fabric.utilities.warnings import PossibleUserWarning
 from rich.console import Console
@@ -45,7 +45,7 @@ def filter_logs(environment: Literal["development", "production"]) -> None:
 
 
 class CustomPostfixColumn(ProgressColumn):
-    def __init__(self, style: Union[str, StyleType]) -> None:
+    def __init__(self, style: str | StyleType) -> None:
         self.style = style
         super().__init__()
 
@@ -67,10 +67,10 @@ class CustomPostfixColumn(ProgressColumn):
 
 
 def track(
-    sequence: Union[Sequence[ProgressType], Iterable[ProgressType]],
+    sequence: Sequence[ProgressType] | Iterable[ProgressType],
     description: str = "Working...",
-    total: Optional[float] = None,
-    console: Optional[Console] = None,
+    total: float | None = None,
+    console: Console | None = None,
     update_period: float = 1.0,
 ) -> Iterable[ProgressType]:
     columns: list[ProgressColumn] = [

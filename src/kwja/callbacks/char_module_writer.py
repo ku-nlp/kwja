@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
 import lightning as L
 
@@ -13,7 +13,7 @@ from kwja.utils.sub_document import to_orig_doc_id
 
 
 class CharModuleWriter(BaseModuleWriter):
-    def __init__(self, destination: Optional[Union[str, Path]] = None) -> None:
+    def __init__(self, destination: str | Path | None = None) -> None:
         super().__init__(destination=destination)
         self.prev_doc_id = ""
         self.prev_sid = 0
@@ -23,7 +23,7 @@ class CharModuleWriter(BaseModuleWriter):
         trainer: L.Trainer,
         pl_module: L.LightningModule,  # noqa: ARG002
         prediction: Any,
-        batch_indices: Optional[Sequence[int]],  # noqa: ARG002
+        batch_indices: Sequence[int] | None,  # noqa: ARG002
         batch: Any,  # noqa: ARG002
         batch_idx: int,  # noqa: ARG002
         dataloader_idx: int,
@@ -32,16 +32,16 @@ class CharModuleWriter(BaseModuleWriter):
             dataloader = list(trainer.predict_dataloaders.values())[dataloader_idx]
         else:
             dataloader = trainer.predict_dataloaders[dataloader_idx]
-        dataset: Union[CharDataset, CharInferenceDataset] = dataloader.dataset
+        dataset: CharDataset | CharInferenceDataset = dataloader.dataset
 
         special_ids = {
             getattr(dataset.tokenizer, f"{prefix}_token_id") for prefix in ["bos", "eos", "sep", "pad", "cls", "mask"]
         }
 
         for example_id, sent_segmentation_predictions, word_segmentation_predictions, word_norm_op_predictions in zip(
-            *[v.tolist() for v in prediction.values()]
+            *[v.tolist() for v in prediction.values()], strict=True
         ):
-            example: Union[CharExample, CharInferenceExample] = dataset.examples[example_id]
+            example: CharExample | CharInferenceExample = dataset.examples[example_id]
             assert example.doc_id is not None, "doc_id isn't set"
             document = dataset.doc_id2document.pop(example.doc_id)
 

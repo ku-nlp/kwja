@@ -7,7 +7,6 @@ if sys.version_info >= (3, 11):
     from importlib.resources.abc import Traversable
 else:
     from importlib_resources.abc import Traversable
-from typing import Optional
 
 from cohesion_tools.task import Task as CohesionToolsTask
 from rhoknp.props import DepType, NamedEntityCategory
@@ -200,7 +199,7 @@ KATA2HIRA = str.maketrans(_KATAKANA, _HIRAGANA)
 
 # ---------- char module|text normalization ----------
 # 制御文字(\t,\nを含む)は削除
-TRANSLATION_TABLE: dict[int, Optional[int]] = str.maketrans(
+TRANSLATION_TABLE: dict[int, int | None] = str.maketrans(
     '"#▁', "”＃▂", "".join(chr(i) for i in [*range(32), *range(127, 160), 5760, *range(8232, 8234)])
 )
 

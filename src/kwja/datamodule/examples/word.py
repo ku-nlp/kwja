@@ -1,7 +1,6 @@
 import logging
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Optional
 
 from cohesion_tools.extractors.base import BaseExtractor
 from rhoknp import BasePhrase, Clause, Document, Morpheme, Phrase
@@ -47,7 +46,11 @@ class SpecialTokenIndexer:
     @cached_property
     def token_and_morpheme_level_indices(self) -> list[tuple[int, int]]:
         return list(
-            zip(self._special_token2token_level_index.values(), self._special_token2morpheme_level_index.values())
+            zip(
+                self._special_token2token_level_index.values(),
+                self._special_token2morpheme_level_index.values(),
+                strict=True,
+            )
         )
 
 
@@ -56,11 +59,11 @@ class WordExample:
         self.example_id = example_id
         self.encoding = encoding
         self.special_token_indexer = special_token_indexer
-        self.doc_id: Optional[str] = None
+        self.doc_id: str | None = None
         self.analysis_target_morpheme_indices: list[int] = []
 
         # ---------- reading prediction ----------
-        self.readings: Optional[list[str]] = None
+        self.readings: list[str] | None = None
 
         # ---------- morphological analysis ----------
         self.morpheme_global_index2morpheme_attributes: dict[int, tuple[str, str, str, str]] = {}

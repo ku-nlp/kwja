@@ -1,6 +1,5 @@
 import logging
 from pathlib import Path
-from typing import Optional
 
 from rhoknp import Document
 from rhoknp.utils.reader import chunk_by_document
@@ -21,7 +20,7 @@ class Seq2SeqInferenceDataset(BaseDataset[Seq2SeqInferenceExample, Seq2SeqModule
         tokenizer: PreTrainedTokenizerFast,
         max_src_length: int,
         max_tgt_length: int,
-        juman_file: Optional[Path] = None,
+        juman_file: Path | None = None,
         **_,
     ) -> None:
         super().__init__(tokenizer, max_src_length)

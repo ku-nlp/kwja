@@ -1,6 +1,6 @@
 from collections import defaultdict
 from statistics import mean
-from typing import Literal, Optional, Union
+from typing import Literal
 
 import torch
 from cohesion_tools.evaluators import CohesionEvaluator, CohesionScore
@@ -63,9 +63,9 @@ class WordModuleMetric(BaseModuleMetric):
 
     def __init__(self, max_seq_length: int) -> None:
         super().__init__(max_seq_length)
-        self.dataset: Optional[WordDataset] = None
-        self.reading_id2reading: Optional[dict[int, str]] = None
-        self.training_tasks: Optional[list[WordTask]] = None
+        self.dataset: WordDataset | None = None
+        self.reading_id2reading: dict[int, str] | None = None
+        self.training_tasks: list[WordTask] | None = None
 
         self.example_ids: torch.Tensor
         self.reading_predictions: torch.Tensor
@@ -94,7 +94,7 @@ class WordModuleMetric(BaseModuleMetric):
             for dim in dims:
                 size = [self.max_seq_length - s if i == dim else s for i, s in enumerate(value.size())]
                 if key in {"discourse_labels"}:
-                    fill_value: Union[float, int] = IGNORE_INDEX
+                    fill_value: float | int = IGNORE_INDEX
                 else:
                     fill_value = MASKED if torch.is_floating_point(value) else 0
                 padding = torch.full(size, fill_value, dtype=value.dtype, device=value.device)
@@ -160,7 +160,7 @@ class WordModuleMetric(BaseModuleMetric):
             cohesion_logits,
             _,  # discourse_predictions
             _,  # discourse_labels
-        ) in zip(*[getattr(self, state_name).tolist() for state_name in self.STATE_NAMES]):
+        ) in zip(*[getattr(self, state_name).tolist() for state_name in self.STATE_NAMES], strict=True):
             example = self.dataset.examples[example_id]
             gold_document = self.dataset.doc_id2document[example.doc_id]
             orig_doc_id = to_orig_doc_id(gold_document.doc_id)
@@ -266,7 +266,9 @@ class WordModuleMetric(BaseModuleMetric):
     ) -> dict[str, float]:
         metrics: dict[str, float] = {}
         for attribute_name, supported_attribute_values in zip(
-            ("pos", "subpos", "conjtype", "conjform"), (POS_TAGS, SUBPOS_TAGS, CONJTYPE_TAGS, CONJFORM_TAGS)
+            ("pos", "subpos", "conjtype", "conjform"),
+            (POS_TAGS, SUBPOS_TAGS, CONJTYPE_TAGS, CONJFORM_TAGS),
+            strict=True,
         ):
             metrics[f"{attribute_name}_f1"] = WordModuleMetric._calc_morpheme_attribute_f1_score(
                 [m for d in predicted_documents for m in d.morphemes],
@@ -303,7 +305,7 @@ class WordModuleMetric(BaseModuleMetric):
             predictions: list[list[str]] = []
             gold_document: Document
             predicted_document: Document
-            for gold_document, predicted_document in zip(gold_documents, predicted_documents):
+            for gold_document, predicted_document in zip(gold_documents, predicted_documents, strict=True):
                 if feature_label == "基本句-区切":
                     label = WordModuleMetric._convert_units_into_segmentation_tags(gold_document.base_phrases)
                     prediction = WordModuleMetric._convert_units_into_segmentation_tags(predicted_document.base_phrases)
@@ -335,7 +337,7 @@ class WordModuleMetric(BaseModuleMetric):
         return metrics
 
     @staticmethod
-    def _convert_units_into_segmentation_tags(units: Union[list[Phrase], list[BasePhrase]]) -> list[str]:
+    def _convert_units_into_segmentation_tags(units: list[Phrase] | list[BasePhrase]) -> list[str]:
         return ["B" if idx == 0 else "I" for u in units for idx in range(len(u.morphemes))]
 
     @staticmethod
@@ -365,7 +367,7 @@ class WordModuleMetric(BaseModuleMetric):
             predictions: list[bool] = []
             gold_document: Document
             predicted_document: Document
-            for gold_document, predicted_document in zip(gold_documents, partly_gold_documents1):
+            for gold_document, predicted_document in zip(gold_documents, partly_gold_documents1, strict=True):
                 labels += [
                     feature_label in WordModuleMetric._convert_features_to_labels(base_phrase.features)
                     for base_phrase in gold_document.base_phrases
@@ -423,7 +425,7 @@ class WordModuleMetric(BaseModuleMetric):
     ) -> tuple[list[str], list[str]]:
         gold_lines = []
         system_lines = []
-        for gold_document, partly_gold_document1 in zip(gold_documents, partly_gold_documents1):
+        for gold_document, partly_gold_document1 in zip(gold_documents, partly_gold_documents1, strict=True):
             for sentence in gold_document.sentences:
                 gold_lines += [WordModuleMetric._to_conll_line(u) for u in getattr(sentence, f"{unit_name}s")]
                 gold_lines.append("\n")
@@ -433,7 +435,7 @@ class WordModuleMetric(BaseModuleMetric):
         return gold_lines, system_lines
 
     @staticmethod
-    def _to_conll_line(unit: Union[BasePhrase, Morpheme]) -> str:
+    def _to_conll_line(unit: BasePhrase | Morpheme) -> str:
         id_ = unit.index + 1  # 0-origin -> 1-origin
         if isinstance(unit, BasePhrase):
             form = "".join(m.surf for m in unit.morphemes)

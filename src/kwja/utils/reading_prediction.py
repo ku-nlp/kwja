@@ -5,7 +5,6 @@ import unicodedata
 from collections import defaultdict
 from dataclasses import dataclass
 from importlib.resources import as_file
-from typing import Optional, Union
 
 import numpy as np
 from rhoknp import Morpheme
@@ -52,7 +51,7 @@ class ReadingAligner:
 
     def align(self, morphemes: list[Morpheme]) -> list[str]:
         # assumption: morphemes are never combined
-        tokenizer_input: Union[list[str], str] = [m.text for m in morphemes]
+        tokenizer_input: list[str] | str = [m.text for m in morphemes]
         encoding = self.tokenizer(tokenizer_input, add_special_tokens=False, is_split_into_words=True).encodings[0]
         word_id2subwords = defaultdict(list)
         for token_id, word_id in enumerate(encoding.word_ids):
@@ -63,7 +62,7 @@ class ReadingAligner:
         )
 
         readings: list[str] = []
-        for morpheme, subwords in zip(morphemes, subwords_per_morpheme):
+        for morpheme, subwords in zip(morphemes, subwords_per_morpheme, strict=True):
             readings.extend(self._align_morpheme(morpheme, subwords))
         return readings
 
@@ -101,9 +100,9 @@ class ReadingAligner:
         # build lattice
         # no node can cross boundaries
         td_lattice: list[list[list[Node]]] = []
-        td_holder: list[list[tuple[Optional[Node], Optional[Node], float]]] = []
-        node: Optional[Node] = None
-        node_prev: Optional[Node]
+        td_holder: list[list[tuple[Node | None, Node | None, float]]] = []
+        node: Node | None = None
+        node_prev: Node | None
         for _ in range(len(surf)):
             td_lattice.append([])
             for _ in range(len(reading) + 1):  # +1 for zero-width reading
@@ -281,7 +280,7 @@ def get_word_level_readings(readings: list[str], tokens: list[str], subword_map:
     ret: list[str] = []
     for flags in subword_map:
         item = ""
-        for token, reading, flag in zip(tokens, readings, flags):
+        for token, reading, flag in zip(tokens, readings, flags, strict=False):
             if flag:
                 if reading in {UNK, ID}:
                     item += token

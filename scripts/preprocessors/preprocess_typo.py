@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from textwrap import dedent
-from typing import Optional
 
 from Levenshtein import opcodes
 
@@ -40,7 +39,7 @@ def normalize_example(example: dict) -> None:
         diff["post_str"] = normalize_text(diff["post_str"])
 
 
-def decompose(pre_text: str, post_text: str, diffs: list[dict]) -> Optional[list[Component]]:
+def decompose(pre_text: str, post_text: str, diffs: list[dict]) -> list[Component] | None:
     # decompose texts into components
     # return None if alignment fails
     components: list[Component] = []
@@ -139,7 +138,7 @@ def load_examples(in_dir: Path, split: str) -> tuple[dict[str, list[dict[str, st
             normalize_example(example)
             diffs = [diff for diff in example["diffs"] if diff["category"] != "not-typo"]
             assert len(diffs) > 0
-            components: Optional[list[Component]] = decompose(example["pre_text"], example["post_text"], diffs)
+            components: list[Component] | None = decompose(example["pre_text"], example["post_text"], diffs)
             if components is None:
                 continue
             kdr_tags, ins_tags = convert_components_into_tags(components, len(example["pre_text"]) + 1)

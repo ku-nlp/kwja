@@ -1,5 +1,5 @@
 # Copied from https://github.com/huggingface/transformers/blob/v4.55-release/src/transformers/models/deberta_v2/modeling_deberta_v2.py
-from typing import Optional, Union
+from typing import Optional
 
 import torch
 import torch.utils.checkpoint
@@ -486,7 +486,7 @@ class DebertaV2Model(DebertaV2PreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-    ) -> Union[tuple, BaseModelOutput]:
+    ) -> tuple | BaseModelOutput:
         r"""
         special_token_indices (`torch.Tensor`, *optional*, defaults to None):
             Indices of special tokens in the sequence. It's a tensor of shape [*B*, *S*] where *B* is the batch size,

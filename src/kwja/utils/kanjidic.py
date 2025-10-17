@@ -7,13 +7,13 @@ if sys.version_info >= (3, 11):
 else:
     from importlib_resources.abc import Traversable
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 from kwja.utils.constants import KATA2HIRA
 
 
 class KanjiDic:
-    def __init__(self, fpath: Union[Path, Traversable]) -> None:
+    def __init__(self, fpath: Path | Traversable) -> None:
         self.entries: dict[str, Any] = {
             "°": {
                 "reading": ["ど"],

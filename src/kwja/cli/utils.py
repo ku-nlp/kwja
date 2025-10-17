@@ -2,7 +2,6 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Optional, Union
 
 import torch
 from torch.hub import download_url_to_file
@@ -42,7 +41,7 @@ _CHECKPOINT_FILE_NAMES: dict[ModelSize, dict[str, str]] = {
 def download_checkpoint(
     module: str,
     model_size: ModelSize,
-    checkpoint_dir: Optional[Union[str, Path]] = None,
+    checkpoint_dir: str | Path | None = None,
     progress: bool = True,
 ) -> Path:
     """Downloads the Torch serialized object at the given URL.

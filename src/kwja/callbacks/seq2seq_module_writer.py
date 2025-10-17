@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
 import lightning as L
 from rhoknp import Sentence
@@ -14,7 +14,7 @@ from kwja.utils.seq2seq_format import Seq2SeqFormatter
 
 
 class Seq2SeqModuleWriter(BaseModuleWriter):
-    def __init__(self, tokenizer: PreTrainedTokenizerFast, destination: Optional[Union[str, Path]] = None) -> None:
+    def __init__(self, tokenizer: PreTrainedTokenizerFast, destination: str | Path | None = None) -> None:
         super().__init__(destination=destination)
         self.tokenizer: PreTrainedTokenizerFast = tokenizer
         self.formatter: Seq2SeqFormatter = Seq2SeqFormatter(tokenizer)
@@ -24,7 +24,7 @@ class Seq2SeqModuleWriter(BaseModuleWriter):
         trainer: L.Trainer,
         pl_module: L.LightningModule,  # noqa: ARG002
         prediction: Any,
-        batch_indices: Optional[Sequence[int]],  # noqa: ARG002
+        batch_indices: Sequence[int] | None,  # noqa: ARG002
         batch: Any,  # noqa: ARG002
         batch_idx: int,  # noqa: ARG002
         dataloader_idx: int,
@@ -33,11 +33,11 @@ class Seq2SeqModuleWriter(BaseModuleWriter):
             dataloader = list(trainer.predict_dataloaders.values())[dataloader_idx]
         else:
             dataloader = trainer.predict_dataloaders[dataloader_idx]
-        dataset: Union[Seq2SeqDataset, Seq2SeqInferenceDataset] = dataloader.dataset
+        dataset: Seq2SeqDataset | Seq2SeqInferenceDataset = dataloader.dataset
 
         output_string = ""
-        for example_id, seq2seq_predictions in zip(*[v.tolist() for v in prediction.values()]):
-            example: Union[Seq2SeqExample, Seq2SeqInferenceExample] = dataset.examples[example_id]
+        for example_id, seq2seq_predictions in zip(*[v.tolist() for v in prediction.values()], strict=True):
+            example: Seq2SeqExample | Seq2SeqInferenceExample = dataset.examples[example_id]
             if len(example.surfs) == 0:
                 continue
 

@@ -264,7 +264,7 @@ class MorphologicalAnalysisScorer:
 
     def _search_diffs(self, sys_sentences: list[Sentence], gold_sentences: list[Sentence]) -> list[Diff]:
         diffs = []
-        for sys_sentence, gold_sentence in zip(sys_sentences, gold_sentences):
+        for sys_sentence, gold_sentence in zip(sys_sentences, gold_sentences, strict=True):
             norm_morphemes: list[Morpheme] = []
             if self.eval_norm:
                 for idx in self.norm_info[gold_sentence.sid]:

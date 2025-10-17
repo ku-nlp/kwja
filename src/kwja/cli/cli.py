@@ -6,7 +6,7 @@ from collections.abc import Iterator
 from enum import Enum
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Annotated, Optional, TextIO
+from typing import Annotated, TextIO
 from unicodedata import normalize
 
 import hydra
@@ -51,8 +51,8 @@ class BaseModuleProcessor(ABC):
         self.model_size: ModelSize = config.model_size
         self.batch_size: int = batch_size
         self.destination = Path(NamedTemporaryFile().name)
-        self.module: Optional[L.LightningModule] = None
-        self.trainer: Optional[L.Trainer] = None
+        self.module: L.LightningModule | None = None
+        self.trainer: L.Trainer | None = None
 
     def load(self, **writer_kwargs) -> None:
         self.module = self._load_module()
@@ -329,22 +329,20 @@ def _tasks_callback(value: str) -> str:
 
 @app.command()
 def main(
-    text: Annotated[Optional[str], typer.Option(help="Text to be analyzed.")] = None,
+    text: Annotated[str | None, typer.Option(help="Text to be analyzed.")] = None,
     filename: list[Path] = typer.Option([], dir_okay=False, help="Files to be analyzed."),
-    model_size: Annotated[
-        Optional[ModelSize], typer.Option(case_sensitive=False, help="Model size to be used.")
-    ] = None,
-    device: Annotated[Optional[Device], typer.Option(case_sensitive=False, help="Device to be used.")] = None,
-    typo_batch_size: Annotated[Optional[int], typer.Option(help="Batch size for typo module.")] = None,
-    char_batch_size: Annotated[Optional[int], typer.Option(help="Batch size for char module.")] = None,
-    seq2seq_batch_size: Annotated[Optional[int], typer.Option(help="Batch size for seq2seq module.")] = None,
-    word_batch_size: Annotated[Optional[int], typer.Option(help="Batch size for word module.")] = None,
+    model_size: Annotated[ModelSize | None, typer.Option(case_sensitive=False, help="Model size to be used.")] = None,
+    device: Annotated[Device | None, typer.Option(case_sensitive=False, help="Device to be used.")] = None,
+    typo_batch_size: Annotated[int | None, typer.Option(help="Batch size for typo module.")] = None,
+    char_batch_size: Annotated[int | None, typer.Option(help="Batch size for char module.")] = None,
+    seq2seq_batch_size: Annotated[int | None, typer.Option(help="Batch size for seq2seq module.")] = None,
+    word_batch_size: Annotated[int | None, typer.Option(help="Batch size for word module.")] = None,
     tasks: Annotated[str, typer.Option(callback=_tasks_callback, help="Tasks to be performed.")] = "char,word",
     _: Annotated[
-        Optional[bool],
+        bool | None,
         typer.Option("--version", callback=_version_callback, is_eager=True, help="Show version and exit."),
     ] = None,
-    config_file: Annotated[Optional[Path], typer.Option(help="Path to KWJA config file.")] = None,
+    config_file: Annotated[Path | None, typer.Option(help="Path to KWJA config file.")] = None,
     input_format: Annotated[InputFormat, typer.Option(case_sensitive=False, help="Input format.")] = InputFormat.RAW,
 ) -> None:
     # validate task combination
@@ -377,7 +375,7 @@ def main(
         elif specified_tasks[0] in ("seq2seq", "word"):
             logger.warning("WARNING: with seq2seq or word task, your input text will be treated as a word sequence.")
 
-    input_documents: Optional[list[Document]] = None
+    input_documents: list[Document] | None = None
     if text is not None and len(filename) > 0:
         logger.error("ERROR: Please provide text or filename, not both")
         raise typer.Abort

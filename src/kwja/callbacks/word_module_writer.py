@@ -3,7 +3,7 @@ from collections import defaultdict
 from collections.abc import Sequence
 from itertools import product
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
 import lightning as L
 from jinf import Jinf
@@ -44,7 +44,7 @@ class WordModuleWriter(BaseModuleWriter):
         self,
         ambig_surf_specs: list[dict[str, str]],
         preserve_reading_lemma_canon: bool = False,
-        destination: Optional[Union[str, Path]] = None,
+        destination: str | Path | None = None,
     ) -> None:
         super().__init__(destination=destination)
         self.reading_id2reading = {v: k for k, v in get_reading2reading_id().items()}
@@ -63,7 +63,7 @@ class WordModuleWriter(BaseModuleWriter):
         trainer: L.Trainer,
         pl_module: L.LightningModule,  # noqa: ARG002
         prediction: Any,
-        batch_indices: Optional[Sequence[int]],  # noqa: ARG002
+        batch_indices: Sequence[int] | None,  # noqa: ARG002
         batch: Any,  # noqa: ARG002
         batch_idx: int,
         dataloader_idx: int,
@@ -72,7 +72,7 @@ class WordModuleWriter(BaseModuleWriter):
             dataloader = list(trainer.predict_dataloaders.values())[dataloader_idx]
         else:
             dataloader = trainer.predict_dataloaders[dataloader_idx]
-        dataset: Union[WordDataset, WordInferenceDataset] = dataloader.dataset
+        dataset: WordDataset | WordInferenceDataset = dataloader.dataset
         for (
             example_id,
             reading_predictions,
@@ -85,8 +85,8 @@ class WordModuleWriter(BaseModuleWriter):
             dependency_type_predictions,
             cohesion_logits,
             discourse_predictions,
-        ) in zip(*[v.tolist() for v in prediction.values()]):
-            example: Union[WordExample, WordInferenceExample] = dataset.examples[example_id]
+        ) in zip(*[v.tolist() for v in prediction.values()], strict=True):
+            example: WordExample | WordInferenceExample = dataset.examples[example_id]
             assert example.doc_id is not None, "doc_id isn't set"
             document = dataset.doc_id2document.pop(example.doc_id)
 
@@ -139,6 +139,7 @@ class WordModuleWriter(BaseModuleWriter):
             for predicted_sentence, sentence in zip(
                 extract_target_sentences(predicted_document),
                 extract_target_sentences(document),
+                strict=True,
             ):
                 predicted_sentence.comment = sentence.comment
                 self.doc_id_sid2predicted_sentence[orig_doc_id][predicted_sentence.sid] = predicted_sentence
@@ -162,13 +163,13 @@ class WordModuleWriter(BaseModuleWriter):
         norms: list[str],
         reading_predictions: list[str],
         morpheme_attribute_predictions: tuple[list[int], list[int], list[int], list[int]],
-        canons: list[Optional[str]],
+        canons: list[str | None],
         preserve_lemma: bool,
     ) -> list[Morpheme]:
         assert len(surfs) == len(norms) == len(reading_predictions)
         morphemes = []
         for surf, norm, reading, pos_index, subpos_index, conjtype_index, conjform_index, canon in zip(
-            surfs, norms, reading_predictions, *morpheme_attribute_predictions, canons
+            surfs, norms, reading_predictions, *morpheme_attribute_predictions, canons, strict=True
         ):
             pos = POS_TAGS[pos_index]
             pos_id = POS_TAG2POS_ID[pos]
@@ -245,7 +246,7 @@ class WordModuleWriter(BaseModuleWriter):
         pos: str,
         subpos: str,
         conjtype: str,
-        canon: Optional[str],
+        canon: str | None,
         homograph_ops: list[dict[str, Any]],
     ) -> SemanticsDict:
         if canon is not None:

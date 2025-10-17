@@ -7,7 +7,6 @@ if sys.version_info >= (3, 11):
 else:
     from importlib_resources.abc import Traversable
 from pathlib import Path
-from typing import Union
 
 import cdblib
 
@@ -15,7 +14,7 @@ from kwja.utils.logging_util import track
 
 
 class JumanDic:
-    def __init__(self, dic_dir: Union[Path, Traversable]) -> None:
+    def __init__(self, dic_dir: Path | Traversable) -> None:
         self.jumandic = cdblib.Reader(dic_dir.joinpath("jumandic.db").read_bytes())
         self.jumandic_canon = cdblib.Reader(dic_dir.joinpath("jumandic_canon.db").read_bytes())
         self.grammar_data: dict[str, list[str]] = json.loads(dic_dir.joinpath("grammar.json").read_text())

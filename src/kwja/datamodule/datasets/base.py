@@ -3,7 +3,7 @@ import sys
 from abc import ABC
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
-from typing import Generic, TypeVar, Union
+from typing import Generic, TypeVar
 
 from rhoknp import Document, Sentence
 from torch.utils.data import Dataset
@@ -20,7 +20,7 @@ ExampleType = TypeVar("ExampleType")
 FeatureType = TypeVar("FeatureType")
 
 
-class BaseDataset(Dataset[FeatureType], Generic[ExampleType, FeatureType], ABC):
+class BaseDataset(Dataset[FeatureType], ABC, Generic[ExampleType, FeatureType]):
     def __init__(self, tokenizer: PreTrainedTokenizerBase, max_seq_length: int) -> None:
         self.tokenizer: PreTrainedTokenizerBase = tokenizer
         self.max_seq_length: int = max_seq_length
@@ -39,7 +39,7 @@ class BaseDataset(Dataset[FeatureType], Generic[ExampleType, FeatureType], ABC):
 class FullAnnotatedDocumentLoaderMixin:
     def __init__(
         self,
-        source: Union[Path, list[Document]],
+        source: Path | list[Document],
         tokenizer: PreTrainedTokenizerBase,
         max_seq_length: int,
         document_split_stride: int,
@@ -103,11 +103,11 @@ class FullAnnotatedDocumentLoaderMixin:
             sub_document = Document.from_sentences(sentences)
             sub_doc_id = to_sub_doc_id(document.doc_id, sub_idx, stride=span.stride)
             sub_document.doc_id = sub_doc_id
-            for sentence, sub_sentence in zip(sentences, sub_document.sentences):
+            for sentence, sub_sentence in zip(sentences, sub_document.sentences, strict=True):
                 sub_sentence.comment = sentence.comment
             sub_documents.append(sub_document)
             sub_idx += 1
         return sub_documents
 
-    def _get_tokenized_len(self, document_or_sentence: Union[Document, Sentence]) -> int:
+    def _get_tokenized_len(self, document_or_sentence: Document | Sentence) -> int:
         return len(self.tokenizer.tokenize(document_or_sentence.text))

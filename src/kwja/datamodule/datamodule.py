@@ -1,5 +1,5 @@
 from dataclasses import fields, is_dataclass
-from typing import Any, Optional, Union
+from typing import Any
 
 import hydra
 import lightning as L
@@ -27,26 +27,25 @@ class DataModule(L.LightningDataModule):
         super().__init__()
         self.cfg: DictConfig = cfg
 
-        self.train_dataset: Optional[ConcatDataset] = None
-        self.valid_datasets: dict[str, Union[TypoDataset, Seq2SeqDataset, CharDataset, WordDataset]] = {}
-        self.test_datasets: dict[str, Union[TypoDataset, Seq2SeqDataset, CharDataset, WordDataset]] = {}
-        self.predict_dataset: Optional[
-            Union[
-                TypoDataset,
-                Seq2SeqDataset,
-                CharDataset,
-                WordDataset,
-                TypoInferenceDataset,
-                Seq2SeqInferenceDataset,
-                CharInferenceDataset,
-                WordInferenceDataset,
-            ]
-        ] = None
+        self.train_dataset: ConcatDataset | None = None
+        self.valid_datasets: dict[str, TypoDataset | Seq2SeqDataset | CharDataset | WordDataset] = {}
+        self.test_datasets: dict[str, TypoDataset | Seq2SeqDataset | CharDataset | WordDataset] = {}
+        self.predict_dataset: (
+            TypoDataset
+            | Seq2SeqDataset
+            | CharDataset
+            | WordDataset
+            | TypoInferenceDataset
+            | Seq2SeqInferenceDataset
+            | CharInferenceDataset
+            | WordInferenceDataset
+            | None
+        ) = None
 
     def prepare_data(self) -> None:
         pass
 
-    def setup(self, stage: Optional[str] = None) -> None:
+    def setup(self, stage: str | None = None) -> None:
         if stage == TrainerFn.FITTING:
             self.train_dataset = ConcatDataset(hydra.utils.instantiate(config) for config in self.cfg.train.values())
         if stage in (TrainerFn.FITTING, TrainerFn.VALIDATING, TrainerFn.TESTING):
@@ -85,13 +84,13 @@ class DataModule(L.LightningDataModule):
         )
 
 
-def token_dataclass_data_collator(batch_features: list[Any]) -> dict[str, Union[Tensor, list[str]]]:
+def token_dataclass_data_collator(batch_features: list[Any]) -> dict[str, Tensor | list[str]]:
     first_features: Any = batch_features[0]
     assert is_dataclass(first_features), "Data must be a dataclass"
 
     token_indices = torch.arange(max(sum(fs.attention_mask) for fs in batch_features))
 
-    batch: dict[str, Union[Tensor, list[str]]] = {}
+    batch: dict[str, Tensor | list[str]] = {}
     for field in fields(first_features):
         features = [getattr(fs, field.name) for fs in batch_features]
         if field.name in {"surfs"}:
@@ -109,14 +108,14 @@ def token_dataclass_data_collator(batch_features: list[Any]) -> dict[str, Union[
     return batch
 
 
-def word_dataclass_data_collator(batch_features: list[Any]) -> dict[str, Union[Tensor, list[str]]]:
+def word_dataclass_data_collator(batch_features: list[Any]) -> dict[str, Tensor | list[str]]:
     first_features: Any = batch_features[0]
     assert is_dataclass(first_features), "Data must be a dataclass"
 
     token_indices = torch.arange(max(sum(fs.attention_mask) for fs in batch_features))
     word_indices = torch.arange(max(sum(any(row) for row in fs.subword_map) for fs in batch_features))
 
-    batch: dict[str, Union[Tensor, list[str]]] = {}
+    batch: dict[str, Tensor | list[str]] = {}
     for field in fields(first_features):
         features = [getattr(fs, field.name) for fs in batch_features]
         value = torch.as_tensor(features)

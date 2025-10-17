@@ -30,7 +30,6 @@ classifiers = [
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -38,7 +37,7 @@ classifiers = [
     "Topic :: Scientific/Engineering",
     "Topic :: Text Processing",
 ]
-requires-python = ">=3.9,<3.14"
+requires-python = ">=3.10,<3.14"
 
 dependencies = [
     "torch>=2.7.0,<2.8.0; python_version < '3.13'",
@@ -57,7 +56,7 @@ dependencies = [
     "pyyaml>=6.0",
     "regex>=2024.7.24",
     "cohesion-tools>=0.7.5,<0.8.0",
-    "typing-extensions>=4.0; python_version < '3.10'",
+    "typing-extensions>=4.0; python_version < '3.11'",
     "importlib-resources>=6.0,<7.0; python_version < '3.11'",
 ]
 
@@ -112,7 +111,7 @@ pytest-profiling = "^1.7"
 line-length = 120
 indent-width = 4
 src = ["src"]
-target-version = "py39"  # The minimum Python version to target
+target-version = "py310"  # The minimum Python version to target
 
 [tool.ruff.lint]
 select = ["F", "E", "W", "I", "B", "PL", "PD", "NPY", "RUF", "UP", "TID", "COM", "PT", "ARG", "PYI", "FA", "G", "FBT", "ANN"]
@@ -144,6 +143,7 @@ ignore = [
     "PLW0127",  # Self-assignment of variable `...`
     "ANN",  # flake8-annotations
     "RUF005",  # Consider iterable unpacking instead of concatenation
+    "UP045",  # Use `X | None` for type annotations
 ]
 "src/kwja/metrics/conll18_ud_eval.py" = [
     "PT027",  # Use `pytest.raises` instead of unittest-style `assertRaises`
@@ -165,7 +165,7 @@ convention = "google"
 max-complexity = 20  # default: 10
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,5 +1,5 @@
 from logging import getLogger
-from typing import Literal, Optional
+from typing import Literal
 
 import numpy as np
 from cohesion_tools.extractors.base import BaseExtractor
@@ -44,7 +44,7 @@ def convert_typo_predictions_into_tags(
     token_id2token: dict[int, str],
 ) -> list[str]:
     typo_corr_op_tags: list[str] = []
-    for token_id, probability in zip(predictions, probabilities):
+    for token_id, probability in zip(predictions, probabilities, strict=True):
         token: str = token_id2token[token_id]
         # do not edit if the probability (replace, delete, and insert) is less than "confidence_threshold"
         if probability < confidence_threshold:
@@ -88,7 +88,7 @@ def convert_char_predictions_into_tags(
 def set_sentences(document: Document, sent_segmentation_tags: list[str]) -> None:
     sentences: list[Sentence] = []
     surf: str = ""
-    for char, sent_segmentation_tag in zip(document.text, sent_segmentation_tags):
+    for char, sent_segmentation_tag in zip(document.text, sent_segmentation_tags, strict=True):
         if sent_segmentation_tag == "B" and surf:
             sentences.append(Sentence(surf))
             surf = ""
@@ -150,7 +150,7 @@ def get_morpheme_attribute_predictions(
     conjtype_predictions: list[int] = np.array(conjtype_logits).argmax(axis=1).tolist()
     conjform_predictions: list[int] = []
     for i, (pos_index, subpos_logit_list, conjtype_index, conjform_logit_list) in enumerate(
-        zip(pos_predictions, subpos_logits, conjtype_predictions, conjform_logits)
+        zip(pos_predictions, subpos_logits, conjtype_predictions, conjform_logits, strict=True)
     ):
         pos_tag = POS_TAGS[pos_index]
         possible_subpos_tags: set[str] = set(POS_TAG_SUBPOS_TAG2SUBPOS_ID[pos_tag].keys())
@@ -187,7 +187,7 @@ def build_morphemes(
 ) -> list[Morpheme]:
     morphemes = []
     for surf, lemma, reading, pos_index, subpos_index, conjtype_index, conjform_index in zip(
-        surfs, lemmas, reading_predictions, *morpheme_attribute_predictions
+        surfs, lemmas, reading_predictions, *morpheme_attribute_predictions, strict=True
     ):
         pos = POS_TAGS[pos_index]
         pos_id = POS_TAG2POS_ID[pos]
@@ -300,7 +300,7 @@ def add_base_phrase_features(sentence: Sentence, base_phrase_feature_probabiliti
     for phrase in phrases:
         for base_phrase in phrase.base_phrases:
             for base_phrase_feature, base_phrase_probability in zip(
-                BASE_PHRASE_FEATURES, base_phrase_feature_probabilities[base_phrase.head.global_index]
+                BASE_PHRASE_FEATURES, base_phrase_feature_probabilities[base_phrase.head.global_index], strict=True
             ):
                 if base_phrase_feature.startswith("節-区切") and base_phrase_probability >= 0.5:
                     clause_boundary_feature = base_phrase_feature
@@ -337,6 +337,7 @@ def add_dependency(
         for parent_morpheme_global_index, dependency_type_index in zip(
             dependency_predictions[base_phrase.head.global_index],
             dependency_type_predictions[base_phrase.head.global_index],
+            strict=False,  # FIXME: strict=True
         ):
             parent_index = morpheme_global_index2base_phrase_index[parent_morpheme_global_index]
             dependency_manager.add_edge(base_phrase.index, parent_index)
@@ -400,6 +401,7 @@ def add_cohesion(
         zip(
             [r for cohesion_rels in cohesion_task2rels.values() for r in cohesion_rels],
             cohesion_logits,
+            strict=True,
         )
     )
     base_phrases = document.base_phrases
@@ -426,7 +428,7 @@ def _to_rel_tag(
     base_phrases: list[BasePhrase],
     special_token_indexer: SpecialTokenIndexer,
     exophora_referent_types: list[ExophoraReferentType],
-) -> Optional[RelTag]:
+) -> RelTag | None:
     logits = [rel_logits[bp.head.global_index] for bp in base_phrases]
     logits += [rel_logits[i] for i in special_token_indexer.get_morpheme_level_indices()]
     predicted_base_phrase_global_index: int = np.argmax(logits).item()

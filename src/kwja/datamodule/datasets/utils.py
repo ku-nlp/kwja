@@ -1,6 +1,6 @@
 from collections.abc import Iterable, Iterator, Sequence
 from datetime import datetime
-from typing import Optional, TextIO
+from typing import TextIO
 
 from rhoknp import Document
 
@@ -21,7 +21,7 @@ def create_documents_from_raw_texts(texts: Iterable[str]) -> list[Document]:
     return documents
 
 
-def add_doc_ids(documents: Sequence[Document], doc_id_prefix: Optional[str] = None) -> None:
+def add_doc_ids(documents: Sequence[Document], doc_id_prefix: str | None = None) -> None:
     if doc_id_prefix is None:
         doc_id_prefix = datetime.now().strftime("%Y%m%d%H%M")
     doc_id_width = len(str(len(documents)))

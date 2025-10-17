@@ -197,7 +197,9 @@ def test_format_to_sent(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFa
 
         actual_sentence: Sentence = seq2seq_formatter.format_to_sent("".join(seq2seq_format))
         assert len(actual_sentence.morphemes) == len(expected_sentence.morphemes)
-        for actual_morpheme, expected_morpheme in zip(actual_sentence.morphemes, expected_sentence.morphemes):
+        for actual_morpheme, expected_morpheme in zip(
+            actual_sentence.morphemes, expected_sentence.morphemes, strict=True
+        ):
             if "/" in expected_morpheme.reading and len(expected_morpheme.reading) > 1:
                 expected_reading: str = expected_morpheme.reading.split("/")[0]
             else:

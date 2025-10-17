@@ -1,7 +1,6 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Union
 
 from cohesion_tools.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
 from cohesion_tools.extractors.base import BaseExtractor
@@ -126,7 +125,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         if is_training is True:
             del self.doc_id2document  # for saving memory
 
-    def _get_tokenized_len(self, document_or_sentence: Union[Document, Sentence]) -> int:
+    def _get_tokenized_len(self, document_or_sentence: Document | Sentence) -> int:
         tokenizer_input: list[str] = [m.text for m in document_or_sentence.morphemes]
         return len(
             self.tokenizer.encode_plus(tokenizer_input, add_special_tokens=False, is_split_into_words=True).tokens()
@@ -136,7 +135,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         examples = []
         example_id = 0
         for document in track(doc_id2document.values(), description="Loading examples"):
-            tokenizer_input: Union[list[str], str] = [normalize_text(m.text) for m in document.morphemes]
+            tokenizer_input: list[str] | str = [normalize_text(m.text) for m in document.morphemes]
             encoding: Encoding = self.tokenizer(
                 tokenizer_input,
                 padding=PaddingStrategy.DO_NOT_PAD,
@@ -190,7 +189,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
                 for token_index, word_id in enumerate(example.encoding.word_ids)
                 if token_index not in example.special_token_indexer.token_level_indices and word_id is not None
             ]
-            for (token_index, word_id), reading in zip(token_indices, example.readings):
+            for (token_index, word_id), reading in zip(token_indices, example.readings, strict=True):
                 if target_mask[word_id] is False:
                     continue
                 decoded_token = self.tokenizer.decode(example.encoding.ids[token_index])
@@ -206,7 +205,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         morpheme_attribute_labels_set = tuple([IGNORE_INDEX] * self.max_seq_length for _ in morpheme_attribute_tags_set)
         for morpheme_global_index, morpheme_attributes in example.morpheme_global_index2morpheme_attributes.items():
             for morpheme_attribute, morpheme_attribute_tags, morpheme_attribute_labels in zip(
-                morpheme_attributes, morpheme_attribute_tags_set, morpheme_attribute_labels_set
+                morpheme_attributes, morpheme_attribute_tags_set, morpheme_attribute_labels_set, strict=True
             ):
                 if morpheme_attribute not in morpheme_attribute_tags:
                     continue
@@ -305,7 +304,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
 
     def _generate_subword_map(
         self,
-        word_ids: list[Union[int, None]],
+        word_ids: list[int | None],
         special_token_indexer: SpecialTokenIndexer,
         include_special_tokens: bool = True,
     ) -> list[list[bool]]:
@@ -319,7 +318,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
                 subword_map[morpheme_global_index][token_index] = True
         return subword_map
 
-    def _find_discourse_document(self, document: Document) -> Optional[Document]:
+    def _find_discourse_document(self, document: Document) -> Document | None:
         discourse_path = self.path / "disc_expert" / f"{document.doc_id}.knp"
         if not discourse_path.exists() and self.path.name == "train":
             discourse_path = self.path / "disc_crowd" / f"{document.doc_id}.knp"

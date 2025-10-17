@@ -3,7 +3,6 @@ from importlib.metadata import version
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import Optional, Union
 
 import pytest
 import torch
@@ -28,7 +27,7 @@ class MockTrainer:
         str(Path(TemporaryDirectory().name) / Path("seq2seq_prediction.seq2seq")),
     ],
 )
-def test_init(destination: Optional[Union[str, Path]], seq2seq_tokenizer: PreTrainedTokenizerFast) -> None:
+def test_init(destination: str | Path | None, seq2seq_tokenizer: PreTrainedTokenizerFast) -> None:
     _ = Seq2SeqModuleWriter(tokenizer=seq2seq_tokenizer, destination=destination)
 
 

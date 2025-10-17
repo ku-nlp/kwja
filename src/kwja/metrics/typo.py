@@ -1,5 +1,3 @@
-from typing import Optional
-
 import torch
 from Levenshtein import opcodes
 
@@ -21,7 +19,7 @@ class TypoModuleMetric(BaseModuleMetric):
     def __init__(self, max_seq_length: int, confidence_thresholds: tuple[float, ...] = (0.0, 0.8, 0.9)) -> None:
         super().__init__(max_seq_length)
         self.confidence_thresholds = confidence_thresholds
-        self.dataset: Optional[TypoDataset] = None
+        self.dataset: TypoDataset | None = None
         self.example_ids: torch.Tensor
         self.kdr_predictions: torch.Tensor
         self.kdr_probabilities: torch.Tensor
@@ -59,7 +57,7 @@ class TypoModuleMetric(BaseModuleMetric):
     def _build_texts(self, confidence_threshold: float) -> list[tuple[str, str, str]]:
         example_id2texts = {}
         for example_id, kdr_predictions, kdr_probabilities, ins_predictions, ins_probabilities in zip(
-            *[getattr(self, state_name).tolist() for state_name in self.STATE_NAMES]
+            *[getattr(self, state_name).tolist() for state_name in self.STATE_NAMES], strict=True
         ):
             assert self.dataset is not None, "typo dataset isn't set"
 
@@ -127,6 +125,6 @@ class TypoModuleMetric(BaseModuleMetric):
                     diffs.append(("", post_char))
             elif tag == "replace":
                 assert i2 - i1 == j2 - j1, (pre_text[i1:i2], post_text[j1:j2])
-                for pre_char, post_char in zip(pre_text[i1:i2], post_text[j1:j2]):
+                for pre_char, post_char in zip(pre_text[i1:i2], post_text[j1:j2], strict=True):
                     diffs.append((pre_char, post_char))
         return diffs

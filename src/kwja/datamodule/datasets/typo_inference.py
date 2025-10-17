@@ -1,6 +1,5 @@
 from collections import defaultdict
 from pathlib import Path
-from typing import Optional
 
 from omegaconf import ListConfig
 from rhoknp import Document
@@ -21,7 +20,7 @@ class TypoInferenceDataset(BaseDataset[TypoInferenceExample, TypoModuleFeatures]
         texts: ListConfig,
         tokenizer: PreTrainedTokenizerBase,
         max_seq_length: int,
-        raw_text_file: Optional[Path] = None,
+        raw_text_file: Path | None = None,
     ) -> None:
         super().__init__(tokenizer, max_seq_length)
         documents: list[Document]

@@ -2,7 +2,6 @@ from importlib.metadata import version
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import Optional, Union
 
 import pytest
 import torch
@@ -28,7 +27,7 @@ class MockTrainer:
         str(Path(TemporaryDirectory().name) / Path("char_prediction.juman")),
     ],
 )
-def test_init(destination: Optional[Union[str, Path]]) -> None:
+def test_init(destination: str | Path | None) -> None:
     _ = CharModuleWriter(destination=destination)
 
 

@@ -1,5 +1,5 @@
 from math import sqrt
-from typing import Literal, Optional
+from typing import Literal
 
 import torch
 from torch import nn
@@ -42,7 +42,7 @@ class CRF(nn.Module):
         self,
         emissions: torch.Tensor,
         tags: torch.Tensor,
-        mask: Optional[torch.Tensor] = None,
+        mask: torch.Tensor | None = None,
         reduction: Literal["token_mean", "mean", "sum", "none"] = "token_mean",
     ) -> torch.Tensor:
         if mask is None:

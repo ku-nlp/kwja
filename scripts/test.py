@@ -1,5 +1,3 @@
-from typing import Union
-
 import hydra
 import lightning as L
 import torch
@@ -33,7 +31,7 @@ def main(eval_cfg: DictConfig) -> None:
     cfg = OmegaConf.merge(train_cfg, eval_cfg)
     assert isinstance(cfg, DictConfig)
 
-    logger: Union[Logger, bool] = cfg.get("logger", False) and hydra.utils.instantiate(cfg.get("logger"))
+    logger: Logger | bool = cfg.get("logger", False) and hydra.utils.instantiate(cfg.get("logger"))
     callbacks: list[Callback] = list(map(hydra.utils.instantiate, cfg.get("callbacks", {}).values()))
 
     num_devices: int = len(cfg.devices) if isinstance(cfg.devices, (list, ListConfig)) else cfg.devices

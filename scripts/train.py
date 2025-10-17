@@ -1,5 +1,4 @@
 import math
-from typing import Union
 
 import hydra
 import lightning as L
@@ -27,7 +26,7 @@ def main(cfg: DictConfig) -> None:
         cfg.num_workers = int(cfg.num_workers)
     cfg.seed = L.seed_everything(seed=cfg.seed, workers=True)
 
-    logger: Union[Logger, bool] = cfg.get("logger", False) and hydra.utils.instantiate(cfg.get("logger"))
+    logger: Logger | bool = cfg.get("logger", False) and hydra.utils.instantiate(cfg.get("logger"))
     callbacks: list[Callback] = list(map(hydra.utils.instantiate, cfg.get("callbacks", {}).values()))
 
     # Calculate gradient_accumulation_steps assuming DDP

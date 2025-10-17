@@ -1,7 +1,6 @@
 import copy
 import json
 from pathlib import Path
-from typing import Optional, Union
 
 import pytest
 import torch
@@ -96,7 +95,7 @@ def test_get_target_property(data_dir: Path) -> None:
                 char2token_items=char2token_items,
                 reading_candidate_token_ids=reading_candidate_token_ids,
             )
-            input_ids: Union[int, list[int]] = tokenizer.convert_tokens_to_ids(test_case[model]["input_tokens"])
+            input_ids: int | list[int] = tokenizer.convert_tokens_to_ids(test_case[model]["input_tokens"])
             assert isinstance(input_ids, list)
             target_property: TargetProperty = processor._get_target_property(input_ids)
             assert target_property.surf == (test_case["target_property"] == "surf")
@@ -166,7 +165,7 @@ def test_get_ungenerated_surf(input_tokens: list[str], surfs: list[str], expecte
             char2token_items=char2token_items,
             reading_candidate_token_ids=reading_candidate_token_ids,
         )
-        input_ids: Union[int, list[int]] = tokenizer.convert_tokens_to_ids(input_tokens)
+        input_ids: int | list[int] = tokenizer.convert_tokens_to_ids(input_tokens)
         assert isinstance(input_ids, list)
         assert processor._get_ungenerated_surf(input_ids, surfs) == expected_ungenerated_surf
 
@@ -229,7 +228,7 @@ def test_get_mask(data_dir: Path) -> None:
                 char2token_items=char2token_items,
                 reading_candidate_token_ids=reading_candidate_token_ids,
             )
-            warped_scores: Optional[torch.Tensor] = None
+            warped_scores: torch.Tensor | None = None
             for idx in range(1, len(test_case[model]["input_tokens"]) + 1):
                 input_ids: torch.LongTensor = torch.LongTensor(
                     [tokenizer.convert_tokens_to_ids(test_case[model]["input_tokens"][:idx])]
