@@ -11,7 +11,7 @@ from typer.testing import CliRunner
 
 from kwja.cli.cli import app
 
-runner = CliRunner(mix_stderr=False)  # Remove the option when click>=8.2.0 and typer-slim>=0.16.0
+runner = CliRunner()
 
 
 def test_version() -> None:
