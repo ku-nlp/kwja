@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Fix the dtype mismatch error when using `char` or `seq2seq` module with `--model-size large`.
 
+### Removed
+- Drop support for Python 3.8.
+
 ## [v2.5.1] - 2025-08-15
 ### Added
 - Support Python 3.13.
