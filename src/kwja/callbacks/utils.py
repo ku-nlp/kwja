@@ -337,7 +337,7 @@ def add_dependency(
         for parent_morpheme_global_index, dependency_type_index in zip(
             dependency_predictions[base_phrase.head.global_index],
             dependency_type_predictions[base_phrase.head.global_index],
-            strict=False,  # FIXME: strict=True
+            strict=True,
         ):
             parent_index = morpheme_global_index2base_phrase_index[parent_morpheme_global_index]
             dependency_manager.add_edge(base_phrase.index, parent_index)
