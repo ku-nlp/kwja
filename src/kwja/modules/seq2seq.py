@@ -18,7 +18,7 @@ from kwja.modules.components.logits_processor import (
 if os.environ.get("KWJA_CLI_MODE") == "1":
     from kwja.modules.base import DummyModuleMetric as Seq2SeqModuleMetric  # dummy class for faster loading
 else:
-    from kwja.metrics import Seq2SeqModuleMetric  # type: ignore
+    from kwja.metrics import Seq2SeqModuleMetric
 
 
 class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):

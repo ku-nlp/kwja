@@ -16,7 +16,7 @@ from kwja.utils.constants import RESOURCE_TRAVERSABLE
 if os.environ.get("KWJA_CLI_MODE") == "1":
     from kwja.modules.base import DummyModuleMetric as TypoModuleMetric  # dummy class for faster loading
 else:
-    from kwja.metrics import TypoModuleMetric  # type: ignore
+    from kwja.metrics import TypoModuleMetric
 
 
 class TypoModule(BaseModule[TypoModuleMetric]):

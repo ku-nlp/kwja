@@ -43,7 +43,7 @@ from kwja.utils.reading_prediction import get_reading2reading_id
 if os.environ.get("KWJA_CLI_MODE") == "1":
     from kwja.modules.base import DummyModuleMetric as WordModuleMetric  # dummy class for faster loading
 else:
-    from kwja.metrics import WordModuleMetric  # type: ignore
+    from kwja.metrics import WordModuleMetric
 
 
 class WordModule(BaseModule[WordModuleMetric]):

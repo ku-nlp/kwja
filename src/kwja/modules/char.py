@@ -15,7 +15,7 @@ from kwja.utils.constants import SENT_SEGMENTATION_TAGS, WORD_NORM_OP_TAGS, WORD
 if os.environ.get("KWJA_CLI_MODE") == "1":
     from kwja.modules.base import DummyModuleMetric as CharModuleMetric  # dummy class for faster loading
 else:
-    from kwja.metrics import CharModuleMetric  # type: ignore
+    from kwja.metrics import CharModuleMetric
 
 
 class CharModule(BaseModule[CharModuleMetric]):
