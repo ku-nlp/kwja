@@ -167,6 +167,12 @@ convention = "google"
 [tool.ruff.lint.mccabe]
 max-complexity = 20  # default: 10
 
+[tool.ty.src]
+exclude = ["tests", "src/kwja/modules/components/deberta_v2.py", "src/kwja/metrics/conll18_ud_eval.py"]
+
+[tool.ty.rules]
+unresolved-attribute = "ignore"
+
 [tool.mypy]
 python_version = "3.10"
 

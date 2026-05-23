@@ -39,7 +39,7 @@ class DummyModuleMetric:
 if os.environ.get("KWJA_CLI_MODE") == "1":
     BaseModuleMetric = DummyModuleMetric  # dummy class for faster loading
 else:
-    from kwja.metrics.base import BaseModuleMetric  # type: ignore
+    from kwja.metrics.base import BaseModuleMetric
 
 MetricType = TypeVar("MetricType", bound=BaseModuleMetric)
 

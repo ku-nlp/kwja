@@ -20,7 +20,7 @@ class Seq2SeqModuleMetric(BaseModuleMetric):
 
     def compute(self) -> dict[str, float]:
         if isinstance(self.example_ids, torch.Tensor) is False:
-            self.example_ids = torch.cat(self.example_ids, dim=0)  # type: ignore
+            self.example_ids = torch.cat(self.example_ids, dim=0)
         sorted_indices = unique(self.example_ids)
         for state_name in self.STATE_NAMES:
             state = getattr(self, state_name)
