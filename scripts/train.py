@@ -56,7 +56,7 @@ def main(cfg: DictConfig) -> None:
 
     model: L.LightningModule = hydra.utils.instantiate(cfg.module.cls, hparams=cfg, _recursive_=False)
     if cfg.compile is True:
-        model = torch.compile(model)
+        model: L.LightningModule = torch.compile(model)  # ty: ignore[invalid-assignment]
 
     trainer.fit(model=model, datamodule=datamodule)
     trainer.test(model=model, datamodule=datamodule, ckpt_path="best" if not trainer.fast_dev_run else None)

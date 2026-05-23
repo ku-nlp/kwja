@@ -1,6 +1,6 @@
 import os
 from statistics import mean
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import hydra
 import torch
@@ -15,7 +15,9 @@ from kwja.modules.components.logits_processor import (
     get_reading_candidate_token_ids,
 )
 
-if os.environ.get("KWJA_CLI_MODE") == "1":
+if TYPE_CHECKING:
+    from kwja.metrics import Seq2SeqModuleMetric
+elif os.environ.get("KWJA_CLI_MODE") == "1":
     from kwja.modules.base import DummyModuleMetric as Seq2SeqModuleMetric  # dummy class for faster loading
 else:
     from kwja.metrics import Seq2SeqModuleMetric

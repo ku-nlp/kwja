@@ -1,7 +1,7 @@
 import os
 from importlib.resources import as_file
 from statistics import mean
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 import hydra
 import torch
@@ -13,7 +13,9 @@ from kwja.modules.components.head import SequenceLabelingHead
 from kwja.modules.functions.loss import compute_token_mean_loss
 from kwja.utils.constants import RESOURCE_TRAVERSABLE
 
-if os.environ.get("KWJA_CLI_MODE") == "1":
+if TYPE_CHECKING:
+    from kwja.metrics import TypoModuleMetric
+elif os.environ.get("KWJA_CLI_MODE") == "1":
     from kwja.modules.base import DummyModuleMetric as TypoModuleMetric  # dummy class for faster loading
 else:
     from kwja.metrics import TypoModuleMetric
@@ -38,7 +40,8 @@ class TypoModule(BaseModule[TypoModuleMetric]):
         if stage == "fit":
             self.encoder = hydra.utils.call(self.hparams.encoder.from_pretrained)
             if hasattr(self.hparams, "special_tokens"):
-                self.encoder.resize_token_embeddings(self.encoder.config.vocab_size + len(self.hparams.special_tokens))
+                special_tokens = cast(list[str], self.hparams.special_tokens)
+                self.encoder.resize_token_embeddings(self.encoder.config.vocab_size + len(special_tokens))
 
     def forward(self, batch: Any) -> dict[str, torch.Tensor]:
         encoded = self.encoder(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"])
@@ -63,8 +66,10 @@ class TypoModule(BaseModule[TypoModuleMetric]):
 
     def on_validation_epoch_end(self) -> None:
         metrics_log: dict[str, dict[str, float]] = {}
+        val_dataloaders = self.trainer.val_dataloaders
+        assert val_dataloaders is not None
         for corpus, metric in self.valid_corpus2metric.items():
-            dataset = self.trainer.val_dataloaders[corpus].dataset
+            dataset = val_dataloaders[corpus].dataset
             metric.set_properties({"dataset": dataset})
             metrics_log[corpus] = metric.compute()
             metric.reset()
@@ -83,8 +88,10 @@ class TypoModule(BaseModule[TypoModuleMetric]):
 
     def on_test_epoch_end(self) -> None:
         metrics_log: dict[str, dict[str, float]] = {}
+        test_dataloaders = self.trainer.test_dataloaders
+        assert test_dataloaders is not None
         for corpus, metric in self.test_corpus2metric.items():
-            dataset = self.trainer.test_dataloaders[corpus].dataset
+            dataset = test_dataloaders[corpus].dataset
             metric.set_properties({"dataset": dataset})
             metrics_log[corpus] = metric.compute()
             metric.reset()

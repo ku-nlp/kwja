@@ -28,10 +28,12 @@ class CharModuleWriter(BaseModuleWriter):
         batch_idx: int,  # noqa: ARG002
         dataloader_idx: int,
     ) -> None:
-        if isinstance(trainer.predict_dataloaders, dict):
-            dataloader = list(trainer.predict_dataloaders.values())[dataloader_idx]
+        predict_dataloaders = trainer.predict_dataloaders
+        assert predict_dataloaders is not None
+        if isinstance(predict_dataloaders, dict):
+            dataloader = list(predict_dataloaders.values())[dataloader_idx]
         else:
-            dataloader = trainer.predict_dataloaders[dataloader_idx]
+            dataloader = predict_dataloaders[dataloader_idx]
         dataset: CharDataset | CharInferenceDataset = dataloader.dataset
 
         special_ids = {

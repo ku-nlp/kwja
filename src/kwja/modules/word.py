@@ -1,7 +1,7 @@
 import os
 from functools import reduce
 from statistics import mean
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 import hydra
 import torch
@@ -40,7 +40,9 @@ from kwja.utils.constants import (
 )
 from kwja.utils.reading_prediction import get_reading2reading_id
 
-if os.environ.get("KWJA_CLI_MODE") == "1":
+if TYPE_CHECKING:
+    from kwja.metrics import WordModuleMetric
+elif os.environ.get("KWJA_CLI_MODE") == "1":
     from kwja.modules.base import DummyModuleMetric as WordModuleMetric  # dummy class for faster loading
 else:
     from kwja.metrics import WordModuleMetric
@@ -115,7 +117,8 @@ class WordModule(BaseModule[WordModuleMetric]):
         if stage == "fit":
             self.encoder = hydra.utils.call(self.hparams.encoder.from_pretrained)
             if hasattr(self.hparams, "special_tokens"):
-                self.encoder.resize_token_embeddings(self.encoder.config.vocab_size + len(self.hparams.special_tokens))
+                special_tokens = cast(list[str], self.hparams.special_tokens)
+                self.encoder.resize_token_embeddings(self.encoder.config.vocab_size + len(special_tokens))
 
     def forward(self, batch: Any) -> dict[str, torch.Tensor]:
         encoder_kwargs = {
@@ -212,15 +215,17 @@ class WordModule(BaseModule[WordModuleMetric]):
     def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:  # noqa: ARG002
         kwargs = self.predict_step(batch)
         kwargs.update({"discourse_labels": batch["discourse_labels"]})
-        metric = self.valid_corpus2metric[self.valid_corpora[dataloader_idx]]
+        metric: WordModuleMetric = self.valid_corpus2metric[self.valid_corpora[dataloader_idx]]
         metric.update(kwargs)
 
     def on_validation_epoch_end(self) -> None:
         metrics_log: dict[str, dict[str, float]] = {}
+        val_dataloaders = self.trainer.val_dataloaders
+        assert val_dataloaders is not None
         for corpus, metric in self.valid_corpus2metric.items():
             metric.set_properties(
                 {
-                    "dataset": self.trainer.val_dataloaders[corpus].dataset,
+                    "dataset": val_dataloaders[corpus].dataset,
                     "reading_id2reading": self.reading_id2reading,
                     "training_tasks": self.training_tasks,
                 }
@@ -246,15 +251,17 @@ class WordModule(BaseModule[WordModuleMetric]):
     def test_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:  # noqa: ARG002
         kwargs = self.predict_step(batch)
         kwargs.update({"discourse_labels": batch["discourse_labels"]})
-        metric = self.test_corpus2metric[self.test_corpora[dataloader_idx]]
+        metric: WordModuleMetric = self.test_corpus2metric[self.test_corpora[dataloader_idx]]
         metric.update(kwargs)
 
     def on_test_epoch_end(self) -> None:
         metrics_log: dict[str, dict[str, float]] = {}
+        test_dataloaders = self.trainer.test_dataloaders
+        assert test_dataloaders is not None
         for corpus, metric in self.test_corpus2metric.items():
             metric.set_properties(
                 {
-                    "dataset": self.trainer.test_dataloaders[corpus].dataset,
+                    "dataset": test_dataloaders[corpus].dataset,
                     "reading_id2reading": self.reading_id2reading,
                     "training_tasks": self.training_tasks,
                 }

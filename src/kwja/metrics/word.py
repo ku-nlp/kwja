@@ -1,6 +1,6 @@
 from collections import defaultdict
 from statistics import mean
-from typing import Literal
+from typing import Literal, cast
 
 import torch
 from cohesion_tools.evaluators import CohesionEvaluator, CohesionScore
@@ -347,11 +347,15 @@ class WordModuleMetric(BaseModuleMetric):
                 for i, morpheme in enumerate(named_entity.morphemes):
                     bi = "B" if i == 0 else "I"
                     morpheme.features["NE"] = f"{bi}-{named_entity.category.value}"
-        labels = [[m.features.get("NE") or "O" for m in d.morphemes] for d in gold_documents]
-        predictions = [[m.features.get("NE") or "O" for m in d.morphemes] for d in predicted_documents]
+        labels = [[cast(str, m.features.get("NE") or "O") for m in d.morphemes] for d in gold_documents]
+        predictions = [[cast(str, m.features.get("NE") or "O") for m in d.morphemes] for d in predicted_documents]
         return {
             "ner_f1": seqeval_f1_score(
-                y_true=labels, y_pred=predictions, mode="strict", scheme=IOB2, average="micro"
+                y_true=labels,
+                y_pred=predictions,
+                mode="strict",
+                scheme=IOB2,
+                average="micro",
             ).item()
         }
 

@@ -38,6 +38,7 @@ repos:
           - transformers==4.55.4
           - tokenizers
           - python-dotenv
+          - pure-cdb>=4.0
           - jinf>=1.0.4
           - jaconv
           - Levenshtein

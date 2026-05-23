@@ -3,7 +3,6 @@ import sys
 import warnings
 from collections.abc import Iterable, Sequence
 from datetime import timedelta
-from functools import partial
 from typing import Literal
 
 from lightning.fabric.utilities.warnings import PossibleUserWarning
@@ -66,11 +65,14 @@ class CustomPostfixColumn(ProgressColumn):
         )
 
 
+CONSOLE = Console(file=sys.stderr)
+
+
 def track(
     sequence: Sequence[ProgressType] | Iterable[ProgressType],
     description: str = "Working...",
     total: float | None = None,
-    console: Console | None = None,
+    console: Console | None = CONSOLE,
     update_period: float = 1.0,
 ) -> Iterable[ProgressType]:
     columns: list[ProgressColumn] = [
@@ -90,7 +92,3 @@ def track(
     )
     with progress:
         yield from progress.track(sequence, total=total, description=description, update_period=update_period)
-
-
-CONSOLE = Console(file=sys.stderr)
-track = partial(track, console=CONSOLE)

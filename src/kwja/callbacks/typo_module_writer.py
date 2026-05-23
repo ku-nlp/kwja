@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import Sequence, Sized
 from pathlib import Path
 from typing import Any
 
@@ -33,10 +33,12 @@ class TypoModuleWriter(BaseModuleWriter):
         batch_idx: int,
         dataloader_idx: int,
     ) -> None:
-        if isinstance(trainer.predict_dataloaders, dict):
-            dataloader = list(trainer.predict_dataloaders.values())[dataloader_idx]
+        predict_dataloaders = trainer.predict_dataloaders
+        assert predict_dataloaders is not None
+        if isinstance(predict_dataloaders, dict):
+            dataloader = list(predict_dataloaders.values())[dataloader_idx]
         else:
-            dataloader = trainer.predict_dataloaders[dataloader_idx]
+            dataloader = predict_dataloaders[dataloader_idx]
         dataset: TypoDataset | TypoInferenceDataset = dataloader.dataset
 
         post_texts: list[str] = []
@@ -64,6 +66,7 @@ class TypoModuleWriter(BaseModuleWriter):
             post_texts.append(post_text)
             doc_ids.append(example.doc_id)
 
+        assert isinstance(dataloader, Sized)
         if batch_idx == len(dataloader) - 1:
             for texts in dataset.stash.values():
                 post_texts.extend([t[0] for t in texts])

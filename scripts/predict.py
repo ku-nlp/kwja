@@ -1,4 +1,5 @@
 import os
+from typing import cast
 
 import hydra
 import lightning as L
@@ -30,9 +31,9 @@ def main(eval_cfg: DictConfig) -> None:
     # Load saved model and config
     model: L.LightningModule = hydra.utils.call(eval_cfg.module.load_from_checkpoint, _recursive_=False)
     if eval_cfg.compile is True:
-        model = torch.compile(model)
+        model: L.LightningModule = torch.compile(model)  # ty: ignore[invalid-assignment]
 
-    train_cfg: DictConfig = model.hparams
+    train_cfg = cast(DictConfig, model.hparams)
     OmegaConf.set_struct(train_cfg, False)  # enable to add new key-value pairs
     cfg = OmegaConf.merge(train_cfg, eval_cfg)
     assert isinstance(cfg, DictConfig)
