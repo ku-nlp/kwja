@@ -47,8 +47,7 @@ dependencies = [
     "transformers[sentencepiece]>=4.55.4,<4.56.0",
     "tokenizers>=0.21.4,<0.23.0",
     "lightning>=2.5.0,<2.6.0",
-    "omegaconf>=2.3.0,<2.4.0",
-    "hydra-core>=1.2",
+    "omegaconf>=2.3.0",
     "rhoknp>=1.6",
     "typer-slim>=0.18.0,<0.20.0",
     "jinf>=1.0.4",
@@ -59,6 +58,7 @@ dependencies = [
     "cohesion-tools>=0.7.5,<0.8.0",
     "typing-extensions>=4.0; python_version < '3.11'",
     "importlib-resources>=6.0,<7.0; python_version < '3.11'",
+    "hydra-core (>=1.4.0.dev4,<2.0.0)",
 ]
 
 [project.urls]
@@ -110,6 +110,11 @@ jaconv = "^0.4.0"
 pytest = "^8.0"
 pytest-cov = "^7.0"
 pytest-profiling = "^1.7"
+
+
+[tool.poetry.dependencies]
+omegaconf = {allow-prereleases = true}
+hydra-core = {allow-prereleases = true}
 
 [tool.ruff]
 line-length = 120
