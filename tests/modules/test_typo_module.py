@@ -4,7 +4,6 @@ import hydra
 import lightning as L
 from hydra import compose, initialize
 from hydra.core.hydra_config import HydraConfig
-from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
 
 from kwja.datamodule.datamodule import token_dataclass_data_collator
@@ -14,8 +13,6 @@ from kwja.modules import TypoModule
 with initialize(version_base=None, config_path="../../configs"):
     cfg = compose(config_name="typo_module.debug", return_hydra_config=True, overrides=["max_seq_length=32"])
     HydraConfig.instance().set_config(cfg)
-    OmegaConf.set_readonly(cfg.hydra, False)
-    OmegaConf.resolve(cfg)
 
 
 def test_init() -> None:
