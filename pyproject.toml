@@ -70,45 +70,47 @@ Changelog = "https://github.com/ku-nlp/kwja/blob/main/CHANGELOG.md"
 kwja = "kwja.cli.cli:app"
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.poetry]
-package-mode = true
-packages = [
-    { include = "kwja", from = "src" }
+[dependency-groups]
+dev = [
+    "cohesion-tools[eval]>=0.7.5,<0.8.0",
+    "ipdb>=0.13.13",
+    "ipython>=8.37,<9.0; python_version < '3.11'",
+    "ipython>=9.6,<10.0; python_version >= '3.11'",
+    "jaconv>=0.4.0,<0.5.0",
+    "levenshtein>=0.21.0",
+    "numpy<2.5",
+    "python-dotenv>=1.0",
+    "scikit-learn>=1.6",
+    "seqeval>=1.2,<2.0",
+    "torchmetrics>=1.0,<2.0",
+    "types-attrs>=19.1,<20.0",
+    "types-pyyaml>=6.0.12.9,<7.0.0.0",
+    "wandb>=0.18.0",
 ]
+test = [
+    "jaconv>=0.4.0",
+    "levenshtein>=0.21.0",
+    "pandas>=2.0",
+    "pytest>=8.0",
+    "pytest-cov>=7.0",
+    "pytest-profiling>=1.7",
+    "seqeval>=1.2",
+    "torchmetrics>=1.0",
+]
+
+[tool.hatch.build.targets.sdist]
 exclude = [
-    "src/kwja/metrics/**/*"
+    "/src/kwja/metrics",
 ]
-requires-poetry = ">=2.0"
 
-[tool.poetry.group.dev.dependencies]
-torchmetrics = "^1.0"
-seqeval = "^1.2"
-scikit-learn = "^1.6"
-Levenshtein = ">=0.21.0"
-cohesion-tools = { version = "^0.7.5", extras = ["eval"] }
-python-dotenv = "^1.0"
-jaconv = "^0.4.0"
-ipython = [
-    { version =  "^8.37", python = "<3.11" },
-    { version =  "^9.6", python = ">=3.11" }
+[tool.hatch.build.targets.wheel]
+packages = ["src/kwja"]
+exclude = [
+    "/src/kwja/metrics",
 ]
-ipdb = "^0.13.13"
-types-attrs = "^19.1"
-types-pyyaml = "^6.0.12.9"
-wandb = ">=0.18.0"
-
-[tool.poetry.group.test.dependencies]
-torchmetrics = "^1.0"
-seqeval = "^1.2"
-Levenshtein = ">=0.21.0"
-pandas = "^2.0"
-jaconv = "^0.4.0"
-pytest = "^8.0"
-pytest-cov = "^7.0"
-pytest-profiling = "^1.7"
 
 [tool.ruff]
 line-length = 120

@@ -9,9 +9,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v8
         with:
           python-version: "3.12"
       - name: Run linters
         run: |
-          uv tool run pre-commit run --all-files
+          uv run --all-groups pre-commit run --all-files

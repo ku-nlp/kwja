@@ -27,7 +27,7 @@ for task in typo char seq2seq word; do
   module="${task}"
   checkpoint_dir="result/${module}_module.debug-ignore_hparams_on_save=true-trainer=cpu.debug"
 
-  poetry run python scripts/train.py -cn ${module}_module.debug "${train_extra_args[@]}"
+  uv run python scripts/train.py -cn ${module}_module.debug "${train_extra_args[@]}"
 
   checkpoint_path="$(find_latest_checkpoint "${checkpoint_dir}")"
   if [[ -z "${checkpoint_path}" ]]; then
