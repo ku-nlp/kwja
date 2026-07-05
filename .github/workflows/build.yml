@@ -15,57 +15,47 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
-        id: setup-python
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install Poetry
-        run: |
-            pipx install poetry
-            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          enable-cache: false
       - name: Build package
-        env:
-          POETRY_PYTHON: ${{ steps.setup-python.outputs.python-path }}
         run: |
-          poetry config virtualenvs.in-project true
-          poetry env use "$POETRY_PYTHON"
-          poetry build -o dist
+          uv build
+      - name: Create virtual environment
+        run: |
+          uv venv --python "${{ matrix.python-version }}" .venv
       - name: Install KWJA from wheel (non-Windows)
         if: ${{ matrix.os != 'windows-latest' }}
         run: |
-          source .venv/bin/activate
-          pip install dist/*.whl
+          uv pip install --python .venv dist/*.whl
       - name: Install KWJA from wheel (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
-          .\.venv\Scripts\Activate
           $wheelFile = (Get-ChildItem -Path dist -Filter *.whl).FullName
-          pip install "${wheelFile}"
+          uv pip install --python .venv "${wheelFile}"
         shell: pwsh
       - name: Run KWJA (Ubuntu)
         if: ${{ matrix.os == 'ubuntu-latest' }}
         run: |
-          source .venv/bin/activate
-          kwja --version
-          kwja --help
-          kwja --tasks typo,char,word --model-size tiny --text "自然言語処理"
-          kwja --tasks typo,char,seq2seq,word --model-size tiny --text "自然言語処理"
+          .venv/bin/kwja --version
+          .venv/bin/kwja --help
+          .venv/bin/kwja --tasks typo,char,word --model-size tiny --text "自然言語処理"
+          .venv/bin/kwja --tasks typo,char,seq2seq,word --model-size tiny --text "自然言語処理"
       - name: Run KWJA (macOS)
         if: ${{ matrix.os == 'macos-latest' }}
         run: |
-          source .venv/bin/activate
-          kwja --version
-          kwja --help
-          kwja --tasks typo,char,word --model-size tiny --text "自然言語処理" --device cpu  # avoid OOM
-          kwja --tasks typo,char,seq2seq,word --model-size tiny --text "自然言語処理" --device cpu  # avoid OOM
+          .venv/bin/kwja --version
+          .venv/bin/kwja --help
+          .venv/bin/kwja --tasks typo,char,word --model-size tiny --text "自然言語処理" --device cpu  # avoid OOM
+          .venv/bin/kwja --tasks typo,char,seq2seq,word --model-size tiny --text "自然言語処理" --device cpu  # avoid OOM
       - name: Run KWJA (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
-          .\.venv\Scripts\Activate
           $env:PYTHONUTF8 = "1"
-          kwja --version
-          kwja --help
-          kwja --tasks typo,char,word --model-size tiny --text "自然言語処理"
-          kwja --tasks typo,char,seq2seq,word --model-size tiny --text "自然言語処理"
+          .\.venv\Scripts\kwja --version
+          .\.venv\Scripts\kwja --help
+          .\.venv\Scripts\kwja --tasks typo,char,word --model-size tiny --text "自然言語処理"
+          .\.venv\Scripts\kwja --tasks typo,char,seq2seq,word --model-size tiny --text "自然言語処理"
         shell: pwsh

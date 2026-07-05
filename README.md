@@ -38,10 +38,10 @@ KWJA performs many text analysis tasks, including:
 
 ## Getting Started
 
-Install KWJA with pip:
+Install KWJA with uv:
 
 ```shell
-$ pip install kwja
+$ uv tool install kwja
 ```
 
 Perform language analysis with the `kwja` command (the result is in the KNP format):

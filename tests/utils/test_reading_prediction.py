@@ -1,4 +1,5 @@
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -64,9 +65,7 @@ def test_main(data_dir: Path) -> None:
     input_path = data_dir / "datasets" / "word_files"
     subprocess.run(
         [
-            "poetry",
-            "run",
-            "python",
+            sys.executable,
             script_path,
             "-m",
             "ku-nlp/deberta-v2-tiny-japanese",
@@ -79,9 +78,7 @@ def test_main(data_dir: Path) -> None:
     )
     subprocess.run(
         [
-            "poetry",
-            "run",
-            "python",
+            sys.executable,
             script_path,
             "-m",
             "nlp-waseda/roberta-base-japanese",

@@ -5,7 +5,7 @@
 To prepare the Python environment:
 
 ```shell
-poetry install
+uv sync --all-groups
 ```
 
 You need prepare config files and the `.env` file:
@@ -35,7 +35,7 @@ make kwja
 and
 
 ```shell
-poetry run python scripts/preprocessors/preprocess_jumandic.py
+uv run python scripts/preprocessors/preprocess_jumandic.py
   --input-dir /path/to/JumanDIC
   --output-dir /path/to/dic_dir
 ```
@@ -50,7 +50,7 @@ Options:
 You must preprocess Japanese Wikipedia Typo Dataset.
 
 ```shell
-poetry run python scripts/preprocessors/preprocess_typo.py
+uv run python scripts/preprocessors/preprocess_typo.py
   --input-dir "/path/to/unzipped_typo_dataset_dir"
 ```
 
@@ -80,18 +80,18 @@ If you have both access, you can format the corpus with the following commands.
 (You may need preprocessing to format IREX CRL named entity data.)
 
 ```shell
-poetry run python scripts/build_dataset.py \
+uv run python scripts/build_dataset.py \
   ./KyotoCorpus/knp \
   ./kyoto/knp \
   --ne-tags ./IREX_CRL_NE_data.jmn \
   -j 2
-poetry run kyoto idsplit \
+uv run kyoto idsplit \
   --corpus-dir kyoto/knp \
   --output-dir kyoto \
   --train KyotoCorpus/id/full/train.id \
   --valid KyotoCorpus/id/full/dev.id \
   --test KyotoCorpus/id/full/test.id
-poetry run python scripts/build_dataset.py \
+uv run python scripts/build_dataset.py \
   ./KyotoCorpus/knp \
   ./kyoto_ed \
   --id ./KyotoCorpus/id/syntax-only \
@@ -104,14 +104,14 @@ You can train and test the models in the following command:
 
 ```shell
 # For training and evaluating word segmenter
-poetry run python scripts/train.py -cn char_module devices=[0,1]
+uv run python scripts/train.py -cn char_module devices=[0,1]
 ```
 
 If you only want to do evaluation after training, please use the following command:
 
 ```shell
 # For evaluating word segmenter
-poetry run python scripts/test.py module=char checkpoint_path="/path/to/checkpoint" devices=[0]
+uv run python scripts/test.py module=char checkpoint_path="/path/to/checkpoint" devices=[0]
 ```
 
 ## Debugging
@@ -119,27 +119,27 @@ poetry run python scripts/test.py module=char checkpoint_path="/path/to/checkpoi
 
 ```shell
 # For debugging word segmenter
-poetry run python scripts/train.py -cn char_module.debug
+uv run python scripts/train.py -cn char_module.debug
 ```
 
 If you are on a machine with MPS devices (e.g. Apple M1), specify `trainer=cpu.debug` to use CPU.
 
 ```shell
 # For debugging word segmenter
-poetry run python scripts/train.py -cn char_module.debug trainer=cpu.debug
+uv run python scripts/train.py -cn char_module.debug trainer=cpu.debug
 ```
 
 If you are on a machine with GPUs, you can specify the GPUs to use with the `devices` option.
 
 ```shell
 # For debugging word segmenter
-poetry run python scripts/train.py -cn char_module.debug devices=[0]
+uv run python scripts/train.py -cn char_module.debug devices=[0]
 ```
 
 ## Running unit test
 
 ```shell
-poetry run pytest
+uv run --group test pytest
 ```
 
 ## Releasing a new version
@@ -151,7 +151,7 @@ poetry run pytest
 - Update dependencies (edit `pyproject.toml` if necessary)
 
     ```shell
-    poetry update
+    uv lock --upgrade
     ```
 - Push changes to the `dev` branch and create a pull request to the `main` branch
 - If CI is passed, merge the pull request
@@ -166,8 +166,8 @@ poetry run pytest
 - Publish to PyPI
 
     ```shell
-    poetry build
-    poetry publish [--username $PYPI_USERNAME] [--password $PYPI_PASSWORD]
+    uv build
+    uv publish
     ```
 
 - Rebase the `dev` branch to the `main` branch
