@@ -15,6 +15,7 @@ from kwja.utils.constants import (
     CONJTYPE_TAGS,
     DEPENDENCY_TYPES,
     DISCOURSE_RELATIONS,
+    IGNORE_INDEX,
     NE_TAGS,
     POS_TAGS,
     SUBPOS_TAGS,
@@ -360,3 +361,17 @@ def test_word_module_metric(
     assert metrics["cohesion_analysis_f1"] == pytest.approx(1 / 3)
 
     assert metrics["discourse_relation_analysis_f1"] == pytest.approx(1.0)
+
+
+def test_discourse_relation_analysis_metrics_empty_labels() -> None:
+    metrics = WordModuleMetric.compute_discourse_relation_analysis_metrics(
+        predictions=torch.zeros(2, dtype=torch.long),
+        labels=torch.full((2,), IGNORE_INDEX, dtype=torch.long),
+    )
+
+    assert metrics == {
+        "discourse_relation_analysis_accuracy": 0.0,
+        "discourse_relation_analysis_precision": 0.0,
+        "discourse_relation_analysis_recall": 0.0,
+        "discourse_relation_analysis_f1": 0.0,
+    }

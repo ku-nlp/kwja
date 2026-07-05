@@ -1,6 +1,6 @@
 import logging
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Sequence, Sized
 from itertools import product
 from pathlib import Path
 from typing import Any
@@ -68,10 +68,12 @@ class WordModuleWriter(BaseModuleWriter):
         batch_idx: int,
         dataloader_idx: int,
     ) -> None:
-        if isinstance(trainer.predict_dataloaders, dict):
-            dataloader = list(trainer.predict_dataloaders.values())[dataloader_idx]
+        predict_dataloaders = trainer.predict_dataloaders
+        assert predict_dataloaders is not None
+        if isinstance(predict_dataloaders, dict):
+            dataloader = list(predict_dataloaders.values())[dataloader_idx]
         else:
-            dataloader = trainer.predict_dataloaders[dataloader_idx]
+            dataloader = predict_dataloaders[dataloader_idx]
         dataset: WordDataset | WordInferenceDataset = dataloader.dataset
         for (
             example_id,
@@ -151,6 +153,7 @@ class WordModuleWriter(BaseModuleWriter):
                 self.doc_id_sid2predicted_sentence[self.prev_doc_id].clear()
                 self.prev_doc_id = orig_doc_id
 
+        assert isinstance(dataloader, Sized)
         if batch_idx == len(dataloader) - 1:
             for sid2predicted_sentence in self.doc_id_sid2predicted_sentence.values():
                 output_string = "".join(s.to_knp() for s in sid2predicted_sentence.values())

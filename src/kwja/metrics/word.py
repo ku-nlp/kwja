@@ -1,6 +1,6 @@
 from collections import defaultdict
 from statistics import mean
-from typing import Literal
+from typing import Literal, cast
 
 import torch
 from cohesion_tools.evaluators import CohesionEvaluator, CohesionScore
@@ -105,7 +105,7 @@ class WordModuleMetric(BaseModuleMetric):
         assert self.training_tasks is not None, "training_tasks isn't set"
 
         if isinstance(self.example_ids, torch.Tensor) is False:
-            self.example_ids = torch.cat(self.example_ids, dim=0)  # type: ignore
+            self.example_ids = torch.cat(self.example_ids, dim=0)
 
         sorted_indices = unique(self.example_ids)
         for state_name in self.STATE_NAMES:
@@ -347,11 +347,15 @@ class WordModuleMetric(BaseModuleMetric):
                 for i, morpheme in enumerate(named_entity.morphemes):
                     bi = "B" if i == 0 else "I"
                     morpheme.features["NE"] = f"{bi}-{named_entity.category.value}"
-        labels = [[m.features.get("NE") or "O" for m in d.morphemes] for d in gold_documents]
-        predictions = [[m.features.get("NE") or "O" for m in d.morphemes] for d in predicted_documents]
+        labels = [[cast(str, m.features.get("NE") or "O") for m in d.morphemes] for d in gold_documents]
+        predictions = [[cast(str, m.features.get("NE") or "O") for m in d.morphemes] for d in predicted_documents]
         return {
             "ner_f1": seqeval_f1_score(
-                y_true=labels, y_pred=predictions, mode="strict", scheme=IOB2, average="micro"
+                y_true=labels,
+                y_pred=predictions,
+                mode="strict",
+                scheme=IOB2,
+                average="micro",
             ).item()
         }
 
@@ -500,8 +504,8 @@ class WordModuleMetric(BaseModuleMetric):
                 "discourse_relation_analysis_recall": 0.0,
                 "discourse_relation_analysis_f1": 0.0,
             }
-        else:
-            accuracy = accuracy_score(y_true=labels, y_pred=predictions)
+
+        accuracy = accuracy_score(y_true=labels, y_pred=predictions)
 
         precision, recall, f1, _ = precision_recall_fscore_support(
             y_true=labels,

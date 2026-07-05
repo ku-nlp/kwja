@@ -1,6 +1,7 @@
 import copy
 import logging
 from dataclasses import dataclass
+from typing import cast
 
 from cohesion_tools.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
 from cohesion_tools.extractors.base import BaseExtractor
@@ -43,9 +44,11 @@ def wrap_base_phrases(
             all_rels = extractor.extract_rels(base_phrase)
             if isinstance(extractor, (PasExtractor, BridgingExtractor)):
                 assert isinstance(all_rels, dict)
+                all_rels = cast(dict[str, list[Argument]], all_rels)
                 rel2tags: dict[str, list[str]] = {case: _get_argument_tags(all_rels[case]) for case in cases}
             elif isinstance(extractor, CoreferenceExtractor):
                 assert isinstance(all_rels, list)
+                all_rels = cast(list[BasePhrase | ExophoraReferent], all_rels)
                 rel2tags = {"=": _get_referent_tags(all_rels)}
             else:
                 raise AssertionError
