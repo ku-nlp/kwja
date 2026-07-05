@@ -498,9 +498,14 @@ class WordModuleMetric(BaseModuleMetric):
         labels = labels[mask].cpu()
 
         if labels.numel() == 0:
-            accuracy = 0.0
-        else:
-            accuracy = accuracy_score(y_true=labels, y_pred=predictions)
+            return {
+                "discourse_relation_analysis_accuracy": 0.0,
+                "discourse_relation_analysis_precision": 0.0,
+                "discourse_relation_analysis_recall": 0.0,
+                "discourse_relation_analysis_f1": 0.0,
+            }
+
+        accuracy = accuracy_score(y_true=labels, y_pred=predictions)
 
         precision, recall, f1, _ = precision_recall_fscore_support(
             y_true=labels,

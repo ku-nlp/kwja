@@ -42,7 +42,7 @@ requires-python = ">=3.10,<3.14"
 dependencies = [
     "torch>=2.7.0,<2.8.0; python_version < '3.13'",
     "torch>=2.7.0,<2.8.0; python_version >= '3.13'",
-    "numpy>=2.0",
+    "numpy>=2.0,<2.5",
     "transformers[sentencepiece]>=4.55.4,<4.56.0",
     "tokenizers>=0.21.4,<0.23.0",
     "lightning>=2.5.0,<2.6.0",
@@ -58,6 +58,7 @@ dependencies = [
     "cohesion-tools>=0.7.5,<0.8.0",
     "typing-extensions>=4.0; python_version < '3.11'",
     "importlib-resources>=6.0,<7.0; python_version < '3.11'",
+    "huggingface-hub>=0.35.0,<1.0",
 ]
 
 [project.urls]
