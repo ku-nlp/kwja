@@ -1,0 +1,7 @@
+lr_monitor:
+  _target_: lightning.pytorch.callbacks.GradientAccumulationScheduler
+  scheduling:
+    0: 1  # epoch: accumulation_factor
+    4: 2
+    8: 4
+    12: 8
