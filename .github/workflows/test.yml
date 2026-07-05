@@ -19,9 +19,10 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           python-version: ${{ matrix.python-version }}
+          enable-cache: false
       - name: Install dependencies
         run: |
-          uv sync --locked --no-dev --group test
+          uv sync --no-cache --no-dev --group test
       - name: Create config file (Unix/Linux/macOS)
         if: runner.os != 'Windows'
         run: |
@@ -90,6 +91,7 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           python-version: ${{ matrix.python-version }}
+          enable-cache: false
       - name: Run CLI
         run: |
           uv run --isolated --no-project --python "${{ matrix.python-version }}" --with . kwja --version

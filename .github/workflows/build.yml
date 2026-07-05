@@ -19,6 +19,7 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           python-version: ${{ matrix.python-version }}
+          enable-cache: false
       - name: Build package
         run: |
           uv build
