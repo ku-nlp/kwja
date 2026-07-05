@@ -68,7 +68,7 @@ jobs:
           uv run --frozen --no-dev --group test pytest -v ./tests
       - name: Upload coverage to Codecov
         if: ${{ matrix.python-version == '3.11' && matrix.os == 'ubuntu-latest' }}
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           files: ./coverage.xml
           name: codecov-umbrella
