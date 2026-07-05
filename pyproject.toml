@@ -58,6 +58,7 @@ dependencies = [
     "cohesion-tools>=0.7.5,<0.8.0",
     "typing-extensions>=4.0; python_version < '3.11'",
     "importlib-resources>=6.0,<7.0; python_version < '3.11'",
+    "huggingface-hub>=0.35.0,<1.0",
 ]
 
 [project.urls]
