@@ -15,7 +15,7 @@ repos:
       - id: check-added-large-files
         exclude: "^(kwja/resource/.*|uv\\.lock)$"
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.7
+    rev: v0.15.20
     hooks:
       - id: ruff-check
         args: [--fix]
@@ -32,6 +32,6 @@ repos:
           types: [ shell ]
           args: [ --exclude=SC2002 ]
   - repo: https://github.com/rhysd/actionlint
-    rev: v1.7.9
+    rev: v1.7.12
     hooks:
       - id: actionlint
