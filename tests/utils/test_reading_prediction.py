@@ -81,7 +81,7 @@ def test_main(data_dir: Path) -> None:
             sys.executable,
             script_path,
             "-m",
-            "nlp-waseda/roberta-base-japanese",
+            "ku-nlp/deberta-v2-base-japanese",
             "-k",
             str(kanjidic_path),
             "-i",
