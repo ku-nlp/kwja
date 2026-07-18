@@ -40,16 +40,15 @@ classifiers = [
 requires-python = ">=3.10,<3.14"
 
 dependencies = [
-    "torch>=2.7.0,<2.8.0; python_version < '3.13'",
-    "torch>=2.7.0,<2.8.0; python_version >= '3.13'",
+    "torch>=2.11.0,<2.14.0",
     "numpy>=2.0,<2.5",
-    "transformers[sentencepiece]>=4.55.4,<4.56.0",
-    "tokenizers>=0.21.4,<0.23.0",
-    "lightning>=2.5.0,<2.6.0",
+    "transformers[sentencepiece]>=4.57.0,<5.0.0",
+    "tokenizers>=0.22.0,<0.24.0",
+    "lightning>=2.6.0,<2.7.0",
     "omegaconf>=2.3.0,<2.4.0",
     "hydra-core>=1.2",
-    "rhoknp>=1.6",
-    "typer-slim>=0.18.0,<0.20.0",
+    "rhoknp>=1.7",
+    "typer-slim>=0.24.0,<0.25.0",
     "jinf>=1.0.4",
     "pure-cdb>=4.0",
     "rich>=14.0.0,<15.0.0",
@@ -58,7 +57,7 @@ dependencies = [
     "cohesion-tools>=0.7.5,<0.8.0",
     "typing-extensions>=4.0; python_version < '3.11'",
     "importlib-resources>=6.0,<7.0; python_version < '3.11'",
-    "huggingface-hub>=0.35.0,<1.0",
+    "huggingface-hub>=0.36.0,<1.0",
 ]
 
 [project.urls]
@@ -82,7 +81,7 @@ dev = [
     "ipython>=9.6,<10.0; python_version >= '3.11'",
     "jaconv>=0.4.0,<0.5.0",
     "levenshtein>=0.21.0",
-    "numpy<2.5",
+    "numpy>=2.0,<2.5",
     "python-dotenv>=1.0",
     "scikit-learn>=1.6",
     "seqeval>=1.2,<2.0",
@@ -94,7 +93,6 @@ dev = [
 test = [
     "jaconv>=0.4.0",
     "levenshtein>=0.21.0",
-    "pandas>=2.0",
     "pytest>=8.0",
     "pytest-cov>=7.0",
     "pytest-profiling>=1.7",
