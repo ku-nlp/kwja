@@ -1,8 +1,7 @@
-# Copied from https://github.com/huggingface/transformers/blob/v4.55-release/src/transformers/models/deberta_v2/modeling_deberta_v2.py
+# Copied from https://github.com/huggingface/transformers/blob/v4.57.6/src/transformers/models/deberta_v2/modeling_deberta_v2.py
 from typing import Optional
 
 import torch
-import torch.utils.checkpoint
 from torch import nn
 from torch.nn import LayerNorm
 from transformers.modeling_layers import GradientCheckpointingLayer
@@ -347,7 +346,6 @@ class DisentangledSelfAttention(nn.Module):
 
         if rel_att is not None:
             attention_scores = attention_scores + rel_att
-        attention_scores = attention_scores
         attention_scores = attention_scores.view(
             -1, self.num_attention_heads, attention_scores.size(-2), attention_scores.size(-1)
         )

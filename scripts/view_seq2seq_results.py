@@ -119,7 +119,7 @@ class MorphologicalAnalysisScorer:
                 continue
             reading: str = mrph.reading.replace("<unk>", "$")
             if "/" in mrph.reading and len(mrph.reading) > 1:
-                reading = reading.split("/")[0]
+                reading = reading.split("/", maxsplit=1)[0]
             reading = jaconv.h2z(reading, ascii=True, digit=True)
             lemma: str = jaconv.h2z(mrph.lemma.replace("<unk>", "$"), ascii=True, digit=True)
             if mrph.canon is None or mrph.canon == "None":
@@ -254,8 +254,8 @@ class MorphologicalAnalysisScorer:
                             gold_diff_parts[gold_diff_idx_start:gold_diff_idx],
                         )
 
-        pred_text: str = "".join(x.split("_")[0] for x in pred)
-        gold_text: str = "".join(x.split("_")[0] for x in gold)
+        pred_text: str = "".join(x.split("_", maxsplit=1)[0] for x in pred)
+        gold_text: str = "".join(x.split("_", maxsplit=1)[0] for x in gold)
         if pred_text != gold_text:
             self.num_diff_texts += 1
             # print(f"{pred_text = }")

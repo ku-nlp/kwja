@@ -25,7 +25,7 @@ from kwja.utils.constants import (
 
 @pytest.fixture
 def split_into_words_word_tokenizer(special_tokens: list[str]) -> PreTrainedTokenizerBase:
-    return AutoTokenizer.from_pretrained("nlp-waseda/roberta-base-japanese", additional_special_tokens=special_tokens)
+    return AutoTokenizer.from_pretrained("ku-nlp/deberta-v2-base-japanese", additional_special_tokens=special_tokens)
 
 
 def test_init(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[str, Any]) -> None:

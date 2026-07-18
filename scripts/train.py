@@ -59,12 +59,18 @@ def main(cfg: DictConfig) -> None:
         model: L.LightningModule = torch.compile(model)  # ty: ignore[invalid-assignment]
 
     trainer.fit(model=model, datamodule=datamodule)
-    trainer.test(model=model, datamodule=datamodule, ckpt_path="best" if not trainer.fast_dev_run else None)
+    trainer.test(
+        model=model,
+        datamodule=datamodule,
+        ckpt_path="best" if not trainer.fast_dev_run else None,
+        weights_only=False,
+    )
     if cfg.do_predict_after_train:
         trainer.predict(
             model=model,
             dataloaders=datamodule.val_dataloader(),
             ckpt_path=trainer.checkpoint_callback.best_model_path if trainer.checkpoint_callback else "best",
+            weights_only=False,
         )
 
     wandb.finish()
