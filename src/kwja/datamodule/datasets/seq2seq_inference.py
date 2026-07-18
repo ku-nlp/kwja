@@ -1,5 +1,6 @@
 import logging
 from pathlib import Path
+from typing import cast
 
 from rhoknp import Document
 from rhoknp.utils.reader import chunk_by_document
@@ -45,7 +46,7 @@ class Seq2SeqInferenceDataset(BaseDataset[Seq2SeqInferenceExample, Seq2SeqModule
             for sentence in document.sentences:
                 src_tokens: list[str] = self.formatter.get_src_tokens(sentence)
                 src_input_ids: list[int] = [
-                    *self.tokenizer.convert_tokens_to_ids(src_tokens),
+                    *cast(list[int], self.tokenizer.convert_tokens_to_ids(src_tokens)),
                     self.tokenizer.eos_token_id,
                 ]
                 src_attention_mask: list[int] = [1] * len(src_input_ids)

@@ -167,7 +167,7 @@ class WordModuleMetric(BaseModuleMetric):
 
             word_reading_predictions = get_word_level_readings(
                 [self.reading_id2reading[reading_id] for reading_id in reading_predictions],
-                [self.dataset.tokenizer.decode(input_id) for input_id in example.encoding.ids],
+                [cast(str, self.dataset.tokenizer.decode(input_id)) for input_id in example.encoding.ids],
                 reading_subword_map,
             )
             morpheme_attribute_predictions = get_morpheme_attribute_predictions(

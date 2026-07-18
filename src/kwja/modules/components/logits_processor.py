@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import cast
 
 import regex
 import torch
@@ -187,7 +188,7 @@ class SurfForcedDecodingLogitsProcessor(LogitsProcessor):
         return canon_mask
 
     def _get_ungenerated_surf(self, prev_input_ids: list[int], surfs: list[str]) -> str:
-        decoded: str = self.tokenizer.decode(prev_input_ids)
+        decoded = cast(str, self.tokenizer.decode(prev_input_ids))
         surf_index: int = 0
         generated_surf: str = ""
         for line in decoded.split(SURF_TOKEN):

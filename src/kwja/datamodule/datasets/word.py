@@ -127,9 +127,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
 
     def _get_tokenized_len(self, document_or_sentence: Document | Sentence) -> int:
         tokenizer_input: list[str] = [m.text for m in document_or_sentence.morphemes]
-        return len(
-            self.tokenizer.encode_plus(tokenizer_input, add_special_tokens=False, is_split_into_words=True).tokens()
-        )
+        return len(self.tokenizer(tokenizer_input, add_special_tokens=False, is_split_into_words=True).tokens())
 
     def _load_examples(self, doc_id2document: dict[str, Document]) -> list[WordExample]:
         examples = []
