@@ -91,6 +91,7 @@ dev = [
     "wandb>=0.18.0",
 ]
 test = [
+    "cohesion-tools[eval]>=0.7.5,<0.8.0",
     "jaconv>=0.4.0",
     "levenshtein>=0.21.0",
     "pytest>=8.0",

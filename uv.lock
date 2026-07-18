@@ -835,6 +835,7 @@ dev = [
     { name = "wandb" },
 ]
 test = [
+    { name = "cohesion-tools", extra = ["eval"] },
     { name = "jaconv" },
     { name = "levenshtein" },
     { name = "pytest" },
@@ -884,6 +885,7 @@ dev = [
     { name = "wandb", specifier = ">=0.18.0" },
 ]
 test = [
+    { name = "cohesion-tools", extras = ["eval"], specifier = ">=0.7.5,<0.8.0" },
     { name = "jaconv", specifier = ">=0.4.0" },
     { name = "levenshtein", specifier = ">=0.21.0" },
     { name = "pytest", specifier = ">=8.0" },
