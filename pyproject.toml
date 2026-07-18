@@ -182,4 +182,6 @@ testpaths = ["tests"]
 filterwarnings = [
     # note the use of single quote below to denote "raw" strings in TOML
     'ignore::UserWarning',
+    'ignore:`torch\.jit\.script` is deprecated\.:DeprecationWarning:torch\.jit\._script',
+    'ignore:`isinstance\(treespec, LeafSpec\)` is deprecated:FutureWarning:lightning\.pytorch\.utilities\._pytree',
 ]
