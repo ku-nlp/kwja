@@ -169,6 +169,9 @@ convention = "google"
 [tool.ruff.lint.mccabe]
 max-complexity = 20  # default: 10
 
+[tool.ruff.lint.pylint]
+max-positional-args = 10  # default: 5
+
 [tool.ty.src]
 exclude = ["tests", "src/kwja/modules/components/deberta_v2.py", "src/kwja/metrics/conll18_ud_eval.py"]
 

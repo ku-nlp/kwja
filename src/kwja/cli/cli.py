@@ -328,7 +328,7 @@ def _tasks_callback(value: str) -> str:
 
 
 @app.command()
-def main(
+def main(  # noqa: PLR0917
     text: Annotated[str | None, typer.Option(help="Text to be analyzed.")] = None,
     filename: list[Path] = typer.Option([], dir_okay=False, help="Files to be analyzed."),
     model_size: Annotated[ModelSize | None, typer.Option(case_sensitive=False, help="Model size to be used.")] = None,
