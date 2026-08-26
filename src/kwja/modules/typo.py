@@ -32,8 +32,8 @@ class TypoModule(BaseModule[TypoModuleMetric]):
 
         self.kdr_tagger = SequenceLabelingHead(self.encoder.config.vocab_size, **head_kwargs)
         vocab_traversable = RESOURCE_TRAVERSABLE / "typo_correction" / "multi_char_vocab.txt"
-        with as_file(vocab_traversable) as file_path:
-            extended_vocab_size = sum(1 for _ in open(file_path))
+        with as_file(vocab_traversable) as file_path, open(file_path, encoding="utf-8") as f:
+            extended_vocab_size = sum(1 for _ in f)
         self.ins_tagger = SequenceLabelingHead(self.encoder.config.vocab_size + extended_vocab_size, **head_kwargs)
 
     def setup(self, stage: str) -> None:

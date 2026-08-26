@@ -30,7 +30,7 @@ class Seq2SeqInferenceDataset(BaseDataset[Seq2SeqInferenceExample, Seq2SeqModule
         self.formatter: Seq2SeqFormatter = Seq2SeqFormatter(tokenizer)
 
         if juman_file is not None:
-            with juman_file.open() as f:
+            with juman_file.open(encoding="utf-8") as f:
                 documents = [
                     Document.from_jumanpp(c) for c in track(chunk_by_document(f), description="Loading documents")
                 ]

@@ -128,7 +128,7 @@ class TypoModuleProcessor(BaseModuleProcessor):
 
     def export_prediction(self) -> str:
         output_text = ""
-        for line in self.destination.read_text().strip().split("\n"):
+        for line in self.destination.read_text(encoding="utf-8").strip().split("\n"):
             if line.startswith("# D-ID:"):
                 pass
             else:
@@ -155,7 +155,7 @@ class CharModuleProcessor(BaseModuleProcessor):
 
     def export_prediction(self) -> str:
         export_text = ""
-        with self.destination.open() as f:
+        with self.destination.open(encoding="utf-8") as f:
             for juman_text in chunk_by_sentence(f):
                 sentence = Sentence.from_jumanpp(juman_text)
                 if sentence.comment != "":
@@ -182,7 +182,7 @@ class Seq2SeqModuleProcessor(BaseModuleProcessor):
         return datamodule
 
     def export_prediction(self) -> str:
-        return self.destination.read_text()
+        return self.destination.read_text(encoding="utf-8")
 
 
 class WordModuleProcessor(BaseModuleProcessor):
@@ -210,7 +210,7 @@ class WordModuleProcessor(BaseModuleProcessor):
         return datamodule
 
     def export_prediction(self) -> str:
-        return self.destination.read_text()
+        return self.destination.read_text(encoding="utf-8")
 
 
 class CLIProcessor:
@@ -248,9 +248,11 @@ class CLIProcessor:
             for input_document in input_documents:
                 output_text += f"# D-ID:{input_document.doc_id}\n"
                 output_text += normalize_text(input_document.text) + "\nEOD\n"
-            self.initial_destination.write_text(output_text)
+            self.initial_destination.write_text(output_text, encoding="utf-8")
         elif self.processors[0].input_format == InputFormat.JUMANPP:
-            self.initial_destination.write_text("".join(document.to_jumanpp() + "\n" for document in input_documents))
+            self.initial_destination.write_text(
+                "".join(document.to_jumanpp() + "\n" for document in input_documents), encoding="utf-8"
+            )
         else:
             raise AssertionError  # unreachable
 
@@ -387,7 +389,7 @@ def main(  # noqa: PLR0917
             if path.exists() is False:
                 logger.error(f"ERROR: {path} does not exist")
                 raise typer.Abort
-            with path.open() as f:
+            with path.open(encoding="utf-8") as f:
                 for document_text in _chunk_by_document(f, input_format):
                     input_documents.append(_load_document_from_text(document_text, input_format))
     else:
