@@ -1,3 +1,4 @@
+import json
 from dataclasses import fields, is_dataclass
 from typing import Any
 
@@ -5,7 +6,7 @@ import hydra
 import lightning as L
 import torch
 from lightning.pytorch.trainer.states import TrainerFn
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 from torch import Tensor
 from torch.utils.data import ConcatDataset, DataLoader, Dataset
 
@@ -20,6 +21,19 @@ from kwja.datamodule.datasets import (
     WordInferenceDataset,
 )
 from kwja.utils.constants import IGNORE_INDEX
+
+# Process-wide cache of instantiated tokenizers, keyed by their resolved config.
+# A new DataModule is built for every prediction, so without this the tokenizer is
+# rebuilt from scratch on each setup() call even though its config never changes.
+# Only used for the PREDICTING stage; training paths are unaffected.
+_TOKENIZER_CACHE: dict[str, Any] = {}
+
+
+def _instantiate_tokenizer_cached(tokenizer_cfg: DictConfig) -> Any:
+    key = json.dumps(OmegaConf.to_container(tokenizer_cfg, resolve=True), sort_keys=True, default=str)
+    if key not in _TOKENIZER_CACHE:
+        _TOKENIZER_CACHE[key] = hydra.utils.instantiate(tokenizer_cfg)
+    return _TOKENIZER_CACHE[key]
 
 
 class DataModule(L.LightningDataModule):
@@ -53,7 +67,11 @@ class DataModule(L.LightningDataModule):
         if stage == TrainerFn.TESTING:
             self.test_datasets = {corpus: hydra.utils.instantiate(config) for corpus, config in self.cfg.test.items()}
         if stage == TrainerFn.PREDICTING:
-            self.predict_dataset = hydra.utils.instantiate(self.cfg.predict)
+            if "tokenizer" in self.cfg.predict:
+                tokenizer = _instantiate_tokenizer_cached(self.cfg.predict.tokenizer)
+                self.predict_dataset = hydra.utils.instantiate(self.cfg.predict, tokenizer=tokenizer)
+            else:
+                self.predict_dataset = hydra.utils.instantiate(self.cfg.predict)
 
     def train_dataloader(self) -> DataLoader:
         assert self.train_dataset is not None
