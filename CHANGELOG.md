@@ -6,8 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Add a gradient accumulation scheduler configuration for training.
+
+### Changed
+- Download model checkpoints from the Hugging Face Hub.
+- Cache and reuse tokenizers across datasets and data module stages.
+- Migrate dependency and build management from Poetry to uv and Hatch.
+
 ### Fixed
 - Fix the dtype mismatch error when using `char` or `seq2seq` module with `--model-size large`.
+- Fix installation on Windows by using the pure-Python release of `pure-cdb`.
+- Explicitly use UTF-8 for text file I/O to support systems with non-UTF-8 default encodings.
 
 ### Removed
 - Drop support for Python 3.8.
