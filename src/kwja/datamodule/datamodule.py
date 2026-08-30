@@ -30,7 +30,12 @@ _TOKENIZER_CACHE: dict[str, Any] = {}
 
 
 def _instantiate_tokenizer_cached(tokenizer_cfg: DictConfig) -> Any:
-    key = json.dumps(OmegaConf.to_container(tokenizer_cfg, resolve=True), sort_keys=True, default=str)
+    resolved_config = OmegaConf.to_container(
+        tokenizer_cfg,
+        resolve=True,
+        enum_to_str=True,
+    )
+    key = json.dumps(resolved_config, sort_keys=True, ensure_ascii=False)
     if key not in _TOKENIZER_CACHE:
         _TOKENIZER_CACHE[key] = hydra.utils.instantiate(tokenizer_cfg)
     return _TOKENIZER_CACHE[key]
