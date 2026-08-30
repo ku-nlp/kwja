@@ -50,7 +50,11 @@ dependencies = [
     "rhoknp>=1.7",
     "typer-slim>=0.24.0,<0.25.0",
     "jinf>=1.0.4",
-    "pure-cdb>=4.0",
+    # pure-cdb 4.x publishes manylinux x86_64 wheels only, and building its C extension from
+    # the sdist fails on Windows (setuptools cannot detect a modern MSVC install). Fall back to
+    # the last pure-Python release there; everywhere else keep 4.x and its accelerated hashing.
+    "pure-cdb>=4.0; sys_platform != 'win32'",
+    "pure-cdb==3.1.0; sys_platform == 'win32'",
     "rich>=14.0.0,<15.0.0",
     "pyyaml>=6.0",
     "regex>=2024.7.24",
