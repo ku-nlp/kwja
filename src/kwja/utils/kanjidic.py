@@ -297,7 +297,7 @@ class KanjiDic:
             self._parse(fpath)
 
     def _parse(self, path: Path) -> None:
-        with open(path) as fp:
+        with open(path, encoding="utf-8") as fp:
             for line in fp:
                 if len(line) <= 0 or line[0] == "#":
                     continue

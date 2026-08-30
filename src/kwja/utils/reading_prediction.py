@@ -34,7 +34,7 @@ READING_VOCAB_TRAVERSABLE = RESOURCE_TRAVERSABLE / "reading_prediction" / "vocab
 def get_reading2reading_id() -> dict[str, int]:
     reading2reading_id = {UNK: UNK_ID, ID: ID_ID}
     with as_file(READING_VOCAB_TRAVERSABLE) as path:
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             for line in f:
                 if line := line.strip():
                     if line not in reading2reading_id:
