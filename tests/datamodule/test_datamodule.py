@@ -62,22 +62,3 @@ def test_different_tokenizer_configs_are_not_shared() -> None:
     other.setup(stage="predict")
 
     assert default.predict_dataset.tokenizer is not other.predict_dataset.tokenizer
-
-
-def test_setup_predicting_without_tokenizer_config() -> None:
-    """A predict config that carries no tokenizer is instantiated as-is."""
-    datamodule_module._TOKENIZER_CACHE.clear()
-    cfg = OmegaConf.create(
-        {
-            "predict": {"_target_": "builtins.dict", "answer": 42},
-            "batch_size": 1,
-            "num_workers": 0,
-            "dataset_type": "char",
-        }
-    )
-
-    datamodule = DataModule(cfg)
-    datamodule.setup(stage="predict")
-
-    assert datamodule.predict_dataset == {"answer": 42}
-    assert not datamodule_module._TOKENIZER_CACHE

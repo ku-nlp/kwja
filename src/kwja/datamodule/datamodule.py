@@ -67,11 +67,8 @@ class DataModule(L.LightningDataModule):
         if stage == TrainerFn.TESTING:
             self.test_datasets = {corpus: hydra.utils.instantiate(config) for corpus, config in self.cfg.test.items()}
         if stage == TrainerFn.PREDICTING:
-            if "tokenizer" in self.cfg.predict:
-                tokenizer = _instantiate_tokenizer_cached(self.cfg.predict.tokenizer)
-                self.predict_dataset = hydra.utils.instantiate(self.cfg.predict, tokenizer=tokenizer)
-            else:
-                self.predict_dataset = hydra.utils.instantiate(self.cfg.predict)
+            tokenizer = _instantiate_tokenizer_cached(self.cfg.predict.tokenizer)
+            self.predict_dataset = hydra.utils.instantiate(self.cfg.predict, tokenizer=tokenizer)
 
     def train_dataloader(self) -> DataLoader:
         assert self.train_dataset is not None
