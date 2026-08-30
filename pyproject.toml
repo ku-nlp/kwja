@@ -182,9 +182,6 @@ exclude = ["tests", "src/kwja/modules/components/deberta_v2.py", "src/kwja/metri
 [tool.ty.rules]
 unresolved-attribute = "ignore"
 
-[tool.mypy]
-python_version = "3.10"
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 filterwarnings = [
