@@ -26,7 +26,7 @@ def main() -> None:
     reading_counter: dict[str, int] = Counter()
     for path in args.in_dir.glob("**/*.knp"):
         logger.info(f"processing {path}")
-        with path.open() as f:
+        with path.open(encoding="utf-8") as f:
             document = Document.from_knp(f.read())
         try:
             for reading in reading_aligner.align(document.morphemes):

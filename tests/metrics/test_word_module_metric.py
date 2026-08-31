@@ -32,7 +32,7 @@ def test_word_module_metric(
     path = data_dir / "datasets" / "word_files"
     max_seq_length = 20
     dataset = WordDataset(str(path), word_tokenizer, max_seq_length, document_split_stride=1, **dataset_kwargs)
-    dataset.examples[1].load_discourse_document(Document.from_knp(path.joinpath("1.knp").read_text()))
+    dataset.examples[1].load_discourse_document(Document.from_knp(path.joinpath("1.knp").read_text(encoding="utf-8")))
     reading_id2reading = {v: k for k, v in dataset.reading2reading_id.items()}
     training_tasks = [
         WordTask.READING_PREDICTION,

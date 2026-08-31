@@ -70,7 +70,9 @@ def main(eval_cfg: DictConfig) -> None:
             cfg.datamodule.predict.raw_text_file = Path(raw_input_file)
         else:
             # For typo module and char module
-            Path(temp_file.name).write_text("\n".join(normalize_text(line) for line in sys.stdin.readlines()))
+            Path(temp_file.name).write_text(
+                "\n".join(normalize_text(line) for line in sys.stdin.readlines()), encoding="utf-8"
+            )
             cfg.datamodule.predict.raw_text_file = Path(temp_file.name)
 
         datamodule = DataModule(cfg=cfg.datamodule)
