@@ -13,6 +13,7 @@ import hydra
 import lightning as L
 import torch
 import typer
+from lightning.pytorch.strategies import SingleDeviceStrategy
 from lightning.pytorch.trainer.states import TrainerFn
 from rhoknp import Document, Sentence
 from rhoknp.utils.reader import chunk_by_document, chunk_by_sentence
@@ -39,6 +40,32 @@ class InputFormat(str, Enum):
     RAW = "raw"
     JUMANPP = "jumanpp"
     KNP = "knp"
+
+
+class _KeepModelOnDeviceStrategy(SingleDeviceStrategy):
+    """A single-device strategy whose teardown leaves the model on the device.
+
+    Trainer.predict() tears its strategy down after every call, and the default
+    teardown moves the model back to the CPU. The CLI keeps the modules loaded
+    and calls predict() once per input in interactive mode, so on an accelerator
+    every prediction would otherwise pay a full model round-trip between the CPU
+    and the device.
+    """
+
+    def __init__(self, device: torch.device) -> None:
+        if device.type != "cpu" and device.index is None:
+            # SingleDeviceStrategy requires an indexed device ("cuda" alone is
+            # rejected by torch.cuda.set_device); the CLI always uses one device.
+            device = torch.device(device.type, 0)
+        super().__init__(device=device)
+
+    def teardown(self) -> None:
+        # Strategy.teardown() minus lightning_module.cpu(); prediction has no
+        # optimizers, so moving them to the CPU is not needed either.
+        self.precision_plugin.teardown()
+        assert self.accelerator is not None
+        self.accelerator.teardown()
+        self.checkpoint_io.teardown()
 
 
 class BaseModuleProcessor(ABC):
@@ -74,6 +101,7 @@ class BaseModuleProcessor(ABC):
                 ),
                 hydra.utils.instantiate(self.module.hparams.callbacks.progress_bar),  # type: ignore[union-attr]
             ],
+            strategy=_KeepModelOnDeviceStrategy(device=self.device),
             accelerator=self.accelerator,
             devices=1,
         )
