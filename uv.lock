@@ -185,6 +185,12 @@ wheels = [
 ]
 
 [[package]]
+name = "antlr4-python3-runtime"
+version = "4.9.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/3e/38/7859ff46355f76f8d19459005ca000b6e7012f2f1ca597746cbcd1fbfe5e/antlr4-python3-runtime-4.9.3.tar.gz", hash = "sha256:f224469b4168294902bb1efa80a8bf7855f24c99aef99cbefc1bcd3cce77881b", size = 117034, upload-time = "2021-11-06T17:52:23.524Z" }
+
+[[package]]
 name = "asttokens"
 version = "3.0.2"
 source = { registry = "https://pypi.org/simple" }
@@ -755,15 +761,16 @@ wheels = [
 
 [[package]]
 name = "hydra-core"
-version = "1.4.0.dev5"
+version = "1.3.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "antlr4-python3-runtime" },
     { name = "omegaconf" },
     { name = "packaging" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/fd/2b/1efe5bf12fca6d2c271257416f7e30fd39b88a71fee54326db1fe287ae7a/hydra_core-1.4.0.dev5.tar.gz", hash = "sha256:41c63bff53cc184bea6cb639ced7542e767aa0034034069b944a06c28d82a1c0", size = 3297390, upload-time = "2026-06-27T20:32:40.753Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/78/03/adfa2bf3a9eef568a85f2e7cf18ce1938e7aa0b5257c432e5eb48f89960a/hydra_core-1.3.6.tar.gz", hash = "sha256:8c4c215b6cfba68e9a4e76f565bd7399fc2a86b93cfe8cb7328b046834dfbee5", size = 3272413, upload-time = "2026-08-29T14:36:08.092Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2c/99/7a7315608b448e02a1125c93f4ac586c92a1c4bcd3970a5086d2512363b4/hydra_core-1.4.0.dev5-py3-none-any.whl", hash = "sha256:479c7ef94925094b6d7c763c04d5252f33f76303b459810bccbe725427b958e9", size = 159416, upload-time = "2026-06-27T20:32:30.867Z" },
+    { url = "https://files.pythonhosted.org/packages/d5/fd/612cc7905787100dc9225ae6ad71b42b60cbc23cd56ca55afcdd1e000f81/hydra_core-1.3.6-py3-none-any.whl", hash = "sha256:55951f49c7e19c29f4281cce2eeaa6e73ef6c5620093a4efb402a7e4b839fc38", size = 163055, upload-time = "2026-08-29T14:36:06.385Z" },
 ]
 
 [[package]]
@@ -983,12 +990,12 @@ test = [
 requires-dist = [
     { name = "cohesion-tools", specifier = ">=0.7.5,<0.8.0" },
     { name = "huggingface-hub", specifier = ">=0.36.0,<1.0" },
-    { name = "hydra-core", specifier = ">=1.4.0.dev4,<2.0.0" },
+    { name = "hydra-core", specifier = ">=1.3.6,<1.4.0" },
     { name = "importlib-resources", marker = "python_full_version < '3.11'", specifier = ">=6.0,<7.0" },
     { name = "jinf", specifier = ">=1.0.4" },
     { name = "lightning", specifier = ">=2.6.0,<2.7.0" },
     { name = "numpy", specifier = ">=2.0,<2.5" },
-    { name = "omegaconf", specifier = ">=2.4.0.dev11,<3.0.0" },
+    { name = "omegaconf", specifier = ">=2.3.1,<2.4.0" },
     { name = "pure-cdb", specifier = ">=4.0" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "regex", specifier = ">=2024.7.24" },
@@ -1756,14 +1763,15 @@ wheels = [
 
 [[package]]
 name = "omegaconf"
-version = "2.4.0.dev12"
+version = "2.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "antlr4-python3-runtime" },
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/26/bf/5de71e337d1747d1be28fa119be6c758318e1a9edcd476cc297ea3b9045e/omegaconf-2.4.0.dev12.tar.gz", hash = "sha256:9b50449c529abfb526139c972d85fed4b478f3aff6d82f408bad495003b7ad01", size = 3466145, upload-time = "2026-06-27T17:46:43.981Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ce/3d/e4b57b8d9008c6ebe0d5eff901f91d5700cf7bdb8c8863df817463a7fd5e/omegaconf-2.3.1.tar.gz", hash = "sha256:e5e7de64aeebeddaf8e6d3f7a783b32ac2a01c0fbd9c878012caecb891a1f42a", size = 3298472, upload-time = "2026-06-11T05:05:12.885Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6c/ac/9770aa7460f40c87036b8045fed672344805463d955095462e218b3b2d4c/omegaconf-2.4.0.dev12-py3-none-any.whl", hash = "sha256:6baf8e5cc60156b1d2ae9f682270dc727466135d55cabd38208e6e21ec010a6d", size = 234340, upload-time = "2026-06-27T17:46:41.263Z" },
+    { url = "https://files.pythonhosted.org/packages/a4/0e/152509871bf30df6fc38569f52a2db9b55dd41aae957adae50a053ac7778/omegaconf-2.3.1-py3-none-any.whl", hash = "sha256:3d701d14e9a8828f1edd28bb70b725908b34277cdd72cf7d6a83f94dadc6b6a0", size = 79502, upload-time = "2026-06-11T05:05:09.954Z" },
 ]
 
 [[package]]
