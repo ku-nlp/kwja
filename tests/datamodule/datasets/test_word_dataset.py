@@ -78,7 +78,7 @@ def test_encode(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, dataset
     max_seq_length = 64
     document_split_stride = 1
     dataset = WordDataset(str(path), word_tokenizer, max_seq_length, document_split_stride, **dataset_kwargs)
-    dataset.examples[1].load_discourse_document(Document.from_knp(path.joinpath("1.knp").read_text()))
+    dataset.examples[1].load_discourse_document(Document.from_knp(path.joinpath("1.knp").read_text(encoding="utf-8")))
     num_examples = len(dataset)
 
     reading_labels = torch.full((num_examples, max_seq_length), IGNORE_INDEX, dtype=torch.long)
@@ -367,7 +367,7 @@ def test_split_into_words_encode(
     dataset = WordDataset(
         str(path), split_into_words_word_tokenizer, max_seq_length, document_split_stride, **dataset_kwargs
     )
-    dataset.examples[1].load_discourse_document(Document.from_knp(path.joinpath("1.knp").read_text()))
+    dataset.examples[1].load_discourse_document(Document.from_knp(path.joinpath("1.knp").read_text(encoding="utf-8")))
     num_examples = len(dataset)
 
     reading_labels = torch.full((num_examples, max_seq_length), IGNORE_INDEX, dtype=torch.long)
