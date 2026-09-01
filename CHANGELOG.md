@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Support Python 3.14.
 - Add a gradient accumulation scheduler configuration for training.
 
 ### Changed
