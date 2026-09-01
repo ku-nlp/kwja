@@ -122,7 +122,7 @@ def test_normalization_and_char_module(text: str, output: str) -> None:
 
 
 def test_file_input() -> None:
-    with tempfile.NamedTemporaryFile("wt", delete=False) as f:
+    with tempfile.NamedTemporaryFile("wt", delete=False, encoding="utf-8") as f:
         f.write(
             textwrap.dedent(
                 """\
@@ -157,7 +157,7 @@ def test_interactive_mode(text: str) -> None:
 
 
 def test_sanity() -> None:
-    with tempfile.NamedTemporaryFile("wt", delete=False) as f:
+    with tempfile.NamedTemporaryFile("wt", delete=False, encoding="utf-8") as f:
         f.write(
             textwrap.dedent(
                 """\

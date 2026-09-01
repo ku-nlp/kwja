@@ -99,7 +99,7 @@ def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwa
         EOS
         """
     )
-    with tempfile.NamedTemporaryFile("wt", delete=False) as juman_file:
+    with tempfile.NamedTemporaryFile("wt", delete=False, encoding="utf-8") as juman_file:
         juman_file.write(juman_text)
         juman_file_path = Path(juman_file.name)
 
@@ -390,7 +390,7 @@ def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwa
         writer.jumandic = build_dummy_jumandic()
         writer.write_on_batch_end(trainer, module, prediction, None, ..., 0, 0)
         assert isinstance(writer.destination, Path), "destination isn't set"
-        assert writer.destination.read_text() == dedent(
+        assert writer.destination.read_text(encoding="utf-8") == dedent(
             f"""\
             # S-ID:{doc_id_prefix}-0-0 kwja:{version("kwja")}
             * 1P

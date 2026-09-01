@@ -69,7 +69,7 @@ def main() -> None:
     for corpus in CORPORA:
         knp_dir = Path(sys.argv[1]) / corpus / "test"
         metrics, num_docs = evaluate_docs(
-            [Document.from_knp(knp_path.read_text()) for knp_path in knp_dir.glob("*.knp")]
+            [Document.from_knp(knp_path.read_text(encoding="utf-8")) for knp_path in knp_dir.glob("*.knp")]
         )
         print(corpus, num_docs, metrics)
 
