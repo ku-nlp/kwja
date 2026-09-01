@@ -54,16 +54,22 @@ jobs:
         shell: pwsh
       - name: Run tests with coverage
         if: ${{ matrix.python-version == '3.11' && matrix.os == 'ubuntu-latest' }}
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           uv run --frozen --no-dev --group test pytest --cov=./ --cov-report=xml -v ./tests
       - name: Run tests without coverage (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           $env:PYTHONUTF8 = "1"
           uv run --frozen --no-dev --group test pytest -v ./tests
         shell: pwsh
       - name: Run tests without coverage (non-Windows)
         if: ${{ (matrix.python-version != '3.11' || matrix.os != 'ubuntu-latest') && matrix.os != 'windows-latest' }}
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           uv run --frozen --no-dev --group test pytest -v ./tests
       - name: Upload coverage to Codecov

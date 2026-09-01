@@ -45,7 +45,7 @@ class CLIConfig:
 
     @classmethod
     def from_yaml(cls, path: Path) -> "CLIConfig":
-        config = yaml.safe_load(path.read_text())
+        config = yaml.safe_load(path.read_text(encoding="utf-8"))
         return cls(
             model_size=ModelSize(config["model_size"]),
             device=Device(config["device"]),

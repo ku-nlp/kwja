@@ -49,7 +49,7 @@ class Seq2SeqDataset(BaseDataset[Seq2SeqExample, Seq2SeqModuleFeatures]):
     def _load_documents(document_dir: Path, ext: str = "knp") -> list[Document]:
         documents = []
         for path in track(sorted(document_dir.glob(f"*.{ext}")), description="Loading documents"):
-            documents.append(Document.from_knp(path.read_text()))
+            documents.append(Document.from_knp(path.read_text(encoding="utf-8")))
         return documents
 
     def _load_examples(self, documents: list[Document], is_train: bool) -> list[Seq2SeqExample]:

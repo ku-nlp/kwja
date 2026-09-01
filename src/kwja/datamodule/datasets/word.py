@@ -324,7 +324,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             discourse_path = self.path / "disc_crowd" / f"{document.doc_id}.knp"
         if discourse_path.exists():
             try:
-                discourse_document = Document.from_knp(discourse_path.read_text())
+                discourse_document = Document.from_knp(discourse_path.read_text(encoding="utf-8"))
                 if document == discourse_document:
                     return discourse_document
             except AssertionError:

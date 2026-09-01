@@ -84,7 +84,7 @@ class FullAnnotatedDocumentLoaderMixin:
 
     @staticmethod
     def _load_document(path: Path) -> Document:
-        return Document.from_knp(path.read_text())
+        return Document.from_knp(path.read_text(encoding="utf-8"))
 
     def _postprocess_document(self, document: Document) -> Document:
         return document

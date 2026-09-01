@@ -1,11 +1,12 @@
+import json
 from dataclasses import fields, is_dataclass
-from typing import Any
+from typing import Any, TypeAlias
 
 import hydra
 import lightning as L
 import torch
 from lightning.pytorch.trainer.states import TrainerFn
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 from torch import Tensor
 from torch.utils.data import ConcatDataset, DataLoader, Dataset
 
@@ -21,6 +22,32 @@ from kwja.datamodule.datasets import (
 )
 from kwja.utils.constants import IGNORE_INDEX
 
+# Process-wide cache of instantiated tokenizers, keyed by their resolved config.
+_TOKENIZER_CACHE: dict[str, Any] = {}
+
+DatasetType: TypeAlias = (
+    TypoDataset
+    | Seq2SeqDataset
+    | CharDataset
+    | WordDataset
+    | TypoInferenceDataset
+    | Seq2SeqInferenceDataset
+    | CharInferenceDataset
+    | WordInferenceDataset
+)
+
+
+def _instantiate_tokenizer_cached(tokenizer_cfg: DictConfig) -> Any:
+    resolved_config = OmegaConf.to_container(
+        tokenizer_cfg,
+        resolve=True,
+        enum_to_str=True,
+    )
+    key = json.dumps(resolved_config, sort_keys=True, ensure_ascii=False)
+    if key not in _TOKENIZER_CACHE:
+        _TOKENIZER_CACHE[key] = hydra.utils.instantiate(tokenizer_cfg)
+    return _TOKENIZER_CACHE[key]
+
 
 class DataModule(L.LightningDataModule):
     def __init__(self, cfg: DictConfig) -> None:
@@ -28,32 +55,27 @@ class DataModule(L.LightningDataModule):
         self.cfg: DictConfig = cfg
 
         self.train_dataset: ConcatDataset | None = None
-        self.valid_datasets: dict[str, TypoDataset | Seq2SeqDataset | CharDataset | WordDataset] = {}
-        self.test_datasets: dict[str, TypoDataset | Seq2SeqDataset | CharDataset | WordDataset] = {}
-        self.predict_dataset: (
-            TypoDataset
-            | Seq2SeqDataset
-            | CharDataset
-            | WordDataset
-            | TypoInferenceDataset
-            | Seq2SeqInferenceDataset
-            | CharInferenceDataset
-            | WordInferenceDataset
-            | None
-        ) = None
+        self.valid_datasets: dict[str, DatasetType] = {}
+        self.test_datasets: dict[str, DatasetType] = {}
+        self.predict_dataset: DatasetType | None = None
 
     def prepare_data(self) -> None:
         pass
 
     def setup(self, stage: str | None = None) -> None:
         if stage == TrainerFn.FITTING:
-            self.train_dataset = ConcatDataset(hydra.utils.instantiate(config) for config in self.cfg.train.values())
+            self.train_dataset = ConcatDataset(self._get_dataset(config) for config in self.cfg.train.values())
         if stage in (TrainerFn.FITTING, TrainerFn.VALIDATING, TrainerFn.TESTING):
-            self.valid_datasets = {corpus: hydra.utils.instantiate(config) for corpus, config in self.cfg.valid.items()}
+            self.valid_datasets = {corpus: self._get_dataset(config) for corpus, config in self.cfg.valid.items()}
         if stage == TrainerFn.TESTING:
-            self.test_datasets = {corpus: hydra.utils.instantiate(config) for corpus, config in self.cfg.test.items()}
+            self.test_datasets = {corpus: self._get_dataset(config) for corpus, config in self.cfg.test.items()}
         if stage == TrainerFn.PREDICTING:
-            self.predict_dataset = hydra.utils.instantiate(self.cfg.predict)
+            self.predict_dataset = self._get_dataset(self.cfg.predict)
+
+    @staticmethod
+    def _get_dataset(config: DictConfig) -> DatasetType:
+        tokenizer = _instantiate_tokenizer_cached(config.tokenizer)
+        return hydra.utils.instantiate(config, tokenizer=tokenizer)
 
     def train_dataloader(self) -> DataLoader:
         assert self.train_dataset is not None
