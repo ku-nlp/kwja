@@ -1,7 +1,6 @@
 import re
 from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Union
 
 from rhoknp import Document, Sentence
 
@@ -67,7 +66,7 @@ class SequenceSplitter:
 
     def split_into_spans(
         self, return_candidates: bool = False
-    ) -> Iterator[Union[tuple[SpanCandidate, list[SpanCandidate]], SpanCandidate]]:
+    ) -> Iterator[tuple[SpanCandidate, list[SpanCandidate]] | SpanCandidate]:
         """
         This function splits a sequence into sub-sequences. Each sub-sequence is represented as a span.
 

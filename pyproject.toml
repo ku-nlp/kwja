@@ -4,20 +4,20 @@ version = "2.5.1"
 description = "A unified Japanese analyzer based on foundation models"
 license = "MIT"
 authors = [
-    { name = "Hirokazu Kiyomaru", email = "kiyomaru@i.kyoto-u.ac.jp"},
-    { name = "Nobuhiro Ueda", email = "ueda@nlp.i.kyoto-u.ac.jp"},
-    { name = "Kazumasa Omura", email = "omura@nlp.i.kyoto-u.ac.jp"},
-    { name = "Takashi Kodama", email = "kodama@nlp.i.kyoto-u.ac.jp"},
-    { name = "Yugo Murawaki", email = "murawaki@i.kyoto-u.ac.jp"},
-    { name = "Daisuke Kawahara", email = "dkw@waseda.jp"},
-    { name = "Sadao Kurohashi", email = "kuro@i.kyoto-u.ac.jp"}
+    { name = "Hirokazu Kiyomaru", email = "kiyomaru@i.kyoto-u.ac.jp" },
+    { name = "Nobuhiro Ueda", email = "ueda@nlp.i.kyoto-u.ac.jp" },
+    { name = "Kazumasa Omura", email = "omura@nlp.i.kyoto-u.ac.jp" },
+    { name = "Takashi Kodama", email = "kodama@nlp.i.kyoto-u.ac.jp" },
+    { name = "Yugo Murawaki", email = "murawaki@i.kyoto-u.ac.jp" },
+    { name = "Daisuke Kawahara", email = "dkw@waseda.jp" },
+    { name = "Sadao Kurohashi", email = "kuro@i.kyoto-u.ac.jp" }
 ]
 maintainers = [
-    { name = "Hirokazu Kiyomaru", email = "kiyomaru@i.kyoto-u.ac.jp"},
-    { name = "Nobuhiro Ueda", email = "ueda@nlp.i.kyoto-u.ac.jp"},
-    { name = "Kazumasa Omura", email = "omura@nlp.i.kyoto-u.ac.jp"},
-    { name = "Takashi Kodama", email = "kodama@nlp.i.kyoto-u.ac.jp"},
-    { name = "Yugo Murawaki", email = "murawaki@i.kyoto-u.ac.jp"},
+    { name = "Hirokazu Kiyomaru", email = "kiyomaru@i.kyoto-u.ac.jp" },
+    { name = "Nobuhiro Ueda", email = "ueda@nlp.i.kyoto-u.ac.jp" },
+    { name = "Kazumasa Omura", email = "omura@nlp.i.kyoto-u.ac.jp" },
+    { name = "Takashi Kodama", email = "kodama@nlp.i.kyoto-u.ac.jp" },
+    { name = "Yugo Murawaki", email = "murawaki@i.kyoto-u.ac.jp" },
 ]
 readme = "README.md"
 keywords = ["NLP", "Japanese"]
@@ -30,7 +30,6 @@ classifiers = [
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -38,25 +37,31 @@ classifiers = [
     "Topic :: Scientific/Engineering",
     "Topic :: Text Processing",
 ]
-requires-python = ">=3.9,<3.14"
+requires-python = ">=3.10,<3.14"
 
 dependencies = [
-    "torch>=2.4.0,<2.8.0",
-    "numpy>=2.0",
-    "transformers[sentencepiece]>=4.50.3,<4.51.0",
-    "tokenizers>=0.21.4,<0.22.0",
-    "lightning>=2.5.0,<2.6.0",
-    "omegaconf>=2.1",
+    "torch>=2.11.0,<2.14.0",
+    "numpy>=2.0,<2.5",
+    "transformers[sentencepiece]>=4.57.0,<5.0.0",
+    "tokenizers>=0.22.0,<0.24.0",
+    "lightning>=2.6.0,<2.7.0",
+    "omegaconf>=2.3.0,<2.4.0",
     "hydra-core>=1.2",
-    "rhoknp>=1.6",
-    "typer-slim>=0.15.0,<0.16.0",  # TODO: Remove the upper constraint after dropping support for Python 3.9
+    "rhoknp>=1.7",
+    "typer-slim>=0.24.0,<0.25.0",
     "jinf>=1.0.4",
-    "pure-cdb>=4.0",
+    # pure-cdb 4.x publishes manylinux x86_64 wheels only, and building its C extension from
+    # the sdist fails on Windows (setuptools cannot detect a modern MSVC install). Fall back to
+    # the last pure-Python release there; everywhere else keep 4.x and its accelerated hashing.
+    "pure-cdb>=4.0; sys_platform != 'win32'",
+    "pure-cdb==3.1.0; sys_platform == 'win32'",
     "rich>=14.0.0,<15.0.0",
     "pyyaml>=6.0",
     "regex>=2024.7.24",
     "cohesion-tools>=0.7.5,<0.8.0",
-    'typing-extensions>=4.0; python_version < "3.10"'
+    "typing-extensions>=4.0; python_version < '3.11'",
+    "importlib-resources>=6.0,<7.0; python_version < '3.11'",
+    "huggingface-hub>=0.36.0,<1.0",
 ]
 
 [project.urls]
@@ -69,48 +74,53 @@ Changelog = "https://github.com/ku-nlp/kwja/blob/main/CHANGELOG.md"
 kwja = "kwja.cli.cli:app"
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.poetry]
-package-mode = true
-packages = [
-    { include = "kwja", from = "src" }
+[dependency-groups]
+dev = [
+    "cohesion-tools[eval]>=0.7.5,<0.8.0",
+    "ipdb>=0.13.13",
+    "ipython>=8.37,<9.0; python_version < '3.11'",
+    "ipython>=9.6,<10.0; python_version >= '3.11'",
+    "jaconv>=0.4.0,<0.5.0",
+    "levenshtein>=0.21.0",
+    "numpy>=2.0,<2.5",
+    "python-dotenv>=1.0",
+    "scikit-learn>=1.6",
+    "seqeval>=1.2,<2.0",
+    "torchmetrics>=1.0,<2.0",
+    "types-attrs>=19.1,<20.0",
+    "types-pyyaml>=6.0.12.9,<7.0.0.0",
+    "wandb>=0.18.0",
 ]
+test = [
+    "cohesion-tools[eval]>=0.7.5,<0.8.0",
+    "jaconv>=0.4.0",
+    "levenshtein>=0.21.0",
+    "pytest>=8.0",
+    "pytest-cov>=7.0",
+    "pytest-profiling>=1.7",
+    "seqeval>=1.2",
+    "torchmetrics>=1.0",
+]
+
+[tool.hatch.build.targets.sdist]
 exclude = [
-    "src/kwja/metrics/**/*"
+    "/src/kwja/metrics",
 ]
-requires-poetry = ">=2.0"
 
-[tool.poetry.group.dev.dependencies]
-torchmetrics = "^1.0"
-seqeval = "^1.2"
-scikit-learn = "^1.6"
-Levenshtein = ">=0.21.0"
-cohesion-tools = { version = "^0.7.5", extras = ["eval"] }
-python-dotenv = "^1.0"
-jaconv = "^0.4.0"
-ipython = "^8.13"
-ipdb = "^0.13.13"
-types-attrs = "^19.1"
-types-pyyaml = "^6.0.12.9"
-wandb = ">=0.18.0"
-
-[tool.poetry.group.test.dependencies]
-torchmetrics = "^1.0"
-seqeval = "^1.2"
-Levenshtein = ">=0.21.0"
-pandas = "^2.0"
-jaconv = "^0.4.0"
-pytest = "^8.0"
-pytest-cov = "^6.0"
-pytest-profiling = "^1.7"
+[tool.hatch.build.targets.wheel]
+packages = ["src/kwja"]
+exclude = [
+    "/src/kwja/metrics",
+]
 
 [tool.ruff]
 line-length = 120
 indent-width = 4
 src = ["src"]
-target-version = "py39"  # The minimum Python version to target
+target-version = "py310"  # The minimum Python version to target
 
 [tool.ruff.lint]
 select = ["F", "E", "W", "I", "B", "PL", "PD", "NPY", "RUF", "UP", "TID", "COM", "PT", "ARG", "PYI", "FA", "G", "FBT", "ANN"]
@@ -142,6 +152,7 @@ ignore = [
     "PLW0127",  # Self-assignment of variable `...`
     "ANN",  # flake8-annotations
     "RUF005",  # Consider iterable unpacking instead of concatenation
+    "UP045",  # Use `X | None` for type annotations
 ]
 "src/kwja/metrics/conll18_ud_eval.py" = [
     "PT027",  # Use `pytest.raises` instead of unittest-style `assertRaises`
@@ -162,12 +173,20 @@ convention = "google"
 [tool.ruff.lint.mccabe]
 max-complexity = 20  # default: 10
 
-[tool.mypy]
-python_version = "3.9"
+[tool.ruff.lint.pylint]
+max-positional-args = 10  # default: 5
+
+[tool.ty.src]
+exclude = ["tests", "src/kwja/modules/components/deberta_v2.py", "src/kwja/metrics/conll18_ud_eval.py"]
+
+[tool.ty.rules]
+unresolved-attribute = "ignore"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 filterwarnings = [
     # note the use of single quote below to denote "raw" strings in TOML
     'ignore::UserWarning',
+    'ignore:`torch\.jit\.script` is deprecated\.:DeprecationWarning:torch\.jit\._script',
+    'ignore:`isinstance\(treespec, LeafSpec\)` is deprecated:FutureWarning:lightning\.pytorch\.utilities\._pytree',
 ]

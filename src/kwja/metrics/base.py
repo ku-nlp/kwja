@@ -1,11 +1,22 @@
 from abc import ABC
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import torch
-from torchmetrics import Metric
+
+if TYPE_CHECKING:
+
+    class MetricBase:
+        def __init__(self) -> None:
+            pass
+
+        def add_state(self, name: str, default: Any, dist_reduce_fx: str) -> None:
+            pass
+
+else:
+    from torchmetrics import Metric as MetricBase
 
 
-class BaseModuleMetric(Metric, ABC):
+class BaseModuleMetric(MetricBase, ABC):
     full_state_update = False
     STATE_NAMES: tuple[str, ...]
 

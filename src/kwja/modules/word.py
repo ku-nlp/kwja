@@ -1,7 +1,7 @@
 import os
 from functools import reduce
 from statistics import mean
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 import hydra
 import torch
@@ -40,10 +40,12 @@ from kwja.utils.constants import (
 )
 from kwja.utils.reading_prediction import get_reading2reading_id
 
-if os.environ.get("KWJA_CLI_MODE") == "1":
+if TYPE_CHECKING:
+    from kwja.metrics import WordModuleMetric
+elif os.environ.get("KWJA_CLI_MODE") == "1":
     from kwja.modules.base import DummyModuleMetric as WordModuleMetric  # dummy class for faster loading
 else:
-    from kwja.metrics import WordModuleMetric  # type: ignore
+    from kwja.metrics import WordModuleMetric
 
 
 class WordModule(BaseModule[WordModuleMetric]):
@@ -115,7 +117,8 @@ class WordModule(BaseModule[WordModuleMetric]):
         if stage == "fit":
             self.encoder = hydra.utils.call(self.hparams.encoder.from_pretrained)
             if hasattr(self.hparams, "special_tokens"):
-                self.encoder.resize_token_embeddings(self.encoder.config.vocab_size + len(self.hparams.special_tokens))
+                special_tokens = cast(list[str], self.hparams.special_tokens)
+                self.encoder.resize_token_embeddings(self.encoder.config.vocab_size + len(special_tokens))
 
     def forward(self, batch: Any) -> dict[str, torch.Tensor]:
         encoder_kwargs = {
@@ -128,18 +131,24 @@ class WordModule(BaseModule[WordModuleMetric]):
         pooled = pool_subwords(encoded.last_hidden_state, batch["subword_map"], PoolingStrategy.FIRST)  # (b, seq, hid)
 
         dependency_logits = self.dependency_parser(pooled)  # (b, seq, seq, 1)
-        masked_dependency_logits = mask_logits(dependency_logits.squeeze(3), batch["dependency_mask"])
-        if batch["dependency_labels"].numel() == 0:
-            dependency_labels = masked_dependency_logits.topk(self.dependency_topk, dim=2).indices.unsqueeze(3)
+        masked_dependency_logits = mask_logits(dependency_logits.squeeze(3), batch["dependency_mask"])  # (b, seq, seq)
+        if batch["step"] == "train":
+            dependency_labels_mask = batch["dependency_labels"].ne(IGNORE_INDEX)  # (b, seq)
+            dependency_labels = (
+                (batch["dependency_labels"] * dependency_labels_mask).unsqueeze(2).unsqueeze(3)
+            )  # (b, seq, 1, 1)
         else:
-            dependency_labels_mask = batch["dependency_labels"].ne(IGNORE_INDEX)
-            dependency_labels = (batch["dependency_labels"] * dependency_labels_mask).unsqueeze(2).unsqueeze(3)
-        unsqueezed = pooled.unsqueeze(2)
-        head_hidden_states = torch.take_along_dim(unsqueezed, dependency_labels, dim=1)
+            dependency_labels = masked_dependency_logits.topk(self.dependency_topk, dim=2).indices.unsqueeze(
+                3
+            )  # (b, seq, topk, 1)
+        unsqueezed = pooled.unsqueeze(2)  # (b, seq, 1, hid)
+        head_hidden_states = torch.take_along_dim(
+            unsqueezed, dependency_labels, dim=1
+        )  # (b, seq, 1, hid) or (b, seq, topk, hid)
 
         cohesion_logits = self.cohesion_analyzer(pooled)  # (b, seq, seq, rel)
         cohesion_logits = cohesion_logits.permute(0, 3, 1, 2).contiguous()  # -> (b, rel, seq, seq)
-        masked_cohesion_logits = mask_logits(cohesion_logits, batch["cohesion_mask"])
+        masked_cohesion_logits = mask_logits(cohesion_logits, batch["cohesion_mask"])  # (b, rel, seq, seq)
 
         return {
             "reading_logits": self.reading_tagger(encoded.last_hidden_state),
@@ -159,6 +168,7 @@ class WordModule(BaseModule[WordModuleMetric]):
         }
 
     def training_step(self, batch: Any) -> torch.Tensor:
+        batch["step"] = "train"
         ret: dict[str, torch.Tensor] = self(batch)
         loss_log: dict[str, torch.Tensor] = {}
         if WordTask.READING_PREDICTION in self.training_tasks:
@@ -189,7 +199,7 @@ class WordModule(BaseModule[WordModuleMetric]):
             loss_log["dependency_parsing_loss"] = compute_token_mean_loss(
                 ret["dependency_logits"], batch["dependency_labels"]
             )
-            top1 = ret["dependency_type_logits"][:, :, 0]
+            top1 = ret["dependency_type_logits"][:, :, 0, :]
             loss_log["dependency_type_parsing_loss"] = compute_token_mean_loss(top1, batch["dependency_type_labels"])
         if WordTask.COHESION_ANALYSIS in self.training_tasks:
             loss_log["cohesion_analysis_loss"] = compute_cohesion_analysis_loss(
@@ -205,15 +215,17 @@ class WordModule(BaseModule[WordModuleMetric]):
     def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:  # noqa: ARG002
         kwargs = self.predict_step(batch)
         kwargs.update({"discourse_labels": batch["discourse_labels"]})
-        metric = self.valid_corpus2metric[self.valid_corpora[dataloader_idx]]
+        metric: WordModuleMetric = self.valid_corpus2metric[self.valid_corpora[dataloader_idx]]
         metric.update(kwargs)
 
     def on_validation_epoch_end(self) -> None:
         metrics_log: dict[str, dict[str, float]] = {}
+        val_dataloaders = self.trainer.val_dataloaders
+        assert val_dataloaders is not None
         for corpus, metric in self.valid_corpus2metric.items():
             metric.set_properties(
                 {
-                    "dataset": self.trainer.val_dataloaders[corpus].dataset,
+                    "dataset": val_dataloaders[corpus].dataset,
                     "reading_id2reading": self.reading_id2reading,
                     "training_tasks": self.training_tasks,
                 }
@@ -239,15 +251,17 @@ class WordModule(BaseModule[WordModuleMetric]):
     def test_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:  # noqa: ARG002
         kwargs = self.predict_step(batch)
         kwargs.update({"discourse_labels": batch["discourse_labels"]})
-        metric = self.test_corpus2metric[self.test_corpora[dataloader_idx]]
+        metric: WordModuleMetric = self.test_corpus2metric[self.test_corpora[dataloader_idx]]
         metric.update(kwargs)
 
     def on_test_epoch_end(self) -> None:
         metrics_log: dict[str, dict[str, float]] = {}
+        test_dataloaders = self.trainer.test_dataloaders
+        assert test_dataloaders is not None
         for corpus, metric in self.test_corpus2metric.items():
             metric.set_properties(
                 {
-                    "dataset": self.trainer.test_dataloaders[corpus].dataset,
+                    "dataset": test_dataloaders[corpus].dataset,
                     "reading_id2reading": self.reading_id2reading,
                     "training_tasks": self.training_tasks,
                 }
@@ -271,6 +285,7 @@ class WordModule(BaseModule[WordModuleMetric]):
             self.log(f"test/{key}", mean_score)
 
     def predict_step(self, batch: Any) -> dict[str, torch.Tensor]:
+        batch["step"] = "predict"
         ret: dict[str, torch.Tensor] = self(batch)
         ne_predictions = self.crf.viterbi_decode(ret["ne_logits"], batch["ne_mask"])
         discourse_probabilities = ret["discourse_logits"].softmax(dim=3)

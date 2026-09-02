@@ -2,10 +2,10 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Optional, Union
 
 import torch
-from torch.hub import download_url_to_file
+from huggingface_hub import hf_hub_download
+from huggingface_hub.utils import are_progress_bars_disabled, disable_progress_bars, enable_progress_bars
 
 import kwja
 from kwja.cli.config import Device, ModelSize
@@ -16,7 +16,7 @@ ENV_KWJA_CACHE_DIR = "KWJA_CACHE_DIR"
 ENV_XDG_CACHE_HOME = "XDG_CACHE_HOME"
 DEFAULT_CACHE_DIR = Path.home() / ".cache"
 
-_CHECKPOINT_BASE_URL = "https://lotus.kuee.kyoto-u.ac.jp"
+_CHECKPOINT_REPO_ID = "ku-nlp/kwja-checkpoints"
 _CHECKPOINT_FILE_NAMES: dict[ModelSize, dict[str, str]] = {
     ModelSize.TINY: {
         "typo": "typo_deberta-v2-tiny-wwm.ckpt",
@@ -42,7 +42,7 @@ _CHECKPOINT_FILE_NAMES: dict[ModelSize, dict[str, str]] = {
 def download_checkpoint(
     module: str,
     model_size: ModelSize,
-    checkpoint_dir: Optional[Union[str, Path]] = None,
+    checkpoint_dir: str | Path | None = None,
     progress: bool = True,
 ) -> Path:
     """Downloads the Torch serialized object at the given URL.
@@ -61,12 +61,33 @@ def download_checkpoint(
         checkpoint_dir = Path(checkpoint_dir)
     checkpoint_dir.mkdir(exist_ok=True, parents=True)
 
-    checkpoint_url = f"{_CHECKPOINT_BASE_URL}/kwja/{_get_model_version()}/{_CHECKPOINT_FILE_NAMES[model_size][module]}"
-    checkpoint_path = checkpoint_dir / _CHECKPOINT_FILE_NAMES[model_size][module]
+    checkpoint_file_name = _CHECKPOINT_FILE_NAMES[model_size][module]
+    model_version = _get_model_version()
+    checkpoint_path = checkpoint_dir / checkpoint_file_name
     if checkpoint_path.exists() is False:
-        sys.stderr.write(f'Downloading: "{checkpoint_url}" to {checkpoint_path}\n')
-        download_url_to_file(checkpoint_url, str(checkpoint_path), None, progress=progress)
+        sys.stderr.write(
+            f'Downloading: "{_CHECKPOINT_REPO_ID}/{checkpoint_file_name}@{model_version}" to {checkpoint_path}\n'
+        )
+        checkpoint_path = _hf_hub_download(checkpoint_file_name, model_version, checkpoint_dir, progress=progress)
     return checkpoint_path
+
+
+def _hf_hub_download(file_name: str, revision: str, checkpoint_dir: Path, progress: bool = True) -> Path:
+    progress_was_disabled = are_progress_bars_disabled()
+    if progress is False and progress_was_disabled is False:
+        disable_progress_bars()
+    try:
+        return Path(
+            hf_hub_download(
+                repo_id=_CHECKPOINT_REPO_ID,
+                filename=file_name,
+                revision=revision,
+                local_dir=checkpoint_dir,
+            )
+        )
+    finally:
+        if progress is False and progress_was_disabled is False:
+            enable_progress_bars()
 
 
 def _get_kwja_cache_dir() -> Path:

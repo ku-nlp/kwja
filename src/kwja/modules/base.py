@@ -1,15 +1,19 @@
 import os
+import sys
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Generic, Optional, TypeVar, Union
+from typing import Any, Generic, TypeVar
 
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
 import hydra
 import lightning as L
 import torch
 from lightning.fabric import Fabric
 from lightning.pytorch.utilities.types import OptimizerLRScheduler
 from omegaconf import DictConfig, ListConfig, OmegaConf
-from typing_extensions import Self
 
 
 class DummyModuleMetric:
@@ -35,7 +39,7 @@ class DummyModuleMetric:
 if os.environ.get("KWJA_CLI_MODE") == "1":
     BaseModuleMetric = DummyModuleMetric  # dummy class for faster loading
 else:
-    from kwja.metrics.base import BaseModuleMetric  # type: ignore
+    from kwja.metrics.base import BaseModuleMetric
 
 MetricType = TypeVar("MetricType", bound=BaseModuleMetric)
 
@@ -91,7 +95,7 @@ class BaseModule(L.LightningModule, Generic[MetricType]):
     def fast_load_from_checkpoint(
         cls,
         checkpoint_path: Path,
-        map_location: Optional[Union[torch.device, str]] = None,
+        map_location: torch.device | str | None = None,
         accelerator: str = "cpu",
         strict: bool = True,
     ) -> Self:

@@ -18,7 +18,7 @@ MULTI_CHAR_VOCAB_TRAVERSABLE = RESOURCE_TRAVERSABLE / "typo_correction" / "multi
 def get_maps(tokenizer: PreTrainedTokenizerBase) -> tuple[dict[str, int], dict[int, str]]:
     token2token_id = tokenizer.get_vocab()
     with as_file(MULTI_CHAR_VOCAB_TRAVERSABLE) as path:
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             for line in f:
                 if line := line.strip():
                     token2token_id[line] = len(token2token_id.keys())
@@ -60,7 +60,7 @@ class TypoDataset(BaseDataset[TypoExample, TypoModuleFeatures]):
         examples: list[TypoExample] = []
         example_id = 0
         for path in track(sorted(example_dir.glob("**/*.jsonl")), description="Loading documents"):
-            for line in path.read_text().strip().split("\n"):
+            for line in path.read_text(encoding="utf-8").strip().split("\n"):
                 examples.append(TypoExample(**json.loads(line), example_id=example_id, doc_id=""))
                 example_id += 1
         return examples

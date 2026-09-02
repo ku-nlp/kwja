@@ -1,8 +1,12 @@
 import json
 import struct
-from importlib.abc import Traversable
+import sys
+
+if sys.version_info >= (3, 11):
+    from importlib.resources.abc import Traversable
+else:
+    from importlib_resources.abc import Traversable  # ty: ignore[unresolved-import]
 from pathlib import Path
-from typing import Union
 
 import cdblib
 
@@ -10,10 +14,12 @@ from kwja.utils.logging_util import track
 
 
 class JumanDic:
-    def __init__(self, dic_dir: Union[Path, Traversable]) -> None:
+    def __init__(self, dic_dir: Path | Traversable) -> None:
         self.jumandic = cdblib.Reader(dic_dir.joinpath("jumandic.db").read_bytes())
         self.jumandic_canon = cdblib.Reader(dic_dir.joinpath("jumandic_canon.db").read_bytes())
-        self.grammar_data: dict[str, list[str]] = json.loads(dic_dir.joinpath("grammar.json").read_text())
+        self.grammar_data: dict[str, list[str]] = json.loads(
+            dic_dir.joinpath("grammar.json").read_text(encoding="utf-8")
+        )
 
     def lookup_by_norm(self, surf: str) -> list[dict[str, str]]:
         buf = self.jumandic.get(surf.encode("utf-8"))
@@ -130,5 +136,6 @@ class JumanDic:
                     "id2semantics": _build_reverse_lookup(semantics2id),
                 },
                 ensure_ascii=False,
-            )
+            ),
+            encoding="utf-8",
         )

@@ -1,6 +1,5 @@
 import logging
 from pathlib import Path
-from typing import Optional, Union
 
 from cohesion_tools.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
 from cohesion_tools.extractors.base import BaseExtractor
@@ -34,11 +33,11 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
         pas_cases: ListConfig,
         br_cases: ListConfig,
         special_tokens: ListConfig,
-        juman_file: Optional[Path] = None,
+        juman_file: Path | None = None,
     ) -> None:
         super().__init__(tokenizer, max_seq_length)
         if juman_file is not None:
-            with juman_file.open() as f:
+            with juman_file.open(encoding="utf-8") as f:
                 documents = [
                     Document.from_jumanpp(c) for c in track(chunk_by_document(f), description="Loading documents")
                 ]
@@ -81,15 +80,17 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
 
         self.examples: list[WordInferenceExample] = self._load_examples(self.doc_id2document)
 
-    def _get_tokenized_len(self, document_or_sentence: Union[Document, Sentence]) -> int:
-        tokenizer_input: Union[list[str], str] = [m.text for m in document_or_sentence.morphemes]
-        return len(self.tokenizer.tokenize(tokenizer_input, is_split_into_words=True))
+    def _get_tokenized_len(self, document_or_sentence: Document | Sentence) -> int:
+        tokenizer_input: list[str] = [m.text for m in document_or_sentence.morphemes]
+        return len(
+            self.tokenizer.encode_plus(tokenizer_input, add_special_tokens=False, is_split_into_words=True).tokens()
+        )
 
     def _load_examples(self, doc_id2document: dict[str, Document]) -> list[WordInferenceExample]:
         examples = []
         example_id = 0
         for document in track(doc_id2document.values(), description="Loading examples"):
-            tokenizer_input: Union[list[str], str] = [m.text for m in document.morphemes]
+            tokenizer_input: list[str] | str = [m.text for m in document.morphemes]
             encoding: Encoding = self.tokenizer(
                 tokenizer_input,
                 padding=PaddingStrategy.DO_NOT_PAD,
@@ -188,7 +189,7 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
 
     def _generate_subword_map(
         self,
-        word_ids: list[Union[int, None]],
+        word_ids: list[int | None],
         special_token_indexer: SpecialTokenIndexer,
         include_special_tokens: bool = True,
     ) -> list[list[bool]]:

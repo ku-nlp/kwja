@@ -1,6 +1,6 @@
 import os
 from statistics import mean
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 import hydra
 import torch
@@ -12,17 +12,19 @@ from kwja.modules.components.head import SequenceLabelingHead
 from kwja.modules.functions.loss import compute_token_mean_loss
 from kwja.utils.constants import SENT_SEGMENTATION_TAGS, WORD_NORM_OP_TAGS, WORD_SEGMENTATION_TAGS
 
-if os.environ.get("KWJA_CLI_MODE") == "1":
+if TYPE_CHECKING:
+    from kwja.metrics import CharModuleMetric
+elif os.environ.get("KWJA_CLI_MODE") == "1":
     from kwja.modules.base import DummyModuleMetric as CharModuleMetric  # dummy class for faster loading
 else:
-    from kwja.metrics import CharModuleMetric  # type: ignore
+    from kwja.metrics import CharModuleMetric
 
 
 class CharModule(BaseModule[CharModuleMetric]):
     def __init__(self, hparams: DictConfig) -> None:
         super().__init__(hparams, CharModuleMetric(hparams.max_seq_length))
 
-        self.encoder: PreTrainedModel = hydra.utils.call(hparams.encoder.from_config)
+        self.encoder: PreTrainedModel = hydra.utils.call(hparams.encoder.from_config, torch_dtype=torch.float32)
         if hasattr(hparams, "special_tokens"):
             self.encoder.resize_token_embeddings(self.encoder.config.vocab_size + len(hparams.special_tokens))
         head_kwargs: dict[str, Any] = dict(hidden_size=self.encoder.config.hidden_size, hidden_dropout_prob=0.05)
@@ -40,7 +42,8 @@ class CharModule(BaseModule[CharModuleMetric]):
         if stage == "fit":
             self.encoder = hydra.utils.call(self.hparams.encoder.from_pretrained)
             if hasattr(self.hparams, "special_tokens"):
-                self.encoder.resize_token_embeddings(self.encoder.config.vocab_size + len(self.hparams.special_tokens))
+                special_tokens = cast(list[str], self.hparams.special_tokens)
+                self.encoder.resize_token_embeddings(self.encoder.config.vocab_size + len(special_tokens))
 
     def forward(self, batch: Any) -> dict[str, torch.Tensor]:
         encoded = self.encoder(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"])
@@ -72,8 +75,10 @@ class CharModule(BaseModule[CharModuleMetric]):
 
     def on_validation_epoch_end(self) -> None:
         metrics_log: dict[str, dict[str, float]] = {}
+        val_dataloaders = self.trainer.val_dataloaders
+        assert val_dataloaders is not None
         for corpus, metric in self.valid_corpus2metric.items():
-            dataset = self.trainer.val_dataloaders[corpus].dataset
+            dataset = val_dataloaders[corpus].dataset
             metric.set_properties({"dataset": dataset})
             metrics = metric.compute()
             metrics["aggregated_char_metrics"] = mean(
@@ -96,8 +101,10 @@ class CharModule(BaseModule[CharModuleMetric]):
 
     def on_test_epoch_end(self) -> None:
         metrics_log: dict[str, dict[str, float]] = {}
+        test_dataloaders = self.trainer.test_dataloaders
+        assert test_dataloaders is not None
         for corpus, metric in self.test_corpus2metric.items():
-            dataset = self.trainer.test_dataloaders[corpus].dataset
+            dataset = test_dataloaders[corpus].dataset
             metric.set_properties({"dataset": dataset})
             metrics = metric.compute()
             metrics["aggregated_char_metrics"] = mean(

@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 from itertools import product
 from pathlib import Path
 from subprocess import PIPE, Popen
-from typing import Any, Optional
+from typing import Any
 
 from rhoknp import KNP, Document, Jumanpp, Morpheme, Sentence
 from rhoknp.props import FeatureDict, NamedEntity, NamedEntityCategory
@@ -63,7 +63,9 @@ class JumanppAugmenter:
             jumanpp_text, _ = p.communicate(input=buf)
         augmented_document = Document.from_jumanpp(jumanpp_text)
 
-        for original_sentence, augmented_sentence in zip(original_document.sentences, augmented_document.sentences):
+        for original_sentence, augmented_sentence in zip(
+            original_document.sentences, augmented_document.sentences, strict=True
+        ):
             self._postprocess_sentence(original_sentence, augmented_sentence, update_original=update_original)
         return augmented_document
 
@@ -116,7 +118,7 @@ class JumanppAugmenter:
                 keys = []
 
 
-def align_morphemes(morphemes1: list[Morpheme], morphemes2: list[Morpheme]) -> Optional[dict[str, list[Morpheme]]]:
+def align_morphemes(morphemes1: list[Morpheme], morphemes2: list[Morpheme]) -> dict[str, list[Morpheme]] | None:
     alignment = {}
     idx1, idx2 = 0, 0
     for _ in range(max(len(morphemes1), len(morphemes2))):
@@ -247,7 +249,7 @@ def assign_features_and_save(
     knp_texts: list[str],
     output_root: Path,
     doc_id2split: dict[str, str],
-    sid2tagged_sentence: Optional[dict[str, Sentence]] = None,
+    sid2tagged_sentence: dict[str, Sentence] | None = None,
 ) -> None:
     jumanpp_augmenter = JumanppAugmenter()
     knp = KNP(options=["-tab", "-dpnd-fast", "-read-feature"])
@@ -313,7 +315,7 @@ def assign_features_and_save(
         except Exception as e:
             logger.warning(f"{type(e).__name__}: {e}, {document.doc_id}")
             knp = KNP(options=["-tab", "-dpnd-fast", "-read-feature"])
-            Path(f"knp_error_{document.doc_id}.knp").write_text(document.to_knp())
+            Path(f"knp_error_{document.doc_id}.knp").write_text(document.to_knp(), encoding="utf-8")
             continue
 
         assert len(document.to_knp().split("\n")) == len(knp_text.split("\n")), (
@@ -321,7 +323,7 @@ def assign_features_and_save(
         )
 
         # 初めから付いていた素性およびKNPサポート外の活用・品詞の付与
-        for morpheme, features in zip(document.morphemes, morpheme_features):
+        for morpheme, features in zip(document.morphemes, morpheme_features, strict=True):
             morpheme.features.update(features)
             if conjugation := unsupported_conjugations.get(morpheme.global_index):
                 morpheme.conjtype, morpheme.conjtype_id, morpheme.conjform, morpheme.conjform_id = conjugation
@@ -341,7 +343,7 @@ def assign_features_and_save(
 
         doc_id = document.doc_id
         split = doc_id2split[doc_id]
-        output_root.joinpath(f"{split}/{doc_id}.knp").write_text(document.to_knp())
+        output_root.joinpath(f"{split}/{doc_id}.knp").write_text(document.to_knp(), encoding="utf-8")
 
 
 def test_jumanpp_version() -> None:
@@ -514,11 +516,11 @@ def main() -> None:
 
     knp_texts = []
     for input_file in Path(args.INPUT).glob("**/*.knp"):
-        with input_file.open(mode="r") as f:
+        with input_file.open(mode="r", encoding="utf-8") as f:
             knp_texts += [knp_text for knp_text in chunk_by_document(f, doc_id_format=args.doc_id_format)]
 
     if args.ne_tags:
-        with open(args.ne_tags) as f:
+        with open(args.ne_tags, encoding="utf-8") as f:
             sentences = [Sentence.from_jumanpp(jumanpp_text) for jumanpp_text in chunk_by_sentence(f)]
         sid2tagged_sentence = {sentence.sid: sentence for sentence in sentences}
     else:
@@ -534,7 +536,7 @@ def main() -> None:
             continue
         split = "valid" if id_file.stem == "dev" else id_file.stem
         output_root.joinpath(split).mkdir(parents=True, exist_ok=True)
-        for doc_id in id_file.read_text().splitlines():
+        for doc_id in id_file.read_text(encoding="utf-8").splitlines():
             doc_id2split[doc_id] = split
 
     if args.j > 0:

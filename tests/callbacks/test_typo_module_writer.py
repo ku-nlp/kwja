@@ -1,7 +1,6 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import Optional, Union
 
 import pytest
 import torch
@@ -27,7 +26,7 @@ class MockTrainer:
         str(Path(TemporaryDirectory().name) / "typo_prediction.juman"),
     ],
 )
-def test_init(destination: Optional[Union[str, Path]], typo_tokenizer: PreTrainedTokenizerBase) -> None:
+def test_init(destination: str | Path | None, typo_tokenizer: PreTrainedTokenizerBase) -> None:
     _ = TypoModuleWriter(confidence_threshold=0.9, tokenizer=typo_tokenizer, destination=destination)
 
 
@@ -117,10 +116,10 @@ def test_write_on_batch_end(typo_tokenizer: PreTrainedTokenizerBase) -> None:
                 """
             ),
         ]
-        for confidence_threshold, expected_text in zip(confidence_thresholds, expected_texts):
+        for confidence_threshold, expected_text in zip(confidence_thresholds, expected_texts, strict=True):
             dataset = TypoInferenceDataset(ListConfig(texts), typo_tokenizer, max_seq_length)
             trainer = MockTrainer([DataLoader(dataset, batch_size=num_examples)])
             writer = TypoModuleWriter(confidence_threshold, typo_tokenizer, destination=destination)
             writer.write_on_batch_end(trainer, ..., prediction, None, ..., 0, 0)
             assert isinstance(writer.destination, Path), "destination isn't set"
-            assert writer.destination.read_text() == expected_text
+            assert writer.destination.read_text(encoding="utf-8") == expected_text

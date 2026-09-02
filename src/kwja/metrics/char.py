@@ -1,5 +1,4 @@
 from collections import defaultdict
-from typing import Optional
 
 import torch
 from rhoknp import Document, Sentence
@@ -25,7 +24,7 @@ class CharModuleMetric(BaseModuleMetric):
 
     def __init__(self, max_seq_length: int) -> None:
         super().__init__(max_seq_length)
-        self.dataset: Optional[CharDataset] = None
+        self.dataset: CharDataset | None = None
         self.example_ids: torch.Tensor
         self.sent_segmentation_predictions: torch.Tensor
         self.word_segmentation_predictions: torch.Tensor
@@ -46,7 +45,7 @@ class CharModuleMetric(BaseModuleMetric):
 
     def compute(self) -> dict[str, float]:
         if isinstance(self.example_ids, torch.Tensor) is False:
-            self.example_ids = torch.cat(self.example_ids, dim=0)  # type: ignore
+            self.example_ids = torch.cat(self.example_ids, dim=0)
         sorted_indices = unique(self.example_ids)
         for state_name in self.STATE_NAMES:
             state = getattr(self, state_name)
@@ -78,7 +77,7 @@ class CharModuleMetric(BaseModuleMetric):
             word_segmentation_predictions,
             word_norm_op_predictions,
             _,  # word_norm_op_labels
-        ) in zip(*[getattr(self, state_name).tolist() for state_name in self.STATE_NAMES]):
+        ) in zip(*[getattr(self, state_name).tolist() for state_name in self.STATE_NAMES], strict=True):
             example = self.dataset.examples[example_id]
             gold_document = self.dataset.doc_id2document[example.doc_id]
             predicted_document = Document(gold_document.text)

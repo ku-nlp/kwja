@@ -1,12 +1,12 @@
 import os
 from statistics import mean
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import hydra
 import torch
 from omegaconf import DictConfig
 from transformers import PreTrainedModel, PreTrainedTokenizerFast
-from transformers.generation import LogitsProcessorList
+from transformers.generation import GenerationMixin, LogitsProcessorList
 
 from kwja.modules.base import BaseModule
 from kwja.modules.components.logits_processor import (
@@ -15,10 +15,12 @@ from kwja.modules.components.logits_processor import (
     get_reading_candidate_token_ids,
 )
 
-if os.environ.get("KWJA_CLI_MODE") == "1":
+if TYPE_CHECKING:
+    from kwja.metrics import Seq2SeqModuleMetric
+elif os.environ.get("KWJA_CLI_MODE") == "1":
     from kwja.modules.base import DummyModuleMetric as Seq2SeqModuleMetric  # dummy class for faster loading
 else:
-    from kwja.metrics import Seq2SeqModuleMetric  # type: ignore
+    from kwja.metrics import Seq2SeqModuleMetric
 
 
 class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
@@ -89,6 +91,7 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
             self.log(f"test/{key}", mean_score)
 
     def predict_step(self, batch: Any) -> dict[str, Any]:
+        assert isinstance(self.encoder_decoder, GenerationMixin)
         generations = self.encoder_decoder.generate(
             input_ids=batch["input_ids"],
             attention_mask=batch["attention_mask"],

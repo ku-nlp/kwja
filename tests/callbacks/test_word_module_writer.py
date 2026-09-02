@@ -2,7 +2,7 @@ import tempfile
 from importlib.metadata import version
 from pathlib import Path
 from textwrap import dedent
-from typing import Any, Optional, Union
+from typing import Any
 
 import lightning as L
 import pytest
@@ -71,7 +71,7 @@ def build_dummy_jumandic() -> JumanDic:
         str(Path(tempfile.TemporaryDirectory().name) / Path("word_prediction.knp")),
     ],
 )
-def test_init(destination: Optional[Union[str, Path]]) -> None:
+def test_init(destination: str | Path | None) -> None:
     _ = WordModuleWriter(AMBIG_SURF_SPECS, destination=destination)
 
 
@@ -99,7 +99,7 @@ def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwa
         EOS
         """
     )
-    with tempfile.NamedTemporaryFile("wt", delete=False) as juman_file:
+    with tempfile.NamedTemporaryFile("wt", delete=False, encoding="utf-8") as juman_file:
         juman_file.write(juman_text)
         juman_file_path = Path(juman_file.name)
 
@@ -366,7 +366,7 @@ def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwa
     )
     discourse_logits[1, 3, 5, DISCOURSE_RELATIONS.index("原因・理由")] = 1.0  # 好きな - 頼み|原因・理由
     discourse_probabilities = discourse_logits.softmax(dim=3)
-    discourse_max_probabilities, discourse_predictions = discourse_probabilities.max(dim=3)
+    _discourse_max_probabilities, discourse_predictions = discourse_probabilities.max(dim=3)
 
     prediction = {
         "example_ids": torch.arange(num_examples, dtype=torch.long),
@@ -390,7 +390,7 @@ def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwa
         writer.jumandic = build_dummy_jumandic()
         writer.write_on_batch_end(trainer, module, prediction, None, ..., 0, 0)
         assert isinstance(writer.destination, Path), "destination isn't set"
-        assert writer.destination.read_text() == dedent(
+        assert writer.destination.read_text(encoding="utf-8") == dedent(
             f"""\
             # S-ID:{doc_id_prefix}-0-0 kwja:{version("kwja")}
             * 1P

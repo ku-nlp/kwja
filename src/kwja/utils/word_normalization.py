@@ -87,7 +87,7 @@ def get_word_norm_op_tags(surf: str, norm: str) -> list[str]:
 def get_normalized_surf(surf: str, word_norm_op_tags: list[str], strict: bool = True) -> str:
     assert len(surf) == len(word_norm_op_tags)
     norm = ""
-    for i, (c, word_norm_op_tag) in enumerate(zip(surf, word_norm_op_tags)):
+    for i, (c, word_norm_op_tag) in enumerate(zip(surf, word_norm_op_tags, strict=True)):
         if word_norm_op_tag == "K":
             norm += c
         elif word_norm_op_tag == "V":

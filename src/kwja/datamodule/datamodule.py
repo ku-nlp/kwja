@@ -1,11 +1,12 @@
+import json
 from dataclasses import fields, is_dataclass
-from typing import Any, Optional, Union
+from typing import Any, TypeAlias
 
 import hydra
 import lightning as L
 import torch
 from lightning.pytorch.trainer.states import TrainerFn
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 from torch import Tensor
 from torch.utils.data import ConcatDataset, DataLoader, Dataset
 
@@ -21,40 +22,60 @@ from kwja.datamodule.datasets import (
 )
 from kwja.utils.constants import IGNORE_INDEX
 
+# Process-wide cache of instantiated tokenizers, keyed by their resolved config.
+_TOKENIZER_CACHE: dict[str, Any] = {}
+
+DatasetType: TypeAlias = (
+    TypoDataset
+    | Seq2SeqDataset
+    | CharDataset
+    | WordDataset
+    | TypoInferenceDataset
+    | Seq2SeqInferenceDataset
+    | CharInferenceDataset
+    | WordInferenceDataset
+)
+
+
+def _instantiate_tokenizer_cached(tokenizer_cfg: DictConfig) -> Any:
+    resolved_config = OmegaConf.to_container(
+        tokenizer_cfg,
+        resolve=True,
+        enum_to_str=True,
+    )
+    key = json.dumps(resolved_config, sort_keys=True, ensure_ascii=False)
+    if key not in _TOKENIZER_CACHE:
+        _TOKENIZER_CACHE[key] = hydra.utils.instantiate(tokenizer_cfg)
+    return _TOKENIZER_CACHE[key]
+
 
 class DataModule(L.LightningDataModule):
     def __init__(self, cfg: DictConfig) -> None:
         super().__init__()
         self.cfg: DictConfig = cfg
 
-        self.train_dataset: Optional[ConcatDataset] = None
-        self.valid_datasets: dict[str, Union[TypoDataset, Seq2SeqDataset, CharDataset, WordDataset]] = {}
-        self.test_datasets: dict[str, Union[TypoDataset, Seq2SeqDataset, CharDataset, WordDataset]] = {}
-        self.predict_dataset: Optional[
-            Union[
-                TypoDataset,
-                Seq2SeqDataset,
-                CharDataset,
-                WordDataset,
-                TypoInferenceDataset,
-                Seq2SeqInferenceDataset,
-                CharInferenceDataset,
-                WordInferenceDataset,
-            ]
-        ] = None
+        self.train_dataset: ConcatDataset | None = None
+        self.valid_datasets: dict[str, DatasetType] = {}
+        self.test_datasets: dict[str, DatasetType] = {}
+        self.predict_dataset: DatasetType | None = None
 
     def prepare_data(self) -> None:
         pass
 
-    def setup(self, stage: Optional[str] = None) -> None:
+    def setup(self, stage: str | None = None) -> None:
         if stage == TrainerFn.FITTING:
-            self.train_dataset = ConcatDataset(hydra.utils.instantiate(config) for config in self.cfg.train.values())
+            self.train_dataset = ConcatDataset(self._get_dataset(config) for config in self.cfg.train.values())
         if stage in (TrainerFn.FITTING, TrainerFn.VALIDATING, TrainerFn.TESTING):
-            self.valid_datasets = {corpus: hydra.utils.instantiate(config) for corpus, config in self.cfg.valid.items()}
+            self.valid_datasets = {corpus: self._get_dataset(config) for corpus, config in self.cfg.valid.items()}
         if stage == TrainerFn.TESTING:
-            self.test_datasets = {corpus: hydra.utils.instantiate(config) for corpus, config in self.cfg.test.items()}
+            self.test_datasets = {corpus: self._get_dataset(config) for corpus, config in self.cfg.test.items()}
         if stage == TrainerFn.PREDICTING:
-            self.predict_dataset = hydra.utils.instantiate(self.cfg.predict)
+            self.predict_dataset = self._get_dataset(self.cfg.predict)
+
+    @staticmethod
+    def _get_dataset(config: DictConfig) -> DatasetType:
+        tokenizer = _instantiate_tokenizer_cached(config.tokenizer)
+        return hydra.utils.instantiate(config, tokenizer=tokenizer)
 
     def train_dataloader(self) -> DataLoader:
         assert self.train_dataset is not None
@@ -85,13 +106,13 @@ class DataModule(L.LightningDataModule):
         )
 
 
-def token_dataclass_data_collator(batch_features: list[Any]) -> dict[str, Union[Tensor, list[str]]]:
+def token_dataclass_data_collator(batch_features: list[Any]) -> dict[str, Tensor | list[str]]:
     first_features: Any = batch_features[0]
     assert is_dataclass(first_features), "Data must be a dataclass"
 
     token_indices = torch.arange(max(sum(fs.attention_mask) for fs in batch_features))
 
-    batch: dict[str, Union[Tensor, list[str]]] = {}
+    batch: dict[str, Tensor | list[str]] = {}
     for field in fields(first_features):
         features = [getattr(fs, field.name) for fs in batch_features]
         if field.name in {"surfs"}:
@@ -109,14 +130,14 @@ def token_dataclass_data_collator(batch_features: list[Any]) -> dict[str, Union[
     return batch
 
 
-def word_dataclass_data_collator(batch_features: list[Any]) -> dict[str, Union[Tensor, list[str]]]:
+def word_dataclass_data_collator(batch_features: list[Any]) -> dict[str, Tensor | list[str]]:
     first_features: Any = batch_features[0]
     assert is_dataclass(first_features), "Data must be a dataclass"
 
     token_indices = torch.arange(max(sum(fs.attention_mask) for fs in batch_features))
     word_indices = torch.arange(max(sum(any(row) for row in fs.subword_map) for fs in batch_features))
 
-    batch: dict[str, Union[Tensor, list[str]]] = {}
+    batch: dict[str, Tensor | list[str]] = {}
     for field in fields(first_features):
         features = [getattr(fs, field.name) for fs in batch_features]
         value = torch.as_tensor(features)

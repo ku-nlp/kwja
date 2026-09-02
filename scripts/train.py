@@ -1,5 +1,4 @@
 import math
-from typing import Union
 
 import hydra
 import lightning as L
@@ -27,7 +26,7 @@ def main(cfg: DictConfig) -> None:
         cfg.num_workers = int(cfg.num_workers)
     cfg.seed = L.seed_everything(seed=cfg.seed, workers=True)
 
-    logger: Union[Logger, bool] = cfg.get("logger", False) and hydra.utils.instantiate(cfg.get("logger"))
+    logger: Logger | bool = cfg.get("logger", False) and hydra.utils.instantiate(cfg.get("logger"))
     callbacks: list[Callback] = list(map(hydra.utils.instantiate, cfg.get("callbacks", {}).values()))
 
     # Calculate gradient_accumulation_steps assuming DDP
@@ -57,15 +56,21 @@ def main(cfg: DictConfig) -> None:
 
     model: L.LightningModule = hydra.utils.instantiate(cfg.module.cls, hparams=cfg, _recursive_=False)
     if cfg.compile is True:
-        model = torch.compile(model)
+        model: L.LightningModule = torch.compile(model)  # ty: ignore[invalid-assignment]
 
     trainer.fit(model=model, datamodule=datamodule)
-    trainer.test(model=model, datamodule=datamodule, ckpt_path="best" if not trainer.fast_dev_run else None)
+    trainer.test(
+        model=model,
+        datamodule=datamodule,
+        ckpt_path="best" if not trainer.fast_dev_run else None,
+        weights_only=False,
+    )
     if cfg.do_predict_after_train:
         trainer.predict(
             model=model,
             dataloaders=datamodule.val_dataloader(),
             ckpt_path=trainer.checkpoint_callback.best_model_path if trainer.checkpoint_callback else "best",
+            weights_only=False,
         )
 
     wandb.finish()

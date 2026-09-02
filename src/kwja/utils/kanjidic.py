@@ -1,14 +1,19 @@
+import sys
 import unicodedata
-from importlib.abc import Traversable
 from importlib.resources import as_file
+
+if sys.version_info >= (3, 11):
+    from importlib.resources.abc import Traversable
+else:
+    from importlib_resources.abc import Traversable  # ty: ignore[unresolved-import]
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 from kwja.utils.constants import KATA2HIRA
 
 
 class KanjiDic:
-    def __init__(self, fpath: Union[Path, Traversable]) -> None:
+    def __init__(self, fpath: Path | Traversable) -> None:
         self.entries: dict[str, Any] = {
             "°": {
                 "reading": ["ど"],
@@ -292,7 +297,7 @@ class KanjiDic:
             self._parse(fpath)
 
     def _parse(self, path: Path) -> None:
-        with open(path) as fp:
+        with open(path, encoding="utf-8") as fp:
             for line in fp:
                 if len(line) <= 0 or line[0] == "#":
                     continue

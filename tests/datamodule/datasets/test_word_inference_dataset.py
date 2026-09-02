@@ -28,7 +28,7 @@ def test_len(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[str, 
         EOS
         """
     )
-    with tempfile.NamedTemporaryFile("wt", delete=False) as juman_file:
+    with tempfile.NamedTemporaryFile("wt", delete=False, encoding="utf-8") as juman_file:
         juman_file.write(juman_text)
         juman_file_path = Path(juman_file.name)
 
@@ -60,7 +60,7 @@ def test_len_multi_doc(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: 
         EOS
         """
     )
-    with tempfile.NamedTemporaryFile("wt", delete=False) as juman_file:
+    with tempfile.NamedTemporaryFile("wt", delete=False, encoding="utf-8") as juman_file:
         juman_file.write(juman_text)
         juman_file_path = Path(juman_file.name)
 
@@ -86,7 +86,7 @@ def test_getitem(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[s
         EOS
         """
     )
-    with tempfile.NamedTemporaryFile("wt", delete=False) as juman_file:
+    with tempfile.NamedTemporaryFile("wt", delete=False, encoding="utf-8") as juman_file:
         juman_file.write(juman_text)
         juman_file_path = Path(juman_file.name)
 

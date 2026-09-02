@@ -2,50 +2,36 @@ ci:
   autofix_prs: false
   autoupdate_branch: dev
   autoupdate_schedule: monthly
-  skip: [mypy]
+  skip: [ty]
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: end-of-file-fixer
       - id: trailing-whitespace
       - id: check-yaml
       - id: check-toml
       - id: check-added-large-files
-        exclude: "kwja/resource/.*"
+        exclude: "^(kwja/resource/.*|uv\\.lock)$"
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.12.2
+    rev: v0.16.1
     hooks:
-      - id: ruff
-        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-check
+        args: [--fix]
       - id: ruff-format
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.16.1
+  - repo: https://github.com/astral-sh/ty-pre-commit
+    rev: v0.0.65
     hooks:
-      - id: mypy
-        args: [--ignore-missing-imports, --warn-unused-ignores]
-        additional_dependencies:
-          - rhoknp==1.7.1
-          - hydra-core==1.3.2
-          - torch==2.7.0
-          - torchmetrics==1.7.0
-          - transformers==4.50.3
-          - tokenizers
-          - wandb
-          - rich
-          - typer-slim
-          - types-click
-          - types-PyYAML
-          - cohesion-tools==0.7.5
+      - id: ty
   -   repo: https://github.com/shellcheck-py/shellcheck-py
-      rev: v0.10.0.1
+      rev: v0.11.0.1
       hooks:
         - id: shellcheck
           files: ^scripts/
           types: [ shell ]
           args: [ --exclude=SC2002 ]
   - repo: https://github.com/rhysd/actionlint
-    rev: v1.7.7
+    rev: v1.7.12
     hooks:
       - id: actionlint

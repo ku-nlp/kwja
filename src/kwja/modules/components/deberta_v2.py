@@ -1,12 +1,11 @@
-# Copied from https://github.com/huggingface/transformers/blob/v4.49-release/src/transformers/models/deberta_v2/modeling_deberta_v2.py
-from typing import Optional, Union
+# Copied from https://github.com/huggingface/transformers/blob/v4.57.6/src/transformers/models/deberta_v2/modeling_deberta_v2.py
+from typing import Optional
 
 import torch
-import torch.utils.checkpoint
 from torch import nn
+from torch.nn import LayerNorm
+from transformers.modeling_layers import GradientCheckpointingLayer
 from transformers.models.deberta_v2.modeling_deberta_v2 import (
-    DEBERTA_INPUTS_DOCSTRING,
-    DEBERTA_START_DOCSTRING,
     BaseModelOutput,
     ConvLayer,
     DebertaV2Embeddings,
@@ -14,23 +13,14 @@ from transformers.models.deberta_v2.modeling_deberta_v2 import (
     DebertaV2Output,
     DebertaV2PreTrainedModel,
     DebertaV2SelfOutput,
-    LayerNorm,
     Sequence,
     build_relative_position,
     build_rpos,
     scaled_size_sqrt,
 )
-from transformers.utils import (
-    add_code_sample_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-)
+from transformers.utils import auto_docstring, logging
 
 logger = logging.get_logger(__name__)
-
-_CONFIG_FOR_DOC = "DebertaV2Config"
-_CHECKPOINT_FOR_DOC = "microsoft/deberta-v2-xlarge"
 
 
 # Copied from transformers.models.deberta.modeling_deberta.DebertaAttention with Deberta->DebertaV2
@@ -69,7 +59,7 @@ class DebertaV2Attention(nn.Module):
 
 
 # Copied from transformers.models.deberta.modeling_deberta.DebertaLayer with Deberta->DebertaV2
-class DebertaV2Layer(nn.Module):
+class DebertaV2Layer(GradientCheckpointingLayer):
     def __init__(self, config):
         super().__init__()
         self.attention = DebertaV2Attention(config)
@@ -200,9 +190,8 @@ class DebertaV2Encoder(nn.Module):
         else:
             input_mask = attention_mask.sum(-2) > 0
         attention_mask = self.get_attention_mask(attention_mask)
-        relative_pos = self.get_rel_pos(
-            hidden_states, special_token_indices, query_states, relative_pos
-        )  # (b, query, key)
+        # (b, query, key)
+        relative_pos = self.get_rel_pos(hidden_states, special_token_indices, query_states, relative_pos)
 
         all_hidden_states: Optional[tuple[torch.Tensor]] = (hidden_states,) if output_hidden_states else None
         all_attentions = () if output_attentions else None
@@ -210,34 +199,23 @@ class DebertaV2Encoder(nn.Module):
         next_kv = hidden_states
         rel_embeddings = self.get_rel_embedding()
         for i, layer_module in enumerate(self.layer):
-            if self.gradient_checkpointing and self.training:
-                output_states, attn_weights = self._gradient_checkpointing_func(
-                    layer_module.__call__,
-                    next_kv,
-                    attention_mask,
-                    query_states,
-                    relative_pos,
-                    rel_embeddings,
-                    output_attentions,
-                )
-            else:
-                output_states, attn_weights = layer_module(
-                    next_kv,
-                    attention_mask,
-                    query_states=query_states,
-                    relative_pos=relative_pos,
-                    rel_embeddings=rel_embeddings,
-                    output_attentions=output_attentions,
-                )
+            output_states, attn_weights = layer_module(
+                next_kv,
+                attention_mask,
+                query_states=query_states,
+                relative_pos=relative_pos,
+                rel_embeddings=rel_embeddings,
+                output_attentions=output_attentions,
+            )
 
             if output_attentions:
-                all_attentions = (*all_attentions, attn_weights)
+                all_attentions = all_attentions + (attn_weights,)
 
             if i == 0 and self.conv is not None:
                 output_states = self.conv(hidden_states, output_states, input_mask)
 
             if output_hidden_states:
-                all_hidden_states = (*all_hidden_states, output_states)
+                all_hidden_states = all_hidden_states + (output_states,)
 
             if query_states is not None:
                 query_states = output_states
@@ -368,7 +346,6 @@ class DisentangledSelfAttention(nn.Module):
 
         if rel_att is not None:
             attention_scores = attention_scores + rel_att
-        attention_scores = attention_scores
         attention_scores = attention_scores.view(
             -1, self.num_attention_heads, attention_scores.size(-2), attention_scores.size(-1)
         )
@@ -410,7 +387,7 @@ class DisentangledSelfAttention(nn.Module):
             raise ValueError(f"Relative position ids must be of dim 2 or 3 or 4. {relative_pos.dim()}")
 
         att_span = self.pos_ebd_size
-        relative_pos = relative_pos.long().to(query_layer.device)
+        relative_pos = relative_pos.to(device=query_layer.device, dtype=torch.long)
 
         rel_embeddings = rel_embeddings[0 : att_span * 2, :].unsqueeze(0)
         if self.share_att_key:
@@ -469,10 +446,7 @@ class DisentangledSelfAttention(nn.Module):
         return score  # (b*num_heads, seq, seq)
 
 
-@add_start_docstrings(
-    "The bare DeBERTa Model transformer outputting raw hidden-states without any specific head on top.",
-    DEBERTA_START_DOCSTRING,
-)
+@auto_docstring
 # Copied from transformers.models.deberta.modeling_deberta.DebertaModel with Deberta->DebertaV2
 class DebertaV2Model(DebertaV2PreTrainedModel):
     def __init__(self, config):
@@ -498,12 +472,7 @@ class DebertaV2Model(DebertaV2PreTrainedModel):
         """
         raise NotImplementedError("The prune function is not implemented in DeBERTa model.")
 
-    @add_start_docstrings_to_model_forward(DEBERTA_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
-    @add_code_sample_docstrings(
-        checkpoint=_CHECKPOINT_FOR_DOC,
-        output_type=BaseModelOutput,
-        config_class=_CONFIG_FOR_DOC,
-    )
+    @auto_docstring
     def forward(
         self,
         input_ids: Optional[torch.Tensor] = None,
@@ -515,7 +484,12 @@ class DebertaV2Model(DebertaV2PreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-    ) -> Union[tuple, BaseModelOutput]:
+    ) -> tuple | BaseModelOutput:
+        r"""
+        special_token_indices (`torch.Tensor`, *optional*, defaults to None):
+            Indices of special tokens in the sequence. It's a tensor of shape [*B*, *S*] where *B* is the batch size,
+            *S* is the number of special tokens in the sequence. It's used to compute relative position encoding.
+        """
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states

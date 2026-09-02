@@ -31,17 +31,17 @@ KWJA performs many text analysis tasks, including:
 
 ## Requirements
 
-- Python: 3.9+
+- Python: 3.10+
 - Dependencies: See [pyproject.toml](./pyproject.toml).
 - GPUs with CUDA (optional)
 - GPUs with MPS (optional)
 
 ## Getting Started
 
-Install KWJA with pip:
+Install KWJA with uv:
 
 ```shell
-$ pip install kwja
+$ uv tool install kwja
 ```
 
 Perform language analysis with the `kwja` command (the result is in the KNP format):
@@ -114,6 +114,7 @@ You can read a KNP format file with [rhoknp](https://github.com/ku-nlp/rhoknp).
 
 ```python
 from rhoknp import Document
+
 with open("analyzed.knp") as f:
     parsed_document = Document.from_knp(f.read())
 ```
@@ -139,6 +140,7 @@ Perform language analysis with the `kwja` instance:
 
 ```python
 from rhoknp import KWJA
+
 kwja = KWJA()
 analyzed_document = kwja.apply(
     "KWJAは日本語の統合解析ツールです。汎用言語モデルを利用し、様々な言語解析を統一的な方法で解いています。"

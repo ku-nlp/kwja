@@ -1,7 +1,7 @@
 import copy
 import logging
 from dataclasses import dataclass
-from typing import Optional, Union
+from typing import cast
 
 from cohesion_tools.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
 from cohesion_tools.extractors.base import BaseExtractor
@@ -20,9 +20,9 @@ class CohesionBasePhrase:
     head_morpheme_global_index: int
     morpheme_global_indices: list[int]
     is_target: bool
-    antecedent_candidates: Optional[list["CohesionBasePhrase"]] = None
+    antecedent_candidates: list["CohesionBasePhrase"] | None = None
     # case -> argument_tags / "=" -> mention_tags
-    rel2tags: Optional[dict[str, list[str]]] = None
+    rel2tags: dict[str, list[str]] | None = None
 
 
 def wrap_base_phrases(
@@ -36,7 +36,7 @@ def wrap_base_phrases(
         )
         for base_phrase in base_phrases
     ]
-    for base_phrase, cohesion_base_phrase in zip(base_phrases, cohesion_base_phrases):
+    for base_phrase, cohesion_base_phrase in zip(base_phrases, cohesion_base_phrases, strict=True):
         if is_target_sentence(base_phrase.sentence) and (
             restrict_cohesion_target is False or extractor.is_target(base_phrase)
         ):
@@ -44,9 +44,11 @@ def wrap_base_phrases(
             all_rels = extractor.extract_rels(base_phrase)
             if isinstance(extractor, (PasExtractor, BridgingExtractor)):
                 assert isinstance(all_rels, dict)
+                all_rels = cast(dict[str, list[Argument]], all_rels)
                 rel2tags: dict[str, list[str]] = {case: _get_argument_tags(all_rels[case]) for case in cases}
             elif isinstance(extractor, CoreferenceExtractor):
                 assert isinstance(all_rels, list)
+                all_rels = cast(list[BasePhrase | ExophoraReferent], all_rels)
                 rel2tags = {"=": _get_referent_tags(all_rels)}
             else:
                 raise AssertionError
@@ -79,7 +81,7 @@ def _get_argument_tags(arguments: list[Argument]) -> list[str]:
     return argument_tags or ["[NULL]"]
 
 
-def _get_referent_tags(referents: list[Union[BasePhrase, ExophoraReferent]]) -> list[str]:
+def _get_referent_tags(referents: list[BasePhrase | ExophoraReferent]) -> list[str]:
     """Get referent tags.
 
     Note:

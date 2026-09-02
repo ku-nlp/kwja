@@ -98,9 +98,9 @@ class MorphologicalAnalysisScorer:
         self.sys_sentences: list[Sentence] = sys_sentences
         self.gold_sentences: list[Sentence] = gold_sentences
 
-        with (dataset_dir / Path("canon/info.json")).open() as f:
+        with (dataset_dir / Path("canon/info.json")).open(encoding="utf-8") as f:
             self.canon_info: dict[str, dict[str, dict[str, str]]] = json.load(f)
-        with (dataset_dir / Path("norm/info.json")).open() as f:
+        with (dataset_dir / Path("norm/info.json")).open(encoding="utf-8") as f:
             self.norm_info: dict[str, dict[str, dict[str, str]]] = json.load(f)
 
         self.num_diff_texts: int = 0
@@ -119,7 +119,7 @@ class MorphologicalAnalysisScorer:
                 continue
             reading: str = mrph.reading.replace("<unk>", "$")
             if "/" in mrph.reading and len(mrph.reading) > 1:
-                reading = reading.split("/")[0]
+                reading = reading.split("/", maxsplit=1)[0]
             reading = jaconv.h2z(reading, ascii=True, digit=True)
             lemma: str = jaconv.h2z(mrph.lemma.replace("<unk>", "$"), ascii=True, digit=True)
             if mrph.canon is None or mrph.canon == "None":
@@ -254,8 +254,8 @@ class MorphologicalAnalysisScorer:
                             gold_diff_parts[gold_diff_idx_start:gold_diff_idx],
                         )
 
-        pred_text: str = "".join(x.split("_")[0] for x in pred)
-        gold_text: str = "".join(x.split("_")[0] for x in gold)
+        pred_text: str = "".join(x.split("_", maxsplit=1)[0] for x in pred)
+        gold_text: str = "".join(x.split("_", maxsplit=1)[0] for x in gold)
         if pred_text != gold_text:
             self.num_diff_texts += 1
             # print(f"{pred_text = }")
@@ -264,7 +264,7 @@ class MorphologicalAnalysisScorer:
 
     def _search_diffs(self, sys_sentences: list[Sentence], gold_sentences: list[Sentence]) -> list[Diff]:
         diffs = []
-        for sys_sentence, gold_sentence in zip(sys_sentences, gold_sentences):
+        for sys_sentence, gold_sentence in zip(sys_sentences, gold_sentences, strict=True):
             norm_morphemes: list[Morpheme] = []
             if self.eval_norm:
                 for idx in self.norm_info[gold_sentence.sid]:
@@ -326,7 +326,7 @@ def main() -> None:
     jumanpp = Jumanpp()
 
     sid_to_seq2seq_sent: dict[str, Sentence] = dict()
-    with Path(args.seq2seq_file).open() as f:
+    with Path(args.seq2seq_file).open(encoding="utf-8") as f:
         seq2seq_document: Document = Document.from_jumanpp(f.read())
         for sentence in seq2seq_document.sentences:
             sid_to_seq2seq_sent[sentence.sid] = sentence
@@ -340,7 +340,7 @@ def main() -> None:
 
         gold_paths: list[Path] = list(Path(f"{args.dataset_dir}/{corpus}/test").glob("*.knp"))
         for gold_path in gold_paths:
-            with gold_path.open() as f:
+            with gold_path.open(encoding="utf-8") as f:
                 gold_document: Document = Document.from_knp(f.read())
             for gold_sentence in gold_document.sentences:
                 sid_to_gold_sent[gold_sentence.sid] = gold_sentence
@@ -348,9 +348,9 @@ def main() -> None:
                 juman_path: Path = juman_dir / f"{gold_path.stem}_{gold_sentence.sid}.jumanpp"
                 if not juman_path.exists():
                     juman_sentence: Sentence = jumanpp.apply_to_sentence(gold_sentence)
-                    with juman_path.open("w") as f:
+                    with juman_path.open("w", encoding="utf-8") as f:
                         f.write(juman_sentence.to_jumanpp())
-                with juman_path.open() as f:
+                with juman_path.open(encoding="utf-8") as f:
                     juman_sentence = Sentence.from_jumanpp(f.read())
                     sid_to_juman_sent[gold_sentence.sid] = juman_sentence
 

@@ -1,6 +1,6 @@
-from collections.abc import Sequence
+from collections.abc import Sequence, Sized
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
 import lightning as L
 from transformers import PreTrainedTokenizerBase
@@ -17,7 +17,7 @@ class TypoModuleWriter(BaseModuleWriter):
         self,
         confidence_threshold: float,
         tokenizer: PreTrainedTokenizerBase,
-        destination: Optional[Union[str, Path]] = None,
+        destination: str | Path | None = None,
     ) -> None:
         super().__init__(destination=destination)
         self.confidence_threshold = confidence_threshold
@@ -28,28 +28,30 @@ class TypoModuleWriter(BaseModuleWriter):
         trainer: L.Trainer,
         pl_module: L.LightningModule,  # noqa: ARG002
         prediction: Any,
-        batch_indices: Optional[Sequence[int]],  # noqa: ARG002
+        batch_indices: Sequence[int] | None,  # noqa: ARG002
         batch: Any,  # noqa: ARG002
         batch_idx: int,
         dataloader_idx: int,
     ) -> None:
-        if isinstance(trainer.predict_dataloaders, dict):
-            dataloader = list(trainer.predict_dataloaders.values())[dataloader_idx]
+        predict_dataloaders = trainer.predict_dataloaders
+        assert predict_dataloaders is not None
+        if isinstance(predict_dataloaders, dict):
+            dataloader = list(predict_dataloaders.values())[dataloader_idx]
         else:
-            dataloader = trainer.predict_dataloaders[dataloader_idx]
-        dataset: Union[TypoDataset, TypoInferenceDataset] = dataloader.dataset
+            dataloader = predict_dataloaders[dataloader_idx]
+        dataset: TypoDataset | TypoInferenceDataset = dataloader.dataset
 
         post_texts: list[str] = []
         doc_ids: list[str] = []
         for example_id, kdr_predictions, kdr_probabilities, ins_predictions, ins_probabilities in zip(
-            *[v.tolist() for v in prediction.values()]
+            *[v.tolist() for v in prediction.values()], strict=True
         ):
             if example_id in dataset.stash:
                 texts = dataset.stash.pop(example_id)
                 post_texts.extend([t[0] for t in texts])
                 doc_ids.extend([t[1] for t in texts])
 
-            example: Union[TypoExample, TypoInferenceExample] = dataset.examples[example_id]
+            example: TypoExample | TypoInferenceExample = dataset.examples[example_id]
             seq_len: int = len(example.pre_text)
             if seq_len == 0:
                 continue
@@ -64,6 +66,7 @@ class TypoModuleWriter(BaseModuleWriter):
             post_texts.append(post_text)
             doc_ids.append(example.doc_id)
 
+        assert isinstance(dataloader, Sized)
         if batch_idx == len(dataloader) - 1:
             for texts in dataset.stash.values():
                 post_texts.extend([t[0] for t in texts])
@@ -71,7 +74,7 @@ class TypoModuleWriter(BaseModuleWriter):
             dataset.stash.clear()
 
         output_string = ""
-        for text, doc_id in zip(post_texts, doc_ids):
+        for text, doc_id in zip(post_texts, doc_ids, strict=True):
             if doc_id != "":
                 output_string += f"# D-ID:{doc_id}\n"
             output_string += text + "\nEOD\n"

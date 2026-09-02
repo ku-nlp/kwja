@@ -15,7 +15,7 @@ def test_split_spans() -> None:
         (2, 5),  # [30, 50, 20]
         (4, 6),  # [20, 50]
     ]
-    for actual_span, expected_span in zip(actual_spans, expected_spans):
+    for actual_span, expected_span in zip(actual_spans, expected_spans, strict=True):
         assert isinstance(actual_span, SpanCandidate)
         assert (actual_span.start, actual_span.end) == expected_span
 
@@ -28,7 +28,7 @@ def test_split_spans_auto_stride() -> None:
         (3, 5),  # [50, 20]
         (5, 6),  # [50]
     ]
-    for actual_span, expected_span in zip(actual_spans, expected_spans):
+    for actual_span, expected_span in zip(actual_spans, expected_spans, strict=True):
         assert isinstance(actual_span, SpanCandidate)
         assert (actual_span.start, actual_span.end) == expected_span
 

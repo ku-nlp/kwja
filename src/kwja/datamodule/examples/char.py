@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Optional
 
 from rhoknp import Document, Morpheme
 from transformers import BatchEncoding
@@ -12,7 +11,7 @@ class CharExample:
     def __init__(self, example_id: int, encoding: BatchEncoding) -> None:
         self.example_id = example_id
         self.encoding = encoding
-        self.doc_id: Optional[str] = None
+        self.doc_id: str | None = None
 
         # ---------- sentence segmentation ----------
         self.char_global_index2sent_segmentation_tag: dict[int, str] = {}

@@ -80,7 +80,7 @@ def test_gen_normalized_surf(surf: str, ops: list[str], expected: str) -> None:
 def test_get_normalization_opns(surf: str, expected: list[str], normalized: str) -> None:
     word_norm_op_tags = get_word_norm_op_tags(surf, normalized)
     assert len(word_norm_op_tags) == len(expected)
-    assert all([a == b for a, b in zip(word_norm_op_tags, expected)])
+    assert all([a == b for a, b in zip(word_norm_op_tags, expected, strict=True)])
 
 
 malformed_list = [
@@ -108,7 +108,7 @@ def test_morpheme_normalizer() -> None:
     normalizer = MorphemeNormalizer()
     word_norm_op_tags = normalizer.get_word_norm_op_tags(morpheme)
     assert len(word_norm_op_tags) == len(expected)
-    assert all([a == b for a, b in zip(word_norm_op_tags, expected)])
+    assert all([a == b for a, b in zip(word_norm_op_tags, expected, strict=True)])
 
 
 @pytest.mark.parametrize(

@@ -6,7 +6,7 @@ from collections.abc import Iterator
 from enum import Enum
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Annotated, Optional, TextIO
+from typing import Annotated, TextIO
 from unicodedata import normalize
 
 import hydra
@@ -51,13 +51,13 @@ class BaseModuleProcessor(ABC):
         self.model_size: ModelSize = config.model_size
         self.batch_size: int = batch_size
         self.destination = Path(NamedTemporaryFile().name)
-        self.module: Optional[L.LightningModule] = None
-        self.trainer: Optional[L.Trainer] = None
+        self.module: L.LightningModule | None = None
+        self.trainer: L.Trainer | None = None
 
     def load(self, **writer_kwargs) -> None:
         self.module = self._load_module()
         if self.config.torch_compile is True:
-            self.module = torch.compile(self.module)
+            self.module: L.LightningModule = torch.compile(self.module)  # ty: ignore[invalid-assignment]
         self.module.hparams.datamodule.batch_size = self.batch_size  # type: ignore[union-attr]
         self.module.hparams.datamodule.num_workers = self.config.num_workers  # type: ignore[union-attr]
 
@@ -128,7 +128,7 @@ class TypoModuleProcessor(BaseModuleProcessor):
 
     def export_prediction(self) -> str:
         output_text = ""
-        for line in self.destination.read_text().strip().split("\n"):
+        for line in self.destination.read_text(encoding="utf-8").strip().split("\n"):
             if line.startswith("# D-ID:"):
                 pass
             else:
@@ -155,7 +155,7 @@ class CharModuleProcessor(BaseModuleProcessor):
 
     def export_prediction(self) -> str:
         export_text = ""
-        with self.destination.open() as f:
+        with self.destination.open(encoding="utf-8") as f:
             for juman_text in chunk_by_sentence(f):
                 sentence = Sentence.from_jumanpp(juman_text)
                 if sentence.comment != "":
@@ -182,7 +182,7 @@ class Seq2SeqModuleProcessor(BaseModuleProcessor):
         return datamodule
 
     def export_prediction(self) -> str:
-        return self.destination.read_text()
+        return self.destination.read_text(encoding="utf-8")
 
 
 class WordModuleProcessor(BaseModuleProcessor):
@@ -192,8 +192,8 @@ class WordModuleProcessor(BaseModuleProcessor):
         super().__init__(config, batch_size)
         self.from_seq2seq = from_seq2seq
 
-    def load(self) -> None:  # type: ignore[override]
-        super().load(preserve_reading_lemma_canon=self.from_seq2seq)
+    def load(self, **writer_kwargs) -> None:
+        super().load(preserve_reading_lemma_canon=self.from_seq2seq, **writer_kwargs)
 
     def _load_module(self) -> L.LightningModule:
         logger.info("Loading word module")
@@ -210,7 +210,7 @@ class WordModuleProcessor(BaseModuleProcessor):
         return datamodule
 
     def export_prediction(self) -> str:
-        return self.destination.read_text()
+        return self.destination.read_text(encoding="utf-8")
 
 
 class CLIProcessor:
@@ -248,9 +248,11 @@ class CLIProcessor:
             for input_document in input_documents:
                 output_text += f"# D-ID:{input_document.doc_id}\n"
                 output_text += normalize_text(input_document.text) + "\nEOD\n"
-            self.initial_destination.write_text(output_text)
+            self.initial_destination.write_text(output_text, encoding="utf-8")
         elif self.processors[0].input_format == InputFormat.JUMANPP:
-            self.initial_destination.write_text("".join(document.to_jumanpp() + "\n" for document in input_documents))
+            self.initial_destination.write_text(
+                "".join(document.to_jumanpp() + "\n" for document in input_documents), encoding="utf-8"
+            )
         else:
             raise AssertionError  # unreachable
 
@@ -328,23 +330,21 @@ def _tasks_callback(value: str) -> str:
 
 
 @app.command()
-def main(
-    text: Annotated[Optional[str], typer.Option(help="Text to be analyzed.")] = None,
+def main(  # noqa: PLR0917
+    text: Annotated[str | None, typer.Option(help="Text to be analyzed.")] = None,
     filename: list[Path] = typer.Option([], dir_okay=False, help="Files to be analyzed."),
-    model_size: Annotated[
-        Optional[ModelSize], typer.Option(case_sensitive=False, help="Model size to be used.")
-    ] = None,
-    device: Annotated[Optional[Device], typer.Option(case_sensitive=False, help="Device to be used.")] = None,
-    typo_batch_size: Annotated[Optional[int], typer.Option(help="Batch size for typo module.")] = None,
-    char_batch_size: Annotated[Optional[int], typer.Option(help="Batch size for char module.")] = None,
-    seq2seq_batch_size: Annotated[Optional[int], typer.Option(help="Batch size for seq2seq module.")] = None,
-    word_batch_size: Annotated[Optional[int], typer.Option(help="Batch size for word module.")] = None,
+    model_size: Annotated[ModelSize | None, typer.Option(case_sensitive=False, help="Model size to be used.")] = None,
+    device: Annotated[Device | None, typer.Option(case_sensitive=False, help="Device to be used.")] = None,
+    typo_batch_size: Annotated[int | None, typer.Option(help="Batch size for typo module.")] = None,
+    char_batch_size: Annotated[int | None, typer.Option(help="Batch size for char module.")] = None,
+    seq2seq_batch_size: Annotated[int | None, typer.Option(help="Batch size for seq2seq module.")] = None,
+    word_batch_size: Annotated[int | None, typer.Option(help="Batch size for word module.")] = None,
     tasks: Annotated[str, typer.Option(callback=_tasks_callback, help="Tasks to be performed.")] = "char,word",
     _: Annotated[
-        Optional[bool],
+        bool | None,
         typer.Option("--version", callback=_version_callback, is_eager=True, help="Show version and exit."),
     ] = None,
-    config_file: Annotated[Optional[Path], typer.Option(help="Path to KWJA config file.")] = None,
+    config_file: Annotated[Path | None, typer.Option(help="Path to KWJA config file.")] = None,
     input_format: Annotated[InputFormat, typer.Option(case_sensitive=False, help="Input format.")] = InputFormat.RAW,
 ) -> None:
     # validate task combination
@@ -377,7 +377,7 @@ def main(
         elif specified_tasks[0] in ("seq2seq", "word"):
             logger.warning("WARNING: with seq2seq or word task, your input text will be treated as a word sequence.")
 
-    input_documents: Optional[list[Document]] = None
+    input_documents: list[Document] | None = None
     if text is not None and len(filename) > 0:
         logger.error("ERROR: Please provide text or filename, not both")
         raise typer.Abort
@@ -389,7 +389,7 @@ def main(
             if path.exists() is False:
                 logger.error(f"ERROR: {path} does not exist")
                 raise typer.Abort
-            with path.open() as f:
+            with path.open(encoding="utf-8") as f:
                 for document_text in _chunk_by_document(f, input_format):
                     input_documents.append(_load_document_from_text(document_text, input_format))
     else:

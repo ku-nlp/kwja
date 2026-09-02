@@ -29,7 +29,7 @@ def load_documents(paths: list[Path]) -> list[Document]:
 
 
 def load_document(path: Path) -> Document:
-    return Document.from_knp(path.read_text())
+    return Document.from_knp(path.read_text(encoding="utf-8"))
 
 
 def count_cases(documents: list[Document]) -> dict[str, int]:

@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from textwrap import dedent
-from typing import Optional
 
 from Levenshtein import opcodes
 
@@ -40,7 +39,7 @@ def normalize_example(example: dict) -> None:
         diff["post_str"] = normalize_text(diff["post_str"])
 
 
-def decompose(pre_text: str, post_text: str, diffs: list[dict]) -> Optional[list[Component]]:
+def decompose(pre_text: str, post_text: str, diffs: list[dict]) -> list[Component] | None:
     # decompose texts into components
     # return None if alignment fails
     components: list[Component] = []
@@ -133,13 +132,13 @@ def convert_components_into_tags(components: list[Component], length: int) -> tu
 def load_examples(in_dir: Path, split: str) -> tuple[dict[str, list[dict[str, str]]], list[dict[str, str]]]:
     category2examples: dict[str, list[dict[str, str]]] = defaultdict(list)
     other_examples: list[dict[str, str]] = []
-    with (in_dir / f"{split}.jsonl").open() as f:
+    with (in_dir / f"{split}.jsonl").open(encoding="utf-8") as f:
         for line in f:
             example: dict = json.loads(line)
             normalize_example(example)
             diffs = [diff for diff in example["diffs"] if diff["category"] != "not-typo"]
             assert len(diffs) > 0
-            components: Optional[list[Component]] = decompose(example["pre_text"], example["post_text"], diffs)
+            components: list[Component] | None = decompose(example["pre_text"], example["post_text"], diffs)
             if components is None:
                 continue
             kdr_tags, ins_tags = convert_components_into_tags(components, len(example["pre_text"]) + 1)
@@ -173,17 +172,17 @@ def save_examples(
         random.shuffle(train_examples)
         train_dir: Path = out_dir / split
         train_dir.mkdir(parents=True, exist_ok=True)
-        with (train_dir / f"{split}.jsonl").open(mode="w") as f:
+        with (train_dir / f"{split}.jsonl").open(mode="w", encoding="utf-8") as f:
             f.write("\n".join(json.dumps(e, ensure_ascii=False) for e in train_examples) + "\n")
 
         valid_dir: Path = out_dir / "valid"
         valid_dir.mkdir(parents=True, exist_ok=True)
-        with (valid_dir / "valid.jsonl").open(mode="w") as f:
+        with (valid_dir / "valid.jsonl").open(mode="w", encoding="utf-8") as f:
             f.write("\n".join(json.dumps(e, ensure_ascii=False) for e in valid_examples) + "\n")
     elif split == "test":
         test_dir: Path = out_dir / split
         test_dir.mkdir(parents=True, exist_ok=True)
-        with (test_dir / f"{split}.jsonl").open(mode="w") as f:
+        with (test_dir / f"{split}.jsonl").open(mode="w", encoding="utf-8") as f:
             f.write("\n".join(json.dumps(e, ensure_ascii=False) for e in other_examples) + "\n")
     else:
         raise ValueError("invalid split")
@@ -191,7 +190,7 @@ def save_examples(
 
 def build_multi_char_vocab(out_dir: Path) -> None:
     multi_char_vocab: list[str] = []
-    with (out_dir / "train" / "train.jsonl").open() as f:
+    with (out_dir / "train" / "train.jsonl").open(encoding="utf-8") as f:
         for line in f:
             train_example: dict = json.loads(line)
             for ins_tag in train_example["ins_tags"]:
@@ -203,7 +202,7 @@ def build_multi_char_vocab(out_dir: Path) -> None:
 
     multi_char_vocab_counter = Counter(multi_char_vocab)
 
-    with (out_dir / "multi_char_vocab.txt").open(mode="w") as f:
+    with (out_dir / "multi_char_vocab.txt").open(mode="w", encoding="utf-8") as f:
         for vocab, count in multi_char_vocab_counter.most_common():
             if count > 1:
                 f.write(f"{vocab}\n")

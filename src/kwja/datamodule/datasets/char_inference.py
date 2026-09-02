@@ -1,6 +1,5 @@
 import logging
 from pathlib import Path
-from typing import Optional
 
 from omegaconf import ListConfig
 from rhoknp import Document, RegexSenter
@@ -22,8 +21,8 @@ class CharInferenceDataset(BaseDataset[CharInferenceExample, CharModuleFeatures]
         texts: ListConfig,
         tokenizer: PreTrainedTokenizerBase,
         max_seq_length: int,
-        doc_id_prefix: Optional[str] = None,
-        raw_text_file: Optional[Path] = None,
+        doc_id_prefix: str | None = None,
+        raw_text_file: Path | None = None,
         **_,
     ) -> None:
         super().__init__(tokenizer, max_seq_length)
@@ -31,7 +30,7 @@ class CharInferenceDataset(BaseDataset[CharInferenceExample, CharModuleFeatures]
         if len(texts) > 0:
             documents = create_documents_from_raw_texts(texts)
         elif raw_text_file is not None:
-            with raw_text_file.open() as f:
+            with raw_text_file.open(encoding="utf-8") as f:
                 documents = create_documents_from_raw_texts(chunk_by_document(f))
         else:
             documents = []

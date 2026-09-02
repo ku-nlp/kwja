@@ -11,7 +11,7 @@ from typer.testing import CliRunner
 
 from kwja.cli.cli import app
 
-runner = CliRunner(mix_stderr=False)  # Remove the option when click>=8.2.0 and typer-slim>=0.16.0
+runner = CliRunner()
 
 
 def test_version() -> None:
@@ -122,7 +122,7 @@ def test_normalization_and_char_module(text: str, output: str) -> None:
 
 
 def test_file_input() -> None:
-    with tempfile.NamedTemporaryFile("wt", delete=False) as f:
+    with tempfile.NamedTemporaryFile("wt", delete=False, encoding="utf-8") as f:
         f.write(
             textwrap.dedent(
                 """\
@@ -157,7 +157,7 @@ def test_interactive_mode(text: str) -> None:
 
 
 def test_sanity() -> None:
-    with tempfile.NamedTemporaryFile("wt", delete=False) as f:
+    with tempfile.NamedTemporaryFile("wt", delete=False, encoding="utf-8") as f:
         f.write(
             textwrap.dedent(
                 """\
@@ -223,7 +223,7 @@ def test_input_format_jumanpp(tasks: str) -> None:
     assert ret.exception is None
     documents: list[Document] = []
     for out_text in chunk_by_document(io.StringIO(ret.stdout)):
-        if tasks.split(",")[-1] == "word":
+        if tasks.rsplit(",", maxsplit=1)[-1] == "word":
             documents.append(Document.from_knp(out_text))
         else:
             documents.append(Document.from_jumanpp(out_text))
@@ -237,7 +237,7 @@ def test_input_format_jumanpp(tasks: str) -> None:
         assert sentence.doc_id == doc_id
     if "typo" not in tasks:
         assert document.text == "こんにちは。こんばんは。"
-    if tasks.split(",")[0] in ("word", "seq2seq"):
+    if tasks.split(",", maxsplit=1)[0] in ("word", "seq2seq"):
         # sentence boundaries are kept
         assert len(sentences) == 2
         assert sentences[0].text == "こんにちは。"
@@ -279,7 +279,7 @@ def test_input_format_jumanpp_with_sid(tasks: str) -> None:
     assert ret.exception is None
     documents: list[Document] = []
     for out_text in chunk_by_document(io.StringIO(ret.stdout)):
-        if tasks.split(",")[-1] == "word":
+        if tasks.rsplit(",", maxsplit=1)[-1] == "word":
             documents.append(Document.from_knp(out_text))
         else:
             documents.append(Document.from_jumanpp(out_text))
@@ -293,7 +293,7 @@ def test_input_format_jumanpp_with_sid(tasks: str) -> None:
         assert sentence.doc_id == doc_id
     if "typo" not in tasks:
         assert document.text == "こんにちは。こんばんは。"
-    if tasks.split(",")[0] in ("word", "seq2seq"):
+    if tasks.split(",", maxsplit=1)[0] in ("word", "seq2seq"):
         # sentence boundaries are kept
         assert len(sentences) == 2
         assert sentences[0].text == "こんにちは。"
@@ -339,7 +339,7 @@ def test_input_format_knp(tasks: str) -> None:
     assert ret.exception is None
     documents: list[Document] = []
     for out_text in chunk_by_document(io.StringIO(ret.stdout)):
-        if tasks.split(",")[-1] == "word":
+        if tasks.rsplit(",", maxsplit=1)[-1] == "word":
             documents.append(Document.from_knp(out_text))
         else:
             documents.append(Document.from_jumanpp(out_text))
@@ -353,7 +353,7 @@ def test_input_format_knp(tasks: str) -> None:
         assert sentence.doc_id == doc_id
     if "typo" not in tasks:
         assert documents[0].text == "こんにちは。こんばんは。"
-    if tasks.split(",")[0] in ("word", "seq2seq"):
+    if tasks.split(",", maxsplit=1)[0] in ("word", "seq2seq"):
         # sentence boundaries are kept
         assert len(sentences) == 2
         assert sentences[0].text == "こんにちは。"
