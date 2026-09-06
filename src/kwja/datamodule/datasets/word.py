@@ -2,6 +2,7 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
+import torch
 from cohesion_tools.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
 from cohesion_tools.extractors.base import BaseExtractor
 from omegaconf import ListConfig
@@ -42,9 +43,9 @@ class WordModuleFeatures:
     input_ids: list[int]
     attention_mask: list[int]
     special_token_indices: list[int]
-    subword_map: list[list[bool]]
+    subword_map: torch.Tensor
     reading_labels: list[int]
-    reading_subword_map: list[list[bool]]
+    reading_subword_map: torch.Tensor
     pos_labels: list[int]
     subpos_labels: list[int]
     conjtype_labels: list[int]
@@ -54,10 +55,10 @@ class WordModuleFeatures:
     ne_mask: list[bool]
     base_phrase_feature_labels: list[list[int]]
     dependency_labels: list[int]
-    dependency_mask: list[list[bool]]  # True/False = keep/mask
+    dependency_mask: torch.Tensor  # True/False = keep/mask
     dependency_type_labels: list[int]
     cohesion_labels: list[list[list[int]]]
-    cohesion_mask: list[list[list[bool]]]  # True/False = keep/mask
+    cohesion_mask: torch.Tensor  # True/False = keep/mask
     discourse_labels: list[list[int]]
 
 
@@ -238,18 +239,18 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         root_index = example.special_token_indexer.get_morpheme_level_index("[ROOT]")
         for morpheme_global_index, dependency in example.morpheme_global_index2dependency.items():
             dependency_labels[morpheme_global_index] = root_index if dependency == -1 else dependency
-        dependency_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
+        dependency_mask = torch.zeros((self.max_seq_length, self.max_seq_length), dtype=torch.bool)
         for morpheme_global_index, head_candidates in example.morpheme_global_index2head_candidates.items():
-            for head_candidate_global_index in head_candidates:
-                dependency_mask[morpheme_global_index][head_candidate_global_index] = True
-            dependency_mask[morpheme_global_index][root_index] = True
+            if head_candidates:
+                dependency_mask[morpheme_global_index, list(head_candidates)] = True
+            dependency_mask[morpheme_global_index, root_index] = True
         dependency_type_labels: list[int] = [IGNORE_INDEX] * self.max_seq_length
         for morpheme_global_index, dependency_type in example.morpheme_global_index2dependency_type.items():
             dependency_type_labels[morpheme_global_index] = DEPENDENCY_TYPES.index(dependency_type)
 
         # ---------- cohesion analysis ----------
         cohesion_labels: list[list[list[int]]] = []  # (rel, seq, seq)
-        cohesion_mask: list[list[list[bool]]] = []  # (rel, seq, seq)
+        rel_masks: list[torch.Tensor] = []
         for cohesion_task in self.cohesion_tasks:
             cohesion_rels = self.cohesion_task2rels[cohesion_task]
             cohesion_base_phrases = example.cohesion_task2base_phrases[cohesion_task]
@@ -261,7 +262,8 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             rel_mask = self._convert_cohesion_base_phrases_into_rel_mask(
                 cohesion_base_phrases, example.special_token_indexer
             )
-            cohesion_mask.extend([rel_mask] * len(cohesion_rels))
+            rel_masks.append(rel_mask.unsqueeze(0).expand(len(cohesion_rels), -1, -1))
+        cohesion_mask = torch.cat(rel_masks, dim=0)  # (rel, seq, seq)
 
         # ---------- discourse relation analysis ----------
         discourse_labels = [[IGNORE_INDEX] * self.max_seq_length for _ in range(self.max_seq_length)]
@@ -307,15 +309,22 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         word_ids: list[int | None],
         special_token_indexer: SpecialTokenIndexer,
         include_special_tokens: bool = True,
-    ) -> list[list[bool]]:
-        subword_map = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
+    ) -> torch.Tensor:
+        subword_map = torch.zeros((self.max_seq_length, self.max_seq_length), dtype=torch.bool)
+        special_token_level_indices = set(special_token_indexer.token_level_indices)
+        rows: list[int] = []
+        cols: list[int] = []
         for token_index, word_id in enumerate(word_ids):
-            if word_id is None or token_index in special_token_indexer.token_level_indices:
+            if word_id is None or token_index in special_token_level_indices:
                 continue
-            subword_map[word_id][token_index] = True
+            rows.append(word_id)
+            cols.append(token_index)
         if include_special_tokens is True:
             for token_index, morpheme_global_index in special_token_indexer.token_and_morpheme_level_indices:
-                subword_map[morpheme_global_index][token_index] = True
+                rows.append(morpheme_global_index)
+                cols.append(token_index)
+        if rows:
+            subword_map[rows, cols] = True
         return subword_map
 
     def _find_discourse_document(self, document: Document) -> Document | None:
@@ -357,15 +366,17 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         self,
         cohesion_base_phrases: list[CohesionBasePhrase],
         special_token_indexer: SpecialTokenIndexer,
-    ) -> list[list[bool]]:
-        rel_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
+    ) -> torch.Tensor:
+        rel_mask = torch.zeros((self.max_seq_length, self.max_seq_length), dtype=torch.bool)
+        special_indices = special_token_indexer.get_morpheme_level_indices(only_cohesion=True)
         for cohesion_base_phrase in cohesion_base_phrases:
             if cohesion_base_phrase.is_target is False:
                 continue
             assert cohesion_base_phrase.antecedent_candidates is not None, "antecedent_candidates isn't set"
+            candidate_indices = [c.head_morpheme_global_index for c in cohesion_base_phrase.antecedent_candidates]
             for morpheme_global_index in cohesion_base_phrase.morpheme_global_indices:
-                for antecedent_candidate in cohesion_base_phrase.antecedent_candidates:
-                    rel_mask[morpheme_global_index][antecedent_candidate.head_morpheme_global_index] = True
-                for special_token_global_index in special_token_indexer.get_morpheme_level_indices(only_cohesion=True):
-                    rel_mask[morpheme_global_index][special_token_global_index] = True
+                if candidate_indices:
+                    rel_mask[morpheme_global_index, candidate_indices] = True
+                if special_indices:
+                    rel_mask[morpheme_global_index, special_indices] = True
         return rel_mask

@@ -135,12 +135,15 @@ def word_dataclass_data_collator(batch_features: list[Any]) -> dict[str, Tensor 
     assert is_dataclass(first_features), "Data must be a dataclass"
 
     token_indices = torch.arange(max(sum(fs.attention_mask) for fs in batch_features))
-    word_indices = torch.arange(max(sum(any(row) for row in fs.subword_map) for fs in batch_features))
+    word_indices = torch.arange(max(int(fs.subword_map.any(dim=1).sum()) for fs in batch_features))
 
     batch: dict[str, Tensor | list[str]] = {}
     for field in fields(first_features):
         features = [getattr(fs, field.name) for fs in batch_features]
-        value = torch.as_tensor(features)
+        if isinstance(features[0], Tensor):
+            value = torch.stack(features)
+        else:
+            value = torch.as_tensor(features)
         if value.ndim == 1 or value.size(1) == 0:
             pass
         elif field.name in {"input_ids", "attention_mask", "reading_labels"}:

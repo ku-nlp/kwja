@@ -1,6 +1,7 @@
 import logging
 from pathlib import Path
 
+import torch
 from cohesion_tools.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
 from cohesion_tools.extractors.base import BaseExtractor
 from omegaconf import ListConfig
@@ -137,30 +138,39 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
             target_mask[global_index] = True
 
         # ---------- dependency parsing ----------
-        dependency_mask = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
+        # Build the O(seq^2) masks as tensors instead of nested Python lists: building
+        # max_seq_length**2 (x #rels) bool lists and converting them with torch.as_tensor
+        # in the collator used to dominate the collation time.
+        dependency_mask = torch.zeros((self.max_seq_length, self.max_seq_length), dtype=torch.bool)
         root_index = example.special_token_indexer.get_morpheme_level_index("[ROOT]")
         for sentence in document.sentences:
-            for morpheme_src in sentence.morphemes:
-                for morpheme_tgt in sentence.morphemes:
-                    if morpheme_src.global_index != morpheme_tgt.global_index:
-                        dependency_mask[morpheme_src.global_index][morpheme_tgt.global_index] = True
-                dependency_mask[morpheme_src.global_index][root_index] = True
+            sentence_morphemes = sentence.morphemes
+            if not sentence_morphemes:
+                continue
+            # Morphemes in a sentence have contiguous global indices.
+            start = sentence_morphemes[0].global_index
+            stop = sentence_morphemes[-1].global_index + 1
+            dependency_mask[start:stop, start:stop] = True
+            diagonal = torch.arange(start, stop)
+            dependency_mask[diagonal, diagonal] = False
+            dependency_mask[start:stop, root_index] = True
 
         # ---------- cohesion analysis ----------
-        cohesion_mask: list[list[list[bool]]] = []  # (rel, seq, seq)
+        rel_masks: list[torch.Tensor] = []
         morphemes = document.morphemes
+        special_indices = example.special_token_indexer.get_morpheme_level_indices(only_cohesion=True)
         for cohesion_task in self.cohesion_tasks:
             cohesion_rels = self.cohesion_task2rels[cohesion_task]
             cohesion_extractor = self.cohesion_task2extractor[cohesion_task]
-            rel_mask: list[list[bool]] = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
+            rel_mask = torch.zeros((self.max_seq_length, self.max_seq_length), dtype=torch.bool)
             for morpheme in morphemes:
-                for antecedent_candidate_morpheme in cohesion_extractor.get_candidates(morpheme, morphemes):
-                    rel_mask[morpheme.global_index][antecedent_candidate_morpheme.global_index] = True
-                for morpheme_global_index in example.special_token_indexer.get_morpheme_level_indices(
-                    only_cohesion=True
-                ):
-                    rel_mask[morpheme.global_index][morpheme_global_index] = True
-            cohesion_mask.extend([rel_mask] * len(cohesion_rels))
+                candidate_indices = [c.global_index for c in cohesion_extractor.get_candidates(morpheme, morphemes)]
+                if candidate_indices:
+                    rel_mask[morpheme.global_index, candidate_indices] = True
+                if special_indices:
+                    rel_mask[morpheme.global_index, special_indices] = True
+            rel_masks.append(rel_mask.unsqueeze(0).expand(len(cohesion_rels), -1, -1))
+        cohesion_mask = torch.cat(rel_masks, dim=0)  # (rel, seq, seq)
         return WordModuleFeatures(
             example_ids=example.example_id,
             input_ids=example.encoding.ids,
@@ -192,13 +202,20 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
         word_ids: list[int | None],
         special_token_indexer: SpecialTokenIndexer,
         include_special_tokens: bool = True,
-    ) -> list[list[bool]]:
-        subword_map = [[False] * self.max_seq_length for _ in range(self.max_seq_length)]
+    ) -> torch.Tensor:
+        subword_map = torch.zeros((self.max_seq_length, self.max_seq_length), dtype=torch.bool)
+        special_token_level_indices = set(special_token_indexer.token_level_indices)
+        rows: list[int] = []
+        cols: list[int] = []
         for token_index, word_id in enumerate(word_ids):
-            if word_id is None or token_index in special_token_indexer.token_level_indices:
+            if word_id is None or token_index in special_token_level_indices:
                 continue
-            subword_map[word_id][token_index] = True
+            rows.append(word_id)
+            cols.append(token_index)
         if include_special_tokens is True:
             for token_index, morpheme_global_index in special_token_indexer.token_and_morpheme_level_indices:
-                subword_map[morpheme_global_index][token_index] = True
+                rows.append(morpheme_global_index)
+                cols.append(token_index)
+        if rows:
+            subword_map[rows, cols] = True
         return subword_map

@@ -116,8 +116,8 @@ def test_encode(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, dataset
     reading_subword_map[1, 4, 5] = True
     reading_subword_map[1, 5, 6] = True
     reading_subword_map[1, 6, 7] = True
-    assert reading_subword_map[0].tolist() == dataset[0].reading_subword_map
-    assert reading_subword_map[1].tolist() == dataset[1].reading_subword_map
+    assert reading_subword_map[0].tolist() == dataset[0].reading_subword_map.tolist()
+    assert reading_subword_map[1].tolist() == dataset[1].reading_subword_map.tolist()
 
     pos_labels = torch.full((num_examples, max_seq_length), IGNORE_INDEX, dtype=torch.long)
     pos_labels[0, 0] = POS_TAGS.index("名詞")  # 太郎
@@ -405,8 +405,8 @@ def test_split_into_words_encode(
     reading_subword_map[1, 4, 5] = True
     reading_subword_map[1, 5, 6] = True
     reading_subword_map[1, 6, 7] = True
-    assert reading_subword_map[0].tolist() == dataset[0].reading_subword_map
-    assert reading_subword_map[1].tolist() == dataset[1].reading_subword_map
+    assert reading_subword_map[0].tolist() == dataset[0].reading_subword_map.tolist()
+    assert reading_subword_map[1].tolist() == dataset[1].reading_subword_map.tolist()
 
     pos_labels = torch.full((num_examples, max_seq_length), IGNORE_INDEX, dtype=torch.long)
     pos_labels[0, 0] = POS_TAGS.index("名詞")  # 太郎
