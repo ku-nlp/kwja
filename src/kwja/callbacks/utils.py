@@ -396,15 +396,15 @@ def add_cohesion(
     cohesion_task2rels: dict[CohesionTask, list[str]],
     restrict_cohesion_target: bool,
     special_token_indexer: SpecialTokenIndexer,
-    target_base_phrases: list[BasePhrase] | None = None,
+    target_base_phrases: list[BasePhrase],
 ) -> None:
-    """Assign the predicted cohesion relations to the base phrases of `document`.
+    """Assign the predicted cohesion relations to `target_base_phrases`.
 
-    `target_base_phrases` restricts which base phrases are assigned relations. The
-    antecedent candidates are always every base phrase of the document, so passing only
-    the base phrases whose analysis is actually kept (those of the target sentences of a
-    sub-document) yields the same relations for them while skipping the work for the
-    surrounding context sentences. Defaults to every base phrase in the document.
+    The antecedent candidates are always every base phrase of `document`, so passing
+    only the base phrases whose analysis is actually kept (those of the target sentences
+    of a sub-document) yields the same relations for them while skipping the work for
+    the surrounding context sentences. Pass `document.base_phrases` to assign relations
+    to the whole document.
     """
     rel2logits = dict(
         zip(
@@ -414,7 +414,7 @@ def add_cohesion(
         )
     )
     base_phrases = document.base_phrases
-    for base_phrase in base_phrases if target_base_phrases is None else target_base_phrases:
+    for base_phrase in target_base_phrases:
         base_phrase.rel_tags.clear()
         for cohesion_task, cohesion_extractor in cohesion_task2extractor.items():
             if restrict_cohesion_target is True and cohesion_extractor.is_target(base_phrase) is False:
