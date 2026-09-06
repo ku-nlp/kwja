@@ -9,7 +9,8 @@ from rhoknp import Document
 from rhoknp.utils.reader import chunk_by_document
 from typer.testing import CliRunner
 
-from kwja.cli.cli import app
+from kwja.cli.cli import CharModuleProcessor, CLIProcessor, _KeepModelOnDeviceStrategy, app
+from kwja.cli.config import CLIConfig, Device, ModelSize
 
 runner = CliRunner()
 
@@ -360,3 +361,34 @@ def test_input_format_knp(tasks: str) -> None:
         assert sentences[0].sent_id == "test-0"
         assert sentences[1].text == "こんばんは。"
         assert sentences[1].sent_id == "test-1"
+
+
+def test_batch_mode_uses_the_default_strategy() -> None:
+    """Batch mode drops each module when its task is done, so it must not retain models."""
+    processor = CharModuleProcessor(CLIConfig(model_size=ModelSize.TINY, device=Device.CPU), batch_size=1)
+    processor.load()
+    assert not isinstance(processor.trainer.strategy, _KeepModelOnDeviceStrategy)
+
+
+def test_interactive_mode_keeps_models_on_the_device() -> None:
+    """Interactive mode reuses the same modules, so it opts into retaining them."""
+    processor = CLIProcessor(CLIConfig(model_size=ModelSize.TINY, device=Device.CPU), ["char"])
+    processor.load_all_modules()
+    for module_processor in processor.processors:
+        assert isinstance(module_processor.trainer.strategy, _KeepModelOnDeviceStrategy)
+
+
+def test_interactive_mode_repeated_predictions() -> None:
+    """Predicting repeatedly with retained modules must keep producing the same output."""
+    processor = CLIProcessor(CLIConfig(model_size=ModelSize.TINY, device=Device.CPU), ["char"])
+    processor.load_all_modules()
+    outputs = []
+    for _ in range(3):
+        processor.refresh()
+        output = processor.run([Document.from_raw_text("こんにちは。")], interactive=True)
+        # Sentence ids are derived from the current time, so normalize them away.
+        outputs.append(re.sub(r"# S-ID:\S+", "# S-ID:", output))
+    processor.refresh()
+    assert outputs[0] != ""
+    assert outputs[1] == outputs[0]
+    assert outputs[2] == outputs[0]

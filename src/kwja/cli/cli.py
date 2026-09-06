@@ -46,10 +46,17 @@ class _KeepModelOnDeviceStrategy(SingleDeviceStrategy):
     """A single-device strategy whose teardown leaves the model on the device.
 
     Trainer.predict() tears its strategy down after every call, and the default
-    teardown moves the model back to the CPU. The CLI keeps the modules loaded
-    and calls predict() once per input in interactive mode, so on an accelerator
-    every prediction would otherwise pay a full model round-trip between the CPU
-    and the device.
+    teardown moves the model back to the CPU. Interactive mode keeps the modules
+    loaded and calls predict() once per input, so on an accelerator every
+    prediction would otherwise pay a full model round-trip between the CPU and
+    the device.
+
+    This is opt-in because retaining the model is only safe when it is going to
+    be reused. Batch mode drops each module once its task is done, and Lightning
+    objects take part in reference cycles, so the module can outlive
+    `delete_module_and_trainer()` until the cyclic collector runs; moving it back
+    to the CPU there keeps the peak device memory down while the next module and
+    checkpoint are allocated.
     """
 
     def __init__(self, device: torch.device) -> None:
@@ -81,7 +88,7 @@ class BaseModuleProcessor(ABC):
         self.module: L.LightningModule | None = None
         self.trainer: L.Trainer | None = None
 
-    def load(self, **writer_kwargs) -> None:
+    def load(self, keep_model_on_device: bool = False, **writer_kwargs) -> None:
         self.module = self._load_module()
         if self.config.torch_compile is True:
             self.module: L.LightningModule = torch.compile(self.module)  # ty: ignore[invalid-assignment]
@@ -101,7 +108,7 @@ class BaseModuleProcessor(ABC):
                 ),
                 hydra.utils.instantiate(self.module.hparams.callbacks.progress_bar),  # type: ignore[union-attr]
             ],
-            strategy=_KeepModelOnDeviceStrategy(device=self.device),
+            strategy=_KeepModelOnDeviceStrategy(device=self.device) if keep_model_on_device else "auto",
             accelerator=self.accelerator,
             devices=1,
         )
@@ -220,8 +227,12 @@ class WordModuleProcessor(BaseModuleProcessor):
         super().__init__(config, batch_size)
         self.from_seq2seq = from_seq2seq
 
-    def load(self, **writer_kwargs) -> None:
-        super().load(preserve_reading_lemma_canon=self.from_seq2seq, **writer_kwargs)
+    def load(self, keep_model_on_device: bool = False, **writer_kwargs) -> None:
+        super().load(
+            keep_model_on_device=keep_model_on_device,
+            preserve_reading_lemma_canon=self.from_seq2seq,
+            **writer_kwargs,
+        )
 
     def _load_module(self) -> L.LightningModule:
         logger.info("Loading word module")
@@ -257,8 +268,10 @@ class CLIProcessor:
         self.processors: list[BaseModuleProcessor] = [self._task2processors[task] for task in tasks]
 
     def load_all_modules(self) -> None:
+        # Only interactive mode loads every module up front and reuses them, so this is
+        # the one place where retaining the models on the device is worthwhile.
         for processor in self.processors:
-            processor.load()
+            processor.load(keep_model_on_device=True)
 
     def refresh(self) -> None:
         self.initial_destination.unlink(missing_ok=True)
