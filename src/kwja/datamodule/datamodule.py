@@ -130,19 +130,12 @@ def token_dataclass_data_collator(batch_features: list[Any]) -> dict[str, Tensor
     return batch
 
 
-def _count_words(subword_map: Any) -> int:
-    # Inference datasets build subword_map as a bool tensor; training datasets as nested lists.
-    if isinstance(subword_map, Tensor):
-        return int(subword_map.any(dim=1).sum())
-    return sum(any(row) for row in subword_map)
-
-
 def word_dataclass_data_collator(batch_features: list[Any]) -> dict[str, Tensor | list[str]]:
     first_features: Any = batch_features[0]
     assert is_dataclass(first_features), "Data must be a dataclass"
 
     token_indices = torch.arange(max(sum(fs.attention_mask) for fs in batch_features))
-    word_indices = torch.arange(max(_count_words(fs.subword_map) for fs in batch_features))
+    word_indices = torch.arange(max(int(fs.subword_map.any(dim=1).sum()) for fs in batch_features))
 
     batch: dict[str, Tensor | list[str]] = {}
     for field in fields(first_features):
