@@ -200,6 +200,8 @@ class WordModuleMetric(BaseModuleMetric):
             partly_gold_document2 = gold_document.reparse()
             partly_gold_document2.doc_id = gold_document.doc_id
             self.refresh(partly_gold_document2, level=2)
+            # Only the target sentences are kept below, so restrict the assignment to
+            # their base phrases; the antecedent candidates still span the whole document.
             add_cohesion(
                 partly_gold_document2,
                 cohesion_logits,
@@ -207,6 +209,11 @@ class WordModuleMetric(BaseModuleMetric):
                 self.dataset.cohesion_task2rels,
                 self.dataset.restrict_cohesion_target,
                 example.special_token_indexer,
+                target_base_phrases=[
+                    base_phrase
+                    for sentence in extract_target_sentences(partly_gold_document2)
+                    for base_phrase in sentence.base_phrases
+                ],
             )
             for sentence in extract_target_sentences(partly_gold_document2):
                 doc_id2partly_gold_sentences2[orig_doc_id].append(sentence)

@@ -128,6 +128,10 @@ class WordModuleWriter(BaseModuleWriter):
             ]
             predicted_document = Document.from_sentences(sentences)
             predicted_document.doc_id = document.doc_id
+            # Only the target sentences of this sub-document are kept, so restrict the
+            # assignment to their base phrases. With a small document_split_stride the
+            # surrounding context sentences are re-analyzed by every window and thrown
+            # away; the antecedent candidates still span the whole sub-document.
             add_cohesion(
                 predicted_document,
                 cohesion_logits,
@@ -135,6 +139,11 @@ class WordModuleWriter(BaseModuleWriter):
                 dataset.cohesion_task2rels,
                 dataset.restrict_cohesion_target,
                 example.special_token_indexer,
+                target_base_phrases=[
+                    base_phrase
+                    for sentence in extract_target_sentences(predicted_document)
+                    for base_phrase in sentence.base_phrases
+                ],
             )
             add_discourse(predicted_document, discourse_predictions)
 
