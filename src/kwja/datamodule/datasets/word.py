@@ -262,8 +262,8 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             rel_mask = self._convert_cohesion_base_phrases_into_rel_mask(
                 cohesion_base_phrases, example.special_token_indexer
             )
-            rel_masks.append(rel_mask.unsqueeze(0).expand(len(cohesion_rels), -1, -1))
-        cohesion_mask = torch.cat(rel_masks, dim=0)  # (rel, seq, seq)
+            rel_masks.extend(rel_mask for _ in cohesion_rels)
+        cohesion_mask = torch.stack(rel_masks)  # (rel, seq, seq)
 
         # ---------- discourse relation analysis ----------
         discourse_labels = [[IGNORE_INDEX] * self.max_seq_length for _ in range(self.max_seq_length)]

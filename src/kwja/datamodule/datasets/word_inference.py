@@ -169,8 +169,8 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
                     rel_mask[morpheme.global_index, candidate_indices] = True
                 if special_indices:
                     rel_mask[morpheme.global_index, special_indices] = True
-            rel_masks.append(rel_mask.unsqueeze(0).expand(len(cohesion_rels), -1, -1))
-        cohesion_mask = torch.cat(rel_masks, dim=0)  # (rel, seq, seq)
+            rel_masks.extend(rel_mask for _ in cohesion_rels)
+        cohesion_mask = torch.stack(rel_masks)  # (rel, seq, seq)
         return WordModuleFeatures(
             example_ids=example.example_id,
             input_ids=example.encoding.ids,
