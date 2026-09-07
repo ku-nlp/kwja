@@ -13,6 +13,8 @@ import hydra
 import lightning as L
 import torch
 import typer
+from lightning.pytorch.callbacks import BasePredictionWriter
+from lightning.pytorch.strategies import SingleDeviceStrategy
 from lightning.pytorch.trainer.states import TrainerFn
 from rhoknp import Document, Sentence
 from rhoknp.utils.reader import chunk_by_document, chunk_by_sentence
@@ -41,6 +43,39 @@ class InputFormat(str, Enum):
     KNP = "knp"
 
 
+class _KeepModelOnDeviceStrategy(SingleDeviceStrategy):
+    """A single-device strategy whose teardown leaves the model on the device.
+
+    Trainer.predict() tears its strategy down after every call, and the default
+    teardown moves the model back to the CPU. Interactive mode keeps the modules
+    loaded and calls predict() once per input, so on an accelerator every
+    prediction would otherwise pay a full model round-trip between the CPU and
+    the device.
+
+    This is opt-in because retaining the model is only safe when it is going to
+    be reused. Batch mode drops each module once its task is done, and Lightning
+    objects take part in reference cycles, so the module can outlive
+    `delete_module_and_trainer()` until the cyclic collector runs; moving it back
+    to the CPU there keeps the peak device memory down while the next module and
+    checkpoint are allocated.
+    """
+
+    def __init__(self, device: torch.device) -> None:
+        if device.type != "cpu" and device.index is None:
+            # SingleDeviceStrategy requires an indexed device ("cuda" alone is
+            # rejected by torch.cuda.set_device); the CLI always uses one device.
+            device = torch.device(device.type, 0)
+        super().__init__(device=device)
+
+    def teardown(self) -> None:
+        # Strategy.teardown() minus lightning_module.cpu(); prediction has no
+        # optimizers, so moving them to the CPU is not needed either.
+        self.precision_plugin.teardown()
+        assert self.accelerator is not None
+        self.accelerator.teardown()
+        self.checkpoint_io.teardown()
+
+
 class BaseModuleProcessor(ABC):
     input_format: InputFormat
 
@@ -54,7 +89,7 @@ class BaseModuleProcessor(ABC):
         self.module: L.LightningModule | None = None
         self.trainer: L.Trainer | None = None
 
-    def load(self, **writer_kwargs) -> None:
+    def load(self, keep_model_on_device: bool = False) -> None:
         self.module = self._load_module()
         if self.config.torch_compile is True:
             self.module: L.LightningModule = torch.compile(self.module)  # ty: ignore[invalid-assignment]
@@ -67,15 +102,19 @@ class BaseModuleProcessor(ABC):
         self.trainer = L.Trainer(
             logger=False,
             callbacks=[
-                hydra.utils.instantiate(
-                    self.module.hparams.callbacks.prediction_writer,  # type: ignore[union-attr]
-                    destination=self.destination,
-                    **writer_kwargs,
-                ),
+                self._create_prediction_writer(),
                 hydra.utils.instantiate(self.module.hparams.callbacks.progress_bar),  # type: ignore[union-attr]
             ],
+            strategy=_KeepModelOnDeviceStrategy(device=self.device) if keep_model_on_device else "auto",
             accelerator=self.accelerator,
             devices=1,
+        )
+
+    def _create_prediction_writer(self) -> BasePredictionWriter:
+        assert self.module is not None
+        return hydra.utils.instantiate(
+            self.module.hparams.callbacks.prediction_writer,
+            destination=self.destination,
         )
 
     def _load_module(self) -> L.LightningModule:
@@ -192,8 +231,13 @@ class WordModuleProcessor(BaseModuleProcessor):
         super().__init__(config, batch_size)
         self.from_seq2seq = from_seq2seq
 
-    def load(self, **writer_kwargs) -> None:
-        super().load(preserve_reading_lemma_canon=self.from_seq2seq, **writer_kwargs)
+    def _create_prediction_writer(self) -> BasePredictionWriter:
+        assert self.module is not None
+        return hydra.utils.instantiate(
+            self.module.hparams.callbacks.prediction_writer,
+            destination=self.destination,
+            preserve_reading_lemma_canon=self.from_seq2seq,
+        )
 
     def _load_module(self) -> L.LightningModule:
         logger.info("Loading word module")
@@ -229,8 +273,10 @@ class CLIProcessor:
         self.processors: list[BaseModuleProcessor] = [self._task2processors[task] for task in tasks]
 
     def load_all_modules(self) -> None:
+        # Only interactive mode loads every module up front and reuses them, so this is
+        # the one place where retaining the models on the device is worthwhile.
         for processor in self.processors:
-            processor.load()
+            processor.load(keep_model_on_device=True)
 
     def refresh(self) -> None:
         self.initial_destination.unlink(missing_ok=True)
@@ -329,26 +375,7 @@ def _tasks_callback(value: str) -> str:
     return ",".join(tasks)
 
 
-@app.command()
-def main(  # noqa: PLR0917
-    text: Annotated[str | None, typer.Option(help="Text to be analyzed.")] = None,
-    filename: list[Path] = typer.Option([], dir_okay=False, help="Files to be analyzed."),
-    model_size: Annotated[ModelSize | None, typer.Option(case_sensitive=False, help="Model size to be used.")] = None,
-    device: Annotated[Device | None, typer.Option(case_sensitive=False, help="Device to be used.")] = None,
-    typo_batch_size: Annotated[int | None, typer.Option(help="Batch size for typo module.")] = None,
-    char_batch_size: Annotated[int | None, typer.Option(help="Batch size for char module.")] = None,
-    seq2seq_batch_size: Annotated[int | None, typer.Option(help="Batch size for seq2seq module.")] = None,
-    word_batch_size: Annotated[int | None, typer.Option(help="Batch size for word module.")] = None,
-    tasks: Annotated[str, typer.Option(callback=_tasks_callback, help="Tasks to be performed.")] = "char,word",
-    _: Annotated[
-        bool | None,
-        typer.Option("--version", callback=_version_callback, is_eager=True, help="Show version and exit."),
-    ] = None,
-    config_file: Annotated[Path | None, typer.Option(help="Path to KWJA config file.")] = None,
-    input_format: Annotated[InputFormat, typer.Option(case_sensitive=False, help="Input format.")] = InputFormat.RAW,
-) -> None:
-    # validate task combination
-    specified_tasks: list[str] = tasks.split(",")
+def _validate_task_combination(specified_tasks: list[str], input_format: InputFormat) -> None:
     valid_task_combinations: set[tuple[str, ...]] = {
         ("typo",),
         ("typo", "char"),
@@ -376,6 +403,28 @@ def main(  # noqa: PLR0917
             logger.warning("WARNING: with typo or char task, your input text will be treated as raw text.")
         elif specified_tasks[0] in ("seq2seq", "word"):
             logger.warning("WARNING: with seq2seq or word task, your input text will be treated as a word sequence.")
+
+
+@app.command()
+def main(  # noqa: PLR0917
+    text: Annotated[str | None, typer.Option(help="Text to be analyzed.")] = None,
+    filename: list[Path] = typer.Option([], dir_okay=False, help="Files to be analyzed."),
+    model_size: Annotated[ModelSize | None, typer.Option(case_sensitive=False, help="Model size to be used.")] = None,
+    device: Annotated[Device | None, typer.Option(case_sensitive=False, help="Device to be used.")] = None,
+    typo_batch_size: Annotated[int | None, typer.Option(help="Batch size for typo module.")] = None,
+    char_batch_size: Annotated[int | None, typer.Option(help="Batch size for char module.")] = None,
+    seq2seq_batch_size: Annotated[int | None, typer.Option(help="Batch size for seq2seq module.")] = None,
+    word_batch_size: Annotated[int | None, typer.Option(help="Batch size for word module.")] = None,
+    tasks: Annotated[str, typer.Option(callback=_tasks_callback, help="Tasks to be performed.")] = "char,word",
+    _: Annotated[
+        bool | None,
+        typer.Option("--version", callback=_version_callback, is_eager=True, help="Show version and exit."),
+    ] = None,
+    config_file: Annotated[Path | None, typer.Option(help="Path to KWJA config file.")] = None,
+    input_format: Annotated[InputFormat, typer.Option(case_sensitive=False, help="Input format.")] = InputFormat.RAW,
+) -> None:
+    specified_tasks: list[str] = tasks.split(",")
+    _validate_task_combination(specified_tasks, input_format)
 
     input_documents: list[Document] | None = None
     if text is not None and len(filename) > 0:

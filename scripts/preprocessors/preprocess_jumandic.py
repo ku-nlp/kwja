@@ -44,7 +44,7 @@ def main() -> None:
     else:
         outdir.mkdir(parents=True)
 
-    with input_path.open() as f:
+    with input_path.open(encoding="utf-8") as f:
         dicreader = csv.reader(f)
         rows = list(dicreader)
 

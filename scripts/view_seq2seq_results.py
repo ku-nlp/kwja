@@ -98,9 +98,9 @@ class MorphologicalAnalysisScorer:
         self.sys_sentences: list[Sentence] = sys_sentences
         self.gold_sentences: list[Sentence] = gold_sentences
 
-        with (dataset_dir / Path("canon/info.json")).open() as f:
+        with (dataset_dir / Path("canon/info.json")).open(encoding="utf-8") as f:
             self.canon_info: dict[str, dict[str, dict[str, str]]] = json.load(f)
-        with (dataset_dir / Path("norm/info.json")).open() as f:
+        with (dataset_dir / Path("norm/info.json")).open(encoding="utf-8") as f:
             self.norm_info: dict[str, dict[str, dict[str, str]]] = json.load(f)
 
         self.num_diff_texts: int = 0
@@ -326,7 +326,7 @@ def main() -> None:
     jumanpp = Jumanpp()
 
     sid_to_seq2seq_sent: dict[str, Sentence] = dict()
-    with Path(args.seq2seq_file).open() as f:
+    with Path(args.seq2seq_file).open(encoding="utf-8") as f:
         seq2seq_document: Document = Document.from_jumanpp(f.read())
         for sentence in seq2seq_document.sentences:
             sid_to_seq2seq_sent[sentence.sid] = sentence
@@ -340,7 +340,7 @@ def main() -> None:
 
         gold_paths: list[Path] = list(Path(f"{args.dataset_dir}/{corpus}/test").glob("*.knp"))
         for gold_path in gold_paths:
-            with gold_path.open() as f:
+            with gold_path.open(encoding="utf-8") as f:
                 gold_document: Document = Document.from_knp(f.read())
             for gold_sentence in gold_document.sentences:
                 sid_to_gold_sent[gold_sentence.sid] = gold_sentence
@@ -348,9 +348,9 @@ def main() -> None:
                 juman_path: Path = juman_dir / f"{gold_path.stem}_{gold_sentence.sid}.jumanpp"
                 if not juman_path.exists():
                     juman_sentence: Sentence = jumanpp.apply_to_sentence(gold_sentence)
-                    with juman_path.open("w") as f:
+                    with juman_path.open("w", encoding="utf-8") as f:
                         f.write(juman_sentence.to_jumanpp())
-                with juman_path.open() as f:
+                with juman_path.open(encoding="utf-8") as f:
                     juman_sentence = Sentence.from_jumanpp(f.read())
                     sid_to_juman_sent[gold_sentence.sid] = juman_sentence
 

@@ -106,7 +106,7 @@ def test_get_surfs(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFast) -
     seq2seq_formatter = Seq2SeqFormatter(seq2seq_tokenizer)
     juman_dir: Path = data_dir / "modules" / "juman"
     for idx, path in enumerate(sorted(juman_dir.glob("*.juman"))):
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             sentence = Sentence.from_jumanpp(f.read())
             for morpheme in sentence.morphemes:
                 normalize_morpheme(morpheme)
@@ -145,7 +145,7 @@ def test_get_src_tokens(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFa
     seq2seq_formatter = Seq2SeqFormatter(seq2seq_tokenizer)
     juman_dir: Path = data_dir / "modules" / "juman"
     for idx, path in enumerate(sorted(juman_dir.glob("*.juman"))):
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             sentence = Sentence.from_jumanpp(f.read())
             for morpheme in sentence.morphemes:
                 normalize_morpheme(morpheme)
@@ -161,7 +161,7 @@ def test_get_tgt_tokens(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFa
     seq2seq_formatter = Seq2SeqFormatter(seq2seq_tokenizer)
     juman_dir: Path = data_dir / "modules" / "juman"
     for idx, path in enumerate(sorted(juman_dir.glob("*.juman"))):
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             sentence = Sentence.from_jumanpp(f.read())
             for morpheme in sentence.morphemes:
                 normalize_morpheme(morpheme)
@@ -181,7 +181,7 @@ def test_format_to_sent(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFa
     seq2seq_formatter = Seq2SeqFormatter(seq2seq_tokenizer)
     juman_dir: Path = data_dir / "modules" / "juman"
     for idx, path in enumerate(sorted(juman_dir.glob("*.juman"))):
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             expected_sentence = Sentence.from_jumanpp(f.read())
             for morpheme in expected_sentence.morphemes:
                 normalize_morpheme(morpheme)

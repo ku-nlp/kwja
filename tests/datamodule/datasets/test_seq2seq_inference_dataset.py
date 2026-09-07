@@ -43,7 +43,7 @@ def test_len(seq2seq_tokenizer: PreTrainedTokenizerFast) -> None:
         EOS
         """
     )
-    with tempfile.NamedTemporaryFile("wt", delete=False) as juman_file:
+    with tempfile.NamedTemporaryFile("wt", delete=False, encoding="utf-8") as juman_file:
         juman_file.write(juman_text)
         juman_file_path = Path(juman_file.name)
 
@@ -95,7 +95,7 @@ def test_getitem(seq2seq_tokenizer: PreTrainedTokenizerFast) -> None:
         EOS
         """
     )
-    with tempfile.NamedTemporaryFile("wt", delete=False) as juman_file:
+    with tempfile.NamedTemporaryFile("wt", delete=False, encoding="utf-8") as juman_file:
         juman_file.write(juman_text)
         juman_file_path = Path(juman_file.name)
 

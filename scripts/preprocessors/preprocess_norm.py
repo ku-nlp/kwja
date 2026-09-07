@@ -33,7 +33,7 @@ def main() -> None:
 
     partials: list[dict[str, str]] = []
     partial: dict[str, str] = {}
-    with Path(args.input_orig_path).open() as f:
+    with Path(args.input_orig_path).open(encoding="utf-8") as f:
         for line in f:
             if line := line.rstrip("\n"):
                 if line.startswith("\t"):
@@ -60,7 +60,7 @@ def main() -> None:
     sid2knp_str: dict[str, str] = {}
     sid2info: dict[str, dict[int, dict[str, str]]] = {}
     excluded_nums: dict[str, int] = {}
-    with Path(args.input_juman_path).open() as f:
+    with Path(args.input_juman_path).open(encoding="utf-8") as f:
         document: Document = Document.from_jumanpp(f.read())
         for sentence_idx, sentence in enumerate(tqdm(document.sentences)):
             if sentence.text != partials[sentence_idx]["text"]:
@@ -122,7 +122,7 @@ def main() -> None:
     output_dir: Path = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    with open(output_dir / "info.json", "w") as f:
+    with open(output_dir / "info.json", "w", encoding="utf-8") as f:
         json.dump(sid2info, f, indent=2, ensure_ascii=False)
 
     train_dir: Path = output_dir / "train"
@@ -130,7 +130,7 @@ def main() -> None:
         shutil.rmtree(str(train_dir))
     train_dir.mkdir(exist_ok=True)
     for name, knp_str in train_list:
-        with (train_dir / f"{name}.knp").open("w") as f:
+        with (train_dir / f"{name}.knp").open("w", encoding="utf-8") as f:
             f.write(f"{knp_str}\n")
 
     valid_dir: Path = output_dir / "valid"
@@ -138,7 +138,7 @@ def main() -> None:
         shutil.rmtree(str(valid_dir))
     valid_dir.mkdir(exist_ok=True)
     for name, knp_str in valid_list:
-        with (valid_dir / f"{name}.knp").open("w") as f:
+        with (valid_dir / f"{name}.knp").open("w", encoding="utf-8") as f:
             f.write(f"{knp_str}\n")
 
     test_dir: Path = output_dir / "test"
@@ -146,7 +146,7 @@ def main() -> None:
         shutil.rmtree(str(test_dir))
     test_dir.mkdir(exist_ok=True)
     for name, knp_str in test_list:
-        with (test_dir / f"{name}.knp").open("w") as f:
+        with (test_dir / f"{name}.knp").open("w", encoding="utf-8") as f:
             f.write(f"{knp_str}\n")
 
     print(f"train: {len(train_list)}")
