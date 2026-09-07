@@ -15,17 +15,17 @@ repos:
       - id: check-added-large-files
         exclude: "^(kwja/resource/.*|uv\\.lock)$"
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.1
+    rev: v0.16.6
     hooks:
       - id: ruff-check
         args: [--fix]
       - id: ruff-format
   - repo: https://github.com/astral-sh/ty-pre-commit
-    rev: v0.0.65
+    rev: v0.0.78
     hooks:
       - id: ty
   -   repo: https://github.com/shellcheck-py/shellcheck-py
-      rev: v0.11.0.1
+      rev: v0.11.0.1-1
       hooks:
         - id: shellcheck
           files: ^scripts/
