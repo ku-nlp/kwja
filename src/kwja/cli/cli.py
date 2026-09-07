@@ -375,26 +375,7 @@ def _tasks_callback(value: str) -> str:
     return ",".join(tasks)
 
 
-@app.command()
-def main(  # noqa: PLR0917
-    text: Annotated[str | None, typer.Option(help="Text to be analyzed.")] = None,
-    filename: list[Path] = typer.Option([], dir_okay=False, help="Files to be analyzed."),
-    model_size: Annotated[ModelSize | None, typer.Option(case_sensitive=False, help="Model size to be used.")] = None,
-    device: Annotated[Device | None, typer.Option(case_sensitive=False, help="Device to be used.")] = None,
-    typo_batch_size: Annotated[int | None, typer.Option(help="Batch size for typo module.")] = None,
-    char_batch_size: Annotated[int | None, typer.Option(help="Batch size for char module.")] = None,
-    seq2seq_batch_size: Annotated[int | None, typer.Option(help="Batch size for seq2seq module.")] = None,
-    word_batch_size: Annotated[int | None, typer.Option(help="Batch size for word module.")] = None,
-    tasks: Annotated[str, typer.Option(callback=_tasks_callback, help="Tasks to be performed.")] = "char,word",
-    _: Annotated[
-        bool | None,
-        typer.Option("--version", callback=_version_callback, is_eager=True, help="Show version and exit."),
-    ] = None,
-    config_file: Annotated[Path | None, typer.Option(help="Path to KWJA config file.")] = None,
-    input_format: Annotated[InputFormat, typer.Option(case_sensitive=False, help="Input format.")] = InputFormat.RAW,
-) -> None:
-    # validate task combination
-    specified_tasks: list[str] = tasks.split(",")
+def _validate_task_combination(specified_tasks: list[str], input_format: InputFormat) -> None:
     valid_task_combinations: set[tuple[str, ...]] = {
         ("typo",),
         ("typo", "char"),
@@ -422,6 +403,28 @@ def main(  # noqa: PLR0917
             logger.warning("WARNING: with typo or char task, your input text will be treated as raw text.")
         elif specified_tasks[0] in ("seq2seq", "word"):
             logger.warning("WARNING: with seq2seq or word task, your input text will be treated as a word sequence.")
+
+
+@app.command()
+def main(  # noqa: PLR0917
+    text: Annotated[str | None, typer.Option(help="Text to be analyzed.")] = None,
+    filename: list[Path] = typer.Option([], dir_okay=False, help="Files to be analyzed."),
+    model_size: Annotated[ModelSize | None, typer.Option(case_sensitive=False, help="Model size to be used.")] = None,
+    device: Annotated[Device | None, typer.Option(case_sensitive=False, help="Device to be used.")] = None,
+    typo_batch_size: Annotated[int | None, typer.Option(help="Batch size for typo module.")] = None,
+    char_batch_size: Annotated[int | None, typer.Option(help="Batch size for char module.")] = None,
+    seq2seq_batch_size: Annotated[int | None, typer.Option(help="Batch size for seq2seq module.")] = None,
+    word_batch_size: Annotated[int | None, typer.Option(help="Batch size for word module.")] = None,
+    tasks: Annotated[str, typer.Option(callback=_tasks_callback, help="Tasks to be performed.")] = "char,word",
+    _: Annotated[
+        bool | None,
+        typer.Option("--version", callback=_version_callback, is_eager=True, help="Show version and exit."),
+    ] = None,
+    config_file: Annotated[Path | None, typer.Option(help="Path to KWJA config file.")] = None,
+    input_format: Annotated[InputFormat, typer.Option(case_sensitive=False, help="Input format.")] = InputFormat.RAW,
+) -> None:
+    specified_tasks: list[str] = tasks.split(",")
+    _validate_task_combination(specified_tasks, input_format)
 
     input_documents: list[Document] | None = None
     if text is not None and len(filename) > 0:
