@@ -13,6 +13,7 @@ import hydra
 import lightning as L
 import torch
 import typer
+from lightning.pytorch.callbacks import BasePredictionWriter
 from lightning.pytorch.strategies import SingleDeviceStrategy
 from lightning.pytorch.trainer.states import TrainerFn
 from rhoknp import Document, Sentence
@@ -88,7 +89,7 @@ class BaseModuleProcessor(ABC):
         self.module: L.LightningModule | None = None
         self.trainer: L.Trainer | None = None
 
-    def load(self, keep_model_on_device: bool = False, **writer_kwargs) -> None:
+    def load(self, keep_model_on_device: bool = False) -> None:
         self.module = self._load_module()
         if self.config.torch_compile is True:
             self.module: L.LightningModule = torch.compile(self.module)  # ty: ignore[invalid-assignment]
@@ -101,16 +102,19 @@ class BaseModuleProcessor(ABC):
         self.trainer = L.Trainer(
             logger=False,
             callbacks=[
-                hydra.utils.instantiate(
-                    self.module.hparams.callbacks.prediction_writer,  # type: ignore[union-attr]
-                    destination=self.destination,
-                    **writer_kwargs,
-                ),
+                self._create_prediction_writer(),
                 hydra.utils.instantiate(self.module.hparams.callbacks.progress_bar),  # type: ignore[union-attr]
             ],
             strategy=_KeepModelOnDeviceStrategy(device=self.device) if keep_model_on_device else "auto",
             accelerator=self.accelerator,
             devices=1,
+        )
+
+    def _create_prediction_writer(self) -> BasePredictionWriter:
+        assert self.module is not None
+        return hydra.utils.instantiate(
+            self.module.hparams.callbacks.prediction_writer,
+            destination=self.destination,
         )
 
     def _load_module(self) -> L.LightningModule:
@@ -227,11 +231,12 @@ class WordModuleProcessor(BaseModuleProcessor):
         super().__init__(config, batch_size)
         self.from_seq2seq = from_seq2seq
 
-    def load(self, keep_model_on_device: bool = False, **writer_kwargs) -> None:
-        super().load(
-            keep_model_on_device=keep_model_on_device,
+    def _create_prediction_writer(self) -> BasePredictionWriter:
+        assert self.module is not None
+        return hydra.utils.instantiate(
+            self.module.hparams.callbacks.prediction_writer,
+            destination=self.destination,
             preserve_reading_lemma_canon=self.from_seq2seq,
-            **writer_kwargs,
         )
 
     def _load_module(self) -> L.LightningModule:
