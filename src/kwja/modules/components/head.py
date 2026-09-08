@@ -3,6 +3,35 @@ import math
 import torch
 from torch import nn
 
+# The pairwise hidden state built by the word selection heads below is O(seq^2 * rel * hid):
+# 1.8 GB for seq=256 with the base model, which dominates peak device memory during
+# prediction. Building it in slices of the source dimension bounds that intermediate.
+#
+# The reduction that produces the logits runs over the hidden dimension, which is never
+# split, so the arithmetic is unchanged -- only the order in which rows are filled in.
+# The results are bit-identical at the dimensions the models actually use, on CPU and on
+# CUDA alike. They can differ in the last bits at small dimensions, because the matrix
+# multiplication picks its blocking from the operand shape; the tests cover that case and
+# assert that it never moves an argmax.
+_CHUNK_TARGET_BYTES = 32 * 1024 * 1024
+
+
+def _source_chunk_size(source: torch.Tensor, chunking_allowed: bool) -> int:
+    """Number of source positions to expand at once, or the full length to disable chunking.
+
+    Callers disallow chunking while autograd is recording, because every slice would then be
+    kept alive for the backward pass and there would be nothing to save, and while the module
+    is in training mode, because dropout would draw its masks per slice rather than once for
+    the whole pairwise tensor.
+    """
+    seq_length = source.size(1)
+    if not chunking_allowed:
+        return seq_length
+    bytes_per_source_position = source[:, :1].numel() * seq_length * source.element_size()
+    if bytes_per_source_position == 0:
+        return seq_length
+    return max(1, min(seq_length, _CHUNK_TARGET_BYTES // bytes_per_source_position))
+
 
 class SequenceLabelingHead(nn.Sequential):
     def __init__(self, num_labels: int, hidden_size: int, hidden_dropout_prob: float) -> None:
@@ -59,8 +88,27 @@ class WordSelectionHead(nn.Module):
     def forward(self, pooled: torch.Tensor) -> torch.Tensor:
         h_source = self.l_source(pooled)  # (b, seq, hid)
         h_target = self.l_target(pooled)  # (b, seq, hid)
-        hidden = self.dropout(self.activation(h_source.unsqueeze(2) + h_target.unsqueeze(1)))  # (b, seq, seq, hid)
-        return self.output_layer(hidden)  # (b, seq, seq, label)
+        chunk_size = _source_chunk_size(h_source, chunking_allowed=not self.training and not torch.is_grad_enabled())
+        if chunk_size >= h_source.size(1):
+            hidden = self.dropout(self.activation(h_source.unsqueeze(2) + h_target.unsqueeze(1)))  # (b, seq, seq, hid)
+            return self.output_layer(hidden)  # (b, seq, seq, label)
+        return self._forward_chunked(h_source, h_target, chunk_size)
+
+    def _forward_chunked(self, h_source: torch.Tensor, h_target: torch.Tensor, chunk_size: int) -> torch.Tensor:
+        batch_size, seq_length = h_source.size(0), h_source.size(1)
+        logits = torch.empty(
+            (batch_size, seq_length, seq_length, self.output_layer.out_features),
+            device=h_source.device,
+            dtype=h_source.dtype,
+        )
+        unsqueezed_target = h_target.unsqueeze(1)  # (b, 1, seq, hid)
+        for start in range(0, seq_length, chunk_size):
+            stop = min(start + chunk_size, seq_length)
+            hidden = self.dropout(
+                self.activation(h_source[:, start:stop].unsqueeze(2) + unsqueezed_target)
+            )  # (b, chunk, seq, hid)
+            logits[:, start:stop] = self.output_layer(hidden)
+        return logits
 
 
 class RelationWiseWordSelectionHead(nn.Module):
@@ -77,8 +125,28 @@ class RelationWiseWordSelectionHead(nn.Module):
         batch_size, seq_length, hidden_size = pooled.size()
         h_source = self.l_source(pooled).view(batch_size, seq_length, -1, hidden_size)  # (b, seq, rel, hid)
         h_target = self.l_target(pooled).view(batch_size, seq_length, -1, hidden_size)  # (b, seq, rel, hid)
-        hidden = self.dropout(self.activation(h_source.unsqueeze(2) + h_target.unsqueeze(1)))  # (b, seq, seq, rel, hid)
-        return torch.einsum("bstlh,hl->bstl", hidden, self.classifier_weight)  # (b, seq, seq, rel)
+        chunk_size = _source_chunk_size(h_source, chunking_allowed=not self.training and not torch.is_grad_enabled())
+        if chunk_size >= seq_length:
+            hidden = self.dropout(
+                self.activation(h_source.unsqueeze(2) + h_target.unsqueeze(1))
+            )  # (b, seq, seq, rel, hid)
+            return torch.einsum("bstlh,hl->bstl", hidden, self.classifier_weight)  # (b, seq, seq, rel)
+        return self._forward_chunked(h_source, h_target, chunk_size)
+
+    def _forward_chunked(self, h_source: torch.Tensor, h_target: torch.Tensor, chunk_size: int) -> torch.Tensor:
+        batch_size, seq_length = h_source.size(0), h_source.size(1)
+        num_relations = self.classifier_weight.size(1)
+        logits = torch.empty(
+            (batch_size, seq_length, seq_length, num_relations), device=h_source.device, dtype=h_source.dtype
+        )
+        unsqueezed_target = h_target.unsqueeze(1)  # (b, 1, seq, rel, hid)
+        for start in range(0, seq_length, chunk_size):
+            stop = min(start + chunk_size, seq_length)
+            hidden = self.dropout(
+                self.activation(h_source[:, start:stop].unsqueeze(2) + unsqueezed_target)
+            )  # (b, chunk, seq, rel, hid)
+            logits[:, start:stop] = torch.einsum("bstlh,hl->bstl", hidden, self.classifier_weight)
+        return logits
 
 
 class LoRARelationWiseWordSelectionHead(nn.Module):
@@ -100,8 +168,26 @@ class LoRARelationWiseWordSelectionHead(nn.Module):
         delta_target_out = torch.einsum("bsh,hil->bsli", pooled, self.delta_target())  # (b, seq, rel, hid)
         source = h_source.unsqueeze(2) + delta_source_out  # (b, seq, rel, hid)
         target = h_target.unsqueeze(2) + delta_target_out  # (b, seq, rel, hid)
-        hidden = self.dropout(self.activation(source.unsqueeze(2) + target.unsqueeze(1)))  # (b, seq, seq, rel, hid)
-        return torch.einsum("bstlh,hl->bstl", hidden, self.classifier)  # (b, seq, seq, rel)
+        chunk_size = _source_chunk_size(source, chunking_allowed=not self.training and not torch.is_grad_enabled())
+        if chunk_size >= source.size(1):
+            hidden = self.dropout(self.activation(source.unsqueeze(2) + target.unsqueeze(1)))  # (b, seq, seq, rel, hid)
+            return torch.einsum("bstlh,hl->bstl", hidden, self.classifier)  # (b, seq, seq, rel)
+        return self._forward_chunked(source, target, chunk_size)
+
+    def _forward_chunked(self, source: torch.Tensor, target: torch.Tensor, chunk_size: int) -> torch.Tensor:
+        batch_size, seq_length = source.size(0), source.size(1)
+        num_relations = self.classifier.size(1)
+        logits = torch.empty(
+            (batch_size, seq_length, seq_length, num_relations), device=source.device, dtype=source.dtype
+        )
+        unsqueezed_target = target.unsqueeze(1)  # (b, 1, seq, rel, hid)
+        for start in range(0, seq_length, chunk_size):
+            stop = min(start + chunk_size, seq_length)
+            hidden = self.dropout(
+                self.activation(source[:, start:stop].unsqueeze(2) + unsqueezed_target)
+            )  # (b, chunk, seq, rel, hid)
+            logits[:, start:stop] = torch.einsum("bstlh,hl->bstl", hidden, self.classifier)
+        return logits
 
 
 class LoRADelta(nn.Module):
