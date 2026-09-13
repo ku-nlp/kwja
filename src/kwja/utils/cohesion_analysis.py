@@ -43,11 +43,11 @@ def wrap_base_phrases(
             antecedent_candidates = extractor.get_candidates(base_phrase, base_phrase.document.base_phrases)
             all_rels = extractor.extract_rels(base_phrase)
             if isinstance(extractor, (PasExtractor, BridgingExtractor)):
-                assert isinstance(all_rels, dict)
+                assert isinstance(all_rels, dict)  # noqa: S101
                 all_rels = cast(dict[str, list[Argument]], all_rels)
                 rel2tags: dict[str, list[str]] = {case: _get_argument_tags(all_rels[case]) for case in cases}
             elif isinstance(extractor, CoreferenceExtractor):
-                assert isinstance(all_rels, list)
+                assert isinstance(all_rels, list)  # noqa: S101
                 all_rels = cast(list[BasePhrase | ExophoraReferent], all_rels)
                 rel2tags = {"=": _get_referent_tags(all_rels)}
             else:
@@ -73,7 +73,7 @@ def _get_argument_tags(arguments: list[Argument]) -> list[str]:
         if isinstance(argument, EndophoraArgument):
             argument_tag = str(argument.base_phrase.global_index)
         else:
-            assert isinstance(argument, ExophoraArgument)
+            assert isinstance(argument, ExophoraArgument)  # noqa: S101
             exophora_referent = copy.copy(argument.exophora_referent)
             exophora_referent.index = None  # 不特定:人１ -> 不特定:人
             argument_tag = f"[{exophora_referent.text}]"  # 不特定:人 -> [不特定:人]
@@ -94,7 +94,7 @@ def _get_referent_tags(referents: list[BasePhrase | ExophoraReferent]) -> list[s
         if isinstance(referent, BasePhrase):
             mention_tag = str(referent.global_index)
         else:
-            assert isinstance(referent, ExophoraReferent)
+            assert isinstance(referent, ExophoraReferent)  # noqa: S101
             referent.index = None  # 不特定:人１ -> 不特定:人
             mention_tag = f"[{referent.text}]"  # 著者 -> [著者]
         mention_tags.append(mention_tag)

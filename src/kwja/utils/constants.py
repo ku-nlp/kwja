@@ -26,7 +26,7 @@ TYPO_CORR_OP_TAG2TOKEN = {
     "_": "<_>",
 }
 TOKEN2TYPO_CORR_OP_TAG: dict[str, str] = {v: k for k, v in TYPO_CORR_OP_TAG2TOKEN.items()}
-DUMMY_TOKEN = "<dummy>"
+DUMMY_TOKEN = "<dummy>"  # noqa: S105
 
 
 # ---------- char module|sentence segmentation ----------
@@ -205,14 +205,14 @@ TRANSLATION_TABLE: dict[int, int | None] = str.maketrans(
 
 
 # ---------- seq2seq module----------
-SURF_TOKEN: str = "<extra_id_0>"
-READING_TOKEN: str = "<extra_id_1>"
-LEMMA_TOKEN: str = "<extra_id_2>"
-CANON_TOKEN: str = "<extra_id_3>"
-NO_CANON_TOKEN: str = "<extra_id_4>"  # control token to represent no canonical form
-MORPHEME_DELIMITER_TOKEN: str = "<extra_id_5>"  # control token to segment input text into morphemes
+SURF_TOKEN: str = "<extra_id_0>"  # noqa: S105
+READING_TOKEN: str = "<extra_id_1>"  # noqa: S105
+LEMMA_TOKEN: str = "<extra_id_2>"  # noqa: S105
+CANON_TOKEN: str = "<extra_id_3>"  # noqa: S105
+NO_CANON_TOKEN: str = "<extra_id_4>"  # noqa: S105
+MORPHEME_DELIMITER_TOKEN: str = "<extra_id_5>"  # noqa: S105
 # special tokens
-HALF_SPACE_TOKEN: str = "<extra_id_6>"
+HALF_SPACE_TOKEN: str = "<extra_id_6>"  # noqa: S105
 RARE2SPECIAL: dict[str, str] = {
     "ゔ": "<extra_id_7>",
     "榕": "<extra_id_8>",

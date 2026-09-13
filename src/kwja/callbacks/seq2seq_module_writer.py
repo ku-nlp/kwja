@@ -30,7 +30,7 @@ class Seq2SeqModuleWriter(BaseModuleWriter):
         dataloader_idx: int,
     ) -> None:
         predict_dataloaders = trainer.predict_dataloaders
-        assert predict_dataloaders is not None
+        assert predict_dataloaders is not None  # noqa: S101
         if isinstance(predict_dataloaders, dict):
             dataloader = list(predict_dataloaders.values())[dataloader_idx]
         else:

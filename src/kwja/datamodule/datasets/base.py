@@ -49,7 +49,8 @@ class FullAnnotatedDocumentLoaderMixin:
 
         orig_documents: list[Document]
         if isinstance(source, Path):
-            assert source.is_dir()
+            if not source.is_dir():
+                raise NotADirectoryError(f"Dataset directory does not exist or is not a directory: {source}")
             orig_documents = self._load_documents(source, ext)
         else:
             orig_documents = source
@@ -98,7 +99,7 @@ class FullAnnotatedDocumentLoaderMixin:
         sub_documents: list[Document] = []
         sub_idx = 0
         for span in splitter.split_into_spans():
-            assert isinstance(span, SpanCandidate)
+            assert isinstance(span, SpanCandidate)  # noqa: S101
             sentences = document.sentences[span.start : span.end]
             sub_document = Document.from_sentences(sentences)
             sub_doc_id = to_sub_doc_id(document.doc_id, sub_idx, stride=span.stride)

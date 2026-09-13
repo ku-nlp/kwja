@@ -59,7 +59,7 @@ class JumanppAugmenter:
         for sentence in original_document.sentences:
             buf += self._create_partial_input(sentence)
 
-        with Popen(self.jumanpp.run_command, stdout=PIPE, stdin=PIPE, encoding="utf-8") as p:
+        with Popen(self.jumanpp.run_command, stdout=PIPE, stdin=PIPE, encoding="utf-8") as p:  # noqa: S603
             jumanpp_text, _ = p.communicate(input=buf)
         augmented_document = Document.from_jumanpp(jumanpp_text)
 
@@ -71,7 +71,7 @@ class JumanppAugmenter:
 
     def augment_sentence(self, original_sentence: Sentence, update_original: bool = True) -> Sentence:
         buf = self._create_partial_input(original_sentence)
-        with Popen(self.jumanpp.run_command, stdout=PIPE, stdin=PIPE, encoding="utf-8") as p:
+        with Popen(self.jumanpp.run_command, stdout=PIPE, stdin=PIPE, encoding="utf-8") as p:  # noqa: S603
             jumanpp_text, _ = p.communicate(input=buf)
         augmented_sentence = Sentence.from_jumanpp(jumanpp_text)
 
@@ -149,7 +149,8 @@ def extract_named_entities(tagged_sentence: Sentence) -> list[tuple[str, list[Mo
     category, morphemes_buff = "", []
     for morpheme in tagged_sentence.morphemes:
         if ne_tag := morpheme.semantics.get("NE"):
-            assert isinstance(ne_tag, str)
+            if not isinstance(ne_tag, str):
+                raise TypeError("Named entity annotation must be a string")
             cat, span = ne_tag.split(":")
             if span in {"single", "head"}:
                 category, morphemes_buff = cat, [morpheme]
@@ -318,9 +319,8 @@ def assign_features_and_save(
             Path(f"knp_error_{document.doc_id}.knp").write_text(document.to_knp(), encoding="utf-8")
             continue
 
-        assert len(document.to_knp().split("\n")) == len(knp_text.split("\n")), (
-            f"knp text length mismatch: {document.doc_id}"
-        )
+        if len(document.to_knp().split("\n")) != len(knp_text.split("\n")):
+            raise ValueError(f"knp text length mismatch: {document.doc_id}")
 
         # 初めから付いていた素性およびKNPサポート外の活用・品詞の付与
         for morpheme, features in zip(document.morphemes, morpheme_features, strict=True):
@@ -347,9 +347,10 @@ def assign_features_and_save(
 
 
 def test_jumanpp_version() -> None:
-    out = subprocess.run(["jumanpp", "--version"], capture_output=True, encoding="utf-8", text=True, check=False)
+    out = subprocess.run(["jumanpp", "--version"], capture_output=True, encoding="utf-8", text=True, check=False)  # noqa: S607
     match = re.match(r"Juman\+\+ Version: 2\.0\.0-dev\.(\d{8}).+", out.stdout)
-    assert match is not None and int(match.group(1)) >= 20220605, "Juman++ version is old. Please update Juman++."
+    if match is None or int(match.group(1)) < 20220605:
+        raise RuntimeError("Juman++ version is old. Please update Juman++.")
 
 
 def test_jumanpp_augmenter() -> None:
@@ -398,7 +399,7 @@ def test_jumanpp_augmenter() -> None:
         EOS
         """
     )
-    assert sentence.to_knp() == expected
+    assert sentence.to_knp() == expected  # noqa: S101
 
     document = Document.from_knp(
         textwrap.dedent(
@@ -499,7 +500,7 @@ def test_jumanpp_augmenter() -> None:
         EOS
         """
     )
-    assert document.to_knp() == expected
+    assert document.to_knp() == expected  # noqa: S101
 
 
 def main() -> None:

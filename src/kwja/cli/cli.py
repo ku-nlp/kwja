@@ -71,7 +71,7 @@ class _KeepModelOnDeviceStrategy(SingleDeviceStrategy):
         # Strategy.teardown() minus lightning_module.cpu(); prediction has no
         # optimizers, so moving them to the CPU is not needed either.
         self.precision_plugin.teardown()
-        assert self.accelerator is not None
+        assert self.accelerator is not None  # noqa: S101
         self.accelerator.teardown()
         self.checkpoint_io.teardown()
 
@@ -111,7 +111,7 @@ class BaseModuleProcessor(ABC):
         )
 
     def _create_prediction_writer(self) -> BasePredictionWriter:
-        assert self.module is not None
+        assert self.module is not None  # noqa: S101
         return hydra.utils.instantiate(
             self.module.hparams.callbacks.prediction_writer,
             destination=self.destination,
@@ -121,7 +121,7 @@ class BaseModuleProcessor(ABC):
         raise NotImplementedError
 
     def _rename_modules_for_backward_compatibility(self) -> None:
-        assert self.module is not None, "Module is not loaded"
+        assert self.module is not None  # noqa: S101
         progress_bar_target = self.module.hparams.callbacks.progress_bar._target_
         if progress_bar_target.startswith("pytorch_lightning"):
             self.module.hparams.callbacks.progress_bar._target_ = progress_bar_target.replace(
@@ -138,7 +138,7 @@ class BaseModuleProcessor(ABC):
 
     def apply_module(self, input_file: Path) -> None:
         datamodule = self._load_datamodule(input_file)
-        assert self.trainer is not None
+        assert self.trainer is not None  # noqa: S101
         self.trainer.predict(model=self.module, dataloaders=[datamodule.predict_dataloader()], return_predictions=False)
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
@@ -159,7 +159,7 @@ class TypoModuleProcessor(BaseModuleProcessor):
         )
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
-        assert self.module is not None
+        assert self.module is not None  # noqa: S101
         self.module.hparams.datamodule.predict.raw_text_file = input_file
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
         datamodule.setup(stage=TrainerFn.PREDICTING)
@@ -186,7 +186,7 @@ class CharModuleProcessor(BaseModuleProcessor):
         )
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
-        assert self.module is not None
+        assert self.module is not None  # noqa: S101
         self.module.hparams.datamodule.predict.raw_text_file = input_file
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
         datamodule.setup(stage=TrainerFn.PREDICTING)
@@ -214,7 +214,7 @@ class Seq2SeqModuleProcessor(BaseModuleProcessor):
         )
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
-        assert self.module is not None
+        assert self.module is not None  # noqa: S101
         self.module.hparams.datamodule.predict.juman_file = input_file
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
         datamodule.setup(stage=TrainerFn.PREDICTING)
@@ -232,7 +232,7 @@ class WordModuleProcessor(BaseModuleProcessor):
         self.from_seq2seq = from_seq2seq
 
     def _create_prediction_writer(self) -> BasePredictionWriter:
-        assert self.module is not None
+        assert self.module is not None  # noqa: S101
         return hydra.utils.instantiate(
             self.module.hparams.callbacks.prediction_writer,
             destination=self.destination,
@@ -247,7 +247,7 @@ class WordModuleProcessor(BaseModuleProcessor):
         )
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
-        assert self.module is not None
+        assert self.module is not None  # noqa: S101
         self.module.hparams.datamodule.predict.juman_file = input_file
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
         datamodule.setup(stage=TrainerFn.PREDICTING)

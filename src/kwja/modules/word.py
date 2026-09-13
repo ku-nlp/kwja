@@ -221,7 +221,7 @@ class WordModule(BaseModule[WordModuleMetric]):
     def on_validation_epoch_end(self) -> None:
         metrics_log: dict[str, dict[str, float]] = {}
         val_dataloaders = self.trainer.val_dataloaders
-        assert val_dataloaders is not None
+        assert val_dataloaders is not None  # noqa: S101
         for corpus, metric in self.valid_corpus2metric.items():
             metric.set_properties(
                 {
@@ -257,7 +257,7 @@ class WordModule(BaseModule[WordModuleMetric]):
     def on_test_epoch_end(self) -> None:
         metrics_log: dict[str, dict[str, float]] = {}
         test_dataloaders = self.trainer.test_dataloaders
-        assert test_dataloaders is not None
+        assert test_dataloaders is not None  # noqa: S101
         for corpus, metric in self.test_corpus2metric.items():
             metric.set_properties(
                 {

@@ -55,7 +55,8 @@ def convert_typo_predictions_into_tags(
 
 
 def apply_edit_operations(pre_text: str, kdr_tags: list[str], ins_tags: list[str]) -> str:
-    assert len(pre_text) + 1 == len(kdr_tags) + 1 == len(ins_tags)
+    if len(kdr_tags) != len(pre_text) or len(ins_tags) != len(pre_text) + 1:
+        raise ValueError("Edit tags must match the text length, with one extra insertion tag")
     post_text = ""
     for i, char in enumerate(pre_text):
         if ins_tags[i].startswith("I:"):
@@ -159,7 +160,7 @@ def get_morpheme_attribute_predictions(
                 subpos_logit_list[subpos_index] = MASKED
         subpos_index = np.array(subpos_logit_list).argmax().item()
         subpos_tag = SUBPOS_TAGS[subpos_index]
-        assert subpos_tag in possible_subpos_tags
+        assert subpos_tag in possible_subpos_tags  # noqa: S101
         subpos_predictions.append(subpos_index)
 
         conjtype_tag = CONJTYPE_TAGS[conjtype_index]
@@ -170,7 +171,7 @@ def get_morpheme_attribute_predictions(
                     conjform_logit_list[conjform_index] = MASKED
             conjform_index = np.array(conjform_logit_list).argmax().item()
             conjform_tag = CONJFORM_TAGS[conjform_index]
-            assert conjform_tag in possible_conjform_tags
+            assert conjform_tag in possible_conjform_tags  # noqa: S101
         else:
             conjtype_predictions[i] = CONJTYPE_TAGS.index("*")
             conjform_index = CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID["*"]["*"]
@@ -354,7 +355,7 @@ def add_dependency(
             else:
                 _resolve_dependency(base_phrase, dependency_manager)
 
-        assert base_phrase.parent_index is not None
+        assert base_phrase.parent_index is not None  # noqa: S101
         if base_phrase.parent_index == -1:
             base_phrase.phrase.parent_index = -1
             base_phrase.phrase.dep_type = DepType.DEPENDENCY

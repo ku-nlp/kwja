@@ -106,7 +106,7 @@ class Seq2SeqDataset(BaseDataset[Seq2SeqExample, Seq2SeqModuleFeatures]):
             (seq2seq_tag if seq2seq_tag != self.tokenizer.pad_token_id else IGNORE_INDEX)
             for seq2seq_tag in example.tgt_input_ids
         ]
-        assert len(seq2seq_labels) == self.max_tgt_length
+        assert len(seq2seq_labels) == self.max_tgt_length  # noqa: S101
 
         return Seq2SeqModuleFeatures(
             example_ids=example.example_id,

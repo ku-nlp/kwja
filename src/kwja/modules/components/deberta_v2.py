@@ -164,14 +164,16 @@ class DebertaV2Encoder(nn.Module):
             special_token_mask = torch.zeros_like(relative_pos, dtype=torch.bool).repeat(batch_size, 1, 1)
             special_token_mask[torch.arange(0, batch_size), special_token_indices.t(), :] = True
             special_token_mask[torch.arange(0, batch_size), :, special_token_indices.t()] = True
-            assert self.position_buckets > 0
+            if self.position_buckets <= 0:
+                raise ValueError("position_buckets must be positive for special token positions")
             # relative position of -self.position_buckets is not used in pre-training and is used to represent the
             #  position of special tokens
             special_token_pos = torch.triu(
                 torch.full_like(relative_pos, -self.position_buckets), diagonal=1
             ) + torch.tril(torch.full_like(relative_pos, -self.position_buckets), diagonal=-1)
             return torch.where(special_token_mask, special_token_pos, relative_pos)  # (b, query, key)
-        assert relative_pos is not None
+        if relative_pos is None:
+            raise ValueError("relative_pos is required when relative attention is disabled")
         return relative_pos
 
     def forward(
@@ -540,7 +542,8 @@ class DebertaV2Model(DebertaV2PreTrainedModel):
             query_states = encoded_layers[-1]
             rel_embeddings = self.encoder.get_rel_embedding()
             attention_mask = self.encoder.get_attention_mask(attention_mask)
-            assert special_token_indices is not None
+            if special_token_indices is None:
+                raise ValueError("special_token_indices is required when z_steps is greater than one")
             rel_pos = self.encoder.get_rel_pos(embedding_output, special_token_indices)
             for layer in layers[1:]:
                 query_states = layer(

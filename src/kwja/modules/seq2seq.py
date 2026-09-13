@@ -50,7 +50,7 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
         if getattr(self.encoder_decoder.config, "scale_decoder_outputs", None) is False:
             self.encoder_decoder.config.tie_word_embeddings = False
             output_embeddings = self.encoder_decoder.get_output_embeddings()
-            assert output_embeddings is not None
+            assert output_embeddings is not None  # noqa: S101
             self.encoder_decoder.set_output_embeddings(deepcopy(output_embeddings))
 
     def forward(self, batch: Any) -> dict[str, torch.Tensor]:
@@ -101,7 +101,7 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
             self.log(f"test/{key}", mean_score)
 
     def predict_step(self, batch: Any) -> dict[str, Any]:
-        assert isinstance(self.encoder_decoder, GenerationMixin)
+        assert isinstance(self.encoder_decoder, GenerationMixin)  # noqa: S101
         generations = self.encoder_decoder.generate(
             input_ids=batch["input_ids"],
             attention_mask=batch["attention_mask"],

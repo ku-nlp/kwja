@@ -105,7 +105,7 @@ def main() -> None:
                 continue
             try:
                 sid2knp_str[knp_applied_sentence.sid] = knp_applied_sentence.to_knp()
-                assert len(info) > 0
+                assert len(info) > 0  # noqa: S101
                 sid2info[knp_applied_sentence.sid] = info
             except AttributeError:
                 excluded_nums["no_attribution_error"] = excluded_nums.get("no_attribution_error", 0) + 1

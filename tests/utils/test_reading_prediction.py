@@ -63,7 +63,7 @@ def test_main(data_dir: Path) -> None:
     assert script_path is not None
     kanjidic_path = RESOURCE_TRAVERSABLE / "reading_prediction" / "kanjidic"
     input_path = data_dir / "datasets" / "word_files"
-    subprocess.run(
+    subprocess.run(  # noqa: S603
         [
             sys.executable,
             script_path,
@@ -76,7 +76,7 @@ def test_main(data_dir: Path) -> None:
         ],
         check=True,
     )
-    subprocess.run(
+    subprocess.run(  # noqa: S603
         [
             sys.executable,
             script_path,

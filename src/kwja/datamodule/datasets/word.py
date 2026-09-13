@@ -174,7 +174,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         return examples
 
     def encode(self, example: WordExample) -> WordModuleFeatures:
-        assert example.doc_id is not None, "doc_id isn't set"
+        assert example.doc_id is not None, "doc_id isn't set"  # noqa: S101
 
         target_mask = [False] * self.max_seq_length
         for global_index in example.analysis_target_morpheme_indices:
@@ -223,7 +223,8 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             category = named_entity.category.value
             for i, morpheme in enumerate(named_entity.morphemes):
                 bi = "B" if i == 0 else "I"
-                assert ne_labels[morpheme.global_index] == NE_TAGS.index("O"), f"nested NE found in {example.doc_id}"
+                if ne_labels[morpheme.global_index] != NE_TAGS.index("O"):
+                    raise ValueError(f"nested NE found in {example.doc_id}")
                 ne_labels[morpheme.global_index] = NE_TAGS.index(f"{bi}-{category}")
 
         # ---------- base phrase feature tagging ----------
@@ -350,7 +351,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         for cohesion_base_phrase in cohesion_base_phrases:
             if cohesion_base_phrase.is_target is False:
                 continue
-            assert cohesion_base_phrase.rel2tags is not None, "rel2tags isn't set"
+            assert cohesion_base_phrase.rel2tags is not None, "rel2tags isn't set"  # noqa: S101
             for tag in cohesion_base_phrase.rel2tags[rel]:
                 if tag in self.special_tokens:
                     target_morpheme_global_index = special_token_indexer.get_morpheme_level_index(tag)
@@ -370,7 +371,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         for cohesion_base_phrase in cohesion_base_phrases:
             if cohesion_base_phrase.is_target is False:
                 continue
-            assert cohesion_base_phrase.antecedent_candidates is not None, "antecedent_candidates isn't set"
+            assert cohesion_base_phrase.antecedent_candidates is not None, "antecedent_candidates isn't set"  # noqa: S101
             candidate_indices = [c.head_morpheme_global_index for c in cohesion_base_phrase.antecedent_candidates]
             for morpheme_global_index in cohesion_base_phrase.morpheme_global_indices:
                 if candidate_indices:

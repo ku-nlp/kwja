@@ -104,7 +104,8 @@ def convert_components_into_tags(components: list[Component], length: int) -> tu
                 for i in range(len(component.pre_str)):
                     kdr_tags[cursor + i] = "D"
             elif component.type == "insert":
-                assert ins_tags[cursor] == "_"
+                if ins_tags[cursor] != "_":
+                    raise ValueError("Multiple insertions at the same position are not supported")
                 ins_tags[cursor] = f"I:{component.post_str}"
             elif component.type == "replace":
                 for op, i1, i2, j1, j2 in opcodes(component.pre_str, component.post_str):
@@ -137,7 +138,8 @@ def load_examples(in_dir: Path, split: str) -> tuple[dict[str, list[dict[str, st
             example: dict = json.loads(line)
             normalize_example(example)
             diffs = [diff for diff in example["diffs"] if diff["category"] != "not-typo"]
-            assert len(diffs) > 0
+            if len(diffs) <= 0:
+                raise ValueError("Example must contain at least one typo difference")
             components: list[Component] | None = decompose(example["pre_text"], example["post_text"], diffs)
             if components is None:
                 continue

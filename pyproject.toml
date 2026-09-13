@@ -125,7 +125,7 @@ src = ["src"]
 target-version = "py310"  # The minimum Python version to target
 
 [tool.ruff.lint]
-select = ["F", "E", "W", "I", "B", "PL", "PD", "NPY", "RUF", "UP", "TID", "COM", "PT", "ARG", "PYI", "FA", "G", "FBT", "ANN"]
+select = ["F", "E", "W", "I", "B", "PL", "PD", "NPY", "RUF", "UP", "TID", "COM", "PT", "ARG", "PYI", "FA", "G", "FBT", "ANN", "S"]
 ignore = [
     "E501",  # Line too long
     "PLR0911",  # Too many return statements
@@ -161,6 +161,12 @@ ignore = [
     "B023",  # Function definition does not bind loop variable `sentence_start`
     "B904",  # Within an `except` clause, raise exceptions with `raise ... from err` or `raise ... from None` to distinguish them from errors in exception handling
     "ANN",  # flake8-annotations
+]
+"tests/*" = [
+    "D",  # pydocstyle
+    "S101",  # Test assertions
+    "S311",  # Standard pseudo-random generators are not suitable for cryptographic purposes
+    "INP001",  # File `...` is part of an implicit namespace package. Add an `__init__.py`
 ]
 
 [tool.ruff.lint.flake8-bugbear]
