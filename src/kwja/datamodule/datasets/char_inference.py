@@ -30,7 +30,7 @@ class CharInferenceDataset(BaseDataset[CharInferenceExample, CharModuleFeatures]
         if len(texts) > 0:
             documents = create_documents_from_raw_texts(texts)
         elif raw_text_file is not None:
-            with raw_text_file.open() as f:
+            with raw_text_file.open(encoding="utf-8") as f:
                 documents = create_documents_from_raw_texts(chunk_by_document(f))
         else:
             documents = []

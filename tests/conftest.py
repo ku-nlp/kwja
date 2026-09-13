@@ -1,4 +1,5 @@
 import os
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -9,7 +10,12 @@ from transformers import AutoTokenizer, PreTrainedTokenizerBase
 os.environ["DATA_DIR"] = ""
 base_path = Path(__file__).parent.parent / "configs" / "base.yaml"
 if base_path.exists() is False:
-    base_path.symlink_to(base_path.parent / "base_template.yaml")
+    try:
+        base_path.symlink_to(base_path.parent / "base_template.yaml")
+    except OSError:
+        # Windows既定ではシンボリックリンク作成に管理者権限/開発者モードが必要なため、
+        # 権限が無い環境ではコピーにフォールバックする(内容は読み取り専用で使うだけなので実害無し)
+        shutil.copy(base_path.parent / "base_template.yaml", base_path)
 
 
 @pytest.fixture

@@ -7,11 +7,10 @@ jobs:
     name: Build the project
     runs-on: ${{ matrix.os }}
     strategy:
-      max-parallel: 12
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
-        python-version: [ "3.10", "3.11", "3.12", "3.13" ]
+        python-version: [ "3.10", "3.11", "3.12", "3.13", "3.14" ]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -21,15 +20,12 @@ jobs:
           python-version: ${{ matrix.python-version }}
           enable-cache: false
       - name: Build package
-        run: |
-          uv build
+        run: uv build
       - name: Create virtual environment
-        run: |
-          uv venv --python "${{ matrix.python-version }}" .venv
+        run: uv venv
       - name: Install KWJA from wheel (non-Windows)
         if: ${{ matrix.os != 'windows-latest' }}
-        run: |
-          uv pip install --python .venv dist/*.whl
+        run: uv pip install --python .venv dist/*.whl
       - name: Install KWJA from wheel (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
         run: |

@@ -4,7 +4,6 @@ import hydra
 import lightning as L
 from hydra import compose, initialize
 from hydra.core.hydra_config import HydraConfig
-from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
 
 from kwja.datamodule.datamodule import token_dataclass_data_collator
@@ -18,8 +17,6 @@ with initialize(version_base=None, config_path="../../configs"):
         overrides=["max_src_length=32", "max_tgt_length=512"],
     )
     HydraConfig.instance().set_config(cfg)
-    OmegaConf.set_readonly(cfg.hydra, False)
-    OmegaConf.resolve(cfg)
 
 
 def test_init() -> None:

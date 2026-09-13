@@ -16,7 +16,7 @@ def test_download_checkpoint_downloads_from_huggingface_hub(tmp_path: Path, monk
         assert isinstance(local_dir, Path)
         assert isinstance(filename, str)
         path = local_dir / filename
-        path.write_text("checkpoint")
+        path.write_text("checkpoint", encoding="utf-8")
         return str(path)
 
     monkeypatch.setattr(utils, "hf_hub_download", fake_hf_hub_download)
@@ -39,7 +39,7 @@ def test_download_checkpoint_downloads_from_huggingface_hub(tmp_path: Path, monk
 
 def test_download_checkpoint_skips_existing_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     checkpoint_path = tmp_path / "char_deberta-v2-base-wwm.ckpt"
-    checkpoint_path.write_text("checkpoint")
+    checkpoint_path.write_text("checkpoint", encoding="utf-8")
 
     def fake_hf_hub_download(**_kwargs: object) -> str:
         raise AssertionError("hf_hub_download should not be called")
@@ -65,7 +65,7 @@ def test_hf_hub_download_disables_progress_temporarily(tmp_path: Path, monkeypat
         assert isinstance(local_dir, Path)
         assert isinstance(filename, str)
         path = local_dir / filename
-        path.write_text("checkpoint")
+        path.write_text("checkpoint", encoding="utf-8")
         return str(path)
 
     monkeypatch.setattr(utils, "hf_hub_download", fake_hf_hub_download)

@@ -85,7 +85,7 @@ def test_get_target_property(data_dir: Path) -> None:
         reading_candidate_token_ids: list[int] = get_reading_candidate_token_ids(tokenizer)
         char2token_items: dict[str, dict[str, int]] = get_char2token_items(tokenizer)
         test_case_path: Path = data_dir / "modules" / "permitted_tokens.json"
-        with open(test_case_path) as f:
+        with open(test_case_path, encoding="utf-8") as f:
             test_cases = json.load(f)
         for test_case in test_cases.values():
             processor = SurfForcedDecodingLogitsProcessor(
@@ -217,7 +217,7 @@ def test_get_mask(data_dir: Path) -> None:
         all_tokens: set[str] = set(tokenizer.vocab.keys())
 
         test_case_path: Path = data_dir / "modules" / "permitted_tokens.json"
-        with open(test_case_path) as f:
+        with open(test_case_path, encoding="utf-8") as f:
             test_cases = json.load(f)
         for _k, test_case in test_cases.items():
             assert test_case["target_property"] in ["surf", "reading", "lemma", "canon", "init"]

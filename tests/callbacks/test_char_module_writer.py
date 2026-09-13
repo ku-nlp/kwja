@@ -113,7 +113,7 @@ def test_write_on_batch_end(char_tokenizer: PreTrainedTokenizerBase) -> None:
         writer = CharModuleWriter(destination=tmp_dir / Path("char_prediction.juman"))
         writer.write_on_batch_end(trainer, ..., prediction, None, ..., 0, 0)
         assert isinstance(writer.destination, Path), "destination isn't set"
-        assert writer.destination.read_text() == dedent(
+        assert writer.destination.read_text(encoding="utf-8") == dedent(
             f"""\
             # S-ID:{doc_id_prefix}-0-1 kwja:{version("kwja")}
             花咲 _ 花咲 未定義語 15 その他 1 * 0 * 0

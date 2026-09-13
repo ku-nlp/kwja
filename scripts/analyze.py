@@ -15,6 +15,7 @@ from omegaconf import DictConfig, ListConfig, OmegaConf
 
 from kwja.cli.cli import normalize_text
 from kwja.datamodule.datamodule import DataModule
+from kwja.utils.hydra_compat import workaround_hydra_argparse
 from kwja.utils.logging_util import filter_logs
 
 filter_logs(environment="production")
@@ -70,7 +71,9 @@ def main(eval_cfg: DictConfig) -> None:
             cfg.datamodule.predict.raw_text_file = Path(raw_input_file)
         else:
             # For typo module and char module
-            Path(temp_file.name).write_text("\n".join(normalize_text(line) for line in sys.stdin.readlines()))
+            Path(temp_file.name).write_text(
+                "\n".join(normalize_text(line) for line in sys.stdin.readlines()), encoding="utf-8"
+            )
             cfg.datamodule.predict.raw_text_file = Path(temp_file.name)
 
         datamodule = DataModule(cfg=cfg.datamodule)
@@ -82,4 +85,5 @@ def main(eval_cfg: DictConfig) -> None:
 
 
 if __name__ == "__main__":
-    main()
+    with workaround_hydra_argparse():
+        main()

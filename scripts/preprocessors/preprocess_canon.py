@@ -87,7 +87,7 @@ def main() -> None:
     canon2freq: dict[str, int] = {}
     excluded_nums: dict[str, int] = {}
     for input_path in tqdm(input_paths):
-        with input_path.open() as f:
+        with input_path.open(encoding="utf-8") as f:
             for knp in chunk_by_sentence(f):
                 try:
                     sentence: Sentence = Sentence.from_knp(knp)
@@ -187,20 +187,20 @@ def main() -> None:
     output_dir: Path = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    with open(output_dir / "canon2freq.txt", "w") as f:
+    with open(output_dir / "canon2freq.txt", "w", encoding="utf-8") as f:
         for canon, freq in canon2freq.items():
             f.write(f"{canon}\t{freq}\n")
-    with open(output_dir / "sampled2freq.txt", "w") as f:
+    with open(output_dir / "sampled2freq.txt", "w", encoding="utf-8") as f:
         for canon, freq in sampled_canon2freq.items():
             f.write(f"{canon}\t{freq}\n")
-    output_dir.joinpath("info.json").write_text(json.dumps(sid2info, indent=2, ensure_ascii=False))
+    output_dir.joinpath("info.json").write_text(json.dumps(sid2info, indent=2, ensure_ascii=False), encoding="utf-8")
 
     train_dir: Path = output_dir / "train"
     if train_dir.exists():
         shutil.rmtree(str(train_dir))
     train_dir.mkdir(exist_ok=True)
     for name, knp_str in train_list:
-        with (train_dir / f"{name}.knp").open("w") as f:
+        with (train_dir / f"{name}.knp").open("w", encoding="utf-8") as f:
             f.write(f"{knp_str}\n")
 
     valid_dir: Path = output_dir / "valid"
@@ -208,7 +208,7 @@ def main() -> None:
         shutil.rmtree(str(valid_dir))
     valid_dir.mkdir(exist_ok=True)
     for name, knp_str in valid_list:
-        with (valid_dir / f"{name}.knp").open("w") as f:
+        with (valid_dir / f"{name}.knp").open("w", encoding="utf-8") as f:
             f.write(f"{knp_str}\n")
 
     test_dir: Path = output_dir / "test"
@@ -216,7 +216,7 @@ def main() -> None:
         shutil.rmtree(str(test_dir))
     test_dir.mkdir(exist_ok=True)
     for name, knp_str in test_list:
-        with (test_dir / f"{name}.knp").open("w") as f:
+        with (test_dir / f"{name}.knp").open("w", encoding="utf-8") as f:
             f.write(f"{knp_str}\n")
 
     print(f"train: {len(train_list)}")
