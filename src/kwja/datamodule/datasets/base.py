@@ -62,7 +62,7 @@ class FullAnnotatedDocumentLoaderMixin:
                     document.doc_id: document
                     for document in self._split_document(
                         processed_document,
-                        max_seq_length - len(self.tokenizer.additional_special_tokens) - 2,  # -2: [CLS] and [SEP]
+                        max_seq_length - len(self.tokenizer.extra_special_tokens) - 2,  # -2: [CLS] and [SEP]
                         stride=document_split_stride,
                     )
                 }

@@ -1,4 +1,5 @@
 import os
+from copy import deepcopy
 from statistics import mean
 from typing import TYPE_CHECKING, Any
 
@@ -30,6 +31,7 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
         self.tokenizer: PreTrainedTokenizerFast = hydra.utils.call(hparams.module.tokenizer)
 
         self.encoder_decoder: PreTrainedModel = hydra.utils.call(hparams.encoder.from_config)
+        self._restore_untied_embeddings()
         # https://github.com/huggingface/transformers/issues/4875
         self.encoder_decoder.resize_token_embeddings(len(self.tokenizer.vocab))
 
@@ -40,8 +42,16 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
     def setup(self, stage: str) -> None:
         if stage == "fit":
             self.encoder_decoder = hydra.utils.call(self.hparams.encoder.from_pretrained)
+            self._restore_untied_embeddings()
             # https://github.com/huggingface/transformers/issues/4875
             self.encoder_decoder.resize_token_embeddings(len(self.tokenizer.vocab))
+
+    def _restore_untied_embeddings(self) -> None:
+        if getattr(self.encoder_decoder.config, "scale_decoder_outputs", None) is False:
+            self.encoder_decoder.config.tie_word_embeddings = False
+            output_embeddings = self.encoder_decoder.get_output_embeddings()
+            assert output_embeddings is not None
+            self.encoder_decoder.set_output_embeddings(deepcopy(output_embeddings))
 
     def forward(self, batch: Any) -> dict[str, torch.Tensor]:
         output = self.encoder_decoder(

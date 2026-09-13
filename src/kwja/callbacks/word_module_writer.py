@@ -3,7 +3,7 @@ from collections import defaultdict
 from collections.abc import Sequence, Sized
 from itertools import product
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import lightning as L
 from jinf import Jinf
@@ -98,7 +98,7 @@ class WordModuleWriter(BaseModuleWriter):
             else:
                 word_reading_predictions = get_word_level_readings(
                     [self.reading_id2reading[reading_id] for reading_id in reading_predictions],
-                    [dataset.tokenizer.decode(input_id) for input_id in example.encoding.ids],
+                    [cast(str, dataset.tokenizer.decode(input_id)) for input_id in example.encoding.ids],
                     reading_subword_map,
                 )
                 canons = [None for _ in document.morphemes]

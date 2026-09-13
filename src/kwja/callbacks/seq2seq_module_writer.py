@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import lightning as L
 from rhoknp import Sentence
@@ -43,9 +43,16 @@ class Seq2SeqModuleWriter(BaseModuleWriter):
             if len(example.surfs) == 0:
                 continue
 
-            decoded: str = self.tokenizer.decode(
-                [x for x in seq2seq_predictions if x not in {self.tokenizer.pad_token_id, self.tokenizer.eos_token_id}],
-                skip_special_tokens=False,
+            decoded = cast(
+                str,
+                self.tokenizer.decode(
+                    [
+                        x
+                        for x in seq2seq_predictions
+                        if x not in {self.tokenizer.pad_token_id, self.tokenizer.eos_token_id}
+                    ],
+                    skip_special_tokens=False,
+                ),
             )
             seq2seq_format: Sentence = self.formatter.format_to_sent(decoded.replace(" ", ""))
             seq2seq_format.sid = example.sid
