@@ -8,20 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Support Python 3.14.
-- Add a gradient accumulation scheduler configuration for training.
+- Support Transformers v5 ([#262](https://github.com/ku-nlp/kwja/pull/262)).
 
 ### Changed
 - Download model checkpoints from the Hugging Face Hub.
 - Cache and reuse tokenizers across datasets and data module stages.
+- Keep models on the selected device across interactive predictions ([#255](https://github.com/ku-nlp/kwja/pull/255)).
+- Improve word module inference performance by constructing masks as tensors and assigning cohesion relations only to target sentences ([#254](https://github.com/ku-nlp/kwja/pull/254), [#259](https://github.com/ku-nlp/kwja/pull/259)).
 - Migrate dependency and build management from Poetry to uv and Hatch.
 
 ### Fixed
 - Fix the dtype mismatch error when using `char` or `seq2seq` module with `--model-size large`.
+- Fix top-k processing for dependency parsing ([#257](https://github.com/ku-nlp/kwja/pull/257)).
 - Fix installation on Windows by using the pure-Python release of `pure-cdb`.
 - Explicitly use UTF-8 for text file I/O to support systems with non-UTF-8 default encodings.
 
 ### Removed
-- Drop support for Python 3.8.
+- Drop support for Python 3.9 ([#257](https://github.com/ku-nlp/kwja/pull/257)).
 
 ## [v2.5.1] - 2025-08-15
 ### Added
