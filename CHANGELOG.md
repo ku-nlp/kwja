@@ -19,12 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Fix the dtype mismatch error when using `char` or `seq2seq` module with `--model-size large`.
-- Fix top-k processing for dependency parsing ([#257](https://github.com/ku-nlp/kwja/pull/257)).
+- Fix top-k processing for dependency parsing.
 - Fix installation on Windows by using the pure-Python release of `pure-cdb`.
 - Explicitly use UTF-8 for text file I/O to support systems with non-UTF-8 default encodings.
 
 ### Removed
-- Drop support for Python 3.9 ([#257](https://github.com/ku-nlp/kwja/pull/257)).
+- Drop support for Python 3.9.
 
 ## [v2.5.1] - 2025-08-15
 ### Added
