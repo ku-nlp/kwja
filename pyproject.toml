@@ -30,7 +30,6 @@ classifiers = [
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -38,12 +37,11 @@ classifiers = [
     "Topic :: Scientific/Engineering",
     "Topic :: Text Processing",
 ]
-requires-python = ">=3.10,<3.15"
+requires-python = ">=3.11,<3.15"
 
 dependencies = [
     "torch>=2.12.0,<2.15.0",
-    "numpy>=2.2.0,<2.3.0; python_version < '3.11'",
-    "numpy>=2.4.0,<2.5.0; python_version >= '3.11'",
+    "numpy>=2.4.0,<2.5.0",
     "transformers[sentencepiece]>=5.16.1,<5.17.0",
     "tokenizers>=0.22.0,<0.24.0",
     "lightning>=2.6.0,<2.7.0",
@@ -61,8 +59,6 @@ dependencies = [
     "pyyaml>=6.0",
     "regex>=2024.7.24",
     "cohesion-tools>=0.7.5,<0.8.0",
-    "typing-extensions>=4.0; python_version < '3.11'",
-    "importlib-resources>=6.0,<7.0; python_version < '3.11'",
     "huggingface-hub>=1.0.0",
 ]
 
@@ -83,11 +79,9 @@ build-backend = "hatchling.build"
 dev = [
     "cohesion-tools[eval]>=0.7.5,<0.8.0",
     "ipdb>=0.13.13",
-    "ipython>=8.37,<9.0; python_version < '3.11'",
-    "ipython>=9.6,<10.0; python_version >= '3.11'",
+    "ipython>=9.6,<10.0",
     "jaconv>=0.5.0,<0.6.0",
     "levenshtein>=0.21.0",
-    "numpy>=2.2.0,<2.5.0; python_version < '3.11'",
     "python-dotenv>=1.0",
     "scikit-learn>=1.6",
     "seqeval>=1.2,<2.0",
@@ -123,7 +117,7 @@ exclude = [
 line-length = 120
 indent-width = 4
 src = ["src"]
-target-version = "py310"  # The minimum Python version to target
+target-version = "py311"  # The minimum Python version to target
 
 [tool.ruff.lint]
 select = ["F", "E", "W", "I", "B", "PL", "PD", "NPY", "RUF", "UP", "TID", "COM", "PT", "ARG", "PYI", "FA", "G", "FBT", "ANN", "S"]

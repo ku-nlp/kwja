@@ -3,7 +3,7 @@ import os
 import sys
 from abc import ABC
 from collections.abc import Iterator
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Annotated, TextIO
@@ -37,7 +37,7 @@ logger.setLevel(logging.INFO)
 app = typer.Typer(pretty_exceptions_show_locals=False)
 
 
-class InputFormat(str, Enum):
+class InputFormat(StrEnum):
     RAW = "raw"
     JUMANPP = "jumanpp"
     KNP = "knp"

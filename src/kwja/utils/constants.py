@@ -1,12 +1,7 @@
 import re
-import sys
 from enum import Enum
 from importlib.resources import files
-
-if sys.version_info >= (3, 11):
-    from importlib.resources.abc import Traversable
-else:
-    from importlib_resources.abc import Traversable  # ty: ignore[unresolved-import]
+from importlib.resources.abc import Traversable
 
 from cohesion_tools.task import Task as CohesionToolsTask
 from rhoknp.props import DepType, NamedEntityCategory
