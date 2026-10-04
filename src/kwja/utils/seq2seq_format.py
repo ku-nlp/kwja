@@ -1,3 +1,5 @@
+from typing import cast
+
 from rhoknp import Sentence
 from transformers import PreTrainedTokenizerFast
 
@@ -30,7 +32,8 @@ class Seq2SeqFormatter:
             for k, v in RARE2SPECIAL.items():
                 surf = surf.replace(k, v)
             tokenized_surf: list[str] = [x for x in self.tokenizer.tokenize(surf) if x != "▁"]
-            decoded: str = self.tokenizer.decode(self.tokenizer.convert_tokens_to_ids(tokenized_surf))
+            tokenized_surf_ids = cast(list[int], self.tokenizer.convert_tokens_to_ids(tokenized_surf))
+            decoded = cast(str, self.tokenizer.decode(tokenized_surf_ids))
             for token in self.word2token.values():
                 decoded = decoded.replace(f"{token} ", token)
             for token in SPECIAL2RARE:

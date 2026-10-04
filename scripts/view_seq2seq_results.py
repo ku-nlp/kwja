@@ -365,7 +365,7 @@ def main() -> None:
             jumans.append(sid_to_juman_sent[sid])
             seq2seqs.append(sid_to_seq2seq_sent[sid])
             golds.append(gold_sent)
-            assert len(jumans) == len(seq2seqs) == len(golds)
+            assert len(jumans) == len(seq2seqs) == len(golds)  # noqa: S101
 
         if corpus == "norm":
             print("  seq2seq")

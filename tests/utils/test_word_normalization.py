@@ -8,6 +8,13 @@ from kwja.utils.word_normalization import (
     get_word_norm_op_tags,
 )
 
+
+@pytest.mark.parametrize("tags", [[], ["K", "K"]])
+def test_get_normalized_surf_rejects_mismatched_lengths(tags: list[str]) -> None:
+    with pytest.raises(ValueError, match="same length"):
+        get_normalized_surf("あ", tags)
+
+
 wellformed_list = [
     ("なぁ", ["K", "S"], "なあ"),
     ("なー", ["K", "D"], "な"),

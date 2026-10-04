@@ -17,10 +17,10 @@ def test_init_error(data_dir: Path, char_tokenizer: PreTrainedTokenizerBase) -> 
     path = data_dir / "datasets" / "base_files"
     max_seq_length = 256
     document_split_stride = 1
-    with pytest.raises(AssertionError):
+    with pytest.raises(NotADirectoryError, match="Dataset directory"):
         # no such file or directory
         _ = FullAnnotatedDocumentLoaderMixin(path / "xxx", char_tokenizer, max_seq_length, document_split_stride)
-    with pytest.raises(AssertionError):
+    with pytest.raises(NotADirectoryError, match="Dataset directory"):
         # not a directory
         _ = FullAnnotatedDocumentLoaderMixin(path / "0.knp", char_tokenizer, max_seq_length, document_split_stride)
 

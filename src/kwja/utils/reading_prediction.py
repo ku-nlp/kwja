@@ -57,9 +57,8 @@ class ReadingAligner:
         for token_id, word_id in enumerate(encoding.word_ids):
             word_id2subwords[word_id].append(self.tokenizer.decode(encoding.ids[token_id]))
         subwords_per_morpheme = [subwords for subwords in word_id2subwords.values()]
-        assert len(subwords_per_morpheme) == len(morphemes), (
-            f"inconsistent segmentation: {subwords_per_morpheme} / {morphemes}"
-        )
+        if len(subwords_per_morpheme) != len(morphemes):
+            raise ValueError(f"inconsistent segmentation: {subwords_per_morpheme} / {morphemes}")
 
         readings: list[str] = []
         for morpheme, subwords in zip(morphemes, subwords_per_morpheme, strict=True):
@@ -180,7 +179,7 @@ class ReadingAligner:
                     ci2 = surf[i2]
                     if ci2 in CHOON_SET or ci2 in HATSUON_SET or ci2 in LOWER2UPPER:
                         for _ in basenode_list:
-                            assert isinstance(node, Node)
+                            assert isinstance(node, Node)  # noqa: S101
                             node2 = copy.deepcopy(node)
                             node2.cost += 10
                             node2.wI += 1
@@ -221,7 +220,7 @@ class ReadingAligner:
         node, node_prev, _ = td_holder[-1][-1]
         seg = []
         while True:
-            assert isinstance(node, Node)
+            assert isinstance(node, Node)  # noqa: S101
             seg.append((node.wI, node.wJ))
             if node_prev is None:
                 break

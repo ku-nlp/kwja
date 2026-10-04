@@ -30,7 +30,6 @@ classifiers = [
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -39,12 +38,12 @@ classifiers = [
     "Topic :: Scientific/Engineering",
     "Topic :: Text Processing",
 ]
-requires-python = ">=3.10,<3.16"
+requires-python = ">=3.11,<3.16"
 
 dependencies = [
     "torch>=2.14.0,<2.16.0",
-    "numpy>=2.0,<2.5",
-    "transformers[sentencepiece]>=4.57.0,<5.0.0",
+    "numpy>=2.4.0,<2.5.0",
+    "transformers[sentencepiece]>=5.16.1,<5.17.0",
     "tokenizers>=0.22.0,<0.24.0",
     "lightning>=2.6.0,<2.7.0",
     "omegaconf>=2.3.1,<2.4.0",
@@ -57,13 +56,11 @@ dependencies = [
     # the last pure-Python release there; everywhere else keep 4.x and its accelerated hashing.
     "pure-cdb>=4.0; sys_platform != 'win32'",
     "pure-cdb==3.1.0; sys_platform == 'win32'",
-    "rich>=14.0.0,<15.0.0",
+    "rich>=15.0.0,<16.0.0",
     "pyyaml>=6.0",
     "regex>=2024.7.24",
     "cohesion-tools>=0.7.5,<0.8.0",
-    "typing-extensions>=4.0; python_version < '3.11'",
-    "importlib-resources>=6.0,<7.0; python_version < '3.11'",
-    "huggingface-hub>=0.36.0,<1.0",
+    "huggingface-hub>=1.0.0",
 ]
 
 [project.urls]
@@ -82,24 +79,22 @@ build-backend = "hatchling.build"
 [dependency-groups]
 dev = [
     "cohesion-tools[eval]>=0.7.5,<0.8.0",
-    "ipdb>=0.13.13",
-    "ipython>=8.37,<9.0; python_version < '3.11'",
-    "ipython>=9.6,<10.0; python_version >= '3.11'",
-    "jaconv>=0.4.0,<0.5.0",
-    "levenshtein>=0.21.0",
-    "numpy>=2.0,<2.5",
+    "jaconv>=0.5.0,<0.6.0",
+    "levenshtein>=0.26.0",
     "python-dotenv>=1.0",
+    "ruff",
     "scikit-learn>=1.6",
-    "seqeval>=1.2,<2.0",
-    "torchmetrics>=1.0,<2.0",
-    "types-attrs>=19.1,<20.0",
-    "types-pyyaml>=6.0.12.9,<7.0.0.0",
-    "wandb>=0.18.0",
+    "seqeval>=1.2",
+    "torchmetrics>=1.0",
+    "ty",
+    "types-attrs>=19.1",
+    "types-pyyaml>=6.0.12",
+    "wandb>=0.29.0",
 ]
 test = [
     "cohesion-tools[eval]>=0.7.5,<0.8.0",
-    "jaconv>=0.4.0",
-    "levenshtein>=0.21.0",
+    "jaconv>=0.5.0,<0.6.0",
+    "levenshtein>=0.26.0",
     "pytest>=8.0",
     "pytest-cov>=7.0",
     "pytest-profiling>=1.7",
@@ -123,10 +118,9 @@ exclude = [
 line-length = 120
 indent-width = 4
 src = ["src"]
-target-version = "py310"  # The minimum Python version to target
 
 [tool.ruff.lint]
-select = ["F", "E", "W", "I", "B", "PL", "PD", "NPY", "RUF", "UP", "TID", "COM", "PT", "ARG", "PYI", "FA", "G", "FBT", "ANN"]
+select = ["F", "E", "W", "I", "B", "PL", "PD", "NPY", "RUF", "UP", "TID", "COM", "PT", "ARG", "PYI", "FA", "G", "FBT", "ANN", "S"]
 ignore = [
     "E501",  # Line too long
     "PLR0911",  # Too many return statements
@@ -162,6 +156,12 @@ ignore = [
     "B023",  # Function definition does not bind loop variable `sentence_start`
     "B904",  # Within an `except` clause, raise exceptions with `raise ... from err` or `raise ... from None` to distinguish them from errors in exception handling
     "ANN",  # flake8-annotations
+]
+"tests/*" = [
+    "D",  # pydocstyle
+    "S101",  # Test assertions
+    "S311",  # Standard pseudo-random generators are not suitable for cryptographic purposes
+    "INP001",  # File `...` is part of an implicit namespace package. Add an `__init__.py`
 ]
 
 [tool.ruff.lint.flake8-bugbear]

@@ -29,7 +29,7 @@ class CharModuleWriter(BaseModuleWriter):
         dataloader_idx: int,
     ) -> None:
         predict_dataloaders = trainer.predict_dataloaders
-        assert predict_dataloaders is not None
+        assert predict_dataloaders is not None  # noqa: S101
         if isinstance(predict_dataloaders, dict):
             dataloader = list(predict_dataloaders.values())[dataloader_idx]
         else:
@@ -44,7 +44,7 @@ class CharModuleWriter(BaseModuleWriter):
             *[v.tolist() for v in prediction.values()], strict=True
         ):
             example: CharExample | CharInferenceExample = dataset.examples[example_id]
-            assert example.doc_id is not None, "doc_id isn't set"
+            assert example.doc_id is not None, "doc_id isn't set"  # noqa: S101
             document = dataset.doc_id2document.pop(example.doc_id)
 
             sent_segmentation_tags, word_segmentation_tags, word_norm_op_tags = convert_char_predictions_into_tags(

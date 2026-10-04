@@ -3,7 +3,7 @@ from collections import defaultdict
 from collections.abc import Sequence, Sized
 from itertools import product
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import lightning as L
 from jinf import Jinf
@@ -69,7 +69,7 @@ class WordModuleWriter(BaseModuleWriter):
         dataloader_idx: int,
     ) -> None:
         predict_dataloaders = trainer.predict_dataloaders
-        assert predict_dataloaders is not None
+        assert predict_dataloaders is not None  # noqa: S101
         if isinstance(predict_dataloaders, dict):
             dataloader = list(predict_dataloaders.values())[dataloader_idx]
         else:
@@ -89,7 +89,7 @@ class WordModuleWriter(BaseModuleWriter):
             discourse_predictions,
         ) in zip(*[v.tolist() for v in prediction.values()], strict=True):
             example: WordExample | WordInferenceExample = dataset.examples[example_id]
-            assert example.doc_id is not None, "doc_id isn't set"
+            assert example.doc_id is not None, "doc_id isn't set"  # noqa: S101
             document = dataset.doc_id2document.pop(example.doc_id)
 
             if self.preserve_reading_lemma_canon is True:
@@ -98,7 +98,7 @@ class WordModuleWriter(BaseModuleWriter):
             else:
                 word_reading_predictions = get_word_level_readings(
                     [self.reading_id2reading[reading_id] for reading_id in reading_predictions],
-                    [dataset.tokenizer.decode(input_id) for input_id in example.encoding.ids],
+                    [cast(str, dataset.tokenizer.decode(input_id)) for input_id in example.encoding.ids],
                     reading_subword_map,
                 )
                 canons = [None for _ in document.morphemes]
@@ -162,7 +162,7 @@ class WordModuleWriter(BaseModuleWriter):
                 self.doc_id_sid2predicted_sentence[self.prev_doc_id].clear()
                 self.prev_doc_id = orig_doc_id
 
-        assert isinstance(dataloader, Sized)
+        assert isinstance(dataloader, Sized)  # noqa: S101
         if batch_idx == len(dataloader) - 1:
             for sid2predicted_sentence in self.doc_id_sid2predicted_sentence.values():
                 output_string = "".join(s.to_knp() for s in sid2predicted_sentence.values())
@@ -178,7 +178,7 @@ class WordModuleWriter(BaseModuleWriter):
         canons: list[str | None],
         preserve_lemma: bool,
     ) -> list[Morpheme]:
-        assert len(surfs) == len(norms) == len(reading_predictions)
+        assert len(surfs) == len(norms) == len(reading_predictions)  # noqa: S101
         morphemes = []
         for surf, norm, reading, pos_index, subpos_index, conjtype_index, conjform_index, canon in zip(
             surfs, norms, reading_predictions, *morpheme_attribute_predictions, canons, strict=True

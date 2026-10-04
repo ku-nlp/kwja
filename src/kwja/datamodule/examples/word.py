@@ -171,7 +171,8 @@ class WordExample:
             ]
 
             if morpheme == morpheme.base_phrase.head:
-                assert morpheme.base_phrase.dep_type is not None
+                if morpheme.base_phrase.dep_type is None:
+                    raise ValueError("Base phrase head must have a dependency type")
                 dependency_type = morpheme.base_phrase.dep_type
             else:
                 dependency_type = DepType.DEPENDENCY

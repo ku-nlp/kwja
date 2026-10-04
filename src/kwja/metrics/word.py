@@ -102,7 +102,7 @@ class WordModuleMetric(BaseModuleMetric):
             kwargs[key] = value
 
     def compute(self) -> dict[str, float]:
-        assert self.training_tasks is not None, "training_tasks isn't set"
+        assert self.training_tasks is not None, "training_tasks isn't set"  # noqa: S101
 
         if isinstance(self.example_ids, torch.Tensor) is False:
             self.example_ids = torch.cat(self.example_ids, dim=0)
@@ -140,8 +140,8 @@ class WordModuleMetric(BaseModuleMetric):
         return metrics
 
     def _build_documents(self) -> tuple[list[Document], ...]:
-        assert self.dataset is not None, "dataset isn't set"
-        assert self.reading_id2reading is not None, "reading_id2reading isn't set"
+        assert self.dataset is not None, "dataset isn't set"  # noqa: S101
+        assert self.reading_id2reading is not None, "reading_id2reading isn't set"  # noqa: S101
 
         doc_id2predicted_sentences: dict[str, list[Sentence]] = defaultdict(list)
         doc_id2partly_gold_sentences1: dict[str, list[Sentence]] = defaultdict(list)
@@ -167,7 +167,7 @@ class WordModuleMetric(BaseModuleMetric):
 
             word_reading_predictions = get_word_level_readings(
                 [self.reading_id2reading[reading_id] for reading_id in reading_predictions],
-                [self.dataset.tokenizer.decode(input_id) for input_id in example.encoding.ids],
+                [cast(str, self.dataset.tokenizer.decode(input_id)) for input_id in example.encoding.ids],
                 reading_subword_map,
             )
             morpheme_attribute_predictions = get_morpheme_attribute_predictions(
@@ -234,7 +234,8 @@ class WordModuleMetric(BaseModuleMetric):
             level1: clear discourse relations, rel tags, dependencies, and base phrase features.
             level2: clear discourse relations and rel tags.
         """
-        assert level in (1, 2), f"invalid level: {level}"
+        if level not in (1, 2):
+            raise ValueError(f"invalid level: {level}")
         try:
             for clause in document.clauses:
                 clause.discourse_relations.clear()
@@ -454,7 +455,7 @@ class WordModuleMetric(BaseModuleMetric):
             head = unit.parent_index + 1 if unit.parent_index is not None else 0
             deprel = unit.dep_type or DepType.DEPENDENCY
         else:
-            assert isinstance(unit, Morpheme)
+            assert isinstance(unit, Morpheme)  # noqa: S101
             form = unit.surf
             lemma = unit.lemma
             head = unit.parent.index + 1 if unit.parent is not None else 0
@@ -468,11 +469,11 @@ class WordModuleMetric(BaseModuleMetric):
     def compute_cohesion_analysis_metrics(
         self, partly_gold_documents2: list[Document], gold_documents: list[Document]
     ) -> dict[str, float]:
-        assert self.dataset is not None, "dataset isn't set"
+        assert self.dataset is not None, "dataset isn't set"  # noqa: S101
         pas_extractor = self.dataset.cohesion_task2extractor[CohesionTask.PAS_ANALYSIS]
-        assert isinstance(pas_extractor, PasExtractor), "pas utils isn't set correctly"
+        assert isinstance(pas_extractor, PasExtractor), "pas utils isn't set correctly"  # noqa: S101
         bridging_extractor = self.dataset.cohesion_task2extractor[CohesionTask.BRIDGING_REFERENCE_RESOLUTION]
-        assert isinstance(bridging_extractor, BridgingExtractor), "bridging utils isn't set correctly"
+        assert isinstance(bridging_extractor, BridgingExtractor), "bridging utils isn't set correctly"  # noqa: S101
 
         evaluator = CohesionEvaluator(
             tasks=[task.to_cohesion_tools_task() for task in self.dataset.cohesion_tasks],

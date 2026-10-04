@@ -1,6 +1,7 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
+from typing import cast
 
 from rhoknp import Document
 from transformers import PreTrainedTokenizerFast
@@ -60,7 +61,7 @@ class Seq2SeqDataset(BaseDataset[Seq2SeqExample, Seq2SeqModuleFeatures]):
             for sentence in processed_document.sentences:
                 src_tokens: list[str] = self.formatter.get_src_tokens(sentence)
                 src_input_ids: list[int] = [
-                    *self.tokenizer.convert_tokens_to_ids(src_tokens),
+                    *cast(list[int], self.tokenizer.convert_tokens_to_ids(src_tokens)),
                     self.tokenizer.eos_token_id,
                 ]
                 src_attention_mask: list[int] = [1] * len(src_input_ids)
@@ -71,7 +72,7 @@ class Seq2SeqDataset(BaseDataset[Seq2SeqExample, Seq2SeqModuleFeatures]):
                     continue
                 tgt_tokens: list[str] = self.formatter.get_tgt_tokens(sentence)
                 tgt_input_ids: list[int] = [
-                    *self.tokenizer.convert_tokens_to_ids(tgt_tokens),
+                    *cast(list[int], self.tokenizer.convert_tokens_to_ids(tgt_tokens)),
                     self.tokenizer.eos_token_id,
                 ]
                 tgt_input_ids += [self.tokenizer.pad_token_id] * (self.max_tgt_length - len(tgt_input_ids))
@@ -105,7 +106,7 @@ class Seq2SeqDataset(BaseDataset[Seq2SeqExample, Seq2SeqModuleFeatures]):
             (seq2seq_tag if seq2seq_tag != self.tokenizer.pad_token_id else IGNORE_INDEX)
             for seq2seq_tag in example.tgt_input_ids
         ]
-        assert len(seq2seq_labels) == self.max_tgt_length
+        assert len(seq2seq_labels) == self.max_tgt_length  # noqa: S101
 
         return Seq2SeqModuleFeatures(
             example_ids=example.example_id,

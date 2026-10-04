@@ -124,7 +124,8 @@ def main() -> None:
         target_morpheme_indexes: set[int] = set()
         for morpheme in sentence.morphemes:
             canons = get_canons(morpheme)
-            assert morpheme.canon is not None
+            if morpheme.canon is None:
+                raise ValueError("Morpheme must have a canonical form")
             if len(canons) > 1 or sampled_canon2freq.get(morpheme.canon, 0) >= args.max_samples:
                 continue
 

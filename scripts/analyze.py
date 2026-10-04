@@ -44,7 +44,7 @@ def main(eval_cfg: DictConfig) -> None:
     train_cfg = cast(DictConfig, model.hparams)
     OmegaConf.set_struct(train_cfg, False)  # enable to add new key-value pairs
     cfg = OmegaConf.merge(train_cfg, eval_cfg)
-    assert isinstance(cfg, DictConfig)
+    assert isinstance(cfg, DictConfig)  # noqa: S101
 
     callbacks: list[Callback] = []
     for k, v in cfg.get("callbacks", {}).items():
