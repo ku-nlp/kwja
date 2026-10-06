@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Support Python 3.14.
+- Support Python 3.15.
 - Support Transformers v5 ([#262](https://github.com/ku-nlp/kwja/pull/262)).
 
 ### Changed
