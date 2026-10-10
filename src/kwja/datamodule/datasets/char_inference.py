@@ -38,6 +38,8 @@ class CharInferenceDataset(BaseDataset[CharInferenceExample, CharModuleFeatures]
         add_doc_ids(documents, doc_id_prefix)
         documents = self._add_tentative_sentence_boundary(documents)
         super(BaseDataset, self).__init__(documents, tokenizer, max_seq_length, -1)  # document_split_stride must be -1
+        # sub documents that do not fit in max_seq_length are left unanalyzed; kept so that callers can report them
+        self.skipped_documents: list[Document] = []
         self.examples: list[CharInferenceExample] = self._load_examples(self.doc_id2document)
 
     def _load_examples(self, doc_id2document: dict[str, Document]) -> list[CharInferenceExample]:
@@ -52,6 +54,7 @@ class CharInferenceDataset(BaseDataset[CharInferenceExample, CharModuleFeatures]
             )
             if len(encoding.input_ids) > self.max_seq_length:
                 logger.warning(f"Length of sub document is too long: {document.text}")
+                self.skipped_documents.append(document)
                 continue
 
             examples.append(CharInferenceExample(example_id=example_id, encoding=encoding, doc_id=document.doc_id))
