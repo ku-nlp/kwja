@@ -7,6 +7,7 @@ import numpy as np
 from transformers import PreTrainedTokenizerBase
 
 from kwja.datamodule.datasets import WordInferenceDataset
+from kwja.utils.sub_document import extract_target_sentences
 
 
 def test_init(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[str, Any]) -> None:
@@ -112,3 +113,47 @@ def test_getitem(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[s
         assert np.array(feature.reading_subword_map).shape == (max_seq_length, max_seq_length)
         assert np.array(feature.dependency_mask).shape == (max_seq_length, max_seq_length)
         assert np.array(feature.cohesion_mask).shape == (num_cohesion_rels, max_seq_length, max_seq_length)
+
+
+def test_skipped_documents(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[str, Any]) -> None:
+    max_seq_length = 32
+    document_split_stride = 1
+    juman_text = (
+        dedent(
+            """\
+            # S-ID:test-0-0
+            今日 _ 今日 未定義語 15 その他 1 * 0 * 0
+            は _ は 未定義語 15 その他 1 * 0 * 0
+            晴れ _ 晴れ 未定義語 15 その他 1 * 0 * 0
+            だ _ だ 未定義語 15 その他 1 * 0 * 0
+            EOS
+            # S-ID:test-0-1
+            """
+        )
+        + "あ _ あ 未定義語 15 その他 1 * 0 * 0\n" * 40
+        + dedent(
+            """\
+            EOS
+            # S-ID:test-0-2
+            明日 _ 明日 未定義語 15 その他 1 * 0 * 0
+            は _ は 未定義語 15 その他 1 * 0 * 0
+            雨 _ 雨 未定義語 15 その他 1 * 0 * 0
+            だ _ だ 未定義語 15 その他 1 * 0 * 0
+            EOS
+            """
+        )
+    )
+    with tempfile.NamedTemporaryFile("wt", delete=False, encoding="utf-8") as juman_file:
+        juman_file.write(juman_text)
+        juman_file_path = Path(juman_file.name)
+
+    try:
+        dataset = WordInferenceDataset(
+            word_tokenizer, max_seq_length, document_split_stride, juman_file=juman_file_path, **dataset_kwargs
+        )
+    finally:
+        juman_file_path.unlink(missing_ok=True)
+    assert len(dataset) == 2
+    assert len(dataset.skipped_documents) == 1
+    assert [sentence.sid for sentence in extract_target_sentences(dataset.skipped_documents[0])] == ["test-0-1"]
+    assert dataset.skipped_documents[0].text == "あ" * 40

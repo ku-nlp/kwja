@@ -35,3 +35,11 @@ def test_getitem(char_tokenizer: PreTrainedTokenizerBase) -> None:
         assert feature.example_ids == i
         assert len(feature.input_ids) == max_seq_length
         assert len(feature.attention_mask) == max_seq_length
+
+
+def test_skipped_documents(char_tokenizer: PreTrainedTokenizerBase) -> None:
+    texts = ListConfig(["今日は晴れだ。" + "あ" * 100])
+    max_seq_length = 32
+    dataset = CharInferenceDataset(texts, char_tokenizer, max_seq_length)
+    assert len(dataset) == 1
+    assert [document.text for document in dataset.skipped_documents] == ["あ" * 100]

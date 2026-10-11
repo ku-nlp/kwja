@@ -23,10 +23,12 @@ import kwja
 from kwja.cli.config import CLIConfig, Device, ModelSize, get_kwja_config_file
 from kwja.cli.utils import download_checkpoint, prepare_device
 from kwja.datamodule.datamodule import DataModule
+from kwja.datamodule.datasets import CharInferenceDataset, WordInferenceDataset
 from kwja.datamodule.datasets.utils import add_doc_ids, add_sent_ids
 from kwja.modules import CharModule, Seq2SeqModule, TypoModule, WordModule
 from kwja.utils.constants import TRANSLATION_TABLE
 from kwja.utils.logging_util import filter_logs
+from kwja.utils.sub_document import extract_target_sentences, to_orig_doc_id
 
 filter_logs(environment="production")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -138,6 +140,8 @@ class BaseModuleProcessor(ABC):
 
     def apply_module(self, input_file: Path) -> None:
         datamodule = self._load_datamodule(input_file)
+        if isinstance(datamodule.predict_dataset, CharInferenceDataset | WordInferenceDataset):
+            _warn_skipped_documents(datamodule.predict_dataset)
         assert self.trainer is not None  # noqa: S101
         self.trainer.predict(model=self.module, dataloaders=[datamodule.predict_dataloader()], return_predictions=False)
 
@@ -322,6 +326,23 @@ def normalize_text(text: str) -> str:
     # if normalized != text:
     #     typer.echo(f"apply normalization ({text} -> {normalized})", err=True)
     return normalized
+
+
+def _warn_skipped_documents(dataset: CharInferenceDataset | WordInferenceDataset) -> None:
+    # The datasets log these too, but under the "kwja" logger, which filter_logs("production") silences
+    module = "word" if isinstance(dataset, WordInferenceDataset) else "char"
+    for document in dataset.skipped_documents:
+        sentences = extract_target_sentences(document)
+        text = "".join(sentence.text for sentence in sentences)
+        location = f"document {to_orig_doc_id(document.doc_id)}"
+        if module == "word":
+            # before the char module, sentence IDs are tentative and do not appear in the output
+            location += " (" + ", ".join(f"S-ID:{sentence.sid}" for sentence in sentences) + ")"
+        excerpt = text if len(text) <= 20 else text[:20] + "..."
+        logger.warning(
+            f"WARNING: the {module} module skipped {len(text)} characters in {location} that do not fit in its"
+            f" window of {dataset.max_seq_length} tokens, so they are not in the output: {excerpt}"
+        )
 
 
 def _chunk_by_document(f: TextIO, input_format: InputFormat) -> Iterator[str]:

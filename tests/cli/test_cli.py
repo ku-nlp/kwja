@@ -392,3 +392,49 @@ def test_interactive_mode_repeated_predictions() -> None:
     assert outputs[0] != ""
     assert outputs[1] == outputs[0]
     assert outputs[2] == outputs[0]
+
+
+def test_char_module_reports_skipped_text(caplog: pytest.LogCaptureFixture) -> None:
+    """Text that does not fit in the char module's window is left out of the output, so it must be reported."""
+    text = "こんにちは。" + "あ" * 600 + "。"
+    ret = runner.invoke(app, args=["--model-size", "tiny", "--tasks", "char", "--text", text])
+    assert ret.exception is None
+    restored_output = "".join([line for line in ret.stdout.splitlines() if not line.startswith("#")]).replace(" ", "")
+    assert restored_output == "こんにちは。"
+    messages = [record.getMessage() for record in caplog.records if "skipped" in record.getMessage()]
+    assert len(messages) == 1
+    assert "the char module skipped 601 characters in document " in messages[0]
+
+
+def test_word_module_reports_skipped_sentences(caplog: pytest.LogCaptureFixture) -> None:
+    """Sentences that do not fit in the word module's window are left out of the output, so they must be reported."""
+    jumanpp_text = (
+        textwrap.dedent(
+            """\
+            # S-ID:test-0 kwja:0.1.0
+            こんにちは こんにちは こんにちは 感動詞 12 * 0 * 0 * 0 "代表表記:こんにちは/こんにちは"
+            。 。 。 特殊 1 句点 1 * 0 * 0 "代表表記:。/。"
+            EOS
+            # S-ID:test-1 kwja:0.1.0
+            """
+        )
+        + 'あ あ あ 感動詞 12 * 0 * 0 * 0 "代表表記:あ/あ"\n' * 300
+        + textwrap.dedent(
+            """\
+            EOS
+            # S-ID:test-2 kwja:0.1.0
+            こんばんは こんばんは こんばんは 感動詞 12 * 0 * 0 * 0 "代表表記:今晩は/こんばんは"
+            。 。 。 特殊 1 句点 1 * 0 * 0 "代表表記:。/。"
+            EOS
+            """
+        )
+    )
+    ret = runner.invoke(
+        app, args=["--model-size", "tiny", "--tasks", "word", "--text", jumanpp_text, "--input-format", "jumanpp"]
+    )
+    assert ret.exception is None
+    document = Document.from_knp(ret.stdout)
+    assert [sentence.sent_id for sentence in document.sentences] == ["test-0", "test-2"]
+    messages = [record.getMessage() for record in caplog.records if "skipped" in record.getMessage()]
+    assert len(messages) == 1
+    assert "the word module skipped 300 characters in document test (S-ID:test-1)" in messages[0]
