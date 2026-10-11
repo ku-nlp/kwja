@@ -5,7 +5,7 @@ import torch
 from cohesion_tools.extractors import BridgingExtractor, CoreferenceExtractor, PasExtractor
 from cohesion_tools.extractors.base import BaseExtractor
 from omegaconf import ListConfig
-from rhoknp import Document, Sentence
+from rhoknp import Document, Morpheme, Sentence
 from rhoknp.cohesion import ExophoraReferent, ExophoraReferentType
 from rhoknp.utils.reader import chunk_by_document
 from tokenizers import Encoding
@@ -158,19 +158,32 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
             dependency_mask[start:stop, root_index] = True
 
         # ---------- cohesion analysis ----------
+        # Asking the extractor about every morpheme pair costs O(seq^2) Python calls and
+        # dominates the dataset time for long documents. The built-in extractors decide
+        # from the global indices and the sentences of the two morphemes alone, so the
+        # whole block is computed at once; any other extractor keeps the generic path.
         rel_masks: list[torch.Tensor] = []
         morphemes = document.morphemes
         special_indices = example.special_token_indexer.get_morpheme_level_indices(only_cohesion=True)
+        num_morphemes = len(morphemes)
+        global_indices = torch.arange(num_morphemes)
+        sentence_indices = _sentence_indices(morphemes)
         for cohesion_task in self.cohesion_tasks:
             cohesion_rels = self.cohesion_task2rels[cohesion_task]
             cohesion_extractor = self.cohesion_task2extractor[cohesion_task]
             rel_mask = torch.zeros((self.max_seq_length, self.max_seq_length), dtype=torch.bool)
-            for morpheme in morphemes:
-                candidate_indices = [c.global_index for c in cohesion_extractor.get_candidates(morpheme, morphemes)]
-                if candidate_indices:
-                    rel_mask[morpheme.global_index, candidate_indices] = True
+            candidate_block = _candidate_block(cohesion_extractor, global_indices, sentence_indices)
+            if candidate_block is None:
+                for morpheme in morphemes:
+                    candidate_indices = [c.global_index for c in cohesion_extractor.get_candidates(morpheme, morphemes)]
+                    if candidate_indices:
+                        rel_mask[morpheme.global_index, candidate_indices] = True
+                    if special_indices:
+                        rel_mask[morpheme.global_index, special_indices] = True
+            else:
+                rel_mask[:num_morphemes, :num_morphemes] = candidate_block
                 if special_indices:
-                    rel_mask[morpheme.global_index, special_indices] = True
+                    rel_mask[:num_morphemes, special_indices] = True
             rel_masks.extend(rel_mask for _ in cohesion_rels)
         cohesion_mask = torch.stack(rel_masks)  # (rel, seq, seq)
         return WordModuleFeatures(
@@ -221,3 +234,29 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
         if rows:
             subword_map[rows, cols] = True
         return subword_map
+
+
+def _sentence_indices(morphemes: list[Morpheme]) -> torch.Tensor:
+    """Number the sentences the morphemes belong to, in order of appearance."""
+    sid2index: dict[str, int] = {}
+    return torch.tensor([sid2index.setdefault(m.sentence.sid, len(sid2index)) for m in morphemes], dtype=torch.long)
+
+
+def _candidate_block(
+    cohesion_extractor: BaseExtractor, global_indices: torch.Tensor, sentence_indices: torch.Tensor
+) -> torch.Tensor | None:
+    """Return `is_candidate` for every (anaphor, candidate) pair, or None if the rule is unknown.
+
+    PasExtractor and BridgingExtractor take every preceding morpheme plus the following
+    ones of the same sentence, CoreferenceExtractor the preceding ones only. Extractors
+    that override the rule fall back to calling `get_candidates` morpheme by morpheme.
+    """
+    is_anaphora = global_indices[None, :] < global_indices[:, None]
+    if type(cohesion_extractor) is CoreferenceExtractor:
+        return is_anaphora
+    if type(cohesion_extractor) in (PasExtractor, BridgingExtractor):
+        is_intra_sentential_cataphora = (global_indices[None, :] > global_indices[:, None]) & (
+            sentence_indices[None, :] == sentence_indices[:, None]
+        )
+        return is_anaphora | is_intra_sentential_cataphora
+    return None
