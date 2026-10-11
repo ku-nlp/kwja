@@ -158,7 +158,7 @@ def get_morpheme_attribute_predictions(
         for subpos_index, subpos_tag in enumerate(SUBPOS_TAGS):
             if subpos_tag not in possible_subpos_tags:
                 subpos_logit_list[subpos_index] = MASKED
-        subpos_index = np.array(subpos_logit_list).argmax().item()
+        subpos_index = np.argmax(subpos_logit_list).item()
         subpos_tag = SUBPOS_TAGS[subpos_index]
         assert subpos_tag in possible_subpos_tags  # noqa: S101
         subpos_predictions.append(subpos_index)
@@ -169,7 +169,7 @@ def get_morpheme_attribute_predictions(
             for conjform_index, conjform_tag in enumerate(CONJFORM_TAGS):
                 if conjform_tag not in possible_conjform_tags:
                     conjform_logit_list[conjform_index] = MASKED
-            conjform_index = np.array(conjform_logit_list).argmax().item()
+            conjform_index = np.argmax(conjform_logit_list).item()
             conjform_tag = CONJFORM_TAGS[conjform_index]
             assert conjform_tag in possible_conjform_tags  # noqa: S101
         else:
