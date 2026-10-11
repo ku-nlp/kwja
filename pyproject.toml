@@ -43,7 +43,7 @@ dependencies = [
     "torch>=2.9.0",
     "numpy>=2.4.0,<2.5.0; python_version < '3.12'",
     "numpy>=2.5.0; python_version >= '3.12'",
-    "transformers[sentencepiece]>=5.16.1,<5.17.0",
+    "transformers[sentencepiece]>=5.18.0,<5.19.0",
     "tokenizers>=0.23.1,<0.24.0",
     "lightning>=2.6.0,<2.7.0",
     "omegaconf>=2.3.1,<2.4.0",
@@ -60,7 +60,7 @@ dependencies = [
     "pyyaml>=6.0.3",
     "regex>=2026.9.10",
     "cohesion-tools>=0.7.5,<0.8.0",
-    "huggingface-hub>=1.31.0",
+    "huggingface-hub>=2.0.0,<3.0.0",
 ]
 
 [project.urls]
