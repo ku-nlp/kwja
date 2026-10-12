@@ -1,3 +1,4 @@
+import logging
 from collections import defaultdict
 from pathlib import Path
 
@@ -12,6 +13,8 @@ from kwja.datamodule.datasets.utils import chunk_by_document, create_documents_f
 from kwja.datamodule.examples import TypoInferenceExample
 from kwja.utils.constants import DUMMY_TOKEN
 from kwja.utils.logging_util import track
+
+logger = logging.getLogger(__name__)
 
 
 class TypoInferenceDataset(BaseDataset[TypoInferenceExample, TypoModuleFeatures]):
@@ -40,6 +43,9 @@ class TypoInferenceDataset(BaseDataset[TypoInferenceExample, TypoModuleFeatures]
                 self.examples.append(TypoInferenceExample(example_id=example_id, doc_id=document.doc_id, pre_text=text))
                 example_id += 1
             else:
+                logger.warning(
+                    f"Skipping typo correction because text is too long or not tokenized character by character: {text}"
+                )
                 self.stash[example_id].append((text, document.doc_id))
         if len(self.examples) == 0:
             # len(self.examples) == 0だとwriterが呼ばれないのでダミーを追加

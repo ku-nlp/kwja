@@ -18,9 +18,7 @@ from transformers.models.deberta_v2.modeling_deberta_v2 import (
     build_rpos,
     scaled_size_sqrt,
 )
-from transformers.utils import auto_docstring, logging
-
-logger = logging.get_logger(__name__)
+from transformers.utils import auto_docstring
 
 
 # Copied from transformers.models.deberta.modeling_deberta.DebertaAttention with Deberta->DebertaV2

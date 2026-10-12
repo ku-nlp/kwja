@@ -121,7 +121,7 @@ class WordExample:
         try:
             self.readings = reading_aligner.align(morphemes)
         except Exception as e:
-            logger.warning(e)
+            logger.warning(f"Failed to align readings for document {self.doc_id}: {e}")
 
     def _set_morpheme_attributes(self, morphemes: list[Morpheme]) -> None:
         for morpheme in morphemes:

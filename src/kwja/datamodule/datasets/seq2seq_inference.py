@@ -49,6 +49,9 @@ class Seq2SeqInferenceDataset(BaseDataset[Seq2SeqInferenceExample, Seq2SeqModule
                     *cast(list[int], self.tokenizer.convert_tokens_to_ids(src_tokens)),
                     self.tokenizer.eos_token_id,
                 ]
+                if len(src_input_ids) > self.max_src_length:
+                    logger.warning(f"Length of source sentence is too long: {sentence.text}")
+                    continue
                 src_attention_mask: list[int] = [1] * len(src_input_ids)
                 src_input_ids += [self.tokenizer.pad_token_id] * (self.max_src_length - len(src_input_ids))
                 src_attention_mask += [0] * (self.max_src_length - len(src_attention_mask))
@@ -62,7 +65,7 @@ class Seq2SeqInferenceDataset(BaseDataset[Seq2SeqInferenceExample, Seq2SeqModule
                     )
                 )
                 example_id += 1
-        if len(examples) == 0:
+        if len(examples) == 0 and len(documents) > 0:
             logger.error("No examples to process. Make sure any texts are given and they are not too long.")
         return examples
 

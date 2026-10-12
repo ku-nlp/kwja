@@ -30,7 +30,7 @@ class MorphemeNormalizer:
                 norm = self.jinf(morpheme.lemma, morpheme.conjtype, "基本形", morpheme.conjform)
             return get_word_norm_op_tags(morpheme.surf, norm)
         except ValueError as e:
-            logger.info(f"failed to get normalized form of {morpheme.surf}: {e}")
+            logger.debug(f"failed to get normalized form of {morpheme.surf}: {e}")
             return [IGNORE_WORD_NORM_OP_TAG] * len(morpheme.surf)
 
 
