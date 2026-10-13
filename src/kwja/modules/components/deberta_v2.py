@@ -1,24 +1,212 @@
-# Copied from https://github.com/huggingface/transformers/blob/v4.57.6/src/transformers/models/deberta_v2/modeling_deberta_v2.py
-from typing import Optional
+# Copyright 2020 Microsoft and the Hugging Face Inc. team.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Adapted from transformers v4.57.6 and v5.18.0:
+# https://github.com/huggingface/transformers/blob/v5.18.0/src/transformers/models/deberta_v2/modeling_deberta_v2.py
+from collections.abc import Sequence
+from typing import ClassVar, Optional
 
 import torch
 from torch import nn
 from torch.nn import LayerNorm
+from transformers import initialization as init
+from transformers.activations import ACT2FN
 from transformers.modeling_layers import GradientCheckpointingLayer
-from transformers.models.deberta_v2.modeling_deberta_v2 import (
-    BaseModelOutput,
-    ConvLayer,
-    DebertaV2Embeddings,
-    DebertaV2Intermediate,
-    DebertaV2Output,
-    DebertaV2PreTrainedModel,
-    DebertaV2SelfOutput,
-    Sequence,
-    build_relative_position,
-    build_rpos,
-    scaled_size_sqrt,
-)
+from transformers.modeling_outputs import BaseModelOutput
+from transformers.modeling_utils import PreTrainedModel
+from transformers.models.deberta_v2.configuration_deberta_v2 import DebertaV2Config
 from transformers.utils import auto_docstring
+
+
+def make_log_bucket_position(relative_pos: torch.Tensor, bucket_size: int, max_position: int) -> torch.Tensor:
+    sign = torch.sign(relative_pos)
+    mid = bucket_size // 2
+    abs_pos = torch.where(
+        (relative_pos < mid) & (relative_pos > -mid),
+        torch.tensor(mid - 1).type_as(relative_pos),
+        torch.abs(relative_pos),
+    )
+    log_pos = torch.ceil(torch.log(abs_pos / mid) / torch.log(torch.tensor((max_position - 1) / mid)) * (mid - 1)) + mid
+    return torch.where(abs_pos <= mid, relative_pos.type_as(log_pos), log_pos * sign)
+
+
+def build_relative_position(
+    query_layer: torch.Tensor, key_layer: torch.Tensor, bucket_size: int = -1, max_position: int = -1
+) -> torch.Tensor:
+    query_size = query_layer.size(-2)
+    key_size = key_layer.size(-2)
+    q_ids = torch.arange(query_size, dtype=torch.long, device=query_layer.device)
+    k_ids = torch.arange(key_size, dtype=torch.long, device=key_layer.device)
+    rel_pos_ids = q_ids[:, None] - k_ids[None, :]
+    if bucket_size > 0 and max_position > 0:
+        rel_pos_ids = make_log_bucket_position(rel_pos_ids, bucket_size, max_position)
+    return rel_pos_ids.to(torch.long).unsqueeze(0)
+
+
+def scaled_size_sqrt(query_layer: torch.Tensor, scale_factor: int) -> torch.Tensor:
+    return torch.sqrt(torch.tensor(query_layer.size(-1), dtype=torch.float) * scale_factor)
+
+
+def build_rpos(
+    query_layer: torch.Tensor,
+    key_layer: torch.Tensor,
+    relative_pos: torch.Tensor,
+    position_buckets: int,
+    max_relative_positions: int,
+) -> torch.Tensor:
+    if key_layer.size(-2) != query_layer.size(-2):
+        return build_relative_position(
+            key_layer, key_layer, bucket_size=position_buckets, max_position=max_relative_positions
+        )
+    return relative_pos
+
+
+class DebertaV2SelfOutput(nn.Module):
+    def __init__(self, config: DebertaV2Config) -> None:
+        super().__init__()
+        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
+        self.LayerNorm = LayerNorm(config.hidden_size, config.layer_norm_eps)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+
+    def forward(self, hidden_states: torch.Tensor, input_tensor: torch.Tensor) -> torch.Tensor:
+        hidden_states = self.dense(hidden_states)
+        hidden_states = self.dropout(hidden_states)
+        return self.LayerNorm(hidden_states + input_tensor)
+
+
+class DebertaV2Intermediate(nn.Module):
+    def __init__(self, config: DebertaV2Config) -> None:
+        super().__init__()
+        self.dense = nn.Linear(config.hidden_size, config.intermediate_size)
+        self.intermediate_act_fn = (
+            ACT2FN[config.hidden_act] if isinstance(config.hidden_act, str) else config.hidden_act
+        )
+
+    def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
+        return self.intermediate_act_fn(self.dense(hidden_states))
+
+
+class DebertaV2Output(nn.Module):
+    def __init__(self, config: DebertaV2Config) -> None:
+        super().__init__()
+        self.dense = nn.Linear(config.intermediate_size, config.hidden_size)
+        self.LayerNorm = LayerNorm(config.hidden_size, config.layer_norm_eps)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.config = config
+
+    def forward(self, hidden_states: torch.Tensor, input_tensor: torch.Tensor) -> torch.Tensor:
+        hidden_states = self.dense(hidden_states)
+        hidden_states = self.dropout(hidden_states)
+        return self.LayerNorm(hidden_states + input_tensor)
+
+
+class ConvLayer(nn.Module):
+    def __init__(self, config: DebertaV2Config) -> None:
+        super().__init__()
+        kernel_size = getattr(config, "conv_kernel_size", 3)
+        groups = getattr(config, "conv_groups", 1)
+        self.conv_act = getattr(config, "conv_act", "tanh")
+        self.conv = nn.Conv1d(
+            config.hidden_size, config.hidden_size, kernel_size, padding=(kernel_size - 1) // 2, groups=groups
+        )
+        self.LayerNorm = LayerNorm(config.hidden_size, config.layer_norm_eps)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.config = config
+
+    def forward(
+        self, hidden_states: torch.Tensor, residual_states: torch.Tensor, input_mask: torch.Tensor
+    ) -> torch.Tensor:
+        out = self.conv(hidden_states.permute(0, 2, 1).contiguous()).permute(0, 2, 1).contiguous()
+        rmask = (1 - input_mask).bool()
+        out.masked_fill_(rmask.unsqueeze(-1).expand(out.size()), 0)
+        out = ACT2FN[self.conv_act](self.dropout(out))
+        layer_norm_input = residual_states + out
+        output = self.LayerNorm(layer_norm_input).to(layer_norm_input)
+        if input_mask.dim() != layer_norm_input.dim():
+            if input_mask.dim() == 4:
+                input_mask = input_mask.squeeze(1).squeeze(1)
+            input_mask = input_mask.unsqueeze(2)
+        return output * input_mask.to(output.dtype)
+
+
+class DebertaV2Embeddings(nn.Module):
+    def __init__(self, config: DebertaV2Config) -> None:
+        super().__init__()
+        pad_token_id = getattr(config, "pad_token_id", 0)
+        self.embedding_size = getattr(config, "embedding_size", config.hidden_size)
+        self.word_embeddings = nn.Embedding(config.vocab_size, self.embedding_size, padding_idx=pad_token_id)
+        self.position_biased_input = getattr(config, "position_biased_input", True)
+        self.position_embeddings = (
+            nn.Embedding(config.max_position_embeddings, self.embedding_size) if self.position_biased_input else None
+        )
+        self.token_type_embeddings = (
+            nn.Embedding(config.type_vocab_size, self.embedding_size) if config.type_vocab_size > 0 else None
+        )
+        self.embed_proj = (
+            nn.Linear(self.embedding_size, config.hidden_size, bias=False)
+            if self.embedding_size != config.hidden_size
+            else None
+        )
+        self.LayerNorm = LayerNorm(config.hidden_size, config.layer_norm_eps)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.config = config
+        self.position_ids = nn.Buffer(torch.arange(config.max_position_embeddings).expand((1, -1)), persistent=False)
+
+    def forward(
+        self,
+        input_ids: torch.Tensor | None = None,
+        token_type_ids: torch.Tensor | None = None,
+        position_ids: torch.Tensor | None = None,
+        mask: torch.Tensor | None = None,
+        inputs_embeds: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        input_shape = input_ids.size() if input_ids is not None else inputs_embeds.size()[:-1]
+        if position_ids is None:
+            position_ids = self.position_ids[:, : input_shape[1]]
+        if token_type_ids is None:
+            token_type_ids = torch.zeros(input_shape, dtype=torch.long, device=self.position_ids.device)
+        if inputs_embeds is None:
+            inputs_embeds = self.word_embeddings(input_ids)
+        embeddings = inputs_embeds
+        if self.position_biased_input:
+            embeddings = embeddings + self.position_embeddings(position_ids.long())
+        if self.token_type_embeddings is not None:
+            embeddings = embeddings + self.token_type_embeddings(token_type_ids)
+        if self.embed_proj is not None:
+            embeddings = self.embed_proj(embeddings)
+        embeddings = self.LayerNorm(embeddings)
+        if mask is not None:
+            if mask.dim() != embeddings.dim():
+                if mask.dim() == 4:
+                    mask = mask.squeeze(1).squeeze(1)
+                mask = mask.unsqueeze(2)
+            embeddings = embeddings * mask.to(embeddings.dtype)
+        return self.dropout(embeddings)
+
+
+@auto_docstring
+class DebertaV2PreTrainedModel(PreTrainedModel):
+    config: DebertaV2Config
+    base_model_prefix = "deberta"
+    _keys_to_ignore_on_load_unexpected: ClassVar[list[str]] = ["position_embeddings"]
+    supports_gradient_checkpointing = True
+
+    @torch.no_grad()
+    def _init_weights(self, module: nn.Module) -> None:
+        super()._init_weights(module)
+        if isinstance(module, DebertaV2Embeddings):
+            init.copy_(module.position_ids, torch.arange(module.position_ids.shape[-1]).expand((1, -1)))
 
 
 # Copied from transformers.models.deberta.modeling_deberta.DebertaAttention with Deberta->DebertaV2
@@ -138,7 +326,7 @@ class DebertaV2Encoder(nn.Module):
     def get_rel_pos(
         self,
         hidden_states: torch.Tensor,  # (b, seq, hid)
-        special_token_indices: torch.Tensor,  # (b, special_token_indices)
+        special_token_indices: Optional[torch.Tensor],  # (b, special_token_indices)
         query_states: Optional[torch.Tensor] = None,
         relative_pos: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
@@ -158,6 +346,8 @@ class DebertaV2Encoder(nn.Module):
                     max_position=self.max_relative_positions,
                 )
             batch_size = hidden_states.size(0)
+            if special_token_indices is None:
+                return relative_pos.expand(batch_size, -1, -1)
             # (b, query, key)
             special_token_mask = torch.zeros_like(relative_pos, dtype=torch.bool).repeat(batch_size, 1, 1)
             special_token_mask[torch.arange(0, batch_size), special_token_indices.t(), :] = True

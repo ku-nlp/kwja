@@ -1,6 +1,8 @@
 import io
 import logging
 import re
+import subprocess
+import sys
 import tempfile
 import textwrap
 from pathlib import Path
@@ -19,6 +21,36 @@ runner = CliRunner()
 def test_version() -> None:
     ret = runner.invoke(app, args=["--version"])
     assert re.match(r"KWJA \d+\.\d+\.\d+", ret.stdout) is not None
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["--version"],
+        ["--tasks", "char,word", "--model-size", "tiny", "--text", "あ"],
+    ],
+)
+def test_cli_does_not_use_torchscript(args: list[str]) -> None:
+    code = textwrap.dedent(
+        """\
+        from unittest.mock import patch
+
+        with patch("torch.jit.script", side_effect=AssertionError("TorchScript must not be used")):
+            from kwja.cli.cli import app
+            app()
+        """
+    )
+    ret = subprocess.run(  # noqa: S603
+        [sys.executable, "-W", "default", "-c", code, *args],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    if args == ["--version"]:
+        assert re.match(r"KWJA \d+\.\d+\.\d+", ret.stdout) is not None
+    else:
+        assert Document.from_knp(ret.stdout).text == "あ"
+    assert "Warning:" not in ret.stderr
 
 
 def test_device_validation() -> None:
