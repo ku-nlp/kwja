@@ -453,20 +453,33 @@ def test_interactive_mode_repeated_predictions() -> None:
     assert outputs[2] == outputs[0]
 
 
-def test_char_module_reports_skipped_text(caplog: pytest.LogCaptureFixture) -> None:
+@pytest.mark.parametrize("only_long_sentence", [False, True])
+@pytest.mark.parametrize("tasks", ["char", "char,word"])
+def test_char_module_reports_skipped_text(
+    only_long_sentence: bool, tasks: str, caplog: pytest.LogCaptureFixture
+) -> None:
     """Text that does not fit in the char module's window is left out of the output, so it must be reported."""
-    text = "こんにちは。" + "あ" * 600 + "。"
-    ret = runner.invoke(app, args=["--model-size", "tiny", "--tasks", "char", "--text", text])
+    text = "あ" * 1000
+    if not only_long_sentence:
+        text = "こんにちは。" + text
+    ret = runner.invoke(app, args=["--model-size", "tiny", "--tasks", tasks, "--text", text])
     assert ret.exception is None
-    restored_output = "".join([line for line in ret.stdout.splitlines() if not line.startswith("#")]).replace(" ", "")
-    assert restored_output == "こんにちは。"
+    if only_long_sentence:
+        assert ret.stdout == "EOD\n"
+    elif tasks == "char,word":
+        assert Document.from_knp(ret.stdout).text == "こんにちは。"
+    else:
+        restored_output = "".join([line for line in ret.stdout.splitlines() if not line.startswith("#")]).replace(
+            " ", ""
+        )
+        assert restored_output == "こんにちは。"
     messages = [
         record.getMessage()
         for record in caplog.records
         if record.name.startswith("kwja.") and record.levelno == logging.WARNING
     ]
     assert len(messages) == 1
-    assert messages[0] == "Length of sub document is too long: " + "あ" * 600 + "。"
+    assert messages[0] == "Length of sub document is too long: " + "あ" * 1000
 
 
 @pytest.mark.parametrize("only_long_sentence", [False, True])
