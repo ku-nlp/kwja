@@ -30,7 +30,7 @@ from kwja.utils.logging_util import filter_logs
 
 filter_logs(environment="production")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
-logging.basicConfig(format="")
+logging.basicConfig(format="%(levelname)s: %(message)s")
 
 logger = logging.getLogger("kwja_cli")
 logger.setLevel(logging.INFO)
@@ -402,9 +402,9 @@ def _validate_task_combination(specified_tasks: list[str], input_format: InputFo
         )
     if input_format in (InputFormat.JUMANPP, InputFormat.KNP):
         if specified_tasks[0] in ("typo", "char"):
-            logger.warning("WARNING: with typo or char task, your input text will be treated as raw text.")
+            logger.warning("with typo or char task, your input text will be treated as raw text.")
         elif specified_tasks[0] in ("seq2seq", "word"):
-            logger.warning("WARNING: with seq2seq or word task, your input text will be treated as a word sequence.")
+            logger.warning("with seq2seq or word task, your input text will be treated as a word sequence.")
 
 
 @app.command()
@@ -430,7 +430,7 @@ def main(  # noqa: PLR0917
 
     input_documents: list[Document] | None = None
     if text is not None and len(filename) > 0:
-        logger.error("ERROR: Please provide text or filename, not both")
+        logger.error("Please provide text or filename, not both")
         raise typer.Abort
     elif text is not None:
         input_documents = [_load_document_from_text(text, input_format)]
@@ -438,7 +438,7 @@ def main(  # noqa: PLR0917
         input_documents = []
         for path in filename:
             if path.exists() is False:
-                logger.error(f"ERROR: {path} does not exist")
+                logger.error(f"{path} does not exist")
                 raise typer.Abort
             with path.open(encoding="utf-8") as f:
                 for document_text in _chunk_by_document(f, input_format):
