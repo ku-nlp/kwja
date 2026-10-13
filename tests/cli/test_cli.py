@@ -8,12 +8,14 @@ import textwrap
 from pathlib import Path
 
 import pytest
+from huggingface_hub.utils import are_progress_bars_disabled
 from rhoknp import Document
 from rhoknp.utils.reader import chunk_by_document
 from typer.testing import CliRunner
 
 from kwja.cli.cli import CharModuleProcessor, CLIProcessor, _KeepModelOnDeviceStrategy, app
 from kwja.cli.config import CLIConfig, Device, ModelSize
+from kwja.utils.logging_util import CONSOLE
 
 runner = CliRunner()
 
@@ -28,6 +30,7 @@ def test_version() -> None:
     [
         ["--version"],
         ["--tasks", "char,word", "--model-size", "tiny", "--text", "あ"],
+        ["--quiet", "--tasks", "char,word", "--model-size", "tiny", "--text", "あ"],
     ],
 )
 def test_cli_does_not_use_torchscript(args: list[str]) -> None:
@@ -51,6 +54,25 @@ def test_cli_does_not_use_torchscript(args: list[str]) -> None:
     else:
         assert Document.from_knp(ret.stdout).text == "あ"
     assert "Warning:" not in ret.stderr
+    if "--quiet" in args:
+        assert ret.stderr == ""
+
+
+@pytest.mark.parametrize("option", ["--quiet", "-q"])
+def test_quiet_preserves_warnings_and_errors(option: str, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    logger = logging.getLogger("kwja_cli")
+    original_level = logger.level
+    original_quiet = CONSOLE.quiet
+    original_progress_disabled = are_progress_bars_disabled()
+    ret = runner.invoke(
+        app,
+        args=[option, "--tasks", "word", "--input-format", "knp", "--filename", str(tmp_path / "missing.txt")],
+    )
+    assert ret.exit_code == 1
+    assert [record.levelno for record in caplog.records] == [logging.WARNING, logging.ERROR]
+    assert logger.level == original_level
+    assert CONSOLE.quiet == original_quiet
+    assert are_progress_bars_disabled() == original_progress_disabled
 
 
 def test_device_validation() -> None:

@@ -4,6 +4,7 @@ import sys
 from abc import ABC
 from collections.abc import Iterator
 from enum import StrEnum
+from functools import partial
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Annotated, TextIO
@@ -13,6 +14,7 @@ import hydra
 import lightning as L
 import torch
 import typer
+from huggingface_hub.utils import are_progress_bars_disabled, disable_progress_bars, enable_progress_bars
 from lightning.pytorch.callbacks import BasePredictionWriter
 from lightning.pytorch.strategies import SingleDeviceStrategy
 from lightning.pytorch.trainer.states import TrainerFn
@@ -26,7 +28,7 @@ from kwja.datamodule.datamodule import DataModule
 from kwja.datamodule.datasets.utils import add_doc_ids, add_sent_ids
 from kwja.modules import CharModule, Seq2SeqModule, TypoModule, WordModule
 from kwja.utils.constants import TRANSLATION_TABLE
-from kwja.utils.logging_util import filter_logs
+from kwja.utils.logging_util import CONSOLE, filter_logs
 
 filter_logs(environment="production")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -99,12 +101,13 @@ class BaseModuleProcessor(ABC):
         # TODO: remove this after new checkpoints are released
         self._rename_modules_for_backward_compatibility()
 
+        callbacks = [self._create_prediction_writer()]
+        if not CONSOLE.quiet:
+            callbacks.append(hydra.utils.instantiate(self.module.hparams.callbacks.progress_bar))
         self.trainer = L.Trainer(
             logger=False,
-            callbacks=[
-                self._create_prediction_writer(),
-                hydra.utils.instantiate(self.module.hparams.callbacks.progress_bar),  # type: ignore[union-attr]
-            ],
+            callbacks=callbacks,
+            enable_progress_bar=not CONSOLE.quiet,
             strategy=_KeepModelOnDeviceStrategy(device=self.device) if keep_model_on_device else "auto",
             accelerator=self.accelerator,
             devices=1,
@@ -157,7 +160,9 @@ class TypoModuleProcessor(BaseModuleProcessor):
 
     def _load_module(self) -> L.LightningModule:
         logger.info("Loading typo module")
-        checkpoint_path: Path = download_checkpoint(module="typo", model_size=self.model_size)
+        checkpoint_path: Path = download_checkpoint(
+            module="typo", model_size=self.model_size, progress=not CONSOLE.quiet
+        )
         return TypoModule.fast_load_from_checkpoint(
             checkpoint_path, map_location=self.device, accelerator=self.accelerator
         )
@@ -184,7 +189,9 @@ class CharModuleProcessor(BaseModuleProcessor):
 
     def _load_module(self) -> L.LightningModule:
         logger.info("Loading char module")
-        checkpoint_path: Path = download_checkpoint(module="char", model_size=self.model_size)
+        checkpoint_path: Path = download_checkpoint(
+            module="char", model_size=self.model_size, progress=not CONSOLE.quiet
+        )
         return CharModule.fast_load_from_checkpoint(
             checkpoint_path, map_location=self.device, accelerator=self.accelerator
         )
@@ -212,7 +219,9 @@ class Seq2SeqModuleProcessor(BaseModuleProcessor):
 
     def _load_module(self) -> L.LightningModule:
         logger.info("Loading seq2seq module")
-        checkpoint_path: Path = download_checkpoint(module="seq2seq", model_size=self.model_size)
+        checkpoint_path: Path = download_checkpoint(
+            module="seq2seq", model_size=self.model_size, progress=not CONSOLE.quiet
+        )
         return Seq2SeqModule.fast_load_from_checkpoint(
             checkpoint_path, map_location=self.device, accelerator=self.accelerator
         )
@@ -245,7 +254,9 @@ class WordModuleProcessor(BaseModuleProcessor):
 
     def _load_module(self) -> L.LightningModule:
         logger.info("Loading word module")
-        checkpoint_path: Path = download_checkpoint(module="word", model_size=self.model_size)
+        checkpoint_path: Path = download_checkpoint(
+            module="word", model_size=self.model_size, progress=not CONSOLE.quiet
+        )
         return WordModule.fast_load_from_checkpoint(
             checkpoint_path, map_location=self.device, accelerator=self.accelerator
         )
@@ -360,6 +371,17 @@ def _version_callback(value: bool) -> None:
         raise typer.Exit
 
 
+def _quiet_callback(ctx: typer.Context, value: bool) -> bool:
+    ctx.call_on_close(partial(logger.setLevel, logger.level))
+    ctx.call_on_close(partial(setattr, CONSOLE, "quiet", CONSOLE.quiet))
+    logger.setLevel(logging.WARNING if value else logging.INFO)
+    CONSOLE.quiet = value
+    if value and not are_progress_bars_disabled():
+        disable_progress_bars()
+        ctx.call_on_close(enable_progress_bars)
+    return value
+
+
 def _tasks_callback(value: str) -> str:
     """sort and validate specified tasks"""
     values: list[str] = [v for v in value.split(",") if v]
@@ -424,6 +446,10 @@ def main(  # noqa: PLR0917
     ] = None,
     config_file: Annotated[Path | None, typer.Option(help="Path to KWJA config file.")] = None,
     input_format: Annotated[InputFormat, typer.Option(case_sensitive=False, help="Input format.")] = InputFormat.RAW,
+    quiet: Annotated[
+        bool,
+        typer.Option("--quiet", "-q", callback=_quiet_callback, help="Hide informational logs and progress output."),
+    ] = False,
 ) -> None:
     specified_tasks: list[str] = tasks.split(",")
     _validate_task_combination(specified_tasks, input_format)
@@ -476,7 +502,8 @@ def main(  # noqa: PLR0917
 
     # Interactive mode
     processor.load_all_modules()
-    print('Type "EOD" in a new line to finish the input.', file=sys.stderr)
+    if not quiet:
+        print('Type "EOD" in a new line to finish the input.', file=sys.stderr)
     input_text = ""
     while True:
         try:

@@ -94,6 +94,8 @@ Here are options for `kwja` command:
 
 - `--device`: Device to be used. Specify `cpu`, `cuda`, or `mps`. If not specified, the device is automatically selected.
 
+- `--quiet`, `-q`: Hide informational logs and progress output. Warnings, errors, and analysis results are still displayed.
+
 - `--typo-batch-size`: Batch size for typo module.
 -
 - `--char-batch-size`: Batch size for character module.

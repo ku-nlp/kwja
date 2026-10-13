@@ -89,6 +89,7 @@ def track(
     progress = Progress(
         *columns,
         console=console,
+        disable=console is not None and console.quiet,
         refresh_per_second=1,
     )
     with progress:

@@ -65,9 +65,10 @@ def download_checkpoint(
     model_version = _get_model_version()
     checkpoint_path = checkpoint_dir / checkpoint_file_name
     if checkpoint_path.exists() is False:
-        sys.stderr.write(
-            f'Downloading: "{_CHECKPOINT_REPO_ID}/{checkpoint_file_name}@{model_version}" to {checkpoint_path}\n'
-        )
+        if progress:
+            sys.stderr.write(
+                f'Downloading: "{_CHECKPOINT_REPO_ID}/{checkpoint_file_name}@{model_version}" to {checkpoint_path}\n'
+            )
         checkpoint_path = _hf_hub_download(checkpoint_file_name, model_version, checkpoint_dir, progress=progress)
     return checkpoint_path
 

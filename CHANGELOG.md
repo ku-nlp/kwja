@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Support Python 3.14.
 - Support Transformers v5 ([#262](https://github.com/ku-nlp/kwja/pull/262)).
+- Add `--quiet` (`-q`) to hide informational logs and progress output while keeping warnings, errors, and analysis results visible.
 
 ### Changed
 - Download model checkpoints from the Hugging Face Hub.
