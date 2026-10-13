@@ -1,11 +1,11 @@
 import argparse
 import sys
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 
 
 @contextmanager
-def workaround_hydra_argparse() -> Iterator[None]:
+def workaround_hydra_argparse() -> Generator[None, None, None]:
     """Work around Hydra's incompatible shell-completion help on Python 3.14."""
     if sys.version_info < (3, 14):
         yield
