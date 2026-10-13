@@ -1,5 +1,7 @@
+import logging
 from pathlib import Path
 
+import pytest
 import torch
 from transformers import PreTrainedTokenizerBase
 
@@ -12,6 +14,25 @@ def test_init(data_dir: Path, char_tokenizer: PreTrainedTokenizerBase) -> None:
     max_seq_length = 512
     denormalize_probability = 0.0
     _ = CharDataset(str(path), char_tokenizer, max_seq_length, denormalize_probability)
+
+
+def test_missing_normalization_labels(
+    char_tokenizer: PreTrainedTokenizerBase, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    (tmp_path / "test.knp").write_text(
+        "# S-ID:test-0\n* -1D\n+ -1D\n未知語 みちご 異なる原形 名詞 6 普通名詞 1 * 0 * 0\nEOS\n",
+        encoding="utf-8",
+    )
+    dataset = CharDataset(str(tmp_path), char_tokenizer, 32, 0.0)
+    assert len(dataset) == 1
+    assert dataset[0].word_norm_op_labels == [IGNORE_INDEX] * 32
+    assert caplog.record_tuples == [
+        (
+            "kwja.datamodule.examples.char",
+            logging.WARNING,
+            "Skipping word normalization labels for 未知語 (S-ID:test-0)",
+        )
+    ]
 
 
 def test_getitem(data_dir: Path, char_tokenizer: PreTrainedTokenizerBase) -> None:

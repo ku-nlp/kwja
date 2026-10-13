@@ -1,3 +1,4 @@
+import logging
 import tempfile
 from importlib.metadata import version
 from pathlib import Path
@@ -7,11 +8,13 @@ from typing import Any
 import lightning as L
 import pytest
 import torch
+from rhoknp import Document
 from rhoknp.props import DepType
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
 
 from kwja.callbacks import WordModuleWriter
+from kwja.callbacks.utils import add_discourse
 from kwja.datamodule.datasets import WordInferenceDataset
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
@@ -73,6 +76,47 @@ def build_dummy_jumandic() -> JumanDic:
 )
 def test_init(destination: str | Path | None) -> None:
     _ = WordModuleWriter(AMBIG_SURF_SPECS, destination=destination)
+
+
+@pytest.mark.parametrize(
+    ("pos", "conjtype", "conjform"),
+    [("形容詞", "イ形容詞イ段", "エ基本形"), ("動詞", "子音動詞カ行", "基本連用形")],
+)
+def test_get_lemma_for_unknown_words(pos: str, conjtype: str, conjform: str, caplog: pytest.LogCaptureFixture) -> None:
+    writer = WordModuleWriter(AMBIG_SURF_SPECS)
+    norm = "未知語"
+    with caplog.at_level(logging.WARNING, logger="kwja.callbacks.word_module_writer"):
+        lemma = writer._get_lemma(norm, pos, "*", conjtype, conjform, [])
+
+    assert lemma == norm
+    assert [record.levelno for record in caplog.records] == [logging.WARNING]
+    assert caplog.messages[0].startswith(f"failed to get lemma for {norm}")
+
+
+def test_add_discourse_without_clause_boundaries(caplog: pytest.LogCaptureFixture) -> None:
+    document = Document.from_knp(
+        dedent(
+            """\
+            # S-ID:test-0
+            * -1D
+            + -1D
+            今日 きょう 今日 名詞 6 時相名詞 10 * 0 * 0
+            EOS
+            """
+        )
+    )
+    knp_text = document.to_knp()
+    with caplog.at_level(logging.WARNING, logger="kwja.callbacks.utils"):
+        add_discourse(document, [])
+
+    assert document.to_knp() == knp_text
+    assert caplog.record_tuples == [
+        (
+            "kwja.callbacks.utils",
+            logging.WARNING,
+            f"Skipping discourse relation analysis because clause boundaries are missing: {document.doc_id}",
+        )
+    ]
 
 
 def test_write_on_batch_end(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[str, Any]) -> None:

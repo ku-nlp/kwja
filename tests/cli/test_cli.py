@@ -1,4 +1,5 @@
 import io
+import logging
 import re
 import tempfile
 import textwrap
@@ -85,10 +86,11 @@ def test_input_format_validation() -> None:
             assert ret.exception is None
 
 
-def test_text_input() -> None:
+def test_text_input(caplog: pytest.LogCaptureFixture) -> None:
     ret = runner.invoke(app, args=["--model-size", "tiny", "--text", "おはよう"])
     assert ret.exception is None
     assert Document.from_knp(ret.stdout).text == "おはよう"
+    assert not any(record.name.startswith("kwja.") and record.levelno >= logging.WARNING for record in caplog.records)
 
 
 @pytest.mark.parametrize(
@@ -122,7 +124,7 @@ def test_normalization_and_char_module(text: str, output: str) -> None:
     assert restored_output == output.replace(" ", "")
 
 
-def test_file_input() -> None:
+def test_file_input(caplog: pytest.LogCaptureFixture) -> None:
     with tempfile.NamedTemporaryFile("wt", delete=False, encoding="utf-8") as f:
         f.write(
             textwrap.dedent(
@@ -140,6 +142,9 @@ def test_file_input() -> None:
     try:
         ret = runner.invoke(app, args=["--model-size", "tiny", "--filename", str(file_path)])
         assert ret.exception is None
+        assert not any(
+            record.name.startswith("kwja.") and record.levelno >= logging.WARNING for record in caplog.records
+        )
     finally:
         file_path.unlink(missing_ok=True)
 
@@ -401,9 +406,60 @@ def test_char_module_reports_skipped_text(caplog: pytest.LogCaptureFixture) -> N
     assert ret.exception is None
     restored_output = "".join([line for line in ret.stdout.splitlines() if not line.startswith("#")]).replace(" ", "")
     assert restored_output == "こんにちは。"
-    messages = [record.getMessage() for record in caplog.records if "skipped" in record.getMessage()]
+    messages = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name.startswith("kwja.") and record.levelno == logging.WARNING
+    ]
     assert len(messages) == 1
-    assert "the char module skipped 601 characters in document " in messages[0]
+    assert messages[0] == "Length of sub document is too long: " + "あ" * 600 + "。"
+
+
+@pytest.mark.parametrize("only_long_sentence", [False, True])
+@pytest.mark.parametrize("tasks", ["seq2seq", "seq2seq,word"])
+def test_seq2seq_module_reports_skipped_sentences(
+    only_long_sentence: bool, tasks: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    jumanpp_text = "# S-ID:test-1\n" + "あ _ あ 未定義語 15 その他 1 * 0 * 0\n" * 1000 + "EOS\n"
+    if not only_long_sentence:
+        jumanpp_text = (
+            "# S-ID:test-0\n今日 _ 今日 未定義語 15 その他 1 * 0 * 0\nEOS\n"
+            + jumanpp_text
+            + "# S-ID:test-2\n明日 _ 明日 未定義語 15 その他 1 * 0 * 0\nEOS\n"
+        )
+
+    ret = runner.invoke(
+        app,
+        args=[
+            "--model-size",
+            "tiny",
+            "--device",
+            "cpu",
+            "--tasks",
+            tasks,
+            "--input-format",
+            "jumanpp",
+            "--seq2seq-batch-size",
+            "2",
+            "--text",
+            jumanpp_text,
+        ],
+    )
+
+    assert ret.exception is None
+    if only_long_sentence:
+        assert ret.stdout == "EOD\n"
+    else:
+        document = Document.from_knp(ret.stdout) if "word" in tasks else Document.from_jumanpp(ret.stdout)
+        assert [sentence.sid for sentence in document.sentences] == ["test-0", "test-2"]
+        assert [sentence.text for sentence in document.sentences] == ["今日", "明日"]
+    messages = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name.startswith("kwja.") and record.levelno == logging.WARNING
+    ]
+    assert len(messages) == 1
+    assert messages[0] == "Length of source sentence is too long: " + "あ" * 1000
 
 
 def test_word_module_reports_skipped_sentences(caplog: pytest.LogCaptureFixture) -> None:
@@ -435,6 +491,15 @@ def test_word_module_reports_skipped_sentences(caplog: pytest.LogCaptureFixture)
     assert ret.exception is None
     document = Document.from_knp(ret.stdout)
     assert [sentence.sent_id for sentence in document.sentences] == ["test-0", "test-2"]
-    messages = [record.getMessage() for record in caplog.records if "skipped" in record.getMessage()]
-    assert len(messages) == 1
-    assert "the word module skipped 300 characters in document test (S-ID:test-1)" in messages[0]
+    messages = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name.startswith("kwja.") and record.levelno == logging.WARNING
+    ]
+    assert len(messages) == 2
+    assert messages[0] == "Length of sub document is too long: " + "あ" * 300
+    assert messages[1].startswith("failed to get lemma for こんばんは:")
+    morpheme = document.sentences[1].morphemes[0]
+    assert morpheme.surf == morpheme.lemma == "こんばんは"
+    assert morpheme.conjtype == "ナ形容詞"
+    assert morpheme.conjform == "*"

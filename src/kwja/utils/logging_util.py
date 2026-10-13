@@ -18,11 +18,12 @@ def filter_logs(environment: Literal["development", "production"]) -> None:
     hf_logging.set_verbosity(hf_logging.ERROR)
     if environment == "production":
         warnings.filterwarnings("ignore")
-        logging.getLogger("kwja").setLevel(logging.ERROR)
+        logging.getLogger("kwja").setLevel(logging.WARNING)
         logging.getLogger("torch").setLevel(logging.ERROR)
         logging.getLogger("lightning").setLevel(logging.ERROR)
         logging.getLogger("lightning.pytorch.utilities.rank_zero").setLevel(logging.ERROR)
     elif environment == "development":
+        logging.getLogger("kwja").setLevel(logging.INFO)
         warnings.filterwarnings(
             "ignore",
             message=(

@@ -1,5 +1,4 @@
 import copy
-import logging
 from dataclasses import dataclass
 from typing import cast
 
@@ -9,8 +8,6 @@ from rhoknp import BasePhrase
 from rhoknp.cohesion import Argument, EndophoraArgument, ExophoraArgument, ExophoraReferent
 
 from kwja.utils.sub_document import is_target_sentence
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass

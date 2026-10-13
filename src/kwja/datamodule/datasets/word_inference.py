@@ -79,8 +79,6 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
             is_split_into_words=True,
         ).encodings[0]
 
-        # sub documents that do not fit in max_seq_length are left unanalyzed; kept so that callers can report them
-        self.skipped_documents: list[Document] = []
         self.examples: list[WordInferenceExample] = self._load_examples(self.doc_id2document)
 
     def _get_tokenized_len(self, document_or_sentence: Document | Sentence) -> int:
@@ -100,7 +98,6 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
             ).encodings[0]
             if len(encoding.ids) > self.max_seq_length - len(self.special_tokens):
                 logger.warning(f"Length of sub document is too long: {document.text}")
-                self.skipped_documents.append(document)
                 continue
             padding_encoding: Encoding = self.tokenizer(
                 "",
@@ -127,7 +124,7 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
                 )
             )
             example_id += 1
-        if len(examples) == 0:
+        if len(examples) == 0 and len(doc_id2document) > 0:
             logger.error("No examples to process. Make sure any texts are given and they are not too long.")
         return examples
 

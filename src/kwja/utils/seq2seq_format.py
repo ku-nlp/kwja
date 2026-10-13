@@ -1,3 +1,4 @@
+import logging
 from typing import cast
 
 from rhoknp import Sentence
@@ -14,6 +15,8 @@ from kwja.utils.constants import (
     SPECIAL2RARE,
     SURF_TOKEN,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class Seq2SeqFormatter:
@@ -114,6 +117,7 @@ class Seq2SeqFormatter:
 
                 formatted += f"{surf} {reading} {lemma} 未定義語 15 その他 1 * 0 * 0 {canon}\n"
             except IndexError:
+                logger.warning(f"Failed to parse generated morpheme; using @ instead: {line}")
                 formatted += "@ @ @ 未定義語 15 その他 1 * 0 * 0 NIL\n"
         formatted += "EOS\n"
         return Sentence.from_jumanpp(formatted)

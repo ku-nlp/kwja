@@ -27,6 +27,7 @@ from kwja.utils.logging_util import track
 logging.getLogger("rhoknp").setLevel(logging.ERROR)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+logging.basicConfig()
 
 UNSUPPORTED_CONJUGATION_FALLBACK_TABLE = {
     ("ナ形容詞", "ダ列文語基本形"): ("ナ形容詞", "ダ列基本連体形"),
@@ -279,13 +280,13 @@ def assign_features_and_save(
                     morpheme.conjform_id,
                 )
                 conjtype, conjform = fallback_conjugation
+                logger.debug(
+                    f"{morpheme.sentence.sid}: replacing unsupported conjugation (type: {morpheme.conjtype}, form: {morpheme.conjform}) with ({conjtype}, {conjform})"
+                )
                 morpheme.conjtype = conjtype
                 morpheme.conjtype_id = CONJTYPE_TAGS.index(conjtype)
                 morpheme.conjform = conjform
                 morpheme.conjform_id = CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID[conjtype][conjform]
-                logger.info(
-                    f"{morpheme.sentence.sid}: replaced unsupported conjugation (type: {morpheme.conjtype}, form: {morpheme.conjform}) with ({conjtype}, {conjform})"
-                )
             if fallback_pos_subpos := UNSUPPORTED_POS_SUBPOS_FALLBACK_TABLE.get((morpheme.pos, morpheme.subpos)):
                 unsupported_pos_subpos[morpheme.global_index] = (
                     morpheme.pos,
@@ -294,13 +295,13 @@ def assign_features_and_save(
                     morpheme.subpos_id,
                 )
                 pos, subpos = fallback_pos_subpos
+                logger.debug(
+                    f"{morpheme.sentence.sid}: replacing unsupported pos/subpos (pos: {morpheme.pos}, subpos: {morpheme.subpos}) with ({pos}, {subpos})"
+                )
                 morpheme.pos = pos
                 morpheme.pos_id = POS_TAG2POS_ID[pos]
                 morpheme.subpos = subpos
                 morpheme.subpos_id = POS_TAG_SUBPOS_TAG2SUBPOS_ID[pos][subpos]
-                logger.info(
-                    f"{morpheme.sentence.sid}: replaced unsupported pos/subpos (pos: {morpheme.pos}, subpos: {morpheme.subpos}) with ({pos}, {subpos})"
-                )
 
         # 形態素意味情報付与 (引数に渡したdocumentをupdateする)
         _ = jumanpp_augmenter.augment_document(document)
@@ -327,12 +328,12 @@ def assign_features_and_save(
             morpheme.features.update(features)
             if conjugation := unsupported_conjugations.get(morpheme.global_index):
                 morpheme.conjtype, morpheme.conjtype_id, morpheme.conjform, morpheme.conjform_id = conjugation
-                logger.info(
-                    f"{morpheme.sentence.sid}: unsupported cojugation (type: {conjugation[0]}, form: {conjugation[2]}) restored"
+                logger.debug(
+                    f"{morpheme.sentence.sid}: unsupported conjugation (type: {conjugation[0]}, form: {conjugation[2]}) restored"
                 )
             if pos_subpos := unsupported_pos_subpos.get(morpheme.global_index):
                 morpheme.pos, morpheme.pos_id, morpheme.subpos, morpheme.subpos_id = pos_subpos
-                logger.info(
+                logger.debug(
                     f"{morpheme.sentence.sid}: unsupported pos/subpos (pos: {pos_subpos[0]}, subpos: {pos_subpos[2]}) restored"
                 )
 

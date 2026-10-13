@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, cast
@@ -11,6 +12,8 @@ from kwja.callbacks.base_module_writer import BaseModuleWriter
 from kwja.datamodule.datasets import Seq2SeqDataset, Seq2SeqInferenceDataset
 from kwja.datamodule.examples import Seq2SeqExample, Seq2SeqInferenceExample
 from kwja.utils.seq2seq_format import Seq2SeqFormatter
+
+logger = logging.getLogger(__name__)
 
 
 class Seq2SeqModuleWriter(BaseModuleWriter):
@@ -43,6 +46,8 @@ class Seq2SeqModuleWriter(BaseModuleWriter):
             if len(example.surfs) == 0:
                 continue
 
+            if self.tokenizer.eos_token_id not in seq2seq_predictions:
+                logger.warning(f"Generation ended without an EOS token; sentence may be incomplete: {example.sid}")
             decoded = cast(
                 str,
                 self.tokenizer.decode(
@@ -55,6 +60,8 @@ class Seq2SeqModuleWriter(BaseModuleWriter):
                 ),
             )
             seq2seq_format: Sentence = self.formatter.format_to_sent(decoded.replace(" ", ""))
+            if len(seq2seq_format.morphemes) == 0:
+                logger.warning(f"No morphemes were generated for sentence {example.sid}")
             seq2seq_format.sid = example.sid
             seq2seq_format.misc_comment = f"kwja:{kwja.__version__}"
             output_string += seq2seq_format.to_jumanpp()

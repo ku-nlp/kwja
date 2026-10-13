@@ -7,8 +7,7 @@ from pathlib import Path
 from kwja.utils.jumandic import JumanDic
 from kwja.utils.logging_util import track
 
-logger = logging.getLogger(__name__)
-logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s: %(message)s", level=logging.DEBUG)
+logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s: %(message)s", level=logging.INFO)
 
 
 def main() -> None:

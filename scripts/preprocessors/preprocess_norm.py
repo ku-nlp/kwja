@@ -96,19 +96,22 @@ def main() -> None:
 
             if len(info) == 0:
                 excluded_nums["no_info"] = excluded_nums.get("no_info", 0) + 1
+                logger.warning(f"Skipping sentence {sentence.sid}: partial annotation could not be aligned")
                 continue
 
             try:
                 knp_applied_sentence: Sentence = knp.apply_to_sentence(sentence)
-            except ValueError:
+            except ValueError as e:
                 excluded_nums["knp_application_error"] = excluded_nums.get("knp_application_error", 0) + 1
+                logger.warning(f"Skipping sentence {sentence.sid}: KNP analysis failed: {e}")
                 continue
             try:
                 sid2knp_str[knp_applied_sentence.sid] = knp_applied_sentence.to_knp()
                 assert len(info) > 0  # noqa: S101
                 sid2info[knp_applied_sentence.sid] = info
-            except AttributeError:
+            except AttributeError as e:
                 excluded_nums["no_attribution_error"] = excluded_nums.get("no_attribution_error", 0) + 1
+                logger.warning(f"Skipping sentence {sentence.sid}: KNP output is unavailable: {e}")
                 continue
 
     sid2knp_str_list: list[tuple[str, str]] = list(sid2knp_str.items())

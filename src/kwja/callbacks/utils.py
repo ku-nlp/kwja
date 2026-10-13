@@ -469,7 +469,7 @@ def _to_rel_tag(
 
 def add_discourse(document: Document, discourse_predictions: list[list[int]]) -> None:
     if document.is_clause_tag_required():
-        logger.warning("failed to output clause boundaries")
+        logger.warning(f"Skipping discourse relation analysis because clause boundaries are missing: {document.doc_id}")
         return
 
     for modifier in document.clauses:

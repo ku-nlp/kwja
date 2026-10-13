@@ -142,6 +142,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
                 is_split_into_words=True,
             ).encodings[0]
             if len(encoding.ids) > self.max_seq_length - len(self.special_tokens):
+                logger.warning(f"Length of sub document is too long: {document.text}")
                 continue
             padding_encoding: Encoding = self.tokenizer(
                 "",
@@ -335,6 +336,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
                 discourse_document = Document.from_knp(discourse_path.read_text(encoding="utf-8"))
                 if document == discourse_document:
                     return discourse_document
+                logger.warning(f"Discourse annotations do not match document {document.doc_id}: {discourse_path}")
             except AssertionError:
                 logger.warning(f"{discourse_path} is not a valid KNP file")
         return None

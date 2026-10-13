@@ -1,10 +1,14 @@
+import logging
 from dataclasses import dataclass
 
 from rhoknp import Document, Morpheme
 from transformers import BatchEncoding
 
+from kwja.utils.constants import IGNORE_WORD_NORM_OP_TAG
 from kwja.utils.sub_document import is_target_sentence
 from kwja.utils.word_normalization import MorphemeNormalizer
+
+logger = logging.getLogger(__name__)
 
 
 class CharExample:
@@ -50,7 +54,10 @@ class CharExample:
             )
 
     def _set_word_norm_op_tag(self, morpheme: Morpheme, offset: int) -> None:
-        for char_index_in_morpheme, word_norm_op_tag in enumerate(self.normalizer.get_word_norm_op_tags(morpheme)):
+        word_norm_op_tags = self.normalizer.get_word_norm_op_tags(morpheme)
+        if IGNORE_WORD_NORM_OP_TAG in word_norm_op_tags:
+            logger.warning(f"Skipping word normalization labels for {morpheme.surf} (S-ID:{morpheme.sentence.sid})")
+        for char_index_in_morpheme, word_norm_op_tag in enumerate(word_norm_op_tags):
             self.char_global_index2word_norm_op_tag[char_index_in_morpheme + offset] = word_norm_op_tag
 
 

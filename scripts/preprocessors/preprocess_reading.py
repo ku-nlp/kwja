@@ -11,6 +11,8 @@ from kwja.utils.kanjidic import KanjiDic
 from kwja.utils.reading_prediction import ReadingAligner
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logging.basicConfig()
 
 
 def main() -> None:
