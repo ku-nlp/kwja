@@ -155,14 +155,18 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
             dependency_mask[start:stop, root_index] = True
 
         # ---------- cohesion analysis ----------
+        # Only the rows of the target sentences are read when the predictions are written
+        # out, so the candidates are computed for those morphemes alone and the rows of the
+        # context sentences are left masked.
         rel_masks: list[torch.Tensor] = []
         morphemes = document.morphemes
+        target_morphemes = [morphemes[global_index] for global_index in example.analysis_target_morpheme_indices]
         special_indices = example.special_token_indexer.get_morpheme_level_indices(only_cohesion=True)
         for cohesion_task in self.cohesion_tasks:
             cohesion_rels = self.cohesion_task2rels[cohesion_task]
             cohesion_extractor = self.cohesion_task2extractor[cohesion_task]
             rel_mask = torch.zeros((self.max_seq_length, self.max_seq_length), dtype=torch.bool)
-            for morpheme in morphemes:
+            for morpheme in target_morphemes:
                 candidate_indices = [c.global_index for c in cohesion_extractor.get_candidates(morpheme, morphemes)]
                 if candidate_indices:
                     rel_mask[morpheme.global_index, candidate_indices] = True
