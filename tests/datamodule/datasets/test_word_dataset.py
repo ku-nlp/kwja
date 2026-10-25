@@ -98,13 +98,11 @@ def test_getitem(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, datase
         assert len(feature.input_ids) == max_seq_length
         assert len(feature.attention_mask) == max_seq_length
         assert len(feature.special_token_indices) == len(dataset.special_tokens)
-        assert np.array(feature.subword_map).shape == (max_seq_length, max_seq_length)
-        assert (np.array(feature.subword_map).sum(axis=1) != 0).sum() == len(document.morphemes) + len(
-            dataset.special_tokens
-        )
+        assert feature.subword_map.shape == (max_seq_length, max_seq_length)
+        assert feature.subword_map.any(dim=1).sum().item() == len(document.morphemes) + len(dataset.special_tokens)
         assert len(feature.reading_labels) == max_seq_length
-        assert np.array(feature.reading_subword_map).shape == (max_seq_length, max_seq_length)
-        assert (np.array(feature.reading_subword_map).sum(axis=1) != 0).sum() == len(document.morphemes)
+        assert feature.reading_subword_map.shape == (max_seq_length, max_seq_length)
+        assert feature.reading_subword_map.any(dim=1).sum().item() == len(document.morphemes)
         assert len(feature.pos_labels) == max_seq_length
         assert len(feature.subpos_labels) == max_seq_length
         assert len(feature.conjtype_labels) == max_seq_length
@@ -114,10 +112,10 @@ def test_getitem(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, datase
         assert len(feature.ne_mask) == max_seq_length
         assert np.array(feature.base_phrase_feature_labels).shape == (max_seq_length, len(BASE_PHRASE_FEATURES))
         assert len(feature.dependency_labels) == max_seq_length
-        assert np.array(feature.dependency_mask).shape == (max_seq_length, max_seq_length)
+        assert feature.dependency_mask.shape == (max_seq_length, max_seq_length)
         assert len(feature.dependency_type_labels) == max_seq_length
         assert np.array(feature.cohesion_labels).shape == (num_cohesion_rels, max_seq_length, max_seq_length)
-        assert np.array(feature.cohesion_mask).shape == (num_cohesion_rels, max_seq_length, max_seq_length)
+        assert feature.cohesion_mask.shape == (num_cohesion_rels, max_seq_length, max_seq_length)
         assert np.array(feature.discourse_labels).shape == (max_seq_length, max_seq_length)
 
 

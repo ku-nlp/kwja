@@ -4,7 +4,6 @@ from pathlib import Path
 from textwrap import dedent
 from typing import Any
 
-import numpy as np
 import pytest
 from transformers import PreTrainedTokenizerBase
 
@@ -150,10 +149,10 @@ def test_getitem(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[s
         assert len(feature.input_ids) == max_seq_length
         assert len(feature.attention_mask) == max_seq_length
         assert len(feature.ne_mask) == max_seq_length
-        assert np.array(feature.subword_map).shape == (max_seq_length, max_seq_length)
-        assert np.array(feature.reading_subword_map).shape == (max_seq_length, max_seq_length)
-        assert np.array(feature.dependency_mask).shape == (max_seq_length, max_seq_length)
-        assert np.array(feature.cohesion_mask).shape == (num_cohesion_rels, max_seq_length, max_seq_length)
+        assert feature.subword_map.shape == (max_seq_length, max_seq_length)
+        assert feature.reading_subword_map.shape == (max_seq_length, max_seq_length)
+        assert feature.dependency_mask.shape == (max_seq_length, max_seq_length)
+        assert feature.cohesion_mask.shape == (num_cohesion_rels, max_seq_length, max_seq_length)
 
 
 def test_skipped_documents(
