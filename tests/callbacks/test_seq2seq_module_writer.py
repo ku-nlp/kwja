@@ -1,3 +1,4 @@
+import logging
 import tempfile
 from importlib.metadata import version
 from pathlib import Path
@@ -31,7 +32,10 @@ def test_init(destination: str | Path | None, seq2seq_tokenizer: PreTrainedToken
     _ = Seq2SeqModuleWriter(tokenizer=seq2seq_tokenizer, destination=destination)
 
 
-def test_write_on_batch_end(seq2seq_tokenizer: PreTrainedTokenizerFast) -> None:
+@pytest.mark.parametrize("generation_status", ["complete", "without_eos", "empty"])
+def test_write_on_batch_end(
+    seq2seq_tokenizer: PreTrainedTokenizerFast, generation_status: str, caplog: pytest.LogCaptureFixture
+) -> None:
     max_src_length = 32
     max_tgt_length = 128
     doc_id_prefix = "test"
@@ -95,6 +99,12 @@ def test_write_on_batch_end(seq2seq_tokenizer: PreTrainedTokenizerFast) -> None:
         for j, output_id in enumerate(seq2seq_tokenizer.encode(generated_text)):
             seq2seq_predictions[i, j] = output_id
 
+    if generation_status == "without_eos":
+        seq2seq_predictions[seq2seq_predictions == seq2seq_tokenizer.eos_token_id] = seq2seq_tokenizer.pad_token_id
+    elif generation_status == "empty":
+        seq2seq_predictions.fill_(seq2seq_tokenizer.pad_token_id)
+        seq2seq_predictions[:, 0] = seq2seq_tokenizer.eos_token_id
+
     prediction = {
         "example_ids": torch.arange(num_examples, dtype=torch.long),
         "seq2seq_predictions": seq2seq_predictions,
@@ -107,7 +117,7 @@ def test_write_on_batch_end(seq2seq_tokenizer: PreTrainedTokenizerFast) -> None:
         )
         writer.write_on_batch_end(trainer, ..., prediction, None, ..., 0, 0)
         assert isinstance(writer.destination, Path), "destination isn't set"
-        assert writer.destination.read_text(encoding="utf-8") == dedent(
+        expected_output = dedent(
             f"""\
             # S-ID:{doc_id_prefix}-0-1 kwja:{version("kwja")}
             太郎 たろう 太郎 未定義語 15 その他 1 * 0 * 0 "代表表記:太郎/たろう"
@@ -129,3 +139,21 @@ def test_write_on_batch_end(seq2seq_tokenizer: PreTrainedTokenizerFast) -> None:
             EOS
             """
         )
+        if generation_status == "empty":
+            expected_output = "".join(
+                f"# S-ID:{example.sid} kwja:{version('kwja')}\nEOS\n" for example in dataset.examples
+            )
+        assert writer.destination.read_text(encoding="utf-8") == expected_output
+
+    if generation_status == "without_eos":
+        expected_messages = [
+            f"Generation ended without an EOS token; sentence may be incomplete: {example.sid}"
+            for example in dataset.examples
+        ]
+    elif generation_status == "empty":
+        expected_messages = [f"No morphemes were generated for sentence {example.sid}" for example in dataset.examples]
+    else:
+        expected_messages = []
+    assert caplog.record_tuples == [
+        ("kwja.callbacks.seq2seq_module_writer", logging.WARNING, message) for message in expected_messages
+    ]

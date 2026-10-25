@@ -45,15 +45,18 @@ class TypoDataset(BaseDataset[TypoExample, TypoModuleFeatures]):
         super().__init__(tokenizer, max_seq_length)
 
         self.path = Path(path)
-        assert self.path.is_dir()
+        if not self.path.is_dir():
+            raise NotADirectoryError(f"Dataset directory does not exist or is not a directory: {self.path}")
 
-        assert self.tokenizer.unk_token_id is not None
+        if self.tokenizer.unk_token_id is None:
+            raise ValueError("Tokenizer must define an unknown token")
 
         self.token2token_id, self.token_id2token = get_maps(self.tokenizer)
 
         self.examples: list[TypoExample] = self._load_examples(self.path)
         self.stash: dict[int, list[tuple[str, str]]] = defaultdict(list)
-        assert len(self) > 0
+        if len(self) <= 0:
+            raise ValueError(f"Dataset contains no examples: {self.path}")
 
     @staticmethod
     def _load_examples(example_dir: Path) -> list[TypoExample]:

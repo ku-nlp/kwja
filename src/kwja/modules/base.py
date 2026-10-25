@@ -1,13 +1,8 @@
 import os
-import sys
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, Self, TypeVar
 
-if sys.version_info >= (3, 11):
-    from typing import Self
-else:
-    from typing_extensions import Self
 import hydra
 import lightning as L
 import torch

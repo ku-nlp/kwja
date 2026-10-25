@@ -138,17 +138,17 @@ class CRF(nn.Module):
             head_index, tail_index = int(head_indices[i]), int(tail_indices[i])
             _, best_tag = score[i].max(dim=0)
             best_tag_int = best_tag.item()
-            assert isinstance(best_tag_int, int)
+            assert isinstance(best_tag_int, int)  # noqa: S101
             best_tags: list[int] = [best_tag_int]
             for max_indices in history[head_index - min_head_index : tail_index - min_head_index][::-1]:
                 best_tag = max_indices[i][best_tags[-1]]
                 best_tag_int = best_tag.item()
-                assert isinstance(best_tag_int, int)
+                assert isinstance(best_tag_int, int)  # noqa: S101
                 best_tags.append(best_tag_int)
             best_tags += [self.tags.index("O")] * head_index
             best_tags = best_tags[::-1]
             best_tags += [self.tags.index("O")] * (seq_len - tail_index - 1)
-            assert len(best_tags) == seq_len, "the length of decoded sequence is inconsistent with max seq length"
+            assert len(best_tags) == seq_len, "the length of decoded sequence is inconsistent with max seq length"  # noqa: S101
             batch_best_tags.append(best_tags)
 
         return torch.as_tensor(batch_best_tags, device=emissions.device)

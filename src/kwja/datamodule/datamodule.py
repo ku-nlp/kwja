@@ -78,7 +78,7 @@ class DataModule(L.LightningDataModule):
         return hydra.utils.instantiate(config, tokenizer=tokenizer)
 
     def train_dataloader(self) -> DataLoader:
-        assert self.train_dataset is not None
+        assert self.train_dataset is not None  # noqa: S101
         return self._get_dataloader(self.train_dataset, shuffle=True)
 
     def val_dataloader(self) -> dict[str, DataLoader]:
@@ -88,7 +88,7 @@ class DataModule(L.LightningDataModule):
         return {corpus: self._get_dataloader(dataset, shuffle=False) for corpus, dataset in self.test_datasets.items()}
 
     def predict_dataloader(self) -> DataLoader:
-        assert isinstance(self.predict_dataset, Dataset)
+        assert isinstance(self.predict_dataset, Dataset)  # noqa: S101
         return self._get_dataloader(self.predict_dataset, shuffle=False)
 
     def _get_dataloader(self, dataset: Dataset, shuffle: bool = False) -> DataLoader:
@@ -108,7 +108,7 @@ class DataModule(L.LightningDataModule):
 
 def token_dataclass_data_collator(batch_features: list[Any]) -> dict[str, Tensor | list[str]]:
     first_features: Any = batch_features[0]
-    assert is_dataclass(first_features), "Data must be a dataclass"
+    assert is_dataclass(first_features), "Data must be a dataclass"  # noqa: S101
 
     token_indices = torch.arange(max(sum(fs.attention_mask) for fs in batch_features))
 
@@ -132,15 +132,18 @@ def token_dataclass_data_collator(batch_features: list[Any]) -> dict[str, Tensor
 
 def word_dataclass_data_collator(batch_features: list[Any]) -> dict[str, Tensor | list[str]]:
     first_features: Any = batch_features[0]
-    assert is_dataclass(first_features), "Data must be a dataclass"
+    assert is_dataclass(first_features), "Data must be a dataclass"  # noqa: S101
 
     token_indices = torch.arange(max(sum(fs.attention_mask) for fs in batch_features))
-    word_indices = torch.arange(max(sum(any(row) for row in fs.subword_map) for fs in batch_features))
+    word_indices = torch.arange(max(int(fs.subword_map.any(dim=1).sum()) for fs in batch_features))
 
     batch: dict[str, Tensor | list[str]] = {}
     for field in fields(first_features):
         features = [getattr(fs, field.name) for fs in batch_features]
-        value = torch.as_tensor(features)
+        if isinstance(features[0], Tensor):
+            value = torch.stack(features)
+        else:
+            value = torch.as_tensor(features)
         if value.ndim == 1 or value.size(1) == 0:
             pass
         elif field.name in {"input_ids", "attention_mask", "reading_labels"}:

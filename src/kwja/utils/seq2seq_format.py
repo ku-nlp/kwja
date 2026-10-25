@@ -1,3 +1,6 @@
+import logging
+from typing import cast
+
 from rhoknp import Sentence
 from transformers import PreTrainedTokenizerFast
 
@@ -12,6 +15,8 @@ from kwja.utils.constants import (
     SPECIAL2RARE,
     SURF_TOKEN,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class Seq2SeqFormatter:
@@ -30,7 +35,8 @@ class Seq2SeqFormatter:
             for k, v in RARE2SPECIAL.items():
                 surf = surf.replace(k, v)
             tokenized_surf: list[str] = [x for x in self.tokenizer.tokenize(surf) if x != "▁"]
-            decoded: str = self.tokenizer.decode(self.tokenizer.convert_tokens_to_ids(tokenized_surf))
+            tokenized_surf_ids = cast(list[int], self.tokenizer.convert_tokens_to_ids(tokenized_surf))
+            decoded = cast(str, self.tokenizer.decode(tokenized_surf_ids))
             for token in self.word2token.values():
                 decoded = decoded.replace(f"{token} ", token)
             for token in SPECIAL2RARE:
@@ -111,6 +117,7 @@ class Seq2SeqFormatter:
 
                 formatted += f"{surf} {reading} {lemma} 未定義語 15 その他 1 * 0 * 0 {canon}\n"
             except IndexError:
+                logger.warning(f"Failed to parse generated morpheme; using @ instead: {line}")
                 formatted += "@ @ @ 未定義語 15 その他 1 * 0 * 0 NIL\n"
         formatted += "EOS\n"
         return Sentence.from_jumanpp(formatted)

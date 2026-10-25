@@ -34,7 +34,7 @@ class TypoModuleWriter(BaseModuleWriter):
         dataloader_idx: int,
     ) -> None:
         predict_dataloaders = trainer.predict_dataloaders
-        assert predict_dataloaders is not None
+        assert predict_dataloaders is not None  # noqa: S101
         if isinstance(predict_dataloaders, dict):
             dataloader = list(predict_dataloaders.values())[dataloader_idx]
         else:
@@ -66,7 +66,7 @@ class TypoModuleWriter(BaseModuleWriter):
             post_texts.append(post_text)
             doc_ids.append(example.doc_id)
 
-        assert isinstance(dataloader, Sized)
+        assert isinstance(dataloader, Sized)  # noqa: S101
         if batch_idx == len(dataloader) - 1:
             for texts in dataset.stash.values():
                 post_texts.extend([t[0] for t in texts])

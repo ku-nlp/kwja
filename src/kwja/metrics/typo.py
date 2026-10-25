@@ -59,7 +59,7 @@ class TypoModuleMetric(BaseModuleMetric):
         for example_id, kdr_predictions, kdr_probabilities, ins_predictions, ins_probabilities in zip(
             *[getattr(self, state_name).tolist() for state_name in self.STATE_NAMES], strict=True
         ):
-            assert self.dataset is not None, "typo dataset isn't set"
+            assert self.dataset is not None, "typo dataset isn't set"  # noqa: S101
 
             example = self.dataset.examples[example_id]
             seq_len: int = len(example.pre_text)
@@ -91,7 +91,7 @@ class TypoModuleMetric(BaseModuleMetric):
                 if predicted_diff in queue:
                     intersection.append(predicted_text)
                     queue.remove(predicted_diff)
-            assert len(predicted_diffs) - len(intersection) >= 0 and len(gold_diffs) - len(intersection) >= 0, (
+            assert len(predicted_diffs) - len(intersection) >= 0 and len(gold_diffs) - len(intersection) >= 0, (  # noqa: S101
                 "invalid computation of tp"
             )
             tp += len(intersection)
@@ -124,7 +124,7 @@ class TypoModuleMetric(BaseModuleMetric):
                 for post_char in post_text[j1:j2]:
                     diffs.append(("", post_char))
             elif tag == "replace":
-                assert i2 - i1 == j2 - j1, (pre_text[i1:i2], post_text[j1:j2])
+                assert i2 - i1 == j2 - j1, (pre_text[i1:i2], post_text[j1:j2])  # noqa: S101
                 for pre_char, post_char in zip(pre_text[i1:i2], post_text[j1:j2], strict=True):
                     diffs.append((pre_char, post_char))
         return diffs

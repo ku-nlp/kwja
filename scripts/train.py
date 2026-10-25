@@ -10,6 +10,7 @@ from lightning.pytorch.loggers import Logger
 from omegaconf import DictConfig, ListConfig
 
 from kwja.datamodule.datamodule import DataModule
+from kwja.utils.hydra_compat import workaround_hydra_argparse
 from kwja.utils.logging_util import filter_logs
 
 filter_logs(environment="development")
@@ -77,4 +78,5 @@ def main(cfg: DictConfig) -> None:
 
 
 if __name__ == "__main__":
-    main()
+    with workaround_hydra_argparse():
+        main()

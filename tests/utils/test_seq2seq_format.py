@@ -1,7 +1,9 @@
+import logging
 from pathlib import Path
 from textwrap import dedent
 
 import jaconv
+import pytest
 from rhoknp import Sentence
 from transformers import PreTrainedTokenizerFast
 
@@ -237,3 +239,25 @@ def test_format_to_sent(data_dir: Path, seq2seq_tokenizer: PreTrainedTokenizerFa
             assert actual_morpheme.conjtype_id == 0
             assert actual_morpheme.conjform == "*"
             assert actual_morpheme.conjform_id == 0
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        f"{SURF_TOKEN}今日",
+        f"{SURF_TOKEN}今日{READING_TOKEN}きょう",
+        f"{SURF_TOKEN}今日{READING_TOKEN}きょう{LEMMA_TOKEN}今日",
+    ],
+)
+def test_format_to_sent_reports_malformed_generation(
+    seq2seq_tokenizer: PreTrainedTokenizerFast, text: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    sentence = Seq2SeqFormatter(seq2seq_tokenizer).format_to_sent(text)
+    assert sentence.to_jumanpp() == "@ @ @ 未定義語 15 その他 1 * 0 * 0 NIL\nEOS\n"
+    assert caplog.record_tuples == [
+        (
+            "kwja.utils.seq2seq_format",
+            logging.WARNING,
+            f"Failed to parse generated morpheme; using @ instead: {text.removeprefix(SURF_TOKEN)}",
+        )
+    ]

@@ -30,7 +30,7 @@ class MorphemeNormalizer:
                 norm = self.jinf(morpheme.lemma, morpheme.conjtype, "基本形", morpheme.conjform)
             return get_word_norm_op_tags(morpheme.surf, norm)
         except ValueError as e:
-            logger.info(f"failed to get normalized form of {morpheme.surf}: {e}")
+            logger.debug(f"failed to get normalized form of {morpheme.surf}: {e}")
             return [IGNORE_WORD_NORM_OP_TAG] * len(morpheme.surf)
 
 
@@ -85,7 +85,8 @@ def get_word_norm_op_tags(surf: str, norm: str) -> list[str]:
 
 
 def get_normalized_surf(surf: str, word_norm_op_tags: list[str], strict: bool = True) -> str:
-    assert len(surf) == len(word_norm_op_tags)
+    if len(surf) != len(word_norm_op_tags):
+        raise ValueError("Surface and normalization tags must have the same length")
     norm = ""
     for i, (c, word_norm_op_tag) in enumerate(zip(surf, word_norm_op_tags, strict=True)):
         if word_norm_op_tag == "K":

@@ -56,7 +56,7 @@ class CharInferenceDataset(BaseDataset[CharInferenceExample, CharModuleFeatures]
 
             examples.append(CharInferenceExample(example_id=example_id, encoding=encoding, doc_id=document.doc_id))
             example_id += 1
-        if len(examples) == 0:
+        if len(examples) == 0 and len(doc_id2document) > 0:
             logger.error("No examples to process. Make sure any texts are given and they are not too long.")
         return examples
 

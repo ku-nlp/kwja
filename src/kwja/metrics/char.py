@@ -62,7 +62,7 @@ class CharModuleMetric(BaseModuleMetric):
         }
 
     def _build_documents(self) -> tuple[list[Document], list[Document], list[Document]]:
-        assert self.dataset is not None, "dataset isn't set"
+        assert self.dataset is not None, "dataset isn't set"  # noqa: S101
 
         doc_id2predicted_sentences: dict[str, list[Sentence]] = defaultdict(list)
         doc_id2partly_gold_sentences: dict[str, list[Sentence]] = defaultdict(list)
@@ -85,7 +85,7 @@ class CharModuleMetric(BaseModuleMetric):
             partly_gold_document = Document.from_jumanpp(gold_document.to_jumanpp())
             partly_gold_document.doc_id = gold_document.doc_id
 
-            assert (
+            assert (  # noqa: S101
                 len(example.encoding.input_ids)
                 == len(sent_segmentation_predictions)
                 == len(word_segmentation_predictions)

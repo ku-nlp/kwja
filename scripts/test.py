@@ -10,6 +10,7 @@ from lightning.pytorch.trainer.states import TrainerFn
 from omegaconf import DictConfig, ListConfig, OmegaConf
 
 from kwja.datamodule.datamodule import DataModule
+from kwja.utils.hydra_compat import workaround_hydra_argparse
 from kwja.utils.logging_util import filter_logs
 
 filter_logs(environment="development")
@@ -31,7 +32,7 @@ def main(eval_cfg: DictConfig) -> None:
     train_cfg = cast(DictConfig, model.hparams)
     OmegaConf.set_struct(train_cfg, False)  # enable to add new key-value pairs
     cfg = OmegaConf.merge(train_cfg, eval_cfg)
-    assert isinstance(cfg, DictConfig)
+    assert isinstance(cfg, DictConfig)  # noqa: S101
 
     logger: Logger | bool = cfg.get("logger", False) and hydra.utils.instantiate(cfg.get("logger"))
     callbacks: list[Callback] = list(map(hydra.utils.instantiate, cfg.get("callbacks", {}).values()))
@@ -59,4 +60,5 @@ def main(eval_cfg: DictConfig) -> None:
 
 
 if __name__ == "__main__":
-    main()
+    with workaround_hydra_argparse():
+        main()

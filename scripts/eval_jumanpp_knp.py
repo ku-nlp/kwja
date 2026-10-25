@@ -1,9 +1,12 @@
+import logging
 import sys
 from pathlib import Path
 
 from rhoknp import KNP, Document, Sentence
 
 from kwja.metrics.word import WordModuleMetric
+
+logger = logging.getLogger(__name__)
 
 CORPORA: tuple[str, ...] = ("kwdlc", "kyoto", "fuman", "wac")
 
@@ -31,7 +34,8 @@ def evaluate_docs(documents: list[Document]) -> tuple[dict[str, float], int]:
             parsed_sentences.append(parsed_sentence)
         try:
             predicted_document = Document.from_sentences(parsed_sentences)
-        except AttributeError:
+        except AttributeError as e:
+            logger.warning(f"Skipping document {document.doc_id}: KNP output is unavailable: {e}")
             continue
 
         partly_gold_document1 = document.reparse()
@@ -39,7 +43,8 @@ def evaluate_docs(documents: list[Document]) -> tuple[dict[str, float], int]:
         WordModuleMetric.refresh(partly_gold_document1, level=1)
         try:
             partly_gold_document1 = knp.apply_to_document(partly_gold_document1)
-        except ValueError:
+        except ValueError as e:
+            logger.warning(f"Skipping document {document.doc_id}: KNP analysis failed: {e}")
             continue
 
         partly_gold_document2 = document.reparse()

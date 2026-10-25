@@ -3,7 +3,8 @@ import os
 import sys
 from abc import ABC
 from collections.abc import Iterator
-from enum import Enum
+from enum import StrEnum
+from functools import partial
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Annotated, TextIO
@@ -13,6 +14,9 @@ import hydra
 import lightning as L
 import torch
 import typer
+from huggingface_hub.utils import are_progress_bars_disabled, disable_progress_bars, enable_progress_bars
+from lightning.pytorch.callbacks import BasePredictionWriter
+from lightning.pytorch.strategies import SingleDeviceStrategy
 from lightning.pytorch.trainer.states import TrainerFn
 from rhoknp import Document, Sentence
 from rhoknp.utils.reader import chunk_by_document, chunk_by_sentence
@@ -24,21 +28,54 @@ from kwja.datamodule.datamodule import DataModule
 from kwja.datamodule.datasets.utils import add_doc_ids, add_sent_ids
 from kwja.modules import CharModule, Seq2SeqModule, TypoModule, WordModule
 from kwja.utils.constants import TRANSLATION_TABLE
-from kwja.utils.logging_util import filter_logs
+from kwja.utils.logging_util import CONSOLE, filter_logs
 
 filter_logs(environment="production")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
-logging.basicConfig(format="")
+logging.basicConfig(format="%(levelname)s: %(message)s")
 
 logger = logging.getLogger("kwja_cli")
 logger.setLevel(logging.INFO)
 app = typer.Typer(pretty_exceptions_show_locals=False)
 
 
-class InputFormat(str, Enum):
+class InputFormat(StrEnum):
     RAW = "raw"
     JUMANPP = "jumanpp"
     KNP = "knp"
+
+
+class _KeepModelOnDeviceStrategy(SingleDeviceStrategy):
+    """A single-device strategy whose teardown leaves the model on the device.
+
+    Trainer.predict() tears its strategy down after every call, and the default
+    teardown moves the model back to the CPU. Interactive mode keeps the modules
+    loaded and calls predict() once per input, so on an accelerator every
+    prediction would otherwise pay a full model round-trip between the CPU and
+    the device.
+
+    This is opt-in because retaining the model is only safe when it is going to
+    be reused. Batch mode drops each module once its task is done, and Lightning
+    objects take part in reference cycles, so the module can outlive
+    `delete_module_and_trainer()` until the cyclic collector runs; moving it back
+    to the CPU there keeps the peak device memory down while the next module and
+    checkpoint are allocated.
+    """
+
+    def __init__(self, device: torch.device) -> None:
+        if device.type != "cpu" and device.index is None:
+            # SingleDeviceStrategy requires an indexed device ("cuda" alone is
+            # rejected by torch.cuda.set_device); the CLI always uses one device.
+            device = torch.device(device.type, 0)
+        super().__init__(device=device)
+
+    def teardown(self) -> None:
+        # Strategy.teardown() minus lightning_module.cpu(); prediction has no
+        # optimizers, so moving them to the CPU is not needed either.
+        self.precision_plugin.teardown()
+        assert self.accelerator is not None  # noqa: S101
+        self.accelerator.teardown()
+        self.checkpoint_io.teardown()
 
 
 class BaseModuleProcessor(ABC):
@@ -54,7 +91,7 @@ class BaseModuleProcessor(ABC):
         self.module: L.LightningModule | None = None
         self.trainer: L.Trainer | None = None
 
-    def load(self, **writer_kwargs) -> None:
+    def load(self, keep_model_on_device: bool = False) -> None:
         self.module = self._load_module()
         if self.config.torch_compile is True:
             self.module: L.LightningModule = torch.compile(self.module)  # ty: ignore[invalid-assignment]
@@ -64,25 +101,30 @@ class BaseModuleProcessor(ABC):
         # TODO: remove this after new checkpoints are released
         self._rename_modules_for_backward_compatibility()
 
+        callbacks = [self._create_prediction_writer()]
+        if not CONSOLE.quiet:
+            callbacks.append(hydra.utils.instantiate(self.module.hparams.callbacks.progress_bar))
         self.trainer = L.Trainer(
             logger=False,
-            callbacks=[
-                hydra.utils.instantiate(
-                    self.module.hparams.callbacks.prediction_writer,  # type: ignore[union-attr]
-                    destination=self.destination,
-                    **writer_kwargs,
-                ),
-                hydra.utils.instantiate(self.module.hparams.callbacks.progress_bar),  # type: ignore[union-attr]
-            ],
+            callbacks=callbacks,
+            enable_progress_bar=not CONSOLE.quiet,
+            strategy=_KeepModelOnDeviceStrategy(device=self.device) if keep_model_on_device else "auto",
             accelerator=self.accelerator,
             devices=1,
+        )
+
+    def _create_prediction_writer(self) -> BasePredictionWriter:
+        assert self.module is not None  # noqa: S101
+        return hydra.utils.instantiate(
+            self.module.hparams.callbacks.prediction_writer,
+            destination=self.destination,
         )
 
     def _load_module(self) -> L.LightningModule:
         raise NotImplementedError
 
     def _rename_modules_for_backward_compatibility(self) -> None:
-        assert self.module is not None, "Module is not loaded"
+        assert self.module is not None  # noqa: S101
         progress_bar_target = self.module.hparams.callbacks.progress_bar._target_
         if progress_bar_target.startswith("pytorch_lightning"):
             self.module.hparams.callbacks.progress_bar._target_ = progress_bar_target.replace(
@@ -99,7 +141,11 @@ class BaseModuleProcessor(ABC):
 
     def apply_module(self, input_file: Path) -> None:
         datamodule = self._load_datamodule(input_file)
-        assert self.trainer is not None
+        assert datamodule.predict_dataset is not None  # noqa: S101
+        if len(datamodule.predict_dataset) == 0:
+            self.destination.write_text("", encoding="utf-8")
+            return
+        assert self.trainer is not None  # noqa: S101
         self.trainer.predict(model=self.module, dataloaders=[datamodule.predict_dataloader()], return_predictions=False)
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
@@ -114,13 +160,15 @@ class TypoModuleProcessor(BaseModuleProcessor):
 
     def _load_module(self) -> L.LightningModule:
         logger.info("Loading typo module")
-        checkpoint_path: Path = download_checkpoint(module="typo", model_size=self.model_size)
+        checkpoint_path: Path = download_checkpoint(
+            module="typo", model_size=self.model_size, progress=not CONSOLE.quiet
+        )
         return TypoModule.fast_load_from_checkpoint(
             checkpoint_path, map_location=self.device, accelerator=self.accelerator
         )
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
-        assert self.module is not None
+        assert self.module is not None  # noqa: S101
         self.module.hparams.datamodule.predict.raw_text_file = input_file
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
         datamodule.setup(stage=TrainerFn.PREDICTING)
@@ -141,13 +189,15 @@ class CharModuleProcessor(BaseModuleProcessor):
 
     def _load_module(self) -> L.LightningModule:
         logger.info("Loading char module")
-        checkpoint_path: Path = download_checkpoint(module="char", model_size=self.model_size)
+        checkpoint_path: Path = download_checkpoint(
+            module="char", model_size=self.model_size, progress=not CONSOLE.quiet
+        )
         return CharModule.fast_load_from_checkpoint(
             checkpoint_path, map_location=self.device, accelerator=self.accelerator
         )
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
-        assert self.module is not None
+        assert self.module is not None  # noqa: S101
         self.module.hparams.datamodule.predict.raw_text_file = input_file
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
         datamodule.setup(stage=TrainerFn.PREDICTING)
@@ -169,13 +219,15 @@ class Seq2SeqModuleProcessor(BaseModuleProcessor):
 
     def _load_module(self) -> L.LightningModule:
         logger.info("Loading seq2seq module")
-        checkpoint_path: Path = download_checkpoint(module="seq2seq", model_size=self.model_size)
+        checkpoint_path: Path = download_checkpoint(
+            module="seq2seq", model_size=self.model_size, progress=not CONSOLE.quiet
+        )
         return Seq2SeqModule.fast_load_from_checkpoint(
             checkpoint_path, map_location=self.device, accelerator=self.accelerator
         )
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
-        assert self.module is not None
+        assert self.module is not None  # noqa: S101
         self.module.hparams.datamodule.predict.juman_file = input_file
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
         datamodule.setup(stage=TrainerFn.PREDICTING)
@@ -192,18 +244,25 @@ class WordModuleProcessor(BaseModuleProcessor):
         super().__init__(config, batch_size)
         self.from_seq2seq = from_seq2seq
 
-    def load(self, **writer_kwargs) -> None:
-        super().load(preserve_reading_lemma_canon=self.from_seq2seq, **writer_kwargs)
+    def _create_prediction_writer(self) -> BasePredictionWriter:
+        assert self.module is not None  # noqa: S101
+        return hydra.utils.instantiate(
+            self.module.hparams.callbacks.prediction_writer,
+            destination=self.destination,
+            preserve_reading_lemma_canon=self.from_seq2seq,
+        )
 
     def _load_module(self) -> L.LightningModule:
         logger.info("Loading word module")
-        checkpoint_path: Path = download_checkpoint(module="word", model_size=self.model_size)
+        checkpoint_path: Path = download_checkpoint(
+            module="word", model_size=self.model_size, progress=not CONSOLE.quiet
+        )
         return WordModule.fast_load_from_checkpoint(
             checkpoint_path, map_location=self.device, accelerator=self.accelerator
         )
 
     def _load_datamodule(self, input_file: Path) -> DataModule:
-        assert self.module is not None
+        assert self.module is not None  # noqa: S101
         self.module.hparams.datamodule.predict.juman_file = input_file
         datamodule = DataModule(cfg=self.module.hparams.datamodule)
         datamodule.setup(stage=TrainerFn.PREDICTING)
@@ -229,8 +288,10 @@ class CLIProcessor:
         self.processors: list[BaseModuleProcessor] = [self._task2processors[task] for task in tasks]
 
     def load_all_modules(self) -> None:
+        # Only interactive mode loads every module up front and reuses them, so this is
+        # the one place where retaining the models on the device is worthwhile.
         for processor in self.processors:
-            processor.load()
+            processor.load(keep_model_on_device=True)
 
     def refresh(self) -> None:
         self.initial_destination.unlink(missing_ok=True)
@@ -273,8 +334,6 @@ def normalize_text(text: str) -> str:
     normalized = normalize("NFKC", text)
     # escape several symbols and delete control characters
     normalized = normalized.translate(TRANSLATION_TABLE)
-    # if normalized != text:
-    #     typer.echo(f"apply normalization ({text} -> {normalized})", err=True)
     return normalized
 
 
@@ -312,6 +371,17 @@ def _version_callback(value: bool) -> None:
         raise typer.Exit
 
 
+def _quiet_callback(ctx: typer.Context, value: bool) -> bool:
+    ctx.call_on_close(partial(logger.setLevel, logger.level))
+    ctx.call_on_close(partial(setattr, CONSOLE, "quiet", CONSOLE.quiet))
+    logger.setLevel(logging.WARNING if value else logging.INFO)
+    CONSOLE.quiet = value
+    if value and not are_progress_bars_disabled():
+        disable_progress_bars()
+        ctx.call_on_close(enable_progress_bars)
+    return value
+
+
 def _tasks_callback(value: str) -> str:
     """sort and validate specified tasks"""
     values: list[str] = [v for v in value.split(",") if v]
@@ -329,26 +399,7 @@ def _tasks_callback(value: str) -> str:
     return ",".join(tasks)
 
 
-@app.command()
-def main(  # noqa: PLR0917
-    text: Annotated[str | None, typer.Option(help="Text to be analyzed.")] = None,
-    filename: list[Path] = typer.Option([], dir_okay=False, help="Files to be analyzed."),
-    model_size: Annotated[ModelSize | None, typer.Option(case_sensitive=False, help="Model size to be used.")] = None,
-    device: Annotated[Device | None, typer.Option(case_sensitive=False, help="Device to be used.")] = None,
-    typo_batch_size: Annotated[int | None, typer.Option(help="Batch size for typo module.")] = None,
-    char_batch_size: Annotated[int | None, typer.Option(help="Batch size for char module.")] = None,
-    seq2seq_batch_size: Annotated[int | None, typer.Option(help="Batch size for seq2seq module.")] = None,
-    word_batch_size: Annotated[int | None, typer.Option(help="Batch size for word module.")] = None,
-    tasks: Annotated[str, typer.Option(callback=_tasks_callback, help="Tasks to be performed.")] = "char,word",
-    _: Annotated[
-        bool | None,
-        typer.Option("--version", callback=_version_callback, is_eager=True, help="Show version and exit."),
-    ] = None,
-    config_file: Annotated[Path | None, typer.Option(help="Path to KWJA config file.")] = None,
-    input_format: Annotated[InputFormat, typer.Option(case_sensitive=False, help="Input format.")] = InputFormat.RAW,
-) -> None:
-    # validate task combination
-    specified_tasks: list[str] = tasks.split(",")
+def _validate_task_combination(specified_tasks: list[str], input_format: InputFormat) -> None:
     valid_task_combinations: set[tuple[str, ...]] = {
         ("typo",),
         ("typo", "char"),
@@ -373,13 +424,39 @@ def main(  # noqa: PLR0917
         )
     if input_format in (InputFormat.JUMANPP, InputFormat.KNP):
         if specified_tasks[0] in ("typo", "char"):
-            logger.warning("WARNING: with typo or char task, your input text will be treated as raw text.")
+            logger.warning("with typo or char task, your input text will be treated as raw text.")
         elif specified_tasks[0] in ("seq2seq", "word"):
-            logger.warning("WARNING: with seq2seq or word task, your input text will be treated as a word sequence.")
+            logger.warning("with seq2seq or word task, your input text will be treated as a word sequence.")
+
+
+@app.command()
+def main(  # noqa: PLR0917
+    text: Annotated[str | None, typer.Option(help="Text to be analyzed.")] = None,
+    filename: list[Path] = typer.Option([], dir_okay=False, help="Files to be analyzed."),
+    model_size: Annotated[ModelSize | None, typer.Option(case_sensitive=False, help="Model size to be used.")] = None,
+    device: Annotated[Device | None, typer.Option(case_sensitive=False, help="Device to be used.")] = None,
+    typo_batch_size: Annotated[int | None, typer.Option(help="Batch size for typo module.")] = None,
+    char_batch_size: Annotated[int | None, typer.Option(help="Batch size for char module.")] = None,
+    seq2seq_batch_size: Annotated[int | None, typer.Option(help="Batch size for seq2seq module.")] = None,
+    word_batch_size: Annotated[int | None, typer.Option(help="Batch size for word module.")] = None,
+    tasks: Annotated[str, typer.Option(callback=_tasks_callback, help="Tasks to be performed.")] = "char,word",
+    _: Annotated[
+        bool | None,
+        typer.Option("--version", callback=_version_callback, is_eager=True, help="Show version and exit."),
+    ] = None,
+    config_file: Annotated[Path | None, typer.Option(help="Path to KWJA config file.")] = None,
+    input_format: Annotated[InputFormat, typer.Option(case_sensitive=False, help="Input format.")] = InputFormat.RAW,
+    quiet: Annotated[
+        bool,
+        typer.Option("--quiet", "-q", callback=_quiet_callback, help="Hide informational logs and progress output."),
+    ] = False,
+) -> None:
+    specified_tasks: list[str] = tasks.split(",")
+    _validate_task_combination(specified_tasks, input_format)
 
     input_documents: list[Document] | None = None
     if text is not None and len(filename) > 0:
-        logger.error("ERROR: Please provide text or filename, not both")
+        logger.error("Please provide text or filename, not both")
         raise typer.Abort
     elif text is not None:
         input_documents = [_load_document_from_text(text, input_format)]
@@ -387,7 +464,7 @@ def main(  # noqa: PLR0917
         input_documents = []
         for path in filename:
             if path.exists() is False:
-                logger.error(f"ERROR: {path} does not exist")
+                logger.error(f"{path} does not exist")
                 raise typer.Abort
             with path.open(encoding="utf-8") as f:
                 for document_text in _chunk_by_document(f, input_format):
@@ -425,7 +502,8 @@ def main(  # noqa: PLR0917
 
     # Interactive mode
     processor.load_all_modules()
-    print('Type "EOD" in a new line to finish the input.', file=sys.stderr)
+    if not quiet:
+        print('Type "EOD" in a new line to finish the input.', file=sys.stderr)
     input_text = ""
     while True:
         try:

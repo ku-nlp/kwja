@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -33,6 +34,53 @@ def test_init(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, dataset_k
     max_seq_length = 256
     document_split_stride = 1
     _ = WordDataset(str(path), word_tokenizer, max_seq_length, document_split_stride, **dataset_kwargs)
+
+
+def test_all_sentences_skipped(
+    word_tokenizer: PreTrainedTokenizerBase,
+    dataset_kwargs: dict[str, Any],
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    (tmp_path / "test.knp").write_text(
+        "# S-ID:test-0\n* -1D\n+ -1D\n" + "あ あ あ 感動詞 12 * 0 * 0 * 0\n" * 100 + "EOS\n",
+        encoding="utf-8",
+    )
+    dataset = WordDataset(str(tmp_path), word_tokenizer, 32, 1, **dataset_kwargs)
+    assert len(dataset) == 0
+    assert caplog.record_tuples == [
+        ("kwja.datamodule.datasets.word", logging.WARNING, "Length of sub document is too long: " + "あ" * 100),
+        (
+            "kwja.datamodule.datasets.word",
+            logging.ERROR,
+            f"No examples to process. Make sure there exist any documents in {tmp_path} and they are not too long.",
+        ),
+    ]
+
+
+def test_discourse_document_mismatch(
+    word_tokenizer: PreTrainedTokenizerBase,
+    dataset_kwargs: dict[str, Any],
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    knp_text = "# S-ID:test-0\n* -1D\n+ -1D <節-区切><節-主辞>\nあ あ あ 感動詞 12 * 0 * 0 * 0 <基本句-主辞>\nEOS\n"
+    (tmp_path / "test.knp").write_text(knp_text, encoding="utf-8")
+    discourse_dir = tmp_path / "disc_expert"
+    discourse_dir.mkdir()
+    discourse_path = discourse_dir / "test.knp"
+    discourse_path.write_text(knp_text.replace("あ あ あ", "い い い"), encoding="utf-8")
+
+    dataset = WordDataset(str(tmp_path), word_tokenizer, 32, 1, **dataset_kwargs)
+    assert len(dataset) == 1
+    assert dataset.examples[0].morpheme_global_indices2discourse_relation == {}
+    assert caplog.record_tuples == [
+        (
+            "kwja.datamodule.datasets.word",
+            logging.WARNING,
+            f"Discourse annotations do not match document test: {discourse_path}",
+        )
+    ]
 
 
 def test_getitem(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[str, Any]) -> None:
@@ -116,8 +164,8 @@ def test_encode(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, dataset
     reading_subword_map[1, 4, 5] = True
     reading_subword_map[1, 5, 6] = True
     reading_subword_map[1, 6, 7] = True
-    assert reading_subword_map[0].tolist() == dataset[0].reading_subword_map
-    assert reading_subword_map[1].tolist() == dataset[1].reading_subword_map
+    assert reading_subword_map[0].tolist() == dataset[0].reading_subword_map.tolist()
+    assert reading_subword_map[1].tolist() == dataset[1].reading_subword_map.tolist()
 
     pos_labels = torch.full((num_examples, max_seq_length), IGNORE_INDEX, dtype=torch.long)
     pos_labels[0, 0] = POS_TAGS.index("名詞")  # 太郎
@@ -405,8 +453,8 @@ def test_split_into_words_encode(
     reading_subword_map[1, 4, 5] = True
     reading_subword_map[1, 5, 6] = True
     reading_subword_map[1, 6, 7] = True
-    assert reading_subword_map[0].tolist() == dataset[0].reading_subword_map
-    assert reading_subword_map[1].tolist() == dataset[1].reading_subword_map
+    assert reading_subword_map[0].tolist() == dataset[0].reading_subword_map.tolist()
+    assert reading_subword_map[1].tolist() == dataset[1].reading_subword_map.tolist()
 
     pos_labels = torch.full((num_examples, max_seq_length), IGNORE_INDEX, dtype=torch.long)
     pos_labels[0, 0] = POS_TAGS.index("名詞")  # 太郎

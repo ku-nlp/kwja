@@ -1,4 +1,3 @@
-import logging
 import sys
 from abc import ABC
 from concurrent.futures import ProcessPoolExecutor
@@ -13,8 +12,6 @@ from kwja.utils.logging_util import track
 from kwja.utils.sub_document import SequenceSplitter, SpanCandidate, to_sub_doc_id
 
 sys.setrecursionlimit(5000)
-
-logger = logging.getLogger(__name__)
 
 ExampleType = TypeVar("ExampleType")
 FeatureType = TypeVar("FeatureType")
@@ -49,7 +46,8 @@ class FullAnnotatedDocumentLoaderMixin:
 
         orig_documents: list[Document]
         if isinstance(source, Path):
-            assert source.is_dir()
+            if not source.is_dir():
+                raise NotADirectoryError(f"Dataset directory does not exist or is not a directory: {source}")
             orig_documents = self._load_documents(source, ext)
         else:
             orig_documents = source
@@ -62,7 +60,7 @@ class FullAnnotatedDocumentLoaderMixin:
                     document.doc_id: document
                     for document in self._split_document(
                         processed_document,
-                        max_seq_length - len(self.tokenizer.additional_special_tokens) - 2,  # -2: [CLS] and [SEP]
+                        max_seq_length - len(self.tokenizer.extra_special_tokens) - 2,  # -2: [CLS] and [SEP]
                         stride=document_split_stride,
                     )
                 }
@@ -98,7 +96,7 @@ class FullAnnotatedDocumentLoaderMixin:
         sub_documents: list[Document] = []
         sub_idx = 0
         for span in splitter.split_into_spans():
-            assert isinstance(span, SpanCandidate)
+            assert isinstance(span, SpanCandidate)  # noqa: S101
             sentences = document.sentences[span.start : span.end]
             sub_document = Document.from_sentences(sentences)
             sub_doc_id = to_sub_doc_id(document.doc_id, sub_idx, stride=span.stride)

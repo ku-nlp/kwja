@@ -27,6 +27,7 @@ from kwja.utils.logging_util import track
 logging.getLogger("rhoknp").setLevel(logging.ERROR)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+logging.basicConfig()
 
 UNSUPPORTED_CONJUGATION_FALLBACK_TABLE = {
     ("ナ形容詞", "ダ列文語基本形"): ("ナ形容詞", "ダ列基本連体形"),
@@ -59,7 +60,7 @@ class JumanppAugmenter:
         for sentence in original_document.sentences:
             buf += self._create_partial_input(sentence)
 
-        with Popen(self.jumanpp.run_command, stdout=PIPE, stdin=PIPE, encoding="utf-8") as p:
+        with Popen(self.jumanpp.run_command, stdout=PIPE, stdin=PIPE, encoding="utf-8") as p:  # noqa: S603
             jumanpp_text, _ = p.communicate(input=buf)
         augmented_document = Document.from_jumanpp(jumanpp_text)
 
@@ -71,7 +72,7 @@ class JumanppAugmenter:
 
     def augment_sentence(self, original_sentence: Sentence, update_original: bool = True) -> Sentence:
         buf = self._create_partial_input(original_sentence)
-        with Popen(self.jumanpp.run_command, stdout=PIPE, stdin=PIPE, encoding="utf-8") as p:
+        with Popen(self.jumanpp.run_command, stdout=PIPE, stdin=PIPE, encoding="utf-8") as p:  # noqa: S603
             jumanpp_text, _ = p.communicate(input=buf)
         augmented_sentence = Sentence.from_jumanpp(jumanpp_text)
 
@@ -149,7 +150,8 @@ def extract_named_entities(tagged_sentence: Sentence) -> list[tuple[str, list[Mo
     category, morphemes_buff = "", []
     for morpheme in tagged_sentence.morphemes:
         if ne_tag := morpheme.semantics.get("NE"):
-            assert isinstance(ne_tag, str)
+            if not isinstance(ne_tag, str):
+                raise TypeError("Named entity annotation must be a string")
             cat, span = ne_tag.split(":")
             if span in {"single", "head"}:
                 category, morphemes_buff = cat, [morpheme]
@@ -278,13 +280,13 @@ def assign_features_and_save(
                     morpheme.conjform_id,
                 )
                 conjtype, conjform = fallback_conjugation
+                logger.debug(
+                    f"{morpheme.sentence.sid}: replacing unsupported conjugation (type: {morpheme.conjtype}, form: {morpheme.conjform}) with ({conjtype}, {conjform})"
+                )
                 morpheme.conjtype = conjtype
                 morpheme.conjtype_id = CONJTYPE_TAGS.index(conjtype)
                 morpheme.conjform = conjform
                 morpheme.conjform_id = CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID[conjtype][conjform]
-                logger.info(
-                    f"{morpheme.sentence.sid}: replaced unsupported conjugation (type: {morpheme.conjtype}, form: {morpheme.conjform}) with ({conjtype}, {conjform})"
-                )
             if fallback_pos_subpos := UNSUPPORTED_POS_SUBPOS_FALLBACK_TABLE.get((morpheme.pos, morpheme.subpos)):
                 unsupported_pos_subpos[morpheme.global_index] = (
                     morpheme.pos,
@@ -293,13 +295,13 @@ def assign_features_and_save(
                     morpheme.subpos_id,
                 )
                 pos, subpos = fallback_pos_subpos
+                logger.debug(
+                    f"{morpheme.sentence.sid}: replacing unsupported pos/subpos (pos: {morpheme.pos}, subpos: {morpheme.subpos}) with ({pos}, {subpos})"
+                )
                 morpheme.pos = pos
                 morpheme.pos_id = POS_TAG2POS_ID[pos]
                 morpheme.subpos = subpos
                 morpheme.subpos_id = POS_TAG_SUBPOS_TAG2SUBPOS_ID[pos][subpos]
-                logger.info(
-                    f"{morpheme.sentence.sid}: replaced unsupported pos/subpos (pos: {morpheme.pos}, subpos: {morpheme.subpos}) with ({pos}, {subpos})"
-                )
 
         # 形態素意味情報付与 (引数に渡したdocumentをupdateする)
         _ = jumanpp_augmenter.augment_document(document)
@@ -318,21 +320,20 @@ def assign_features_and_save(
             Path(f"knp_error_{document.doc_id}.knp").write_text(document.to_knp(), encoding="utf-8")
             continue
 
-        assert len(document.to_knp().split("\n")) == len(knp_text.split("\n")), (
-            f"knp text length mismatch: {document.doc_id}"
-        )
+        if len(document.to_knp().split("\n")) != len(knp_text.split("\n")):
+            raise ValueError(f"knp text length mismatch: {document.doc_id}")
 
         # 初めから付いていた素性およびKNPサポート外の活用・品詞の付与
         for morpheme, features in zip(document.morphemes, morpheme_features, strict=True):
             morpheme.features.update(features)
             if conjugation := unsupported_conjugations.get(morpheme.global_index):
                 morpheme.conjtype, morpheme.conjtype_id, morpheme.conjform, morpheme.conjform_id = conjugation
-                logger.info(
-                    f"{morpheme.sentence.sid}: unsupported cojugation (type: {conjugation[0]}, form: {conjugation[2]}) restored"
+                logger.debug(
+                    f"{morpheme.sentence.sid}: unsupported conjugation (type: {conjugation[0]}, form: {conjugation[2]}) restored"
                 )
             if pos_subpos := unsupported_pos_subpos.get(morpheme.global_index):
                 morpheme.pos, morpheme.pos_id, morpheme.subpos, morpheme.subpos_id = pos_subpos
-                logger.info(
+                logger.debug(
                     f"{morpheme.sentence.sid}: unsupported pos/subpos (pos: {pos_subpos[0]}, subpos: {pos_subpos[2]}) restored"
                 )
 
@@ -347,9 +348,10 @@ def assign_features_and_save(
 
 
 def test_jumanpp_version() -> None:
-    out = subprocess.run(["jumanpp", "--version"], capture_output=True, encoding="utf-8", text=True, check=False)
+    out = subprocess.run(["jumanpp", "--version"], capture_output=True, encoding="utf-8", text=True, check=False)  # noqa: S607
     match = re.match(r"Juman\+\+ Version: 2\.0\.0-dev\.(\d{8}).+", out.stdout)
-    assert match is not None and int(match.group(1)) >= 20220605, "Juman++ version is old. Please update Juman++."
+    if match is None or int(match.group(1)) < 20220605:
+        raise RuntimeError("Juman++ version is old. Please update Juman++.")
 
 
 def test_jumanpp_augmenter() -> None:
@@ -398,7 +400,7 @@ def test_jumanpp_augmenter() -> None:
         EOS
         """
     )
-    assert sentence.to_knp() == expected
+    assert sentence.to_knp() == expected  # noqa: S101
 
     document = Document.from_knp(
         textwrap.dedent(
@@ -499,7 +501,7 @@ def test_jumanpp_augmenter() -> None:
         EOS
         """
     )
-    assert document.to_knp() == expected
+    assert document.to_knp() == expected  # noqa: S101
 
 
 def main() -> None:

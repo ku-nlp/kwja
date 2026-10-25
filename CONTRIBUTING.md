@@ -136,6 +136,22 @@ If you are on a machine with GPUs, you can specify the GPUs to use with the `dev
 uv run python scripts/train.py -cn char_module.debug devices=[0]
 ```
 
+## Logging
+
+Use a module-level `logging.getLogger(__name__)` and choose the severity according to the requested operation's outcome, independently of the display threshold.
+
+| Level | Criterion |
+| --- | --- |
+| DEBUG | Internal diagnostics, intermediate values, and reasons for normal eligibility decisions. |
+| INFO | Expected progress or transformations that satisfy the operation's requirements. |
+| WARNING | Processing continues, but input or annotations are omitted, their reliability is uncertain, or an explicitly requested condition is changed. |
+| ERROR | The requested operation cannot produce a usable result because its input or prerequisites are invalid, or every processing target was rejected. |
+| CRITICAL | The processing system as a whole cannot continue. |
+
+Recovering from an exception does not by itself justify INFO. A substitute result that leaves requested analysis or supervision unavailable requires WARNING. Report the loss where its effect is known; an eligibility check for data augmentation can remain DEBUG when no requested annotation is lost. Temporary adaptations that are reversed before producing output are also DEBUG. An intentionally empty inference input is valid and must not emit ERROR; rejecting every target of a nonempty input must emit ERROR. Routine dataset selection is not a processing failure.
+
+Production entry points show WARNING and above for `kwja`, while `kwja_cli` also shows INFO progress messages. Development entry points show INFO and above for `kwja`. Dependency logging and Python's `warnings` are configured separately in `filter_logs`.
+
 ## Running unit test
 
 ```shell

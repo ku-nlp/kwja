@@ -6,21 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [v2.6.0] - 2026-10-25
 ### Added
-- Add a gradient accumulation scheduler configuration for training.
+- Support Python 3.14.
+- Support Transformers v5 ([#262](https://github.com/ku-nlp/kwja/pull/262)).
+- Add `--quiet` (`-q`) to hide informational logs and progress output while keeping warnings, errors, and analysis results visible.
 
 ### Changed
 - Download model checkpoints from the Hugging Face Hub.
 - Cache and reuse tokenizers across datasets and data module stages.
+- Keep models on the selected device across interactive predictions ([#255](https://github.com/ku-nlp/kwja/pull/255)).
+- Improve word module inference performance by constructing masks as tensors and assigning cohesion relations only to target sentences ([#254](https://github.com/ku-nlp/kwja/pull/254), [#259](https://github.com/ku-nlp/kwja/pull/259)).
 - Migrate dependency and build management from Poetry to uv and Hatch.
 
 ### Fixed
 - Fix the dtype mismatch error when using `char` or `seq2seq` module with `--model-size large`.
+- Fix top-k processing for dependency parsing.
 - Fix installation on Windows by using the pure-Python release of `pure-cdb`.
 - Explicitly use UTF-8 for text file I/O to support systems with non-UTF-8 default encodings.
 
 ### Removed
-- Drop support for Python 3.8.
+- Drop support for Python 3.9.
+- Drop support for Python 3.10.
 
 ## [v2.5.1] - 2025-08-15
 ### Added
@@ -243,7 +251,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove an unnecessary dependency, `fugashi`.
 
-[Unreleased]: https://github.com/ku-nlp/kwja/compare/v2.5.1...HEAD
+[Unreleased]: https://github.com/ku-nlp/kwja/compare/v2.6.0...HEAD
+[2.6.0]: https://github.com/ku-nlp/kwja/compare/v2.5.1...v2.6.0
 [2.5.1]: https://github.com/ku-nlp/kwja/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/ku-nlp/kwja/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/ku-nlp/kwja/compare/v2.3.0...v2.4.0

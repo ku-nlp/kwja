@@ -677,7 +677,7 @@ class TestAlignment(unittest.TestCase):
         metrics = evaluate(self._load_words(gold), self._load_words(system))
         gold_words = sum(max(1, len(word.split(" ")) - 1) for word in gold)
         system_words = sum(max(1, len(word.split(" ")) - 1) for word in system)
-        assert (metrics["Words"].precision, metrics["Words"].recall, metrics["Words"].f1) == (
+        assert (metrics["Words"].precision, metrics["Words"].recall, metrics["Words"].f1) == (  # noqa: S101
             correct / system_words,
             correct / gold_words,
             2 * correct / (gold_words + system_words),

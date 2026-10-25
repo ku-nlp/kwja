@@ -1,6 +1,6 @@
 import os
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 
 import yaml
@@ -19,14 +19,14 @@ def get_kwja_config_file() -> Path:
     return config_dir / "kwja" / "config.yaml"
 
 
-class Device(str, Enum):
+class Device(StrEnum):
     AUTO = "auto"
     CPU = "cpu"
     CUDA = "cuda"
     MPS = "mps"
 
 
-class ModelSize(str, Enum):
+class ModelSize(StrEnum):
     TINY = "tiny"
     BASE = "base"
     LARGE = "large"

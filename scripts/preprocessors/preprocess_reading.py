@@ -2,14 +2,17 @@ import logging
 from argparse import ArgumentParser
 from collections import Counter
 from pathlib import Path
+from typing import cast
 
 from rhoknp import Document
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from kwja.utils.kanjidic import KanjiDic
 from kwja.utils.reading_prediction import ReadingAligner
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logging.basicConfig()
 
 
 def main() -> None:
@@ -19,7 +22,7 @@ def main() -> None:
     parser.add_argument("-i", "--in-dir", type=Path, help="path to input directory")
     args = parser.parse_args()
 
-    tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
+    tokenizer = cast(PreTrainedTokenizerBase, AutoTokenizer.from_pretrained(args.model_name_or_path))
     kanji_dic = KanjiDic(Path(args.kanji_dic))
     reading_aligner = ReadingAligner(tokenizer, kanji_dic)
 

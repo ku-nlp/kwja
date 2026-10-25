@@ -55,7 +55,8 @@ def convert_typo_predictions_into_tags(
 
 
 def apply_edit_operations(pre_text: str, kdr_tags: list[str], ins_tags: list[str]) -> str:
-    assert len(pre_text) + 1 == len(kdr_tags) + 1 == len(ins_tags)
+    if len(kdr_tags) != len(pre_text) or len(ins_tags) != len(pre_text) + 1:
+        raise ValueError("Edit tags must match the text length, with one extra insertion tag")
     post_text = ""
     for i, char in enumerate(pre_text):
         if ins_tags[i].startswith("I:"):
@@ -157,9 +158,9 @@ def get_morpheme_attribute_predictions(
         for subpos_index, subpos_tag in enumerate(SUBPOS_TAGS):
             if subpos_tag not in possible_subpos_tags:
                 subpos_logit_list[subpos_index] = MASKED
-        subpos_index = np.array(subpos_logit_list).argmax().item()
+        subpos_index = np.argmax(subpos_logit_list).item()
         subpos_tag = SUBPOS_TAGS[subpos_index]
-        assert subpos_tag in possible_subpos_tags
+        assert subpos_tag in possible_subpos_tags  # noqa: S101
         subpos_predictions.append(subpos_index)
 
         conjtype_tag = CONJTYPE_TAGS[conjtype_index]
@@ -168,9 +169,9 @@ def get_morpheme_attribute_predictions(
             for conjform_index, conjform_tag in enumerate(CONJFORM_TAGS):
                 if conjform_tag not in possible_conjform_tags:
                     conjform_logit_list[conjform_index] = MASKED
-            conjform_index = np.array(conjform_logit_list).argmax().item()
+            conjform_index = np.argmax(conjform_logit_list).item()
             conjform_tag = CONJFORM_TAGS[conjform_index]
-            assert conjform_tag in possible_conjform_tags
+            assert conjform_tag in possible_conjform_tags  # noqa: S101
         else:
             conjtype_predictions[i] = CONJTYPE_TAGS.index("*")
             conjform_index = CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID["*"]["*"]
@@ -354,7 +355,7 @@ def add_dependency(
             else:
                 _resolve_dependency(base_phrase, dependency_manager)
 
-        assert base_phrase.parent_index is not None
+        assert base_phrase.parent_index is not None  # noqa: S101
         if base_phrase.parent_index == -1:
             base_phrase.phrase.parent_index = -1
             base_phrase.phrase.dep_type = DepType.DEPENDENCY
@@ -396,7 +397,16 @@ def add_cohesion(
     cohesion_task2rels: dict[CohesionTask, list[str]],
     restrict_cohesion_target: bool,
     special_token_indexer: SpecialTokenIndexer,
+    target_base_phrases: list[BasePhrase],
 ) -> None:
+    """Assign the predicted cohesion relations to `target_base_phrases`.
+
+    The antecedent candidates are always every base phrase of `document`, so passing
+    only the base phrases whose analysis is actually kept (those of the target sentences
+    of a sub-document) yields the same relations for them while skipping the work for
+    the surrounding context sentences. Pass `document.base_phrases` to assign relations
+    to the whole document.
+    """
     rel2logits = dict(
         zip(
             [r for cohesion_rels in cohesion_task2rels.values() for r in cohesion_rels],
@@ -405,7 +415,7 @@ def add_cohesion(
         )
     )
     base_phrases = document.base_phrases
-    for base_phrase in base_phrases:
+    for base_phrase in target_base_phrases:
         base_phrase.rel_tags.clear()
         for cohesion_task, cohesion_extractor in cohesion_task2extractor.items():
             if restrict_cohesion_target is True and cohesion_extractor.is_target(base_phrase) is False:
@@ -459,7 +469,7 @@ def _to_rel_tag(
 
 def add_discourse(document: Document, discourse_predictions: list[list[int]]) -> None:
     if document.is_clause_tag_required():
-        logger.warning("failed to output clause boundaries")
+        logger.warning(f"Skipping discourse relation analysis because clause boundaries are missing: {document.doc_id}")
         return
 
     for modifier in document.clauses:

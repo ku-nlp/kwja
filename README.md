@@ -31,7 +31,7 @@ KWJA performs many text analysis tasks, including:
 
 ## Requirements
 
-- Python: 3.10+
+- Python: 3.11–3.14
 - Dependencies: See [pyproject.toml](./pyproject.toml).
 - GPUs with CUDA (optional)
 - GPUs with MPS (optional)
@@ -93,6 +93,8 @@ Here are options for `kwja` command:
 - `--model-size`: Model size to be used. Specify one of `tiny`, `base` (default), and `large`.
 
 - `--device`: Device to be used. Specify `cpu`, `cuda`, or `mps`. If not specified, the device is automatically selected.
+
+- `--quiet`, `-q`: Hide informational logs and progress output. Warnings, errors, and analysis results are still displayed.
 
 - `--typo-batch-size`: Batch size for typo module.
 -

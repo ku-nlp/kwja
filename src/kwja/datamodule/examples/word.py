@@ -121,7 +121,7 @@ class WordExample:
         try:
             self.readings = reading_aligner.align(morphemes)
         except Exception as e:
-            logger.warning(e)
+            logger.warning(f"Failed to align readings for document {self.doc_id}: {e}")
 
     def _set_morpheme_attributes(self, morphemes: list[Morpheme]) -> None:
         for morpheme in morphemes:
@@ -171,7 +171,8 @@ class WordExample:
             ]
 
             if morpheme == morpheme.base_phrase.head:
-                assert morpheme.base_phrase.dep_type is not None
+                if morpheme.base_phrase.dep_type is None:
+                    raise ValueError("Base phrase head must have a dependency type")
                 dependency_type = morpheme.base_phrase.dep_type
             else:
                 dependency_type = DepType.DEPENDENCY

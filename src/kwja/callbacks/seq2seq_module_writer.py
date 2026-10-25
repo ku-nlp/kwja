@@ -1,6 +1,7 @@
+import logging
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import lightning as L
 from rhoknp import Sentence
@@ -11,6 +12,8 @@ from kwja.callbacks.base_module_writer import BaseModuleWriter
 from kwja.datamodule.datasets import Seq2SeqDataset, Seq2SeqInferenceDataset
 from kwja.datamodule.examples import Seq2SeqExample, Seq2SeqInferenceExample
 from kwja.utils.seq2seq_format import Seq2SeqFormatter
+
+logger = logging.getLogger(__name__)
 
 
 class Seq2SeqModuleWriter(BaseModuleWriter):
@@ -30,7 +33,7 @@ class Seq2SeqModuleWriter(BaseModuleWriter):
         dataloader_idx: int,
     ) -> None:
         predict_dataloaders = trainer.predict_dataloaders
-        assert predict_dataloaders is not None
+        assert predict_dataloaders is not None  # noqa: S101
         if isinstance(predict_dataloaders, dict):
             dataloader = list(predict_dataloaders.values())[dataloader_idx]
         else:
@@ -43,11 +46,22 @@ class Seq2SeqModuleWriter(BaseModuleWriter):
             if len(example.surfs) == 0:
                 continue
 
-            decoded: str = self.tokenizer.decode(
-                [x for x in seq2seq_predictions if x not in {self.tokenizer.pad_token_id, self.tokenizer.eos_token_id}],
-                skip_special_tokens=False,
+            if self.tokenizer.eos_token_id not in seq2seq_predictions:
+                logger.warning(f"Generation ended without an EOS token; sentence may be incomplete: {example.sid}")
+            decoded = cast(
+                str,
+                self.tokenizer.decode(
+                    [
+                        x
+                        for x in seq2seq_predictions
+                        if x not in {self.tokenizer.pad_token_id, self.tokenizer.eos_token_id}
+                    ],
+                    skip_special_tokens=False,
+                ),
             )
             seq2seq_format: Sentence = self.formatter.format_to_sent(decoded.replace(" ", ""))
+            if len(seq2seq_format.morphemes) == 0:
+                logger.warning(f"No morphemes were generated for sentence {example.sid}")
             seq2seq_format.sid = example.sid
             seq2seq_format.misc_comment = f"kwja:{kwja.__version__}"
             output_string += seq2seq_format.to_jumanpp()

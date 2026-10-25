@@ -1,11 +1,6 @@
-import sys
 import unicodedata
 from importlib.resources import as_file
-
-if sys.version_info >= (3, 11):
-    from importlib.resources.abc import Traversable
-else:
-    from importlib_resources.abc import Traversable  # ty: ignore[unresolved-import]
+from importlib.resources.abc import Traversable
 from pathlib import Path
 from typing import Any
 
