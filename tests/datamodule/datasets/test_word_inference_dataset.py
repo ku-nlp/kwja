@@ -209,3 +209,65 @@ def test_skipped_documents(
             "Length of sub document is too long: " + "あ" * 40,
         ),
     ]
+
+
+def test_cohesion_mask(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[str, Any], tmp_path: Path) -> None:
+    max_seq_length = 20  # the document is split into two windows, the second with a context sentence
+    document_split_stride = 1
+    juman_file = tmp_path / "test.juman"
+    juman_file.write_text(
+        dedent(
+            """\
+            # S-ID:test-0-0
+            今日 _ 今日 未定義語 15 その他 1 * 0 * 0
+            は _ は 未定義語 15 その他 1 * 0 * 0
+            晴れ _ 晴れ 未定義語 15 その他 1 * 0 * 0
+            だ _ だ 未定義語 15 その他 1 * 0 * 0
+            EOS
+            # S-ID:test-0-1
+            明日 _ 明日 未定義語 15 その他 1 * 0 * 0
+            は _ は 未定義語 15 その他 1 * 0 * 0
+            雨 _ 雨 未定義語 15 その他 1 * 0 * 0
+            だ _ だ 未定義語 15 その他 1 * 0 * 0
+            EOS
+            # S-ID:test-0-2
+            明後日 _ 明後日 未定義語 15 その他 1 * 0 * 0
+            は _ は 未定義語 15 その他 1 * 0 * 0
+            雪 _ 雪 未定義語 15 その他 1 * 0 * 0
+            だ _ だ 未定義語 15 その他 1 * 0 * 0
+            EOS
+            """
+        ),
+        encoding="utf-8",
+    )
+    dataset = WordInferenceDataset(
+        word_tokenizer, max_seq_length, document_split_stride, juman_file=juman_file, **dataset_kwargs
+    )
+    num_checked_rows = {"target": 0, "context": 0}
+    for i in range(len(dataset)):
+        example = dataset.examples[i]
+        cohesion_mask = dataset[i].cohesion_mask  # (rel, seq, seq)
+        morphemes = dataset.doc_id2document[example.doc_id].morphemes
+        special_indices = set(example.special_token_indexer.get_morpheme_level_indices(only_cohesion=True))
+        rel_index = 0
+        for cohesion_task in dataset.cohesion_tasks:
+            cohesion_extractor = dataset.cohesion_task2extractor[cohesion_task]
+            for _ in dataset.cohesion_task2rels[cohesion_task]:
+                for morpheme in morphemes:
+                    row = cohesion_mask[rel_index, morpheme.global_index]
+                    if morpheme.global_index in example.analysis_target_morpheme_indices:
+                        candidates = cohesion_extractor.get_candidates(morpheme, morphemes)
+                        assert (
+                            set(row.nonzero().flatten().tolist())
+                            == {c.global_index for c in candidates} | special_indices
+                        )
+                        num_checked_rows["target"] += len(candidates) > 0
+                    else:
+                        # the predictions of the context sentences are not used
+                        assert not row.any()
+                        num_checked_rows["context"] += 1
+                rel_index += 1
+        assert rel_index == len(cohesion_mask)
+    # the windows hold both target rows with candidates and rows of context sentences
+    assert num_checked_rows["target"] > 0
+    assert num_checked_rows["context"] > 0
