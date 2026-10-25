@@ -179,13 +179,6 @@ uv run --group test pytest
     git push --follow-tags
     ```
 
-- Publish to PyPI
-
-    ```shell
-    uv build
-    uv publish
-    ```
-
 - Rebase the `dev` branch to the `main` branch
 
     ```shell
