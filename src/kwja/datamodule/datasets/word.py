@@ -178,8 +178,8 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         assert example.doc_id is not None, "doc_id isn't set"  # noqa: S101
 
         target_mask = [False] * self.max_seq_length
-        for global_index in example.analysis_target_morpheme_indices:
-            target_mask[global_index] = True
+        for start, stop in example.target_sentence_morpheme_spans:
+            target_mask[start:stop] = [True] * (stop - start)
 
         # ---------- reading prediction ----------
         reading_labels = [IGNORE_INDEX] * self.max_seq_length
@@ -239,11 +239,9 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         root_index = example.special_token_indexer.get_morpheme_level_index("[ROOT]")
         for morpheme_global_index, dependency in example.morpheme_global_index2dependency.items():
             dependency_labels[morpheme_global_index] = root_index if dependency == -1 else dependency
-        dependency_mask = torch.zeros((self.max_seq_length, self.max_seq_length), dtype=torch.bool)
-        for morpheme_global_index, head_candidates in example.morpheme_global_index2head_candidates.items():
-            if head_candidates:
-                dependency_mask[morpheme_global_index, list(head_candidates)] = True
-            dependency_mask[morpheme_global_index, root_index] = True
+        dependency_mask = generate_dependency_mask(
+            example.target_sentence_morpheme_spans, root_index, self.max_seq_length
+        )
         dependency_type_labels: list[int] = [IGNORE_INDEX] * self.max_seq_length
         for morpheme_global_index, dependency_type in example.morpheme_global_index2dependency_type.items():
             dependency_type_labels[morpheme_global_index] = DEPENDENCY_TYPES.index(dependency_type)
@@ -283,10 +281,15 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             input_ids=example.encoding.ids,
             attention_mask=example.encoding.attention_mask,
             special_token_indices=example.special_token_indexer.token_level_indices,
-            subword_map=self._generate_subword_map(example.encoding.word_ids, example.special_token_indexer),
+            subword_map=generate_subword_map(
+                example.encoding.word_ids, example.special_token_indexer, self.max_seq_length
+            ),
             reading_labels=reading_labels,
-            reading_subword_map=self._generate_subword_map(
-                example.encoding.word_ids, example.special_token_indexer, include_special_tokens=False
+            reading_subword_map=generate_subword_map(
+                example.encoding.word_ids,
+                example.special_token_indexer,
+                self.max_seq_length,
+                include_special_tokens=False,
             ),
             pos_labels=morpheme_attribute_labels_set[0],
             subpos_labels=morpheme_attribute_labels_set[1],
@@ -303,29 +306,6 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             cohesion_mask=cohesion_mask,
             discourse_labels=discourse_labels,
         )
-
-    def _generate_subword_map(
-        self,
-        word_ids: list[int | None],
-        special_token_indexer: SpecialTokenIndexer,
-        include_special_tokens: bool = True,
-    ) -> torch.Tensor:
-        subword_map = torch.zeros((self.max_seq_length, self.max_seq_length), dtype=torch.bool)
-        special_token_level_indices = set(special_token_indexer.token_level_indices)
-        rows: list[int] = []
-        cols: list[int] = []
-        for token_index, word_id in enumerate(word_ids):
-            if word_id is None or token_index in special_token_level_indices:
-                continue
-            rows.append(word_id)
-            cols.append(token_index)
-        if include_special_tokens is True:
-            for token_index, morpheme_global_index in special_token_indexer.token_and_morpheme_level_indices:
-                rows.append(morpheme_global_index)
-                cols.append(token_index)
-        if rows:
-            subword_map[rows, cols] = True
-        return subword_map
 
     def _find_discourse_document(self, document: Document) -> Document | None:
         discourse_path = self.path / "disc_expert" / f"{document.doc_id}.knp"
@@ -381,3 +361,40 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
                 if special_indices:
                     rel_mask[morpheme_global_index, special_indices] = True
         return rel_mask
+
+
+def generate_dependency_mask(
+    sentence_spans: list[tuple[int, int]], root_index: int, max_seq_length: int
+) -> torch.Tensor:
+    """Allow other morphemes in the same sentence and the root as heads."""
+    mask = torch.zeros((max_seq_length, max_seq_length), dtype=torch.bool)
+    for start, stop in sentence_spans:
+        mask[start:stop, start:stop] = True
+        diagonal = torch.arange(start, stop)
+        mask[diagonal, diagonal] = False
+        mask[start:stop, root_index] = True
+    return mask
+
+
+def generate_subword_map(
+    word_ids: list[int | None],
+    special_token_indexer: SpecialTokenIndexer,
+    max_seq_length: int,
+    include_special_tokens: bool = True,
+) -> torch.Tensor:
+    subword_map = torch.zeros((max_seq_length, max_seq_length), dtype=torch.bool)
+    special_token_level_indices = set(special_token_indexer.token_level_indices)
+    rows: list[int] = []
+    cols: list[int] = []
+    for token_index, word_id in enumerate(word_ids):
+        if word_id is None or token_index in special_token_level_indices:
+            continue
+        rows.append(word_id)
+        cols.append(token_index)
+    if include_special_tokens is True:
+        for token_index, morpheme_global_index in special_token_indexer.token_and_morpheme_level_indices:
+            rows.append(morpheme_global_index)
+            cols.append(token_index)
+    if rows:
+        subword_map[rows, cols] = True
+    return subword_map

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from functools import cached_property
 
 from cohesion_tools.extractors.base import BaseExtractor
-from rhoknp import BasePhrase, Clause, Document, Morpheme, Phrase
+from rhoknp import BasePhrase, Clause, Document, Morpheme, Phrase, Sentence
 from rhoknp.props import DepType, NamedEntity
 from tokenizers import Encoding
 
@@ -60,7 +60,7 @@ class WordExample:
         self.encoding = encoding
         self.special_token_indexer = special_token_indexer
         self.doc_id: str | None = None
-        self.analysis_target_morpheme_indices: list[int] = []
+        self.target_sentence_morpheme_spans: list[tuple[int, int]] = []
 
         # ---------- reading prediction ----------
         self.readings: list[str] | None = None
@@ -79,8 +79,6 @@ class WordExample:
 
         # ---------- dependency parsing ----------
         self.morpheme_global_index2dependency: dict[int, int] = {}
-        # 形態素単位係り先候補
-        self.morpheme_global_index2head_candidates: dict[int, list[int]] = {}
         self.morpheme_global_index2dependency_type: dict[int, DepType] = {}
 
         # ---------- cohesion analysis ----------
@@ -101,10 +99,11 @@ class WordExample:
     ) -> None:
         self.doc_id = document.doc_id
         self._set_readings(document.morphemes, reading_aligner)
-        for sentence in extract_target_sentences(document):
+        target_sentences = extract_target_sentences(document)
+        self.target_sentence_morpheme_spans = _get_sentence_morpheme_spans(target_sentences)
+        for sentence in target_sentences:
             morphemes = sentence.morphemes
             base_phrases = sentence.base_phrases
-            self.analysis_target_morpheme_indices += [m.global_index for m in morphemes]
             self._set_morpheme_attributes(morphemes)
             self._set_word_feature_set(sentence.phrases, base_phrases, morphemes)
             self._set_named_entities(sentence.named_entities)
@@ -166,10 +165,6 @@ class WordExample:
         for morpheme in morphemes:
             dependency = morpheme.parent.global_index if morpheme.parent is not None else -1
             self.morpheme_global_index2dependency[morpheme.global_index] = dependency
-            self.morpheme_global_index2head_candidates[morpheme.global_index] = [
-                m.global_index for m in morphemes if m.global_index != morpheme.global_index
-            ]
-
             if morpheme == morpheme.base_phrase.head:
                 if morpheme.base_phrase.dep_type is None:
                     raise ValueError("Base phrase head must have a dependency type")
@@ -211,4 +206,46 @@ class WordInferenceExample:
     encoding: Encoding
     special_token_indexer: SpecialTokenIndexer
     doc_id: str
-    analysis_target_morpheme_indices: list[int]
+    target_sentence_morpheme_spans: list[tuple[int, int]]
+    cohesion_task2candidate_indices: dict[CohesionTask, dict[int, list[int]]]
+
+    @classmethod
+    def from_document(
+        cls,
+        example_id: int,
+        encoding: Encoding,
+        special_token_indexer: SpecialTokenIndexer,
+        document: Document,
+        cohesion_task2extractor: dict[CohesionTask, BaseExtractor],
+    ) -> "WordInferenceExample":
+        morphemes = document.morphemes
+        target_sentences = extract_target_sentences(document)
+        target_morphemes = [morpheme for sentence in target_sentences for morpheme in sentence.morphemes]
+        # Only target sentences contribute cohesion predictions to the output.
+        # Context morphemes remain candidates for every target morpheme.
+        cohesion_task2candidate_indices = {
+            task: {
+                morpheme.global_index: [
+                    candidate.global_index for candidate in extractor.get_candidates(morpheme, morphemes)
+                ]
+                for morpheme in target_morphemes
+            }
+            for task, extractor in cohesion_task2extractor.items()
+        }
+        return cls(
+            example_id=example_id,
+            encoding=encoding,
+            special_token_indexer=special_token_indexer,
+            doc_id=document.doc_id,
+            target_sentence_morpheme_spans=_get_sentence_morpheme_spans(target_sentences),
+            cohesion_task2candidate_indices=cohesion_task2candidate_indices,
+        )
+
+
+def _get_sentence_morpheme_spans(sentences: list[Sentence]) -> list[tuple[int, int]]:
+    spans = []
+    for sentence in sentences:
+        morphemes = sentence.morphemes
+        if morphemes:
+            spans.append((morphemes[0].global_index, morphemes[-1].global_index + 1))
+    return spans

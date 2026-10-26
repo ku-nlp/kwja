@@ -1,14 +1,77 @@
 import logging
 import tempfile
+from dataclasses import fields
 from pathlib import Path
 from textwrap import dedent
 from typing import Any
 
 import pytest
+import torch
 from transformers import PreTrainedTokenizerBase
 
 from kwja.datamodule.datasets import WordInferenceDataset
 from kwja.utils.sub_document import extract_target_sentences
+
+
+@pytest.mark.parametrize("max_seq_length", [32, 256])
+def test_encode_without_documents(
+    word_tokenizer: PreTrainedTokenizerBase,
+    dataset_kwargs: dict[str, Any],
+    tmp_path: Path,
+    max_seq_length: int,
+) -> None:
+    juman_file = tmp_path / "input.juman"
+    juman_file.write_text(
+        "".join(
+            f"# S-ID:test-0-{i}\n" + "猫 _ 猫 名詞 6 普通名詞 1 * 0 * 0\n" * length + "EOS\n"
+            for i, length in enumerate([1, 4, 3, 2, 5, 1, 4, 7])
+        ),
+        encoding="utf-8",
+    )
+    dataset = WordInferenceDataset(word_tokenizer, max_seq_length, 1, juman_file=juman_file, **dataset_kwargs)
+    assert len(dataset) > 0
+    assert (len(dataset) > 1) == (max_seq_length == 32)
+
+    expected_features = [dataset[i] for i in range(len(dataset))]
+    del dataset.doc_id2document
+    del dataset.cohesion_task2extractor
+    for index, expected in enumerate(expected_features):
+        feature = dataset[index]
+        for field in fields(feature):
+            actual_value, expected_value = getattr(feature, field.name), getattr(expected, field.name)
+            if isinstance(actual_value, torch.Tensor):
+                assert torch.equal(actual_value, expected_value), field.name
+            else:
+                assert actual_value == expected_value, field.name
+
+
+def test_masks_for_target_sentences(
+    word_tokenizer: PreTrainedTokenizerBase,
+    dataset_kwargs: dict[str, Any],
+    tmp_path: Path,
+) -> None:
+    max_seq_length = 32
+    juman_file = tmp_path / "input.juman"
+    juman_file.write_text(
+        "".join(f"# S-ID:test-0-{i}\n" + "猫 _ 猫 名詞 6 普通名詞 1 * 0 * 0\n" * 4 + "EOS\n" for i in range(8)),
+        encoding="utf-8",
+    )
+    dataset = WordInferenceDataset(word_tokenizer, max_seq_length, 1, juman_file=juman_file, **dataset_kwargs)
+    assert len(dataset) > 1
+    example = dataset.examples[-1]
+    document = dataset.doc_id2document[example.doc_id]
+    target_morphemes = document.sentences[-1].morphemes
+    start, stop = target_morphemes[0].global_index, target_morphemes[-1].global_index + 1
+    assert start > 0
+    feature = dataset[-1]
+    assert feature.ne_mask == [start <= i < stop for i in range(max_seq_length)]
+    assert not feature.dependency_mask[:start].any()
+    assert not feature.dependency_mask[stop:].any()
+    assert not feature.dependency_mask[start:stop, :start].any()
+    assert feature.dependency_mask[start:stop].any(dim=1).all()
+    assert not feature.cohesion_mask[:, :start].any()
+    assert not feature.cohesion_mask[:, stop:].any()
+    assert feature.cohesion_mask[:, start:stop, 0].all()
 
 
 @pytest.mark.parametrize("empty_file", [False, True])

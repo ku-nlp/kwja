@@ -22,6 +22,7 @@ from kwja.utils.constants import (
     SUBPOS_TAGS,
     WORD_FEATURES,
 )
+from kwja.utils.sub_document import extract_target_sentences
 
 
 @pytest.fixture
@@ -117,6 +118,39 @@ def test_getitem(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, datase
         assert np.array(feature.cohesion_labels).shape == (num_cohesion_rels, max_seq_length, max_seq_length)
         assert feature.cohesion_mask.shape == (num_cohesion_rels, max_seq_length, max_seq_length)
         assert np.array(feature.discourse_labels).shape == (max_seq_length, max_seq_length)
+
+
+def test_dependency_mask_for_target_sentences(
+    word_tokenizer: PreTrainedTokenizerBase,
+    dataset_kwargs: dict[str, Any],
+    tmp_path: Path,
+) -> None:
+    tmp_path.joinpath("test.knp").write_text(
+        "".join(
+            f"# S-ID:test-0-{i}\n* -1D\n+ -1D\n" + "猫 ねこ 猫 名詞 6 普通名詞 1 * 0 * 0\n" * length + "EOS\n"
+            for i, length in enumerate([1, 4, 3, 2, 5, 1, 4, 7])
+        ),
+        encoding="utf-8",
+    )
+    max_seq_length = 32
+    dataset = WordDataset(str(tmp_path), word_tokenizer, max_seq_length, 1, **dataset_kwargs)
+    assert len(dataset) > 1
+    example = dataset.examples[-1]
+    assert example.doc_id is not None
+    document = dataset.doc_id2document[example.doc_id]
+    (target_sentence,) = extract_target_sentences(document)
+    start = target_sentence.morphemes[0].global_index
+    stop = target_sentence.morphemes[-1].global_index + 1
+    assert start > 0
+    root_index = example.special_token_indexer.get_morpheme_level_index("[ROOT]")
+    mask = dataset[-1].dependency_mask
+    assert not mask[:start].any()
+    assert not mask[stop:].any()
+    assert not mask[start:stop, :start].any()
+    assert not mask.diagonal().any()
+    assert mask[start:stop, root_index].all()
+    assert (mask[start:stop, start:stop].sum(dim=1) == stop - start - 1).all()
+    assert (mask[start:stop].sum(dim=1) == stop - start).all()
 
 
 def test_encode(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[str, Any]) -> None:
