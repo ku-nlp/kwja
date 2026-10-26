@@ -97,7 +97,7 @@ def get_normalized_surf(surf: str, word_norm_op_tags: list[str], strict: bool = 
             if c in VOICED2VOICELESS:
                 norm += VOICED2VOICELESS[c]
             else:
-                if strict is True:
+                if strict:
                     raise ValueError(f"not a voiced kana {c} in {surf}")
                 norm += c
         elif word_norm_op_tag == "D":
@@ -107,17 +107,17 @@ def get_normalized_surf(surf: str, word_norm_op_tags: list[str], strict: bool = 
             if c in LOWER2UPPER:
                 norm += LOWER2UPPER[c]
             else:
-                if strict is True:
+                if strict:
                     raise ValueError(f"not a small kana {c} in {surf}")
                 norm += c
         elif word_norm_op_tag == "P":
             # NOTE: in canonical ops, P and E must follow K, but we do not check this constraint here
             if len(norm) <= 0:
-                if strict is True:
+                if strict:
                     raise ValueError(f"no preceding kana for {c} in {surf}")
                 norm += c
             elif c not in CHOON_SET:
-                if strict is True:
+                if strict:
                     raise ValueError(f"not a prolonged sign for {c} in {surf}")
                 norm += c
             else:
@@ -125,16 +125,16 @@ def get_normalized_surf(surf: str, word_norm_op_tags: list[str], strict: bool = 
                 if p in PROLONGED_MAP:
                     norm += PROLONGED_MAP[p]
                 else:
-                    if strict is True:
+                    if strict:
                         raise ValueError(f"not a valid preceding kana {p} in {surf}")
                     norm += c
         elif word_norm_op_tag == "E":
             if len(norm) <= 0:
-                if strict is True:
+                if strict:
                     raise ValueError(f"no preceding kana for {c} in {surf}")
                 norm += c
             elif c not in CHOON_SET:
-                if strict is True:
+                if strict:
                     raise ValueError(f"not a prolonged sign for {c} in {surf}")
                 norm += c
             else:
@@ -142,7 +142,7 @@ def get_normalized_surf(surf: str, word_norm_op_tags: list[str], strict: bool = 
                 if p in PROLONGED_MAP_FOR_EROW:
                     norm += PROLONGED_MAP_FOR_EROW[p]
                 else:
-                    if strict is True:
+                    if strict:
                         raise ValueError(f"not a valid preceding kana {p} in {surf}")
                     norm += c
         else:

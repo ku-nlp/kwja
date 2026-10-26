@@ -125,7 +125,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         is_training = self.path.parts[-1] == "train" or (
             self.path.parts[-2] == "kyoto_ed" and self.path.parts[-1] == "all"
         )
-        if is_training is True:
+        if is_training:
             del self.doc_id2document  # for saving memory
 
     def _get_tokenized_len(self, document_or_sentence: Document | Sentence) -> int:
@@ -267,7 +267,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
 
         # ---------- discourse relation analysis ----------
         discourse_labels = [[IGNORE_INDEX] * self.max_seq_length for _ in range(self.max_seq_length)]
-        if self.skip_cohesion_ne_discourse is False:
+        if not self.skip_cohesion_ne_discourse:
             for (
                 morpheme_global_indices,
                 discourse_relation,
@@ -330,10 +330,10 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         special_token_indexer: SpecialTokenIndexer,
     ) -> list[list[int]]:
         rel_labels = [[0] * self.max_seq_length for _ in range(self.max_seq_length)]
-        if self.skip_cohesion_ne_discourse is True:
+        if self.skip_cohesion_ne_discourse:
             return rel_labels
         for cohesion_base_phrase in cohesion_base_phrases:
-            if cohesion_base_phrase.is_target is False:
+            if not cohesion_base_phrase.is_target:
                 continue
             assert cohesion_base_phrase.rel2tags is not None, "rel2tags isn't set"  # noqa: S101
             for tag in cohesion_base_phrase.rel2tags[rel]:
@@ -353,7 +353,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         rel_mask = torch.zeros((self.max_seq_length, self.max_seq_length), dtype=torch.bool)
         special_indices = special_token_indexer.get_morpheme_level_indices(only_cohesion=True)
         for cohesion_base_phrase in cohesion_base_phrases:
-            if cohesion_base_phrase.is_target is False:
+            if not cohesion_base_phrase.is_target:
                 continue
             assert cohesion_base_phrase.antecedent_candidates is not None, "antecedent_candidates isn't set"  # noqa: S101
             candidate_indices = [c.head_morpheme_global_index for c in cohesion_base_phrase.antecedent_candidates]
@@ -393,7 +393,7 @@ def generate_subword_map(
             continue
         rows.append(word_id)
         cols.append(token_index)
-    if include_special_tokens is True:
+    if include_special_tokens:
         for token_index, morpheme_global_index in special_token_indexer.token_and_morpheme_level_indices:
             rows.append(morpheme_global_index)
             cols.append(token_index)

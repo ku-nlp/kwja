@@ -104,13 +104,13 @@ class WordModuleMetric(BaseModuleMetric):
     def compute(self) -> dict[str, float]:
         assert self.training_tasks is not None, "training_tasks isn't set"  # noqa: S101
 
-        if isinstance(self.example_ids, torch.Tensor) is False:
+        if not isinstance(self.example_ids, torch.Tensor):
             self.example_ids = torch.cat(self.example_ids, dim=0)
 
         sorted_indices = unique_indices(self.example_ids)
         for state_name in self.STATE_NAMES:
             state = getattr(self, state_name)
-            if isinstance(state, torch.Tensor) is False:
+            if not isinstance(state, torch.Tensor):
                 state = torch.cat(state, dim=0)
             if state_name == "reading_subword_map":
                 state = state.bool()

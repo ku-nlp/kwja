@@ -64,7 +64,7 @@ def download_checkpoint(
     checkpoint_file_name = _CHECKPOINT_FILE_NAMES[model_size][module]
     model_version = _get_model_version()
     checkpoint_path = checkpoint_dir / checkpoint_file_name
-    if checkpoint_path.exists() is False:
+    if not checkpoint_path.exists():
         if progress:
             sys.stderr.write(
                 f'Downloading: "{_CHECKPOINT_REPO_ID}/{checkpoint_file_name}@{model_version}" to {checkpoint_path}\n'

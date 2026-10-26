@@ -93,7 +93,7 @@ class BaseModuleProcessor(ABC):
 
     def load(self, keep_model_on_device: bool = False) -> None:
         self.module = self._load_module()
-        if self.config.torch_compile is True:
+        if self.config.torch_compile:
             self.module: L.LightningModule = torch.compile(self.module)  # ty: ignore[invalid-assignment]
         self.module.hparams.datamodule.batch_size = self.batch_size  # type: ignore[union-attr]
         self.module.hparams.datamodule.num_workers = self.config.num_workers  # type: ignore[union-attr]
@@ -323,7 +323,7 @@ class CLIProcessor:
                 processor.load()
             processor.apply_module(input_file)
             input_file = processor.destination
-            if interactive is False:
+            if not interactive:
                 processor.delete_module_and_trainer()
         return self.processors[-1].export_prediction()
 
@@ -366,7 +366,7 @@ def _load_document_from_text(text: str, input_format: InputFormat) -> Document:
 
 
 def _version_callback(value: bool) -> None:
-    if value is True:
+    if value:
         print(f"KWJA {kwja.__version__}")
         raise typer.Exit
 
@@ -463,7 +463,7 @@ def main(  # noqa: PLR0917
     elif len(filename) > 0:
         input_documents = []
         for path in filename:
-            if path.exists() is False:
+            if not path.exists():
                 logger.error(f"{path} does not exist")
                 raise typer.Abort
             with path.open(encoding="utf-8") as f:
