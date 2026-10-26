@@ -37,6 +37,33 @@ def test_init(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, dataset_k
     _ = WordDataset(str(path), word_tokenizer, max_seq_length, document_split_stride, **dataset_kwargs)
 
 
+@pytest.mark.parametrize(
+    ("surf", "reading"),
+    [("３", "さん"), ("２３", "にじゅうさん"), ("㍿", "かぶしきがいしゃ"), ("ＡＢＣ", "えーびーしー")],
+)
+def test_reading_labels_for_normalized_text(
+    surf: str,
+    reading: str,
+    word_tokenizer: PreTrainedTokenizerBase,
+    dataset_kwargs: dict[str, Any],
+    tmp_path: Path,
+) -> None:
+    tmp_path.joinpath("test.knp").write_text(
+        f"# S-ID:test-0\n* -1D\n+ -1D\n{surf} {reading} {surf} 名詞 6 普通名詞 1 * 0 * 0 <基本句-主辞>\nEOS\n",
+        encoding="utf-8",
+    )
+    dataset = WordDataset(str(tmp_path), word_tokenizer, 32, 1, **dataset_kwargs)
+    example = dataset.examples[0]
+    assert example.readings is not None
+    assert "".join(example.readings) == reading
+
+    features = dataset[0]
+    token_indices = torch.where(features.reading_subword_map[0])[0].tolist()
+    assert len(token_indices) == len(example.readings)
+    assert dataset._get_tokenized_len(dataset.doc_id2document[example.doc_id]) == len(token_indices)
+    assert all(features.reading_labels[index] != IGNORE_INDEX for index in token_indices)
+
+
 def test_all_sentences_skipped(
     word_tokenizer: PreTrainedTokenizerBase,
     dataset_kwargs: dict[str, Any],

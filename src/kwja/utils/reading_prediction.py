@@ -25,6 +25,7 @@ from kwja.utils.constants import (
     VOICED2VOICELESS,
 )
 from kwja.utils.kanjidic import KanjiDic
+from kwja.utils.normalization import normalize_text
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +52,7 @@ class ReadingAligner:
 
     def align(self, morphemes: list[Morpheme]) -> list[str]:
         # assumption: morphemes are never combined
-        tokenizer_input: list[str] | str = [m.text for m in morphemes]
+        tokenizer_input: list[str] | str = [normalize_text(m.text) for m in morphemes]
         encoding = self.tokenizer(tokenizer_input, add_special_tokens=False, is_split_into_words=True).encodings[0]
         word_id2subwords = defaultdict(list)
         for token_id, word_id in enumerate(encoding.word_ids):

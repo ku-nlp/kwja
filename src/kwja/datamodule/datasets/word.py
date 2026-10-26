@@ -129,7 +129,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             del self.doc_id2document  # for saving memory
 
     def _get_tokenized_len(self, document_or_sentence: Document | Sentence) -> int:
-        tokenizer_input: list[str] = [m.text for m in document_or_sentence.morphemes]
+        tokenizer_input: list[str] = [normalize_text(m.text) for m in document_or_sentence.morphemes]
         return len(self.tokenizer(tokenizer_input, add_special_tokens=False, is_split_into_words=True).tokens())
 
     def _load_examples(self, doc_id2document: dict[str, Document]) -> list[WordExample]:
