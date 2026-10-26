@@ -186,12 +186,12 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         # ---------- reading prediction ----------
         reading_labels = [IGNORE_INDEX] * self.max_seq_length
         if example.readings is not None:
-            token_indices = [
+            token_morpheme_index_pairs = [
                 (token_index, word_id)
                 for token_index, word_id in enumerate(example.encoding.word_ids)
                 if token_index not in example.special_token_indexer.token_level_indices and word_id is not None
             ]
-            for (token_index, word_id), reading in zip(token_indices, example.readings, strict=True):
+            for (token_index, word_id), reading in zip(token_morpheme_index_pairs, example.readings, strict=True):
                 if target_mask[word_id] is False:
                     continue
                 decoded_token = self.tokenizer.decode(example.encoding.ids[token_index])
@@ -366,11 +366,11 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
 
 
 def generate_dependency_mask(
-    sentence_spans: list[tuple[int, int]], root_index: int, max_seq_length: int
+    sentence_morpheme_spans: list[tuple[int, int]], root_index: int, max_seq_length: int
 ) -> torch.Tensor:
     """Allow other morphemes in the same sentence and the root as heads."""
     mask = torch.zeros((max_seq_length, max_seq_length), dtype=torch.bool)
-    for start, stop in sentence_spans:
+    for start, stop in sentence_morpheme_spans:
         mask[start:stop, start:stop] = True
         diagonal = torch.arange(start, stop)
         mask[diagonal, diagonal] = False

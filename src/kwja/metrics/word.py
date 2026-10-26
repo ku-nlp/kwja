@@ -23,7 +23,7 @@ from kwja.callbacks.utils import (  # add_discourse,
 from kwja.datamodule.datasets import WordDataset
 from kwja.metrics.base import BaseModuleMetric
 from kwja.metrics.conll18_ud_eval import main as conll18_ud_eval
-from kwja.metrics.utils import unique
+from kwja.metrics.utils import unique_indices
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TAGS,
@@ -107,7 +107,7 @@ class WordModuleMetric(BaseModuleMetric):
         if isinstance(self.example_ids, torch.Tensor) is False:
             self.example_ids = torch.cat(self.example_ids, dim=0)
 
-        sorted_indices = unique(self.example_ids)
+        sorted_indices = unique_indices(self.example_ids)
         for state_name in self.STATE_NAMES:
             state = getattr(self, state_name)
             if isinstance(state, torch.Tensor) is False:

@@ -342,14 +342,14 @@ def add_dependency(
         ):
             parent_index = morpheme_global_index2base_phrase_index[parent_morpheme_global_index]
             dependency_manager.add_edge(base_phrase.index, parent_index)
-            if dependency_manager.has_cycle() or (parent_index == -1 and dependency_manager.root):
+            if dependency_manager.has_cycle() or (parent_index == -1 and dependency_manager.has_root):
                 dependency_manager.remove_edge(base_phrase.index, parent_index)
             else:
                 base_phrase.parent_index = parent_index
                 base_phrase.dep_type = DEPENDENCY_TYPES[dependency_type_index]
                 break
         else:
-            if base_phrase == base_phrases[-1] and not dependency_manager.root:
+            if base_phrase == base_phrases[-1] and not dependency_manager.has_root:
                 base_phrase.parent_index = -1
                 base_phrase.dep_type = DepType.DEPENDENCY
             else:
@@ -359,7 +359,7 @@ def add_dependency(
         if base_phrase.parent_index == -1:
             base_phrase.phrase.parent_index = -1
             base_phrase.phrase.dep_type = DepType.DEPENDENCY
-            dependency_manager.root = True
+            dependency_manager.has_root = True
         elif base_phrase.phrase != base_phrases[base_phrase.parent_index].phrase:
             base_phrase.phrase.parent_index = base_phrases[base_phrase.parent_index].phrase.index
             base_phrase.phrase.dep_type = base_phrase.dep_type
@@ -441,10 +441,10 @@ def _to_rel_tag(
 ) -> RelTag | None:
     logits = [rel_logits[bp.head.global_index] for bp in base_phrases]
     logits += [rel_logits[i] for i in special_token_indexer.get_morpheme_level_indices()]
-    predicted_base_phrase_global_index: int = np.argmax(logits).item()
-    if 0 <= predicted_base_phrase_global_index < len(base_phrases):
+    predicted_candidate_index: int = np.argmax(logits).item()
+    if 0 <= predicted_candidate_index < len(base_phrases):
         # endophora
-        predicted_antecedent = base_phrases[predicted_base_phrase_global_index]
+        predicted_antecedent = base_phrases[predicted_candidate_index]
         return RelTag(
             type=rel,
             target=predicted_antecedent.head.text,
@@ -454,7 +454,7 @@ def _to_rel_tag(
         )
     else:
         # exophora
-        special_token = special_token_indexer.special_tokens[predicted_base_phrase_global_index - len(base_phrases)]
+        special_token = special_token_indexer.special_tokens[predicted_candidate_index - len(base_phrases)]
         stripped_special_token = special_token[1:-1]  # strip '[' and ']'
         if ExophoraReferent(stripped_special_token).type in exophora_referent_types:  # exclude [NULL], [NA], and [ROOT]
             return RelTag(
