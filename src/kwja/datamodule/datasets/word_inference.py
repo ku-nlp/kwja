@@ -51,7 +51,7 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
         self.exophora_referent_types: list[ExophoraReferentType] = [
             ExophoraReferent(er).type for er in exophora_referents
         ]
-        self.cohesion_task2extractor: dict[CohesionTask, BaseExtractor] = {
+        cohesion_task2extractor: dict[CohesionTask, BaseExtractor] = {
             CohesionTask.PAS_ANALYSIS: PasExtractor(
                 list(pas_cases),
                 self.exophora_referent_types,
@@ -61,11 +61,13 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
             CohesionTask.BRIDGING_REFERENCE_RESOLUTION: BridgingExtractor(list(br_cases), self.exophora_referent_types),
             CohesionTask.COREFERENCE_RESOLUTION: CoreferenceExtractor(self.exophora_referent_types),
         }
-        self.cohesion_task2rels: dict[CohesionTask, list[str]] = {
+        cohesion_task2rels: dict[CohesionTask, list[str]] = {
             CohesionTask.PAS_ANALYSIS: list(pas_cases),
             CohesionTask.BRIDGING_REFERENCE_RESOLUTION: list(br_cases),
             CohesionTask.COREFERENCE_RESOLUTION: ["="],
         }
+        self.cohesion_task2extractor = {task: cohesion_task2extractor[task] for task in self.cohesion_tasks}
+        self.cohesion_task2rels = {task: cohesion_task2rels[task] for task in self.cohesion_tasks}
         self.restrict_cohesion_target: bool = restrict_cohesion_target
 
         # ---------- dependency parsing & cohesion analysis ----------
@@ -86,7 +88,6 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
 
     def _load_examples(self, doc_id2document: dict[str, Document]) -> list[WordInferenceExample]:
         examples = []
-        cohesion_task2extractor = {task: self.cohesion_task2extractor[task] for task in self.cohesion_tasks}
         example_id = 0
         for document in track(doc_id2document.values(), description="Loading examples"):
             tokenizer_input: list[str] | str = [m.text for m in document.morphemes]
@@ -116,7 +117,7 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
                     encoding=merged_encoding,
                     special_token_indexer=special_token_indexer,
                     document=document,
-                    cohesion_task2extractor=cohesion_task2extractor,
+                    cohesion_task2extractor=self.cohesion_task2extractor,
                 )
             )
             example_id += 1

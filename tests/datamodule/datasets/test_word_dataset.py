@@ -84,11 +84,23 @@ def test_discourse_document_mismatch(
     ]
 
 
+@pytest.mark.parametrize(
+    "cohesion_tasks",
+    [
+        ["pas_analysis", "bridging_reference_resolution", "coreference_resolution"],
+        ["pas_analysis"],
+        ["bridging_reference_resolution"],
+        ["coreference_resolution"],
+    ],
+)
 def test_getitem(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[str, Any]) -> None:
     path = data_dir / "datasets" / "word_files"
     max_seq_length = 256
     document_split_stride = 1
     dataset = WordDataset(str(path), word_tokenizer, max_seq_length, document_split_stride, **dataset_kwargs)
+    assert list(dataset.cohesion_task2extractor) == dataset.cohesion_tasks
+    assert list(dataset.cohesion_task2rels) == dataset.cohesion_tasks
+    assert all(list(example.cohesion_task2base_phrases) == dataset.cohesion_tasks for example in dataset.examples)
     num_cohesion_rels = len([r for rels in dataset.cohesion_task2rels.values() for r in rels])
     for i in range(len(dataset)):
         doc_id = dataset.examples[i].doc_id

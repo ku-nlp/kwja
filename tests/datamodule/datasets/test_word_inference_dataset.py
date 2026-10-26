@@ -177,6 +177,15 @@ def test_len_multi_doc(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: 
     assert len(dataset) == 2
 
 
+@pytest.mark.parametrize(
+    "cohesion_tasks",
+    [
+        ["pas_analysis", "bridging_reference_resolution", "coreference_resolution"],
+        ["pas_analysis"],
+        ["bridging_reference_resolution"],
+        ["coreference_resolution"],
+    ],
+)
 def test_getitem(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[str, Any]) -> None:
     max_seq_length = 256
     document_split_stride = 1
@@ -205,6 +214,9 @@ def test_getitem(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[s
     finally:
         juman_file_path.unlink(missing_ok=True)
 
+    assert list(dataset.cohesion_task2extractor) == dataset.cohesion_tasks
+    assert list(dataset.cohesion_task2rels) == dataset.cohesion_tasks
+    assert all(list(example.cohesion_task2candidate_indices) == dataset.cohesion_tasks for example in dataset.examples)
     num_cohesion_rels = len([r for rels in dataset.cohesion_task2rels.values() for r in rels])
     for i in range(len(dataset)):
         feature = dataset[i]

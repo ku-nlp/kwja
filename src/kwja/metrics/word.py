@@ -4,7 +4,7 @@ from typing import Literal, cast
 
 import torch
 from cohesion_tools.evaluators import CohesionEvaluator, CohesionScore
-from cohesion_tools.extractors import BridgingExtractor, PasExtractor
+from cohesion_tools.extractors import PasExtractor
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
 from rhoknp.props import DepType, FeatureDict, MemoTag
 from seqeval.metrics import f1_score as seqeval_f1_score
@@ -470,18 +470,24 @@ class WordModuleMetric(BaseModuleMetric):
         self, partly_gold_documents2: list[Document], gold_documents: list[Document]
     ) -> dict[str, float]:
         assert self.dataset is not None, "dataset isn't set"  # noqa: S101
-        pas_extractor = self.dataset.cohesion_task2extractor[CohesionTask.PAS_ANALYSIS]
-        assert isinstance(pas_extractor, PasExtractor), "pas utils isn't set correctly"  # noqa: S101
-        bridging_extractor = self.dataset.cohesion_task2extractor[CohesionTask.BRIDGING_REFERENCE_RESOLUTION]
-        assert isinstance(bridging_extractor, BridgingExtractor), "bridging utils isn't set correctly"  # noqa: S101
-
         evaluator = CohesionEvaluator(
             tasks=[task.to_cohesion_tools_task() for task in self.dataset.cohesion_tasks],
             exophora_referent_types=self.dataset.exophora_referent_types,
-            pas_cases=pas_extractor.cases,
-            bridging_rel_types=bridging_extractor.rel_types,
+            pas_cases=(
+                self.dataset.cohesion_task2rels[CohesionTask.PAS_ANALYSIS]
+                if CohesionTask.PAS_ANALYSIS in self.dataset.cohesion_tasks
+                else []
+            ),
+            bridging_rel_types=(
+                self.dataset.cohesion_task2rels[CohesionTask.BRIDGING_REFERENCE_RESOLUTION]
+                if CohesionTask.BRIDGING_REFERENCE_RESOLUTION in self.dataset.cohesion_tasks
+                else []
+            ),
         )
-        evaluator.pas_evaluator.is_target_predicate = lambda p: pas_extractor.is_target(p.base_phrase)
+        if CohesionTask.PAS_ANALYSIS in self.dataset.cohesion_tasks:
+            pas_extractor = self.dataset.cohesion_task2extractor[CohesionTask.PAS_ANALYSIS]
+            assert isinstance(pas_extractor, PasExtractor), "pas utils isn't set correctly"  # noqa: S101
+            evaluator.pas_evaluator.is_target_predicate = lambda p: pas_extractor.is_target(p.base_phrase)
         score: CohesionScore = evaluator.run(partly_gold_documents2, gold_documents)
 
         metrics: dict[str, float] = {}
