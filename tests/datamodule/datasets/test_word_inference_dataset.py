@@ -64,7 +64,7 @@ def test_masks_for_target_sentences(
     start, stop = target_morphemes[0].global_index, target_morphemes[-1].global_index + 1
     assert start > 0
     feature = dataset[-1]
-    assert feature.ne_mask == [start <= i < stop for i in range(max_seq_length)]
+    assert feature.ne_mask.tolist() == [start <= i < stop for i in range(max_seq_length)]
     assert not feature.dependency_mask[:start].any()
     assert not feature.dependency_mask[stop:].any()
     assert not feature.dependency_mask[start:stop, :start].any()
@@ -223,7 +223,8 @@ def test_getitem(word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[s
         assert feature.example_ids == i
         assert len(feature.input_ids) == max_seq_length
         assert len(feature.attention_mask) == max_seq_length
-        assert len(feature.ne_mask) == max_seq_length
+        assert feature.ne_mask.shape == (max_seq_length,)
+        assert feature.ne_mask.dtype == torch.bool
         assert feature.subword_map.shape == (max_seq_length, max_seq_length)
         assert feature.reading_subword_map.shape == (max_seq_length, max_seq_length)
         assert feature.dependency_mask.shape == (max_seq_length, max_seq_length)

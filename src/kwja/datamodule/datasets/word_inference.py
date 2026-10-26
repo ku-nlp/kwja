@@ -127,9 +127,9 @@ class WordInferenceDataset(BaseDataset[WordInferenceExample, WordModuleFeatures]
 
     def encode(self, example: WordInferenceExample) -> WordModuleFeatures:
         # ---------- ner ----------
-        target_mask = [False] * self.max_seq_length
+        target_mask = torch.zeros(self.max_seq_length, dtype=torch.bool)
         for start, stop in example.target_sentence_morpheme_spans:
-            target_mask[start:stop] = [True] * (stop - start)
+            target_mask[start:stop] = True
 
         # ---------- dependency parsing ----------
         root_index = example.special_token_indexer.get_morpheme_level_index("[ROOT]")

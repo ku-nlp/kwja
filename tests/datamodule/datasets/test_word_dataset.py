@@ -149,7 +149,8 @@ def test_getitem(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, datase
         assert len(feature.conjform_labels) == max_seq_length
         assert np.array(feature.word_feature_labels).shape == (max_seq_length, len(WORD_FEATURES))
         assert len(feature.ne_labels) == max_seq_length
-        assert len(feature.ne_mask) == max_seq_length
+        assert feature.ne_mask.shape == (max_seq_length,)
+        assert feature.ne_mask.dtype == torch.bool
         assert np.array(feature.base_phrase_feature_labels).shape == (max_seq_length, len(BASE_PHRASE_FEATURES))
         assert len(feature.dependency_labels) == max_seq_length
         assert feature.dependency_mask.shape == (max_seq_length, max_seq_length)

@@ -52,7 +52,7 @@ class WordModuleFeatures:
     conjform_labels: list[int]
     word_feature_labels: list[list[int]]
     ne_labels: list[int]
-    ne_mask: list[bool]
+    ne_mask: torch.Tensor
     base_phrase_feature_labels: list[list[int]]
     dependency_labels: list[int]
     dependency_mask: torch.Tensor  # True/False = keep/mask
@@ -179,9 +179,9 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
     def encode(self, example: WordExample) -> WordModuleFeatures:
         assert example.doc_id is not None, "doc_id isn't set"  # noqa: S101
 
-        target_mask = [False] * self.max_seq_length
+        target_mask = torch.zeros(self.max_seq_length, dtype=torch.bool)
         for start, stop in example.target_sentence_morpheme_spans:
-            target_mask[start:stop] = [True] * (stop - start)
+            target_mask[start:stop] = True
 
         # ---------- reading prediction ----------
         reading_labels = [IGNORE_INDEX] * self.max_seq_length
@@ -192,7 +192,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
                 if token_index not in example.special_token_indexer.token_level_indices and word_id is not None
             ]
             for (token_index, word_id), reading in zip(token_morpheme_index_pairs, example.readings, strict=True):
-                if target_mask[word_id] is False:
+                if not target_mask[word_id]:
                     continue
                 decoded_token = self.tokenizer.decode(example.encoding.ids[token_index])
                 if decoded_token == reading:
@@ -220,7 +220,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
                 word_feature_labels[morpheme_global_index][i] = int(word_feature in word_feature_set)
 
         # ---------- ner ----------
-        ne_mask = [False] * self.max_seq_length if self.skip_cohesion_ne_discourse is True else target_mask
+        ne_mask = torch.zeros_like(target_mask) if self.skip_cohesion_ne_discourse is True else target_mask
         ne_labels: list[int] = [NE_TAGS.index("O")] * self.max_seq_length
         for named_entity in example.named_entities:
             category = named_entity.category.value
