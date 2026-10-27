@@ -31,8 +31,8 @@ from kwja.utils.constants import (
 )
 from kwja.utils.kanjidic import KanjiDic
 from kwja.utils.logging_util import track
-from kwja.utils.normalization import normalize_text
 from kwja.utils.reading_prediction import ReadingAligner, get_reading2reading_id
+from kwja.utils.tokenization import tokenize_morphemes
 
 logger = logging.getLogger(__name__)
 
@@ -129,20 +129,13 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             del self.doc_id2document  # for saving memory
 
     def _get_tokenized_len(self, document_or_sentence: Document | Sentence) -> int:
-        tokenizer_input: list[str] = [normalize_text(m.text) for m in document_or_sentence.morphemes]
-        return len(self.tokenizer(tokenizer_input, add_special_tokens=False, is_split_into_words=True).tokens())
+        return len(tokenize_morphemes(document_or_sentence.morphemes, self.tokenizer, add_special_tokens=False).ids)
 
     def _load_examples(self, doc_id2document: dict[str, Document]) -> list[WordExample]:
         examples = []
         example_id = 0
         for document in track(doc_id2document.values(), description="Loading examples"):
-            tokenizer_input: list[str] | str = [normalize_text(m.text) for m in document.morphemes]
-            encoding: Encoding = self.tokenizer(
-                tokenizer_input,
-                padding=PaddingStrategy.DO_NOT_PAD,
-                truncation=False,
-                is_split_into_words=True,
-            ).encodings[0]
+            encoding = tokenize_morphemes(document.morphemes, self.tokenizer, add_special_tokens=True)
             if len(encoding.ids) > self.max_seq_length - len(self.special_tokens):
                 logger.warning(f"Length of sub document is too long: {document.text}")
                 continue
@@ -160,6 +153,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             example = WordExample(example_id, merged_encoding, special_token_indexer)
             example.load_document(
                 document,
+                encoding,
                 self.reading_aligner,
                 self.cohesion_task2extractor,
                 self.cohesion_task2rels,

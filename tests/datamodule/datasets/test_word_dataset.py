@@ -9,7 +9,7 @@ from rhoknp import Document
 from rhoknp.props import DepType
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from kwja.datamodule.datasets import WordDataset
+from kwja.datamodule.datasets import WordDataset, WordInferenceDataset
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TAGS,
@@ -38,12 +38,18 @@ def test_init(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, dataset_k
 
 
 @pytest.mark.parametrize(
-    ("surf", "reading"),
-    [("３", "さん"), ("２３", "にじゅうさん"), ("㍿", "かぶしきがいしゃ"), ("ＡＢＣ", "えーびーしー")],
+    ("surf", "reading", "normalized_surf"),
+    [
+        ("３", "さん", "3"),
+        ("２３", "にじゅうさん", "23"),
+        ("㍿", "かぶしきがいしゃ", "株式会社"),
+        ("ＡＢＣ", "えーびーしー", "ABC"),
+    ],
 )
 def test_reading_labels_for_normalized_text(
     surf: str,
     reading: str,
+    normalized_surf: str,
     word_tokenizer: PreTrainedTokenizerBase,
     dataset_kwargs: dict[str, Any],
     tmp_path: Path,
@@ -62,6 +68,43 @@ def test_reading_labels_for_normalized_text(
     assert len(token_indices) == len(example.readings)
     assert dataset._get_tokenized_len(dataset.doc_id2document[example.doc_id]) == len(token_indices)
     assert all(features.reading_labels[index] != IGNORE_INDEX for index in token_indices)
+    expected_ids = word_tokenizer([normalized_surf], add_special_tokens=False, is_split_into_words=True).input_ids
+    assert [features.input_ids[index] for index in token_indices] == expected_ids
+
+    document = dataset.doc_id2document[example.doc_id]
+    morpheme = document.morphemes[0]
+    assert (morpheme.surf, morpheme.reading, morpheme.lemma) == (surf, reading, surf)
+    juman_file = tmp_path / "input.juman"
+    juman_file.write_text(document.to_jumanpp(), encoding="utf-8")
+    inference_dataset = WordInferenceDataset(word_tokenizer, 32, 1, juman_file=juman_file, **dataset_kwargs)
+    inference_features = inference_dataset[0]
+    assert inference_features.input_ids == features.input_ids
+    assert torch.equal(inference_features.subword_map, features.subword_map)
+    assert inference_dataset.doc_id2document[example.doc_id].to_jumanpp() == document.to_jumanpp()
+
+
+def test_normalized_sentence_splitting(
+    word_tokenizer: PreTrainedTokenizerBase,
+    dataset_kwargs: dict[str, Any],
+    tmp_path: Path,
+) -> None:
+    knp_text = "".join(
+        f"# S-ID:test-0-{i}\n* -1D\n+ -1D\n" + "３ さん ３ 名詞 6 数詞 7 * 0 * 0\n" * 4 + "EOS\n" for i in range(8)
+    )
+    tmp_path.joinpath("test.knp").write_text(knp_text, encoding="utf-8")
+    juman_file = tmp_path / "input.juman"
+    juman_file.write_text(Document.from_knp(knp_text).to_jumanpp(), encoding="utf-8")
+    dataset = WordDataset(str(tmp_path), word_tokenizer, 32, 1, **dataset_kwargs)
+    inference_dataset = WordInferenceDataset(word_tokenizer, 32, 1, juman_file=juman_file, **dataset_kwargs)
+    assert len(dataset) > 1
+    assert len(inference_dataset) == len(dataset)
+    for example, inference_example in zip(dataset.examples, inference_dataset.examples, strict=True):
+        document = dataset.doc_id2document[example.doc_id]
+        assert len(document.sentences) == 5
+        assert inference_example.doc_id == example.doc_id
+        assert inference_example.target_sentence_morpheme_spans == example.target_sentence_morpheme_spans
+        assert inference_example.encoding.ids == example.encoding.ids
+        assert all(morpheme.surf == "３" for morpheme in document.morphemes)
 
 
 def test_all_sentences_skipped(

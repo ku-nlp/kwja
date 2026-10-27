@@ -8,6 +8,7 @@ from importlib.resources import as_file
 
 import numpy as np
 from rhoknp import Morpheme
+from tokenizers import Encoding
 from transformers import PreTrainedTokenizerBase
 
 from kwja.utils.constants import (
@@ -25,7 +26,6 @@ from kwja.utils.constants import (
     VOICED2VOICELESS,
 )
 from kwja.utils.kanjidic import KanjiDic
-from kwja.utils.normalization import normalize_text
 
 logger = logging.getLogger(__name__)
 
@@ -50,12 +50,12 @@ class ReadingAligner:
         self.tokenizer = tokenizer
         self.kanji_dic = kanji_dic
 
-    def align(self, morphemes: list[Morpheme]) -> list[str]:
-        # assumption: morphemes are never combined
-        tokenizer_input: list[str] | str = [normalize_text(m.text) for m in morphemes]
-        encoding = self.tokenizer(tokenizer_input, add_special_tokens=False, is_split_into_words=True).encodings[0]
+    def align(self, morphemes: list[Morpheme], encoding: Encoding) -> list[str]:
+        """Align readings to an encoding before task-specific tokens or padding are appended."""
         word_id2subwords = defaultdict(list)
         for token_id, word_id in enumerate(encoding.word_ids):
+            if word_id is None:
+                continue
             word_id2subwords[word_id].append(self.tokenizer.decode(encoding.ids[token_id]))
         subwords_per_morpheme = [subwords for subwords in word_id2subwords.values()]
         if len(subwords_per_morpheme) != len(morphemes):

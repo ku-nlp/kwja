@@ -8,7 +8,6 @@ from functools import partial
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Annotated, TextIO
-from unicodedata import normalize
 
 import hydra
 import lightning as L
@@ -27,8 +26,8 @@ from kwja.cli.utils import download_checkpoint, prepare_device
 from kwja.datamodule.datamodule import DataModule
 from kwja.datamodule.datasets.utils import add_doc_ids, add_sent_ids
 from kwja.modules import CharModule, Seq2SeqModule, TypoModule, WordModule
-from kwja.utils.constants import TRANSLATION_TABLE
 from kwja.utils.logging_util import CONSOLE, filter_logs
+from kwja.utils.normalization import normalize_text
 
 filter_logs(environment="production")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -326,15 +325,6 @@ class CLIProcessor:
             if not interactive:
                 processor.delete_module_and_trainer()
         return self.processors[-1].export_prediction()
-
-
-def normalize_text(text: str) -> str:
-    # Tokenizers (BertJapaneseTokenizer, DebertaV2Tokenizer, etc.) apply NFKC normalization internally, so
-    # there may be inconsistency in number of characters if not applying NFKC normalization in advance
-    normalized = normalize("NFKC", text)
-    # escape several symbols and delete control characters
-    normalized = normalized.translate(TRANSLATION_TABLE)
-    return normalized
 
 
 def _chunk_by_document(f: TextIO, input_format: InputFormat) -> Iterator[str]:

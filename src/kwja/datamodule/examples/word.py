@@ -92,13 +92,14 @@ class WordExample:
     def load_document(
         self,
         document: Document,
+        encoding: Encoding,
         reading_aligner: ReadingAligner,
         cohesion_task2extractor: dict[CohesionTask, BaseExtractor],
         cohesion_task2rels: dict[CohesionTask, list[str]],
         restrict_cohesion_target: bool,
     ) -> None:
         self.doc_id = document.doc_id
-        self._set_readings(document.morphemes, reading_aligner)
+        self._set_readings(document.morphemes, encoding, reading_aligner)
         target_sentences = extract_target_sentences(document)
         self.target_sentence_morpheme_spans = _get_sentence_morpheme_spans(target_sentences)
         for sentence in target_sentences:
@@ -116,9 +117,9 @@ class WordExample:
     def load_discourse_document(self, discourse_document: Document) -> None:
         self._set_discourse_relation(discourse_document.clauses)
 
-    def _set_readings(self, morphemes: list[Morpheme], reading_aligner: ReadingAligner) -> None:
+    def _set_readings(self, morphemes: list[Morpheme], encoding: Encoding, reading_aligner: ReadingAligner) -> None:
         try:
-            self.readings = reading_aligner.align(morphemes)
+            self.readings = reading_aligner.align(morphemes, encoding)
         except Exception as e:
             logger.warning(f"Failed to align readings for document {self.doc_id}: {e}")
 

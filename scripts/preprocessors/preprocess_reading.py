@@ -9,6 +9,7 @@ from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from kwja.utils.kanjidic import KanjiDic
 from kwja.utils.reading_prediction import ReadingAligner
+from kwja.utils.tokenization import tokenize_morphemes
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -32,7 +33,8 @@ def main() -> None:
         with path.open(encoding="utf-8") as f:
             document = Document.from_knp(f.read())
         try:
-            for reading in reading_aligner.align(document.morphemes):
+            encoding = tokenize_morphemes(document.morphemes, tokenizer, add_special_tokens=False)
+            for reading in reading_aligner.align(document.morphemes, encoding):
                 reading_counter[reading] += 1
         except ValueError:
             logger.warning(f"skip {document.doc_id} for an error")
