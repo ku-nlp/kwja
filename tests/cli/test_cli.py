@@ -1,16 +1,21 @@
 import io
+import logging
 import re
+import subprocess
+import sys
 import tempfile
 import textwrap
 from pathlib import Path
 
 import pytest
+from huggingface_hub.utils import are_progress_bars_disabled
 from rhoknp import Document
 from rhoknp.utils.reader import chunk_by_document
 from typer.testing import CliRunner
 
 from kwja.cli.cli import CharModuleProcessor, CLIProcessor, _KeepModelOnDeviceStrategy, app
 from kwja.cli.config import CLIConfig, Device, ModelSize
+from kwja.utils.logging_util import CONSOLE
 
 runner = CliRunner()
 
@@ -18,6 +23,56 @@ runner = CliRunner()
 def test_version() -> None:
     ret = runner.invoke(app, args=["--version"])
     assert re.match(r"KWJA \d+\.\d+\.\d+", ret.stdout) is not None
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["--version"],
+        ["--tasks", "char,word", "--model-size", "tiny", "--text", "あ"],
+        ["--quiet", "--tasks", "char,word", "--model-size", "tiny", "--text", "あ"],
+    ],
+)
+def test_cli_does_not_use_torchscript(args: list[str]) -> None:
+    code = textwrap.dedent(
+        """\
+        from unittest.mock import patch
+
+        with patch("torch.jit.script", side_effect=AssertionError("TorchScript must not be used")):
+            from kwja.cli.cli import app
+            app()
+        """
+    )
+    ret = subprocess.run(  # noqa: S603
+        [sys.executable, "-W", "default", "-c", code, *args],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    if args == ["--version"]:
+        assert re.match(r"KWJA \d+\.\d+\.\d+", ret.stdout) is not None
+    else:
+        assert Document.from_knp(ret.stdout).text == "あ"
+    assert "Warning:" not in ret.stderr
+    if "--quiet" in args:
+        assert ret.stderr == ""
+
+
+@pytest.mark.parametrize("option", ["--quiet", "-q"])
+def test_quiet_preserves_warnings_and_errors(option: str, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    logger = logging.getLogger("kwja_cli")
+    original_level = logger.level
+    original_quiet = CONSOLE.quiet
+    original_progress_disabled = are_progress_bars_disabled()
+    ret = runner.invoke(
+        app,
+        args=[option, "--tasks", "word", "--input-format", "knp", "--filename", str(tmp_path / "missing.txt")],
+    )
+    assert ret.exit_code == 1
+    assert [record.levelno for record in caplog.records] == [logging.WARNING, logging.ERROR]
+    assert logger.level == original_level
+    assert CONSOLE.quiet == original_quiet
+    assert are_progress_bars_disabled() == original_progress_disabled
 
 
 def test_device_validation() -> None:
@@ -85,10 +140,11 @@ def test_input_format_validation() -> None:
             assert ret.exception is None
 
 
-def test_text_input() -> None:
+def test_text_input(caplog: pytest.LogCaptureFixture) -> None:
     ret = runner.invoke(app, args=["--model-size", "tiny", "--text", "おはよう"])
     assert ret.exception is None
     assert Document.from_knp(ret.stdout).text == "おはよう"
+    assert not any(record.name.startswith("kwja.") and record.levelno >= logging.WARNING for record in caplog.records)
 
 
 @pytest.mark.parametrize(
@@ -122,7 +178,7 @@ def test_normalization_and_char_module(text: str, output: str) -> None:
     assert restored_output == output.replace(" ", "")
 
 
-def test_file_input() -> None:
+def test_file_input(caplog: pytest.LogCaptureFixture) -> None:
     with tempfile.NamedTemporaryFile("wt", delete=False, encoding="utf-8") as f:
         f.write(
             textwrap.dedent(
@@ -140,6 +196,9 @@ def test_file_input() -> None:
     try:
         ret = runner.invoke(app, args=["--model-size", "tiny", "--filename", str(file_path)])
         assert ret.exception is None
+        assert not any(
+            record.name.startswith("kwja.") and record.levelno >= logging.WARNING for record in caplog.records
+        )
     finally:
         file_path.unlink(missing_ok=True)
 
@@ -392,3 +451,122 @@ def test_interactive_mode_repeated_predictions() -> None:
     assert outputs[0] != ""
     assert outputs[1] == outputs[0]
     assert outputs[2] == outputs[0]
+
+
+@pytest.mark.parametrize("only_long_sentence", [False, True])
+@pytest.mark.parametrize("tasks", ["char", "char,word"])
+def test_char_module_reports_skipped_text(
+    only_long_sentence: bool, tasks: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Text that does not fit in the char module's window is left out of the output, so it must be reported."""
+    text = "あ" * 1000
+    if not only_long_sentence:
+        text = "こんにちは。" + text
+    ret = runner.invoke(app, args=["--model-size", "tiny", "--tasks", tasks, "--text", text])
+    assert ret.exception is None
+    if only_long_sentence:
+        assert ret.stdout == "EOD\n"
+    elif tasks == "char,word":
+        assert Document.from_knp(ret.stdout).text == "こんにちは。"
+    else:
+        restored_output = "".join([line for line in ret.stdout.splitlines() if not line.startswith("#")]).replace(
+            " ", ""
+        )
+        assert restored_output == "こんにちは。"
+    messages = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name.startswith("kwja.") and record.levelno == logging.WARNING
+    ]
+    assert len(messages) == 1
+    assert messages[0] == "Length of sub document is too long: " + "あ" * 1000
+
+
+@pytest.mark.parametrize("only_long_sentence", [False, True])
+@pytest.mark.parametrize("tasks", ["seq2seq", "seq2seq,word"])
+def test_seq2seq_module_reports_skipped_sentences(
+    only_long_sentence: bool, tasks: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    jumanpp_text = "# S-ID:test-1\n" + "あ _ あ 未定義語 15 その他 1 * 0 * 0\n" * 1000 + "EOS\n"
+    if not only_long_sentence:
+        jumanpp_text = (
+            "# S-ID:test-0\n今日 _ 今日 未定義語 15 その他 1 * 0 * 0\nEOS\n"
+            + jumanpp_text
+            + "# S-ID:test-2\n明日 _ 明日 未定義語 15 その他 1 * 0 * 0\nEOS\n"
+        )
+
+    ret = runner.invoke(
+        app,
+        args=[
+            "--model-size",
+            "tiny",
+            "--device",
+            "cpu",
+            "--tasks",
+            tasks,
+            "--input-format",
+            "jumanpp",
+            "--seq2seq-batch-size",
+            "2",
+            "--text",
+            jumanpp_text,
+        ],
+    )
+
+    assert ret.exception is None
+    if only_long_sentence:
+        assert ret.stdout == "EOD\n"
+    else:
+        document = Document.from_knp(ret.stdout) if "word" in tasks else Document.from_jumanpp(ret.stdout)
+        assert [sentence.sid for sentence in document.sentences] == ["test-0", "test-2"]
+        assert [sentence.text for sentence in document.sentences] == ["今日", "明日"]
+    messages = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name.startswith("kwja.") and record.levelno == logging.WARNING
+    ]
+    assert len(messages) == 1
+    assert messages[0] == "Length of source sentence is too long: " + "あ" * 1000
+
+
+def test_word_module_reports_skipped_sentences(caplog: pytest.LogCaptureFixture) -> None:
+    """Sentences that do not fit in the word module's window are left out of the output, so they must be reported."""
+    jumanpp_text = (
+        textwrap.dedent(
+            """\
+            # S-ID:test-0 kwja:0.1.0
+            こんにちは こんにちは こんにちは 感動詞 12 * 0 * 0 * 0 "代表表記:こんにちは/こんにちは"
+            。 。 。 特殊 1 句点 1 * 0 * 0 "代表表記:。/。"
+            EOS
+            # S-ID:test-1 kwja:0.1.0
+            """
+        )
+        + 'あ あ あ 感動詞 12 * 0 * 0 * 0 "代表表記:あ/あ"\n' * 300
+        + textwrap.dedent(
+            """\
+            EOS
+            # S-ID:test-2 kwja:0.1.0
+            こんばんは こんばんは こんばんは 感動詞 12 * 0 * 0 * 0 "代表表記:今晩は/こんばんは"
+            。 。 。 特殊 1 句点 1 * 0 * 0 "代表表記:。/。"
+            EOS
+            """
+        )
+    )
+    ret = runner.invoke(
+        app, args=["--model-size", "tiny", "--tasks", "word", "--text", jumanpp_text, "--input-format", "jumanpp"]
+    )
+    assert ret.exception is None
+    document = Document.from_knp(ret.stdout)
+    assert [sentence.sent_id for sentence in document.sentences] == ["test-0", "test-2"]
+    messages = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name.startswith("kwja.") and record.levelno == logging.WARNING
+    ]
+    assert len(messages) == 2
+    assert messages[0] == "Length of sub document is too long: " + "あ" * 300
+    assert messages[1].startswith("failed to get lemma for こんばんは:")
+    morpheme = document.sentences[1].morphemes[0]
+    assert morpheme.surf == morpheme.lemma == "こんばんは"
+    assert morpheme.conjtype == "ナ形容詞"
+    assert morpheme.conjform == "*"

@@ -4,7 +4,7 @@ from typing import Literal, cast
 
 import torch
 from cohesion_tools.evaluators import CohesionEvaluator, CohesionScore
-from cohesion_tools.extractors import BridgingExtractor, PasExtractor
+from cohesion_tools.extractors import PasExtractor
 from rhoknp import BasePhrase, Document, Morpheme, Phrase, Sentence
 from rhoknp.props import DepType, FeatureDict, MemoTag
 from seqeval.metrics import f1_score as seqeval_f1_score
@@ -23,7 +23,7 @@ from kwja.callbacks.utils import (  # add_discourse,
 from kwja.datamodule.datasets import WordDataset
 from kwja.metrics.base import BaseModuleMetric
 from kwja.metrics.conll18_ud_eval import main as conll18_ud_eval
-from kwja.metrics.utils import unique
+from kwja.metrics.utils import unique_indices
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TAGS,
@@ -104,13 +104,13 @@ class WordModuleMetric(BaseModuleMetric):
     def compute(self) -> dict[str, float]:
         assert self.training_tasks is not None, "training_tasks isn't set"  # noqa: S101
 
-        if isinstance(self.example_ids, torch.Tensor) is False:
+        if not isinstance(self.example_ids, torch.Tensor):
             self.example_ids = torch.cat(self.example_ids, dim=0)
 
-        sorted_indices = unique(self.example_ids)
+        sorted_indices = unique_indices(self.example_ids)
         for state_name in self.STATE_NAMES:
             state = getattr(self, state_name)
-            if isinstance(state, torch.Tensor) is False:
+            if not isinstance(state, torch.Tensor):
                 state = torch.cat(state, dim=0)
             if state_name == "reading_subword_map":
                 state = state.bool()
@@ -470,18 +470,24 @@ class WordModuleMetric(BaseModuleMetric):
         self, partly_gold_documents2: list[Document], gold_documents: list[Document]
     ) -> dict[str, float]:
         assert self.dataset is not None, "dataset isn't set"  # noqa: S101
-        pas_extractor = self.dataset.cohesion_task2extractor[CohesionTask.PAS_ANALYSIS]
-        assert isinstance(pas_extractor, PasExtractor), "pas utils isn't set correctly"  # noqa: S101
-        bridging_extractor = self.dataset.cohesion_task2extractor[CohesionTask.BRIDGING_REFERENCE_RESOLUTION]
-        assert isinstance(bridging_extractor, BridgingExtractor), "bridging utils isn't set correctly"  # noqa: S101
-
         evaluator = CohesionEvaluator(
             tasks=[task.to_cohesion_tools_task() for task in self.dataset.cohesion_tasks],
             exophora_referent_types=self.dataset.exophora_referent_types,
-            pas_cases=pas_extractor.cases,
-            bridging_rel_types=bridging_extractor.rel_types,
+            pas_cases=(
+                self.dataset.cohesion_task2rels[CohesionTask.PAS_ANALYSIS]
+                if CohesionTask.PAS_ANALYSIS in self.dataset.cohesion_tasks
+                else []
+            ),
+            bridging_rel_types=(
+                self.dataset.cohesion_task2rels[CohesionTask.BRIDGING_REFERENCE_RESOLUTION]
+                if CohesionTask.BRIDGING_REFERENCE_RESOLUTION in self.dataset.cohesion_tasks
+                else []
+            ),
         )
-        evaluator.pas_evaluator.is_target_predicate = lambda p: pas_extractor.is_target(p.base_phrase)
+        if CohesionTask.PAS_ANALYSIS in self.dataset.cohesion_tasks:
+            pas_extractor = self.dataset.cohesion_task2extractor[CohesionTask.PAS_ANALYSIS]
+            assert isinstance(pas_extractor, PasExtractor), "pas utils isn't set correctly"  # noqa: S101
+            evaluator.pas_evaluator.is_target_predicate = lambda p: pas_extractor.is_target(p.base_phrase)
         score: CohesionScore = evaluator.run(partly_gold_documents2, gold_documents)
 
         metrics: dict[str, float] = {}

@@ -31,8 +31,8 @@ from kwja.utils.constants import (
 )
 from kwja.utils.kanjidic import KanjiDic
 from kwja.utils.logging_util import track
-from kwja.utils.normalization import normalize_text
 from kwja.utils.reading_prediction import ReadingAligner, get_reading2reading_id
+from kwja.utils.tokenization import tokenize_morphemes
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ class WordModuleFeatures:
     conjform_labels: list[int]
     word_feature_labels: list[list[int]]
     ne_labels: list[int]
-    ne_mask: list[bool]
+    ne_mask: torch.Tensor
     base_phrase_feature_labels: list[list[int]]
     dependency_labels: list[int]
     dependency_mask: torch.Tensor  # True/False = keep/mask
@@ -92,7 +92,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         self.exophora_referent_types: list[ExophoraReferentType] = [
             ExophoraReferent(er).type for er in exophora_referents
         ]
-        self.cohesion_task2extractor: dict[CohesionTask, BaseExtractor] = {
+        cohesion_task2extractor: dict[CohesionTask, BaseExtractor] = {
             CohesionTask.PAS_ANALYSIS: PasExtractor(
                 list(pas_cases),
                 self.exophora_referent_types,
@@ -102,11 +102,13 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             CohesionTask.BRIDGING_REFERENCE_RESOLUTION: BridgingExtractor(list(br_cases), self.exophora_referent_types),
             CohesionTask.COREFERENCE_RESOLUTION: CoreferenceExtractor(self.exophora_referent_types),
         }
-        self.cohesion_task2rels: dict[CohesionTask, list[str]] = {
+        cohesion_task2rels: dict[CohesionTask, list[str]] = {
             CohesionTask.PAS_ANALYSIS: list(pas_cases),
             CohesionTask.BRIDGING_REFERENCE_RESOLUTION: list(br_cases),
             CohesionTask.COREFERENCE_RESOLUTION: ["="],
         }
+        self.cohesion_task2extractor = {task: cohesion_task2extractor[task] for task in self.cohesion_tasks}
+        self.cohesion_task2rels = {task: cohesion_task2rels[task] for task in self.cohesion_tasks}
         self.restrict_cohesion_target: bool = restrict_cohesion_target
 
         # ---------- dependency parsing & cohesion analysis ----------
@@ -123,25 +125,19 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         is_training = self.path.parts[-1] == "train" or (
             self.path.parts[-2] == "kyoto_ed" and self.path.parts[-1] == "all"
         )
-        if is_training is True:
+        if is_training:
             del self.doc_id2document  # for saving memory
 
     def _get_tokenized_len(self, document_or_sentence: Document | Sentence) -> int:
-        tokenizer_input: list[str] = [m.text for m in document_or_sentence.morphemes]
-        return len(self.tokenizer(tokenizer_input, add_special_tokens=False, is_split_into_words=True).tokens())
+        return len(tokenize_morphemes(document_or_sentence.morphemes, self.tokenizer, add_special_tokens=False).ids)
 
     def _load_examples(self, doc_id2document: dict[str, Document]) -> list[WordExample]:
         examples = []
         example_id = 0
         for document in track(doc_id2document.values(), description="Loading examples"):
-            tokenizer_input: list[str] | str = [normalize_text(m.text) for m in document.morphemes]
-            encoding: Encoding = self.tokenizer(
-                tokenizer_input,
-                padding=PaddingStrategy.DO_NOT_PAD,
-                truncation=False,
-                is_split_into_words=True,
-            ).encodings[0]
+            encoding = tokenize_morphemes(document.morphemes, self.tokenizer, add_special_tokens=True)
             if len(encoding.ids) > self.max_seq_length - len(self.special_tokens):
+                logger.warning(f"Length of sub document is too long: {document.text}")
                 continue
             padding_encoding: Encoding = self.tokenizer(
                 "",
@@ -157,6 +153,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             example = WordExample(example_id, merged_encoding, special_token_indexer)
             example.load_document(
                 document,
+                encoding,
                 self.reading_aligner,
                 self.cohesion_task2extractor,
                 self.cohesion_task2rels,
@@ -176,20 +173,20 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
     def encode(self, example: WordExample) -> WordModuleFeatures:
         assert example.doc_id is not None, "doc_id isn't set"  # noqa: S101
 
-        target_mask = [False] * self.max_seq_length
-        for global_index in example.analysis_target_morpheme_indices:
-            target_mask[global_index] = True
+        target_mask = torch.zeros(self.max_seq_length, dtype=torch.bool)
+        for start, stop in example.target_sentence_morpheme_spans:
+            target_mask[start:stop] = True
 
         # ---------- reading prediction ----------
         reading_labels = [IGNORE_INDEX] * self.max_seq_length
         if example.readings is not None:
-            token_indices = [
+            token_morpheme_index_pairs = [
                 (token_index, word_id)
                 for token_index, word_id in enumerate(example.encoding.word_ids)
                 if token_index not in example.special_token_indexer.token_level_indices and word_id is not None
             ]
-            for (token_index, word_id), reading in zip(token_indices, example.readings, strict=True):
-                if target_mask[word_id] is False:
+            for (token_index, word_id), reading in zip(token_morpheme_index_pairs, example.readings, strict=True):
+                if not target_mask[word_id]:
                     continue
                 decoded_token = self.tokenizer.decode(example.encoding.ids[token_index])
                 if decoded_token == reading:
@@ -217,7 +214,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
                 word_feature_labels[morpheme_global_index][i] = int(word_feature in word_feature_set)
 
         # ---------- ner ----------
-        ne_mask = [False] * self.max_seq_length if self.skip_cohesion_ne_discourse is True else target_mask
+        ne_mask = torch.zeros_like(target_mask) if self.skip_cohesion_ne_discourse is True else target_mask
         ne_labels: list[int] = [NE_TAGS.index("O")] * self.max_seq_length
         for named_entity in example.named_entities:
             category = named_entity.category.value
@@ -238,11 +235,9 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         root_index = example.special_token_indexer.get_morpheme_level_index("[ROOT]")
         for morpheme_global_index, dependency in example.morpheme_global_index2dependency.items():
             dependency_labels[morpheme_global_index] = root_index if dependency == -1 else dependency
-        dependency_mask = torch.zeros((self.max_seq_length, self.max_seq_length), dtype=torch.bool)
-        for morpheme_global_index, head_candidates in example.morpheme_global_index2head_candidates.items():
-            if head_candidates:
-                dependency_mask[morpheme_global_index, list(head_candidates)] = True
-            dependency_mask[morpheme_global_index, root_index] = True
+        dependency_mask = generate_dependency_mask(
+            example.target_sentence_morpheme_spans, root_index, self.max_seq_length
+        )
         dependency_type_labels: list[int] = [IGNORE_INDEX] * self.max_seq_length
         for morpheme_global_index, dependency_type in example.morpheme_global_index2dependency_type.items():
             dependency_type_labels[morpheme_global_index] = DEPENDENCY_TYPES.index(dependency_type)
@@ -266,7 +261,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
 
         # ---------- discourse relation analysis ----------
         discourse_labels = [[IGNORE_INDEX] * self.max_seq_length for _ in range(self.max_seq_length)]
-        if self.skip_cohesion_ne_discourse is False:
+        if not self.skip_cohesion_ne_discourse:
             for (
                 morpheme_global_indices,
                 discourse_relation,
@@ -282,10 +277,15 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             input_ids=example.encoding.ids,
             attention_mask=example.encoding.attention_mask,
             special_token_indices=example.special_token_indexer.token_level_indices,
-            subword_map=self._generate_subword_map(example.encoding.word_ids, example.special_token_indexer),
+            subword_map=generate_subword_map(
+                example.encoding.word_ids, example.special_token_indexer, self.max_seq_length
+            ),
             reading_labels=reading_labels,
-            reading_subword_map=self._generate_subword_map(
-                example.encoding.word_ids, example.special_token_indexer, include_special_tokens=False
+            reading_subword_map=generate_subword_map(
+                example.encoding.word_ids,
+                example.special_token_indexer,
+                self.max_seq_length,
+                include_special_tokens=False,
             ),
             pos_labels=morpheme_attribute_labels_set[0],
             subpos_labels=morpheme_attribute_labels_set[1],
@@ -303,29 +303,6 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
             discourse_labels=discourse_labels,
         )
 
-    def _generate_subword_map(
-        self,
-        word_ids: list[int | None],
-        special_token_indexer: SpecialTokenIndexer,
-        include_special_tokens: bool = True,
-    ) -> torch.Tensor:
-        subword_map = torch.zeros((self.max_seq_length, self.max_seq_length), dtype=torch.bool)
-        special_token_level_indices = set(special_token_indexer.token_level_indices)
-        rows: list[int] = []
-        cols: list[int] = []
-        for token_index, word_id in enumerate(word_ids):
-            if word_id is None or token_index in special_token_level_indices:
-                continue
-            rows.append(word_id)
-            cols.append(token_index)
-        if include_special_tokens is True:
-            for token_index, morpheme_global_index in special_token_indexer.token_and_morpheme_level_indices:
-                rows.append(morpheme_global_index)
-                cols.append(token_index)
-        if rows:
-            subword_map[rows, cols] = True
-        return subword_map
-
     def _find_discourse_document(self, document: Document) -> Document | None:
         discourse_path = self.path / "disc_expert" / f"{document.doc_id}.knp"
         if not discourse_path.exists() and self.path.name == "train":
@@ -335,6 +312,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
                 discourse_document = Document.from_knp(discourse_path.read_text(encoding="utf-8"))
                 if document == discourse_document:
                     return discourse_document
+                logger.warning(f"Discourse annotations do not match document {document.doc_id}: {discourse_path}")
             except AssertionError:
                 logger.warning(f"{discourse_path} is not a valid KNP file")
         return None
@@ -346,10 +324,10 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         special_token_indexer: SpecialTokenIndexer,
     ) -> list[list[int]]:
         rel_labels = [[0] * self.max_seq_length for _ in range(self.max_seq_length)]
-        if self.skip_cohesion_ne_discourse is True:
+        if self.skip_cohesion_ne_discourse:
             return rel_labels
         for cohesion_base_phrase in cohesion_base_phrases:
-            if cohesion_base_phrase.is_target is False:
+            if not cohesion_base_phrase.is_target:
                 continue
             assert cohesion_base_phrase.rel2tags is not None, "rel2tags isn't set"  # noqa: S101
             for tag in cohesion_base_phrase.rel2tags[rel]:
@@ -369,7 +347,7 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
         rel_mask = torch.zeros((self.max_seq_length, self.max_seq_length), dtype=torch.bool)
         special_indices = special_token_indexer.get_morpheme_level_indices(only_cohesion=True)
         for cohesion_base_phrase in cohesion_base_phrases:
-            if cohesion_base_phrase.is_target is False:
+            if not cohesion_base_phrase.is_target:
                 continue
             assert cohesion_base_phrase.antecedent_candidates is not None, "antecedent_candidates isn't set"  # noqa: S101
             candidate_indices = [c.head_morpheme_global_index for c in cohesion_base_phrase.antecedent_candidates]
@@ -379,3 +357,40 @@ class WordDataset(BaseDataset[WordExample, WordModuleFeatures], FullAnnotatedDoc
                 if special_indices:
                     rel_mask[morpheme_global_index, special_indices] = True
         return rel_mask
+
+
+def generate_dependency_mask(
+    sentence_morpheme_spans: list[tuple[int, int]], root_index: int, max_seq_length: int
+) -> torch.Tensor:
+    """Allow other morphemes in the same sentence and the root as heads."""
+    mask = torch.zeros((max_seq_length, max_seq_length), dtype=torch.bool)
+    for start, stop in sentence_morpheme_spans:
+        mask[start:stop, start:stop] = True
+        diagonal = torch.arange(start, stop)
+        mask[diagonal, diagonal] = False
+        mask[start:stop, root_index] = True
+    return mask
+
+
+def generate_subword_map(
+    word_ids: list[int | None],
+    special_token_indexer: SpecialTokenIndexer,
+    max_seq_length: int,
+    include_special_tokens: bool = True,
+) -> torch.Tensor:
+    subword_map = torch.zeros((max_seq_length, max_seq_length), dtype=torch.bool)
+    special_token_level_indices = set(special_token_indexer.token_level_indices)
+    rows: list[int] = []
+    cols: list[int] = []
+    for token_index, word_id in enumerate(word_ids):
+        if word_id is None or token_index in special_token_level_indices:
+            continue
+        rows.append(word_id)
+        cols.append(token_index)
+    if include_special_tokens:
+        for token_index, morpheme_global_index in special_token_indexer.token_and_morpheme_level_indices:
+            rows.append(morpheme_global_index)
+            cols.append(token_index)
+    if rows:
+        subword_map[rows, cols] = True
+    return subword_map

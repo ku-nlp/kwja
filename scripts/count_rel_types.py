@@ -12,7 +12,7 @@ sys.setrecursionlimit(10000)
 def iter_files(input_paths: list[str], ext: str = "knp") -> Iterator[Path]:
     for path_str in input_paths:
         path = Path(path_str)
-        if path.exists() is False:
+        if not path.exists():
             continue
         if path.is_dir():
             yield from path.glob(f"**/*.{ext}")

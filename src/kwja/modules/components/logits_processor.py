@@ -108,13 +108,13 @@ class SurfForcedDecodingLogitsProcessor(LogitsProcessor):
                     batch_masks.append(mask)
                     continue
                 target_property: TargetProperty = self._get_target_property(prev_input_ids)
-                if target_property.surf is True:
+                if target_property.surf:
                     batch_masks.append(self._get_surf_mask(prev_input_ids, logits, batch_idx))
-                elif target_property.reading is True:
+                elif target_property.reading:
                     batch_masks.append(self._get_reading_mask(prev_input_ids, logits))
-                elif target_property.lemma is True:
+                elif target_property.lemma:
                     batch_masks.append(self._get_lemma_mask(prev_input_ids, logits))
-                elif target_property.canon is True:
+                elif target_property.canon:
                     batch_masks.append(self._get_canon_mask(prev_input_ids, logits, batch_idx))
             return torch.stack(batch_masks)
 

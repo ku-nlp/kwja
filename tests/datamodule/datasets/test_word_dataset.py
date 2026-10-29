@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -8,7 +9,7 @@ from rhoknp import Document
 from rhoknp.props import DepType
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from kwja.datamodule.datasets import WordDataset
+from kwja.datamodule.datasets import WordDataset, WordInferenceDataset
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TAGS,
@@ -21,6 +22,7 @@ from kwja.utils.constants import (
     SUBPOS_TAGS,
     WORD_FEATURES,
 )
+from kwja.utils.sub_document import extract_target_sentences
 
 
 @pytest.fixture
@@ -35,11 +37,140 @@ def test_init(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, dataset_k
     _ = WordDataset(str(path), word_tokenizer, max_seq_length, document_split_stride, **dataset_kwargs)
 
 
+@pytest.mark.parametrize(
+    ("surf", "reading", "normalized_surf"),
+    [
+        ("３", "さん", "3"),
+        ("２３", "にじゅうさん", "23"),
+        ("㍿", "かぶしきがいしゃ", "株式会社"),
+        ("ＡＢＣ", "えーびーしー", "ABC"),
+    ],
+)
+def test_reading_labels_for_normalized_text(
+    surf: str,
+    reading: str,
+    normalized_surf: str,
+    word_tokenizer: PreTrainedTokenizerBase,
+    dataset_kwargs: dict[str, Any],
+    tmp_path: Path,
+) -> None:
+    tmp_path.joinpath("test.knp").write_text(
+        f"# S-ID:test-0\n* -1D\n+ -1D\n{surf} {reading} {surf} 名詞 6 普通名詞 1 * 0 * 0 <基本句-主辞>\nEOS\n",
+        encoding="utf-8",
+    )
+    dataset = WordDataset(str(tmp_path), word_tokenizer, 32, 1, **dataset_kwargs)
+    example = dataset.examples[0]
+    assert example.readings is not None
+    assert "".join(example.readings) == reading
+
+    features = dataset[0]
+    token_indices = torch.where(features.reading_subword_map[0])[0].tolist()
+    assert len(token_indices) == len(example.readings)
+    assert dataset._get_tokenized_len(dataset.doc_id2document[example.doc_id]) == len(token_indices)
+    assert all(features.reading_labels[index] != IGNORE_INDEX for index in token_indices)
+    expected_ids = word_tokenizer([normalized_surf], add_special_tokens=False, is_split_into_words=True).input_ids
+    assert [features.input_ids[index] for index in token_indices] == expected_ids
+
+    document = dataset.doc_id2document[example.doc_id]
+    morpheme = document.morphemes[0]
+    assert (morpheme.surf, morpheme.reading, morpheme.lemma) == (surf, reading, surf)
+    juman_file = tmp_path / "input.juman"
+    juman_file.write_text(document.to_jumanpp(), encoding="utf-8")
+    inference_dataset = WordInferenceDataset(word_tokenizer, 32, 1, juman_file=juman_file, **dataset_kwargs)
+    inference_features = inference_dataset[0]
+    assert inference_features.input_ids == features.input_ids
+    assert torch.equal(inference_features.subword_map, features.subword_map)
+    assert inference_dataset.doc_id2document[example.doc_id].to_jumanpp() == document.to_jumanpp()
+
+
+def test_normalized_sentence_splitting(
+    word_tokenizer: PreTrainedTokenizerBase,
+    dataset_kwargs: dict[str, Any],
+    tmp_path: Path,
+) -> None:
+    knp_text = "".join(
+        f"# S-ID:test-0-{i}\n* -1D\n+ -1D\n" + "３ さん ３ 名詞 6 数詞 7 * 0 * 0\n" * 4 + "EOS\n" for i in range(8)
+    )
+    tmp_path.joinpath("test.knp").write_text(knp_text, encoding="utf-8")
+    juman_file = tmp_path / "input.juman"
+    juman_file.write_text(Document.from_knp(knp_text).to_jumanpp(), encoding="utf-8")
+    dataset = WordDataset(str(tmp_path), word_tokenizer, 32, 1, **dataset_kwargs)
+    inference_dataset = WordInferenceDataset(word_tokenizer, 32, 1, juman_file=juman_file, **dataset_kwargs)
+    assert len(dataset) > 1
+    assert len(inference_dataset) == len(dataset)
+    for example, inference_example in zip(dataset.examples, inference_dataset.examples, strict=True):
+        document = dataset.doc_id2document[example.doc_id]
+        assert len(document.sentences) == 5
+        assert inference_example.doc_id == example.doc_id
+        assert inference_example.target_sentence_morpheme_spans == example.target_sentence_morpheme_spans
+        assert inference_example.encoding.ids == example.encoding.ids
+        assert all(morpheme.surf == "３" for morpheme in document.morphemes)
+
+
+def test_all_sentences_skipped(
+    word_tokenizer: PreTrainedTokenizerBase,
+    dataset_kwargs: dict[str, Any],
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    (tmp_path / "test.knp").write_text(
+        "# S-ID:test-0\n* -1D\n+ -1D\n" + "あ あ あ 感動詞 12 * 0 * 0 * 0\n" * 100 + "EOS\n",
+        encoding="utf-8",
+    )
+    dataset = WordDataset(str(tmp_path), word_tokenizer, 32, 1, **dataset_kwargs)
+    assert len(dataset) == 0
+    assert caplog.record_tuples == [
+        ("kwja.datamodule.datasets.word", logging.WARNING, "Length of sub document is too long: " + "あ" * 100),
+        (
+            "kwja.datamodule.datasets.word",
+            logging.ERROR,
+            f"No examples to process. Make sure there exist any documents in {tmp_path} and they are not too long.",
+        ),
+    ]
+
+
+def test_discourse_document_mismatch(
+    word_tokenizer: PreTrainedTokenizerBase,
+    dataset_kwargs: dict[str, Any],
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    knp_text = "# S-ID:test-0\n* -1D\n+ -1D <節-区切><節-主辞>\nあ あ あ 感動詞 12 * 0 * 0 * 0 <基本句-主辞>\nEOS\n"
+    (tmp_path / "test.knp").write_text(knp_text, encoding="utf-8")
+    discourse_dir = tmp_path / "disc_expert"
+    discourse_dir.mkdir()
+    discourse_path = discourse_dir / "test.knp"
+    discourse_path.write_text(knp_text.replace("あ あ あ", "い い い"), encoding="utf-8")
+
+    dataset = WordDataset(str(tmp_path), word_tokenizer, 32, 1, **dataset_kwargs)
+    assert len(dataset) == 1
+    assert dataset.examples[0].morpheme_global_indices2discourse_relation == {}
+    assert caplog.record_tuples == [
+        (
+            "kwja.datamodule.datasets.word",
+            logging.WARNING,
+            f"Discourse annotations do not match document test: {discourse_path}",
+        )
+    ]
+
+
+@pytest.mark.parametrize(
+    "cohesion_tasks",
+    [
+        ["pas_analysis", "bridging_reference_resolution", "coreference_resolution"],
+        ["pas_analysis"],
+        ["bridging_reference_resolution"],
+        ["coreference_resolution"],
+    ],
+)
 def test_getitem(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[str, Any]) -> None:
     path = data_dir / "datasets" / "word_files"
     max_seq_length = 256
     document_split_stride = 1
     dataset = WordDataset(str(path), word_tokenizer, max_seq_length, document_split_stride, **dataset_kwargs)
+    assert list(dataset.cohesion_task2extractor) == dataset.cohesion_tasks
+    assert list(dataset.cohesion_task2rels) == dataset.cohesion_tasks
+    assert all(list(example.cohesion_task2base_phrases) == dataset.cohesion_tasks for example in dataset.examples)
     num_cohesion_rels = len([r for rels in dataset.cohesion_task2rels.values() for r in rels])
     for i in range(len(dataset)):
         doc_id = dataset.examples[i].doc_id
@@ -50,27 +181,59 @@ def test_getitem(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, datase
         assert len(feature.input_ids) == max_seq_length
         assert len(feature.attention_mask) == max_seq_length
         assert len(feature.special_token_indices) == len(dataset.special_tokens)
-        assert np.array(feature.subword_map).shape == (max_seq_length, max_seq_length)
-        assert (np.array(feature.subword_map).sum(axis=1) != 0).sum() == len(document.morphemes) + len(
-            dataset.special_tokens
-        )
+        assert feature.subword_map.shape == (max_seq_length, max_seq_length)
+        assert feature.subword_map.any(dim=1).sum().item() == len(document.morphemes) + len(dataset.special_tokens)
         assert len(feature.reading_labels) == max_seq_length
-        assert np.array(feature.reading_subword_map).shape == (max_seq_length, max_seq_length)
-        assert (np.array(feature.reading_subword_map).sum(axis=1) != 0).sum() == len(document.morphemes)
+        assert feature.reading_subword_map.shape == (max_seq_length, max_seq_length)
+        assert feature.reading_subword_map.any(dim=1).sum().item() == len(document.morphemes)
         assert len(feature.pos_labels) == max_seq_length
         assert len(feature.subpos_labels) == max_seq_length
         assert len(feature.conjtype_labels) == max_seq_length
         assert len(feature.conjform_labels) == max_seq_length
         assert np.array(feature.word_feature_labels).shape == (max_seq_length, len(WORD_FEATURES))
         assert len(feature.ne_labels) == max_seq_length
-        assert len(feature.ne_mask) == max_seq_length
+        assert feature.ne_mask.shape == (max_seq_length,)
+        assert feature.ne_mask.dtype == torch.bool
         assert np.array(feature.base_phrase_feature_labels).shape == (max_seq_length, len(BASE_PHRASE_FEATURES))
         assert len(feature.dependency_labels) == max_seq_length
-        assert np.array(feature.dependency_mask).shape == (max_seq_length, max_seq_length)
+        assert feature.dependency_mask.shape == (max_seq_length, max_seq_length)
         assert len(feature.dependency_type_labels) == max_seq_length
         assert np.array(feature.cohesion_labels).shape == (num_cohesion_rels, max_seq_length, max_seq_length)
-        assert np.array(feature.cohesion_mask).shape == (num_cohesion_rels, max_seq_length, max_seq_length)
+        assert feature.cohesion_mask.shape == (num_cohesion_rels, max_seq_length, max_seq_length)
         assert np.array(feature.discourse_labels).shape == (max_seq_length, max_seq_length)
+
+
+def test_dependency_mask_for_target_sentences(
+    word_tokenizer: PreTrainedTokenizerBase,
+    dataset_kwargs: dict[str, Any],
+    tmp_path: Path,
+) -> None:
+    tmp_path.joinpath("test.knp").write_text(
+        "".join(
+            f"# S-ID:test-0-{i}\n* -1D\n+ -1D\n" + "猫 ねこ 猫 名詞 6 普通名詞 1 * 0 * 0\n" * length + "EOS\n"
+            for i, length in enumerate([1, 4, 3, 2, 5, 1, 4, 7])
+        ),
+        encoding="utf-8",
+    )
+    max_seq_length = 32
+    dataset = WordDataset(str(tmp_path), word_tokenizer, max_seq_length, 1, **dataset_kwargs)
+    assert len(dataset) > 1
+    example = dataset.examples[-1]
+    assert example.doc_id is not None
+    document = dataset.doc_id2document[example.doc_id]
+    (target_sentence,) = extract_target_sentences(document)
+    start = target_sentence.morphemes[0].global_index
+    stop = target_sentence.morphemes[-1].global_index + 1
+    assert start > 0
+    root_index = example.special_token_indexer.get_morpheme_level_index("[ROOT]")
+    mask = dataset[-1].dependency_mask
+    assert not mask[:start].any()
+    assert not mask[stop:].any()
+    assert not mask[start:stop, :start].any()
+    assert not mask.diagonal().any()
+    assert mask[start:stop, root_index].all()
+    assert (mask[start:stop, start:stop].sum(dim=1) == stop - start - 1).all()
+    assert (mask[start:stop].sum(dim=1) == stop - start).all()
 
 
 def test_encode(data_dir: Path, word_tokenizer: PreTrainedTokenizerBase, dataset_kwargs: dict[str, Any]) -> None:

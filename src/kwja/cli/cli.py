@@ -4,15 +4,16 @@ import sys
 from abc import ABC
 from collections.abc import Iterator
 from enum import StrEnum
+from functools import partial
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Annotated, TextIO
-from unicodedata import normalize
 
 import hydra
 import lightning as L
 import torch
 import typer
+from huggingface_hub.utils import are_progress_bars_disabled, disable_progress_bars, enable_progress_bars
 from lightning.pytorch.callbacks import BasePredictionWriter
 from lightning.pytorch.strategies import SingleDeviceStrategy
 from lightning.pytorch.trainer.states import TrainerFn
@@ -25,12 +26,12 @@ from kwja.cli.utils import download_checkpoint, prepare_device
 from kwja.datamodule.datamodule import DataModule
 from kwja.datamodule.datasets.utils import add_doc_ids, add_sent_ids
 from kwja.modules import CharModule, Seq2SeqModule, TypoModule, WordModule
-from kwja.utils.constants import TRANSLATION_TABLE
-from kwja.utils.logging_util import filter_logs
+from kwja.utils.logging_util import CONSOLE, filter_logs
+from kwja.utils.normalization import normalize_text
 
 filter_logs(environment="production")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
-logging.basicConfig(format="")
+logging.basicConfig(format="%(levelname)s: %(message)s")
 
 logger = logging.getLogger("kwja_cli")
 logger.setLevel(logging.INFO)
@@ -91,7 +92,7 @@ class BaseModuleProcessor(ABC):
 
     def load(self, keep_model_on_device: bool = False) -> None:
         self.module = self._load_module()
-        if self.config.torch_compile is True:
+        if self.config.torch_compile:
             self.module: L.LightningModule = torch.compile(self.module)  # ty: ignore[invalid-assignment]
         self.module.hparams.datamodule.batch_size = self.batch_size  # type: ignore[union-attr]
         self.module.hparams.datamodule.num_workers = self.config.num_workers  # type: ignore[union-attr]
@@ -99,12 +100,13 @@ class BaseModuleProcessor(ABC):
         # TODO: remove this after new checkpoints are released
         self._rename_modules_for_backward_compatibility()
 
+        callbacks = [self._create_prediction_writer()]
+        if not CONSOLE.quiet:
+            callbacks.append(hydra.utils.instantiate(self.module.hparams.callbacks.progress_bar))
         self.trainer = L.Trainer(
             logger=False,
-            callbacks=[
-                self._create_prediction_writer(),
-                hydra.utils.instantiate(self.module.hparams.callbacks.progress_bar),  # type: ignore[union-attr]
-            ],
+            callbacks=callbacks,
+            enable_progress_bar=not CONSOLE.quiet,
             strategy=_KeepModelOnDeviceStrategy(device=self.device) if keep_model_on_device else "auto",
             accelerator=self.accelerator,
             devices=1,
@@ -138,6 +140,10 @@ class BaseModuleProcessor(ABC):
 
     def apply_module(self, input_file: Path) -> None:
         datamodule = self._load_datamodule(input_file)
+        assert datamodule.predict_dataset is not None  # noqa: S101
+        if len(datamodule.predict_dataset) == 0:
+            self.destination.write_text("", encoding="utf-8")
+            return
         assert self.trainer is not None  # noqa: S101
         self.trainer.predict(model=self.module, dataloaders=[datamodule.predict_dataloader()], return_predictions=False)
 
@@ -153,7 +159,9 @@ class TypoModuleProcessor(BaseModuleProcessor):
 
     def _load_module(self) -> L.LightningModule:
         logger.info("Loading typo module")
-        checkpoint_path: Path = download_checkpoint(module="typo", model_size=self.model_size)
+        checkpoint_path: Path = download_checkpoint(
+            module="typo", model_size=self.model_size, progress=not CONSOLE.quiet
+        )
         return TypoModule.fast_load_from_checkpoint(
             checkpoint_path, map_location=self.device, accelerator=self.accelerator
         )
@@ -180,7 +188,9 @@ class CharModuleProcessor(BaseModuleProcessor):
 
     def _load_module(self) -> L.LightningModule:
         logger.info("Loading char module")
-        checkpoint_path: Path = download_checkpoint(module="char", model_size=self.model_size)
+        checkpoint_path: Path = download_checkpoint(
+            module="char", model_size=self.model_size, progress=not CONSOLE.quiet
+        )
         return CharModule.fast_load_from_checkpoint(
             checkpoint_path, map_location=self.device, accelerator=self.accelerator
         )
@@ -208,7 +218,9 @@ class Seq2SeqModuleProcessor(BaseModuleProcessor):
 
     def _load_module(self) -> L.LightningModule:
         logger.info("Loading seq2seq module")
-        checkpoint_path: Path = download_checkpoint(module="seq2seq", model_size=self.model_size)
+        checkpoint_path: Path = download_checkpoint(
+            module="seq2seq", model_size=self.model_size, progress=not CONSOLE.quiet
+        )
         return Seq2SeqModule.fast_load_from_checkpoint(
             checkpoint_path, map_location=self.device, accelerator=self.accelerator
         )
@@ -241,7 +253,9 @@ class WordModuleProcessor(BaseModuleProcessor):
 
     def _load_module(self) -> L.LightningModule:
         logger.info("Loading word module")
-        checkpoint_path: Path = download_checkpoint(module="word", model_size=self.model_size)
+        checkpoint_path: Path = download_checkpoint(
+            module="word", model_size=self.model_size, progress=not CONSOLE.quiet
+        )
         return WordModule.fast_load_from_checkpoint(
             checkpoint_path, map_location=self.device, accelerator=self.accelerator
         )
@@ -308,20 +322,9 @@ class CLIProcessor:
                 processor.load()
             processor.apply_module(input_file)
             input_file = processor.destination
-            if interactive is False:
+            if not interactive:
                 processor.delete_module_and_trainer()
         return self.processors[-1].export_prediction()
-
-
-def normalize_text(text: str) -> str:
-    # Tokenizers (BertJapaneseTokenizer, DebertaV2Tokenizer, etc.) apply NFKC normalization internally, so
-    # there may be inconsistency in number of characters if not applying NFKC normalization in advance
-    normalized = normalize("NFKC", text)
-    # escape several symbols and delete control characters
-    normalized = normalized.translate(TRANSLATION_TABLE)
-    # if normalized != text:
-    #     typer.echo(f"apply normalization ({text} -> {normalized})", err=True)
-    return normalized
 
 
 def _chunk_by_document(f: TextIO, input_format: InputFormat) -> Iterator[str]:
@@ -353,9 +356,20 @@ def _load_document_from_text(text: str, input_format: InputFormat) -> Document:
 
 
 def _version_callback(value: bool) -> None:
-    if value is True:
+    if value:
         print(f"KWJA {kwja.__version__}")
         raise typer.Exit
+
+
+def _quiet_callback(ctx: typer.Context, value: bool) -> bool:
+    ctx.call_on_close(partial(logger.setLevel, logger.level))
+    ctx.call_on_close(partial(setattr, CONSOLE, "quiet", CONSOLE.quiet))
+    logger.setLevel(logging.WARNING if value else logging.INFO)
+    CONSOLE.quiet = value
+    if value and not are_progress_bars_disabled():
+        disable_progress_bars()
+        ctx.call_on_close(enable_progress_bars)
+    return value
 
 
 def _tasks_callback(value: str) -> str:
@@ -400,9 +414,9 @@ def _validate_task_combination(specified_tasks: list[str], input_format: InputFo
         )
     if input_format in (InputFormat.JUMANPP, InputFormat.KNP):
         if specified_tasks[0] in ("typo", "char"):
-            logger.warning("WARNING: with typo or char task, your input text will be treated as raw text.")
+            logger.warning("with typo or char task, your input text will be treated as raw text.")
         elif specified_tasks[0] in ("seq2seq", "word"):
-            logger.warning("WARNING: with seq2seq or word task, your input text will be treated as a word sequence.")
+            logger.warning("with seq2seq or word task, your input text will be treated as a word sequence.")
 
 
 @app.command()
@@ -422,21 +436,25 @@ def main(  # noqa: PLR0917
     ] = None,
     config_file: Annotated[Path | None, typer.Option(help="Path to KWJA config file.")] = None,
     input_format: Annotated[InputFormat, typer.Option(case_sensitive=False, help="Input format.")] = InputFormat.RAW,
+    quiet: Annotated[
+        bool,
+        typer.Option("--quiet", "-q", callback=_quiet_callback, help="Hide informational logs and progress output."),
+    ] = False,
 ) -> None:
     specified_tasks: list[str] = tasks.split(",")
     _validate_task_combination(specified_tasks, input_format)
 
     input_documents: list[Document] | None = None
     if text is not None and len(filename) > 0:
-        logger.error("ERROR: Please provide text or filename, not both")
+        logger.error("Please provide text or filename, not both")
         raise typer.Abort
     elif text is not None:
         input_documents = [_load_document_from_text(text, input_format)]
     elif len(filename) > 0:
         input_documents = []
         for path in filename:
-            if path.exists() is False:
-                logger.error(f"ERROR: {path} does not exist")
+            if not path.exists():
+                logger.error(f"{path} does not exist")
                 raise typer.Abort
             with path.open(encoding="utf-8") as f:
                 for document_text in _chunk_by_document(f, input_format):
@@ -474,7 +492,8 @@ def main(  # noqa: PLR0917
 
     # Interactive mode
     processor.load_all_modules()
-    print('Type "EOD" in a new line to finish the input.', file=sys.stderr)
+    if not quiet:
+        print('Type "EOD" in a new line to finish the input.', file=sys.stderr)
     input_text = ""
     while True:
         try:

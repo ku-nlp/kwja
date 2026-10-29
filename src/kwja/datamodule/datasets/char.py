@@ -49,7 +49,7 @@ class CharDataset(BaseDataset[CharExample, CharModuleFeatures], FullAnnotatedDoc
         self.denormalize_probability: float = denormalize_probability if is_training else 0.0
         super(BaseDataset, self).__init__(self.path, tokenizer, max_seq_length, -1)  # document_split_stride must be -1
         self.examples: list[CharExample] = self._load_examples(self.doc_id2document)
-        if is_training is True:
+        if is_training:
             del self.doc_id2document  # for saving memory
 
     def _load_examples(self, doc_id2document: dict[str, Document]) -> list[CharExample]:
@@ -116,6 +116,6 @@ class CharDataset(BaseDataset[CharExample, CharModuleFeatures], FullAnnotatedDoc
                     surf = morpheme.text
                     normalize_morpheme(morpheme)
                     if morpheme.text != surf:
-                        logger.warning(f"apply normalization ({surf} -> {morpheme.text})")
+                        logger.info(f"apply normalization ({surf} -> {morpheme.text})")
         # propagate updates of morpheme.text to sentence.text and document.text
         return document.reparse()

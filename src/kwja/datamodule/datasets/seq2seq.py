@@ -121,6 +121,6 @@ class Seq2SeqDataset(BaseDataset[Seq2SeqExample, Seq2SeqModuleFeatures]):
             surf = morpheme.text
             normalize_morpheme(morpheme)
             if morpheme.text != surf:
-                logger.warning(f"apply normalization ({surf} -> {morpheme.text})")
+                logger.info(f"apply normalization ({surf} -> {morpheme.text})")
         # propagate updates of morpheme.text to sentence.text and document.text
         return document.reparse()

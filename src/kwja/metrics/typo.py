@@ -4,7 +4,7 @@ from Levenshtein import opcodes
 from kwja.callbacks.utils import apply_edit_operations, convert_typo_predictions_into_tags
 from kwja.datamodule.datasets import TypoDataset
 from kwja.metrics.base import BaseModuleMetric
-from kwja.metrics.utils import unique
+from kwja.metrics.utils import unique_indices
 
 
 class TypoModuleMetric(BaseModuleMetric):
@@ -39,12 +39,12 @@ class TypoModuleMetric(BaseModuleMetric):
             kwargs[key] = value
 
     def compute(self) -> dict[str, float]:
-        if isinstance(self.example_ids, torch.Tensor) is False:
+        if not isinstance(self.example_ids, torch.Tensor):
             self.example_ids = torch.cat(self.example_ids, dim=0)
-        sorted_indices = unique(self.example_ids)
+        sorted_indices = unique_indices(self.example_ids)
         for state_name in self.STATE_NAMES:
             state = getattr(self, state_name)
-            if isinstance(state, torch.Tensor) is False:
+            if not isinstance(state, torch.Tensor):
                 state = torch.cat(state, dim=0)
             setattr(self, state_name, state[sorted_indices])
 

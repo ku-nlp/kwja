@@ -91,8 +91,9 @@ def main() -> None:
             for knp in chunk_by_sentence(f):
                 try:
                     sentence: Sentence = Sentence.from_knp(knp)
-                except ValueError:
+                except ValueError as e:
                     excluded_nums["sent_from_knp"] = excluded_nums.get("sent_from_knp", 0) + 1
+                    logger.warning(f"Skipping invalid KNP sentence in {input_path}: {e}")
                     continue
 
                 juman_sentence: Sentence = jumanpp.apply_to_sentence(sentence.text)
@@ -137,8 +138,11 @@ def main() -> None:
                     try:
                         lemma = jinf(morpheme.reading, morpheme.conjtype, morpheme.conjform, "基本形")
                         surf = jinf(lemma, morpheme.conjtype, "基本形", morpheme.conjform)
-                    except (ValueError, NotImplementedError):
+                    except (ValueError, NotImplementedError) as e:
                         excluded_nums["jinf"] = excluded_nums.get("jinf", 0) + 1
+                        logger.warning(
+                            f"Skipping canonical-form annotation for {morpheme.surf} (S-ID:{sentence.sid}): {e}"
+                        )
                         continue
                 if surf == morpheme.text and lemma == morpheme.lemma:
                     continue
@@ -162,13 +166,15 @@ def main() -> None:
 
         try:
             set_other_canons(sentence, target_morpheme_indexes)
-        except (ValueError, NotImplementedError):
+        except (ValueError, NotImplementedError) as e:
             excluded_nums["set_canon"] = excluded_nums.get("set_canon", 0) + 1
+            logger.warning(f"Skipping sentence {sentence.sid}: canonical forms could not be set: {e}")
             continue
         try:
             sid2knp_str[sentence.sid] = sentence.to_knp()
-        except AttributeError:
+        except AttributeError as e:
             excluded_nums["to_knp"] = excluded_nums.get("to_knp", 0) + 1
+            logger.warning(f"Skipping sentence {sentence.sid}: KNP output is unavailable: {e}")
             continue
         sid2info[sentence.sid] = info
         for target_canon in target_canons:

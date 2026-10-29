@@ -6,7 +6,10 @@ from kwja.cli import utils
 from kwja.cli.config import ModelSize
 
 
-def test_download_checkpoint_downloads_from_huggingface_hub(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("progress", [True, False])
+def test_download_checkpoint_downloads_from_huggingface_hub(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], progress: bool
+) -> None:
     captured_kwargs: dict[str, object] = {}
 
     def fake_hf_hub_download(**kwargs: object) -> str:
@@ -26,6 +29,7 @@ def test_download_checkpoint_downloads_from_huggingface_hub(tmp_path: Path, monk
         module="typo",
         model_size=ModelSize.TINY,
         checkpoint_dir=tmp_path,
+        progress=progress,
     )
 
     assert checkpoint_path == tmp_path / "typo_deberta-v2-tiny-wwm.ckpt"
@@ -35,6 +39,7 @@ def test_download_checkpoint_downloads_from_huggingface_hub(tmp_path: Path, monk
         "revision": "v2.4",
         "local_dir": tmp_path,
     }
+    assert ("Downloading:" in capsys.readouterr().err) == progress
 
 
 def test_download_checkpoint_skips_existing_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

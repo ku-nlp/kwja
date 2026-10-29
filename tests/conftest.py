@@ -9,7 +9,7 @@ from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 os.environ["DATA_DIR"] = ""
 base_path = Path(__file__).parent.parent / "configs" / "base.yaml"
-if base_path.exists() is False:
+if not base_path.exists():
     try:
         base_path.symlink_to(base_path.parent / "base_template.yaml")
     except OSError:

@@ -92,7 +92,7 @@ class WordModuleWriter(BaseModuleWriter):
             assert example.doc_id is not None, "doc_id isn't set"  # noqa: S101
             document = dataset.doc_id2document.pop(example.doc_id)
 
-            if self.preserve_reading_lemma_canon is True:
+            if self.preserve_reading_lemma_canon:
                 word_reading_predictions = [m.reading for m in document.morphemes]
                 canons = [m.canon for m in document.morphemes]
             else:
@@ -193,7 +193,7 @@ class WordModuleWriter(BaseModuleWriter):
             conjform_id = CONJTYPE_TAG_CONJFORM_TAG2CONJFORM_ID[conjtype][conjform]
 
             homograph_ops: list[dict[str, Any]] = []
-            if preserve_lemma is True:
+            if preserve_lemma:
                 lemma = norm
             else:
                 lemma = self._get_lemma(norm, pos, subpos, conjtype, conjform, homograph_ops)

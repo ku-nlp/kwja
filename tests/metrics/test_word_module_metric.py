@@ -363,6 +363,30 @@ def test_word_module_metric(
     assert metrics["discourse_relation_analysis_f1"] == pytest.approx(1.0)
 
 
+@pytest.mark.parametrize(
+    ("cohesion_tasks", "metric_key"),
+    [
+        (["pas_analysis"], "pas_f1"),
+        (["bridging_reference_resolution"], "bridging_f1"),
+        (["coreference_resolution"], "coreference_f1"),
+    ],
+)
+def test_cohesion_analysis_metrics_for_selected_tasks(
+    data_dir: Path,
+    word_tokenizer: PreTrainedTokenizerBase,
+    dataset_kwargs: dict[str, Any],
+    metric_key: str,
+) -> None:
+    dataset = WordDataset(str(data_dir / "datasets" / "word_files"), word_tokenizer, 256, 1, **dataset_kwargs)
+    metric = WordModuleMetric(256)
+    metric.set_properties({"dataset": dataset})
+    documents = [Document.from_knp(document.to_knp()) for document in dataset.doc_id2document.values()]
+    scores = metric.compute_cohesion_analysis_metrics(documents, documents)
+    assert 0.0 <= scores[metric_key] <= 1.0
+    assert scores["cohesion_analysis_f1"] == scores[metric_key]
+    assert {key for key in ("pas_f1", "bridging_f1", "coreference_f1") if key in scores} == {metric_key}
+
+
 def test_discourse_relation_analysis_metrics_empty_labels() -> None:
     metrics = WordModuleMetric.compute_discourse_relation_analysis_metrics(
         predictions=torch.zeros(2, dtype=torch.long),

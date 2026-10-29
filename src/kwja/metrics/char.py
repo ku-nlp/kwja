@@ -8,7 +8,7 @@ from seqeval.scheme import IOB2
 from kwja.callbacks.utils import convert_char_predictions_into_tags, set_morphemes, set_sentences
 from kwja.datamodule.datasets import CharDataset
 from kwja.metrics.base import BaseModuleMetric
-from kwja.metrics.utils import unique
+from kwja.metrics.utils import unique_indices
 from kwja.utils.constants import IGNORE_INDEX, WORD_NORM_OP_TAGS
 from kwja.utils.sub_document import to_orig_doc_id
 
@@ -44,12 +44,12 @@ class CharModuleMetric(BaseModuleMetric):
             kwargs[key] = value
 
     def compute(self) -> dict[str, float]:
-        if isinstance(self.example_ids, torch.Tensor) is False:
+        if not isinstance(self.example_ids, torch.Tensor):
             self.example_ids = torch.cat(self.example_ids, dim=0)
-        sorted_indices = unique(self.example_ids)
+        sorted_indices = unique_indices(self.example_ids)
         for state_name in self.STATE_NAMES:
             state = getattr(self, state_name)
-            if isinstance(state, torch.Tensor) is False:
+            if not isinstance(state, torch.Tensor):
                 state = torch.cat(state, dim=0)
             setattr(self, state_name, state[sorted_indices])
 

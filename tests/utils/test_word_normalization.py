@@ -1,9 +1,12 @@
+import logging
+
 import pytest
-from rhoknp import Morpheme
+from rhoknp import Morpheme, Sentence
 
 from kwja.utils.word_normalization import (
     MorphemeDenormalizer,
     MorphemeNormalizer,
+    SentenceDenormalizer,
     get_normalized_surf,
     get_word_norm_op_tags,
 )
@@ -116,6 +119,15 @@ def test_morpheme_normalizer() -> None:
     word_norm_op_tags = normalizer.get_word_norm_op_tags(morpheme)
     assert len(word_norm_op_tags) == len(expected)
     assert all([a == b for a, b in zip(word_norm_op_tags, expected, strict=True)])
+
+
+def test_denormalizer_skips_unsupported_normalization(caplog: pytest.LogCaptureFixture) -> None:
+    sentence = Sentence.from_jumanpp("未知語 みちご 異なる原形 名詞 6 普通名詞 1 * 0 * 0\nEOS\n")
+    jumanpp_text = sentence.to_jumanpp()
+    with caplog.at_level(logging.DEBUG, logger="kwja.utils.word_normalization"):
+        SentenceDenormalizer().denormalize(sentence, 1.0)
+    assert sentence.to_jumanpp() == jumanpp_text
+    assert [record.levelno for record in caplog.records] == [logging.DEBUG]
 
 
 @pytest.mark.parametrize(

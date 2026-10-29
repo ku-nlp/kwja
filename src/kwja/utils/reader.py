@@ -25,7 +25,7 @@ def chunk_by_sentence_for_line_by_line_text(f: TextIO) -> Iterator[str]:
         if line.strip() == "":
             continue
         buffer.append(line)
-        if is_comment_line(line) is False:
+        if not is_comment_line(line):
             yield "".join(buffer)
             buffer = []
     if buffer:

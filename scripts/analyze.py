@@ -13,10 +13,10 @@ from lightning.pytorch.callbacks import Callback
 from lightning.pytorch.trainer.states import TrainerFn
 from omegaconf import DictConfig, ListConfig, OmegaConf
 
-from kwja.cli.cli import normalize_text
 from kwja.datamodule.datamodule import DataModule
 from kwja.utils.hydra_compat import workaround_hydra_argparse
 from kwja.utils.logging_util import filter_logs
+from kwja.utils.normalization import normalize_text
 
 filter_logs(environment="production")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"

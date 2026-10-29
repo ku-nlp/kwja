@@ -1,6 +1,6 @@
 [project]
 name = "kwja"
-version = "2.5.1"
+version = "2.6.0"
 description = "A unified Japanese analyzer based on foundation models"
 license = "MIT"
 authors = [
@@ -42,14 +42,15 @@ requires-python = ">=3.11,<3.16"
 
 dependencies = [
     "torch>=2.14.0,<2.16.0",
-    "numpy>=2.4.0,<2.5.0",
-    "transformers[sentencepiece]>=5.16.1,<5.17.0",
-    "tokenizers>=0.22.0,<0.24.0",
+    "numpy>=2.4.0,<2.5.0; python_version < '3.12'",
+    "numpy>=2.5.0; python_version >= '3.12'",
+    "transformers[sentencepiece]>=5.18.0,<5.19.0",
+    "tokenizers>=0.23.1,<0.24.0",
     "lightning>=2.6.0,<2.7.0",
     "omegaconf>=2.3.1,<2.4.0",
     "hydra-core>=1.3.6,<1.4.0",
-    "rhoknp>=1.7",
-    "typer-slim>=0.24.0,<0.25.0",
+    "rhoknp>=1.8",
+    "typer>=0.27.2,<0.28.0",
     "jinf>=1.0.4",
     # pure-cdb 4.x publishes manylinux x86_64 wheels only, and building its C extension from
     # the sdist fails on Windows (setuptools cannot detect a modern MSVC install). Fall back to
@@ -57,10 +58,10 @@ dependencies = [
     "pure-cdb>=4.0; sys_platform != 'win32'",
     "pure-cdb==3.1.0; sys_platform == 'win32'",
     "rich>=15.0.0,<16.0.0",
-    "pyyaml>=6.0",
-    "regex>=2024.7.24",
+    "pyyaml>=6.0.3",
+    "regex>=2026.9.10",
     "cohesion-tools>=0.7.5,<0.8.0",
-    "huggingface-hub>=1.0.0",
+    "huggingface-hub>=2.0.0,<3.0.0",
 ]
 
 [project.urls]
@@ -80,26 +81,24 @@ build-backend = "hatchling.build"
 dev = [
     "cohesion-tools[eval]>=0.7.5,<0.8.0",
     "jaconv>=0.5.0,<0.6.0",
-    "levenshtein>=0.26.0",
-    "python-dotenv>=1.0",
-    "ruff",
-    "scikit-learn>=1.6",
-    "seqeval>=1.2",
-    "torchmetrics>=1.0",
-    "ty",
-    "types-attrs>=19.1",
+    "levenshtein>=0.27.0",
+    "python-dotenv>=1.2",
+    "ruff>=0.16.8",
+    "scikit-learn>=1.9",
+    "seqeval>=1.2.2",
+    "torchmetrics>=1.9",
+    "ty>=0.0.83",
     "types-pyyaml>=6.0.12",
-    "wandb>=0.29.0",
+    "wandb>=0.30.0",
 ]
 test = [
     "cohesion-tools[eval]>=0.7.5,<0.8.0",
     "jaconv>=0.5.0,<0.6.0",
-    "levenshtein>=0.26.0",
-    "pytest>=8.0",
-    "pytest-cov>=7.0",
-    "pytest-profiling>=1.7",
-    "seqeval>=1.2",
-    "torchmetrics>=1.0",
+    "levenshtein>=0.27.0",
+    "pytest>=9.0",
+    "pytest-cov>=7.1",
+    "seqeval>=1.2.2",
+    "torchmetrics>=1.9",
 ]
 
 [tool.hatch.build.targets.sdist]

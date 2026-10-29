@@ -134,16 +134,16 @@ class WordModule(BaseModule[WordModuleMetric]):
         masked_dependency_logits = mask_logits(dependency_logits.squeeze(3), batch["dependency_mask"])  # (b, seq, seq)
         if batch["step"] == "train":
             dependency_labels_mask = batch["dependency_labels"].ne(IGNORE_INDEX)  # (b, seq)
-            dependency_labels = (
+            head_indices = (
                 (batch["dependency_labels"] * dependency_labels_mask).unsqueeze(2).unsqueeze(3)
             )  # (b, seq, 1, 1)
         else:
-            dependency_labels = masked_dependency_logits.topk(self.dependency_topk, dim=2).indices.unsqueeze(
+            head_indices = masked_dependency_logits.topk(self.dependency_topk, dim=2).indices.unsqueeze(
                 3
             )  # (b, seq, topk, 1)
         unsqueezed = pooled.unsqueeze(2)  # (b, seq, 1, hid)
         head_hidden_states = torch.take_along_dim(
-            unsqueezed, dependency_labels, dim=1
+            unsqueezed, head_indices, dim=1
         )  # (b, seq, 1, hid) or (b, seq, topk, hid)
 
         cohesion_logits = self.cohesion_analyzer(pooled)  # (b, seq, seq, rel)

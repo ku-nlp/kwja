@@ -4,7 +4,7 @@ from collections import defaultdict
 class DependencyManager:
     def __init__(self) -> None:
         self.directed_graph: dict[int, set[int]] = defaultdict(set)
-        self.root = False
+        self.has_root = False
 
     def add_edge(self, source: int, target: int) -> None:
         self.directed_graph[source].add(target)
