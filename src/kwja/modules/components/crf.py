@@ -38,7 +38,7 @@ class CRF(nn.Module):
                     elif source == "O" and target.startswith("I-"):
                         self.transitions[i, j] = MASKED
 
-    def forward(
+    def forward(  # ty: ignore[invalid-mutable-override]
         self,
         emissions: torch.Tensor,
         tags: torch.Tensor,
