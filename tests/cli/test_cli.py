@@ -36,8 +36,15 @@ def test_version() -> None:
 def test_cli_does_not_use_torchscript(args: list[str]) -> None:
     code = textwrap.dedent(
         """\
+        import warnings
         from unittest.mock import patch
 
+        warnings.filterwarnings(
+            "ignore",
+            message=r"Skipping device .* that does not support Metal 2\\.0",
+            category=UserWarning,
+            module=r"torch\\.backends\\.mps",
+        )
         with patch("torch.jit.script", side_effect=AssertionError("TorchScript must not be used")):
             from kwja.cli.cli import app
             app()
