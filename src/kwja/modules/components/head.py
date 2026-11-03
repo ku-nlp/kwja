@@ -66,7 +66,7 @@ class LoRASequenceMultiLabelingHead(nn.Module):
         bound = 1 / math.sqrt(self.classifier_weight.size(0))
         nn.init.uniform_(self.classifier_bias, -bound, bound)
 
-    def forward(self, pooled: torch.Tensor) -> torch.Tensor:
+    def forward(self, pooled: torch.Tensor) -> torch.Tensor:  # ty: ignore[invalid-mutable-override]
         dense_out = self.dense(pooled)  # (b, seq, hid)
         dense_delta = self.delta()  # (hid, hid, label)
         dense_delta_out = torch.einsum("bsh,hil->bsil", pooled, dense_delta)  # (b, seq, hid, label)
@@ -85,7 +85,7 @@ class WordSelectionHead(nn.Module):
         self.dropout = nn.Dropout(hidden_dropout_prob)
         self.output_layer = nn.Linear(hidden_size, num_labels, bias=False)
 
-    def forward(self, pooled: torch.Tensor) -> torch.Tensor:
+    def forward(self, pooled: torch.Tensor) -> torch.Tensor:  # ty: ignore[invalid-mutable-override]
         h_source = self.l_source(pooled)  # (b, seq, hid)
         h_target = self.l_target(pooled)  # (b, seq, hid)
         chunk_size = _source_chunk_size(h_source, chunking_allowed=not self.training and not torch.is_grad_enabled())
@@ -121,7 +121,7 @@ class RelationWiseWordSelectionHead(nn.Module):
         self.classifier_weight = nn.Parameter(torch.Tensor(hidden_size, num_relations))
         nn.init.kaiming_uniform_(self.classifier_weight, a=math.sqrt(5))
 
-    def forward(self, pooled: torch.Tensor) -> torch.Tensor:
+    def forward(self, pooled: torch.Tensor) -> torch.Tensor:  # ty: ignore[invalid-mutable-override]
         batch_size, seq_length, hidden_size = pooled.size()
         h_source = self.l_source(pooled).view(batch_size, seq_length, -1, hidden_size)  # (b, seq, rel, hid)
         h_target = self.l_target(pooled).view(batch_size, seq_length, -1, hidden_size)  # (b, seq, rel, hid)
@@ -161,7 +161,7 @@ class LoRARelationWiseWordSelectionHead(nn.Module):
         self.classifier = nn.Parameter(torch.Tensor(hidden_size, num_relations))
         nn.init.kaiming_uniform_(self.classifier, a=math.sqrt(5))
 
-    def forward(self, pooled: torch.Tensor) -> torch.Tensor:
+    def forward(self, pooled: torch.Tensor) -> torch.Tensor:  # ty: ignore[invalid-mutable-override]
         h_source = self.l_source(pooled)  # (b, seq, hid)
         h_target = self.l_target(pooled)  # (b, seq, hid)
         delta_source_out = torch.einsum("bsh,hil->bsli", pooled, self.delta_source())  # (b, seq, rel, hid)
@@ -198,5 +198,5 @@ class LoRADelta(nn.Module):
         nn.init.kaiming_uniform_(self.dense_a, a=math.sqrt(5))
         nn.init.zeros_(self.dense_b)
 
-    def forward(self) -> torch.Tensor:
+    def forward(self) -> torch.Tensor:  # ty: ignore[invalid-mutable-override]
         return torch.einsum("hrl,ril->hil", self.dense_a, self.dense_b)  # (hid, hid, label)
