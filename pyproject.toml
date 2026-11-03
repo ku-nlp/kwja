@@ -41,7 +41,8 @@ classifiers = [
 requires-python = ">=3.11,<3.16"
 
 dependencies = [
-    "torch>=2.14.0,<2.16.0",
+    "torch>=2.9.0; python_version < '3.15'",
+    "torch>=2.15.0; python_version >= '3.15'",
     "numpy>=2.4.0,<2.5.0; python_version < '3.12'",
     "numpy>=2.5.0; python_version >= '3.12'",
     "transformers[sentencepiece]>=5.18.0,<5.19.0",
