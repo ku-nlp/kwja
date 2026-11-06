@@ -39,30 +39,19 @@ _CHECKPOINT_FILE_NAMES: dict[ModelSize, dict[str, str]] = {
 }
 
 
-def download_checkpoint(
-    module: str,
-    model_size: ModelSize,
-    checkpoint_dir: str | Path | None = None,
-    progress: bool = True,
-) -> Path:
-    """Downloads the Torch serialized object at the given URL.
-    If the object is already present in `checkpoint_dir`, just return the path to the object.
+def download_checkpoint(module: str, model_size: ModelSize, progress: bool = True) -> Path:
+    """Downloads the checkpoint into the KWJA cache directory unless it is already there.
 
     Args:
-        module: typo, char, or word
+        module: typo, char, seq2seq, or word
         model_size: tiny, base or large
-        checkpoint_dir: directory in which to save the object
         progress: whether to display a progress bar to stderr
     """
-
-    if checkpoint_dir is None:
-        checkpoint_dir = _get_kwja_cache_dir() / _get_model_version()
-    else:
-        checkpoint_dir = Path(checkpoint_dir)
+    model_version = _get_model_version()
+    checkpoint_dir = _get_kwja_cache_dir() / model_version
     checkpoint_dir.mkdir(exist_ok=True, parents=True)
 
     checkpoint_file_name = _CHECKPOINT_FILE_NAMES[model_size][module]
-    model_version = _get_model_version()
     checkpoint_path = checkpoint_dir / checkpoint_file_name
     if not checkpoint_path.exists():
         if progress:
