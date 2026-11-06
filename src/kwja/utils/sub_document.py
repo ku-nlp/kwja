@@ -64,26 +64,18 @@ class SequenceSplitter:
         for length in sequence_lengths:
             self._cumulative_lengths.append(self._cumulative_lengths[-1] + length)
 
-    def split_into_spans(
-        self, return_candidates: bool = False
-    ) -> Iterator[tuple[SpanCandidate, list[SpanCandidate]] | SpanCandidate]:
+    def split_into_spans(self) -> Iterator[tuple[SpanCandidate, list[SpanCandidate]]]:
         """
         This function splits a sequence into sub-sequences. Each sub-sequence is represented as a span.
 
-        Args:
-            return_candidates: If True, this function returns a list of candidates for each sub-sequence span.
-
         Returns:
-            A generator of sub-sequence spans.
+            A generator of sub-sequence spans, each paired with the candidates considered for it.
         """
         prev_start, prev_end = 0, 0
         while prev_end < len(self.sequence_lengths):
             span, candidates = self.search_sub_sequence_span(prev_start, prev_end)
             prev_start, prev_end = span.start, span.end
-            if return_candidates:
-                yield span, candidates
-            else:
-                yield span
+            yield span, candidates
 
     def search_sub_sequence_span(self, prev_start: int, prev_end: int) -> tuple[SpanCandidate, list[SpanCandidate]]:
         if self.stride == -1:

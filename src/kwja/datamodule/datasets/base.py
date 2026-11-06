@@ -9,7 +9,7 @@ from torch.utils.data import Dataset
 from transformers import PreTrainedTokenizerBase
 
 from kwja.utils.logging_util import track
-from kwja.utils.sub_document import SequenceSplitter, SpanCandidate, to_sub_doc_id
+from kwja.utils.sub_document import SequenceSplitter, to_sub_doc_id
 
 sys.setrecursionlimit(5000)
 
@@ -95,8 +95,7 @@ class FullAnnotatedDocumentLoaderMixin:
         splitter = SequenceSplitter(sentence_tokens, max_token_length, stride)
         sub_documents: list[Document] = []
         sub_idx = 0
-        for span in splitter.split_into_spans():
-            assert isinstance(span, SpanCandidate)  # noqa: S101
+        for span, _ in splitter.split_into_spans():
             sentences = document.sentences[span.start : span.end]
             sub_document = Document.from_sentences(sentences)
             sub_doc_id = to_sub_doc_id(document.doc_id, sub_idx, stride=span.stride)
