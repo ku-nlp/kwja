@@ -1,5 +1,4 @@
 import sys
-from collections.abc import Sequence
 from io import TextIOBase
 from pathlib import Path
 from typing import Any, TextIO
@@ -27,23 +26,10 @@ class BaseModuleWriter(BasePredictionWriter):
         elif isinstance(self.destination, TextIOBase):
             self.destination.write(output_string)
 
-    def write_on_batch_end(
-        self,
-        trainer: L.Trainer,
-        pl_module: L.LightningModule,
-        prediction: Any,
-        batch_indices: Sequence[int] | None,
-        batch: Any,
-        batch_idx: int,
-        dataloader_idx: int,
-    ) -> None:
-        raise NotImplementedError
-
-    def write_on_epoch_end(
-        self,
-        trainer: L.Trainer,
-        pl_module: L.LightningModule,
-        predictions: Sequence[Any],
-        batch_indices: Sequence[Any] | None = None,
-    ) -> None:
-        pass  # pragma: no cover
+    @staticmethod
+    def get_predict_dataloader(trainer: L.Trainer, dataloader_idx: int) -> Any:
+        predict_dataloaders = trainer.predict_dataloaders
+        assert predict_dataloaders is not None  # noqa: S101
+        if isinstance(predict_dataloaders, dict):
+            return list(predict_dataloaders.values())[dataloader_idx]
+        return predict_dataloaders[dataloader_idx]
