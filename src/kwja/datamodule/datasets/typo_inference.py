@@ -9,7 +9,7 @@ from transformers.utils import PaddingStrategy
 
 from kwja.datamodule.datasets.base import BaseDataset
 from kwja.datamodule.datasets.typo import TypoModuleFeatures
-from kwja.datamodule.datasets.utils import chunk_by_document, create_documents_from_raw_texts
+from kwja.datamodule.datasets.utils import chunk_raw_text_by_document, create_documents_from_raw_texts
 from kwja.datamodule.examples import TypoInferenceExample
 from kwja.utils.constants import DUMMY_TOKEN
 from kwja.utils.logging_util import track
@@ -31,7 +31,7 @@ class TypoInferenceDataset(BaseDataset[TypoInferenceExample, TypoModuleFeatures]
             documents = create_documents_from_raw_texts(texts)
         elif raw_text_file is not None:
             with raw_text_file.open(encoding="utf-8") as f:
-                documents = create_documents_from_raw_texts(chunk_by_document(f))
+                documents = create_documents_from_raw_texts(chunk_raw_text_by_document(f))
         else:
             documents = []
         self.examples: list[TypoInferenceExample] = []

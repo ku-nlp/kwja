@@ -40,7 +40,7 @@ def add_sent_ids(documents: Sequence[Document]) -> None:
                 sentence.sent_id = f"{document.doc_id}-{idx:0{sent_id_width}}"
 
 
-def chunk_by_document(f: TextIO) -> Iterator[str]:
+def chunk_raw_text_by_document(f: TextIO) -> Iterator[str]:
     buff: str = ""
     for line in f:
         if line.strip() == "EOD":
