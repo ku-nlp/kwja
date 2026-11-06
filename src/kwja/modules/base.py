@@ -1,7 +1,8 @@
 import os
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Generic, Self, TypeVar
+from statistics import mean
+from typing import Any, Generic, Literal, Self, TypeVar
 
 import hydra
 import lightning as L
@@ -9,6 +10,7 @@ import torch
 from lightning.fabric import Fabric
 from lightning.pytorch.utilities.types import OptimizerLRScheduler
 from omegaconf import DictConfig, ListConfig, OmegaConf
+from torch.utils.data import DataLoader, Dataset
 
 
 class DummyModuleMetric:
@@ -47,6 +49,42 @@ class BaseModule(L.LightningModule, Generic[MetricType]):
         if test_corpora := getattr(hparams.datamodule, "test", None):
             self.test_corpora: list[str] = list(test_corpora)
             self.test_corpus2metric: dict[str, MetricType] = {corpus: deepcopy(metric) for corpus in test_corpora}
+
+    def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:  # noqa: ARG002
+        self.valid_corpus2metric[self.valid_corpora[dataloader_idx]].update(self._get_metric_inputs(batch))
+
+    def test_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:  # noqa: ARG002
+        self.test_corpus2metric[self.test_corpora[dataloader_idx]].update(self._get_metric_inputs(batch))
+
+    def _get_metric_inputs(self, batch: Any) -> dict[str, torch.Tensor]:
+        raise NotImplementedError
+
+    def on_validation_epoch_end(self) -> None:
+        self._log_metrics("valid", self.valid_corpus2metric, self.trainer.val_dataloaders)
+
+    def on_test_epoch_end(self) -> None:
+        self._log_metrics("test", self.test_corpus2metric, self.trainer.test_dataloaders)
+
+    def _log_metrics(
+        self,
+        split: Literal["valid", "test"],
+        corpus2metric: dict[str, MetricType],
+        dataloaders: dict[str, DataLoader] | None,
+    ) -> None:
+        assert dataloaders is not None  # noqa: S101
+        corpus2metrics: dict[str, dict[str, float]] = {}
+        for corpus, metric in corpus2metric.items():
+            corpus2metrics[corpus] = self._compute_metrics(corpus, metric, dataloaders[corpus].dataset)
+            metric.reset()
+
+        for corpus, metrics in corpus2metrics.items():
+            self.log_dict({f"{split}_{corpus}/{key}": value for key, value in metrics.items()})
+        for key in dict.fromkeys(key for metrics in corpus2metrics.values() for key in metrics):
+            self.log(f"{split}/{key}", mean(metrics[key] for metrics in corpus2metrics.values() if key in metrics))
+
+    def _compute_metrics(self, corpus: str, metric: MetricType, dataset: Dataset) -> dict[str, float]:  # noqa: ARG002
+        metric.set_properties({"dataset": dataset})
+        return metric.compute()
 
     def configure_optimizers(self) -> OptimizerLRScheduler:
         # Split weights in two groups, one with weight decay and the other not.
