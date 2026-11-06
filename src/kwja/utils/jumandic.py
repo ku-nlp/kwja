@@ -7,6 +7,9 @@ import cdblib
 
 from kwja.utils.logging_util import track
 
+_FIELDS = ("reading", "lemma", "pos", "subpos", "conjtype", "conjform", "semantics")
+_ENTRY_FORMAT = "IIHHHHI"  # one id per field
+
 
 class JumanDic:
     def __init__(self, dic_dir: Path | Traversable) -> None:
@@ -16,121 +19,46 @@ class JumanDic:
             dic_dir.joinpath("grammar.json").read_text(encoding="utf-8")
         )
 
-    def lookup_by_norm(self, surf: str) -> list[dict[str, str]]:
-        buf = self.jumandic.get(surf.encode("utf-8"))
-        if buf is None:
-            return []
-        matches: list[dict[str, str]] = []
-        for reading_id, lemma_id, pos_id, subpos_id, conjtype_id, conjform_id, semantics_id in struct.iter_unpack(
-            "IIHHHHI", buf
-        ):
-            matches.append(
-                {
-                    "surf": surf,
-                    "reading": self.grammar_data["id2reading"][reading_id],
-                    "lemma": self.grammar_data["id2lemma"][lemma_id],
-                    "pos": self.grammar_data["id2pos"][pos_id],
-                    "subpos": self.grammar_data["id2subpos"][subpos_id],
-                    "conjtype": self.grammar_data["id2conjtype"][conjtype_id],
-                    "conjform": self.grammar_data["id2conjform"][conjform_id],
-                    "semantics": self.grammar_data["id2semantics"][semantics_id],
-                }
-            )
-        return matches
+    def lookup_by_norm(self, norm: str) -> list[dict[str, str]]:
+        return self._lookup(self.jumandic, norm)
 
     def lookup_by_canon(self, canon: str) -> list[dict[str, str]]:
-        buf = self.jumandic_canon.get(canon.encode("utf-8"))
+        return self._lookup(self.jumandic_canon, canon)
+
+    def _lookup(self, db: cdblib.Reader, key: str) -> list[dict[str, str]]:
+        buf = db.get(key.encode("utf-8"))
         if buf is None:
             return []
-        matches: list[dict[str, str]] = []
-        for reading_id, lemma_id, pos_id, subpos_id, conjtype_id, conjform_id, semantics_id in struct.iter_unpack(
-            "IIHHHHI", buf
-        ):
-            matches.append(
-                {
-                    "canon": canon,
-                    "reading": self.grammar_data["id2reading"][reading_id],
-                    "lemma": self.grammar_data["id2lemma"][lemma_id],
-                    "pos": self.grammar_data["id2pos"][pos_id],
-                    "subpos": self.grammar_data["id2subpos"][subpos_id],
-                    "conjtype": self.grammar_data["id2conjtype"][conjtype_id],
-                    "conjform": self.grammar_data["id2conjform"][conjform_id],
-                    "semantics": self.grammar_data["id2semantics"][semantics_id],
-                }
-            )
-        return matches
+        return [
+            {field: self.grammar_data[f"id2{field}"][value_id] for field, value_id in zip(_FIELDS, ids, strict=True)}
+            for ids in struct.iter_unpack(_ENTRY_FORMAT, buf)
+        ]
 
     @classmethod
     def build(cls, out_dir: Path, entries: list[list[str]]) -> None:
+        field2value2id: dict[str, dict[str, int]] = {field: {} for field in _FIELDS}
         surf2entries: dict[str, bytes] = {}
         canon2entries: dict[str, bytes] = {}
-
-        reading2id: dict[str, int] = {}
-        lemma2id: dict[str, int] = {}
-        pos2id: dict[str, int] = {}
-        subpos2id: dict[str, int] = {}
-        conjtype2id: dict[str, int] = {}
-        conjform2id: dict[str, int] = {}
-        semantics2id: dict[str, int] = {}
-
-        def _get_counter(dic: dict[str, int], key: str) -> int:
-            if key in dic:
-                return dic[key]
-            else:
-                rv = len(dic)
-                dic[key] = rv
-                return rv
-
-        def _build_reverse_lookup(dic: dict[str, int]) -> list[str]:
-            rv: list[str] = [""] * len(dic)
-            for k, v in dic.items():
-                rv[v] = k
-            return rv
-
         for entry in track(entries):
             surf, reading, lemma, pos, subpos, conjtype, conjform, canon, semantics = entry
-            reading_id: int = _get_counter(reading2id, reading)
-            lemma_id: int = _get_counter(lemma2id, lemma)
-            pos_id: int = _get_counter(pos2id, pos)
-            subpos_id: int = _get_counter(subpos2id, subpos)
-            conjtype_id: int = _get_counter(conjtype2id, conjtype)
-            conjform_id: int = _get_counter(conjform2id, conjform)
-            semantics_id: int = _get_counter(semantics2id, semantics)
-            v = struct.pack(
-                "IIHHHHI",
-                reading_id,
-                lemma_id,
-                pos_id,
-                subpos_id,
-                conjtype_id,
-                conjform_id,
-                semantics_id,
-            )
-            surf2entries[surf] = surf2entries.get(surf, b"") + v
-            canon2entries[canon] = canon2entries.get(canon, b"") + v
+            ids = [
+                field2value2id[field].setdefault(value, len(field2value2id[field]))
+                for field, value in zip(
+                    _FIELDS, (reading, lemma, pos, subpos, conjtype, conjform, semantics), strict=True
+                )
+            ]
+            packed = struct.pack(_ENTRY_FORMAT, *ids)
+            surf2entries[surf] = surf2entries.get(surf, b"") + packed
+            canon2entries[canon] = canon2entries.get(canon, b"") + packed
 
-        with out_dir.joinpath("jumandic.db").open(mode="wb") as f1:
-            with cdblib.Writer(f1) as writer1:
-                for key_surf, value_entries in surf2entries.items():
-                    writer1.put(key_surf.encode("utf-8"), value_entries)
-
-        with out_dir.joinpath("jumandic_canon.db").open(mode="wb") as f2:
-            with cdblib.Writer(f2) as writer2:
-                for key_canon, value_entries in canon2entries.items():
-                    writer2.put(key_canon.encode("utf-8"), value_entries)
+        for file_name, key2entries in (("jumandic.db", surf2entries), ("jumandic_canon.db", canon2entries)):
+            with out_dir.joinpath(file_name).open(mode="wb") as f, cdblib.Writer(f) as writer:
+                for key, packed_entries in key2entries.items():
+                    writer.put(key.encode("utf-8"), packed_entries)
 
         out_dir.joinpath("grammar.json").write_text(
             json.dumps(
-                {
-                    "id2reading": _build_reverse_lookup(reading2id),
-                    "id2lemma": _build_reverse_lookup(lemma2id),
-                    "id2pos": _build_reverse_lookup(pos2id),
-                    "id2subpos": _build_reverse_lookup(subpos2id),
-                    "id2conjtype": _build_reverse_lookup(conjtype2id),
-                    "id2conjform": _build_reverse_lookup(conjform2id),
-                    "id2semantics": _build_reverse_lookup(semantics2id),
-                },
-                ensure_ascii=False,
+                {f"id2{field}": list(value2id) for field, value2id in field2value2id.items()}, ensure_ascii=False
             ),
             encoding="utf-8",
         )
