@@ -24,41 +24,33 @@ def test_download_checkpoint_downloads_from_huggingface_hub(
 
     monkeypatch.setattr(utils, "hf_hub_download", fake_hf_hub_download)
     monkeypatch.setattr(utils, "_get_model_version", lambda: "v2.4")
+    monkeypatch.setenv(utils.ENV_KWJA_CACHE_DIR, str(tmp_path))
 
-    checkpoint_path = utils.download_checkpoint(
-        module="typo",
-        model_size=ModelSize.TINY,
-        checkpoint_dir=tmp_path,
-        progress=progress,
-    )
+    checkpoint_path = utils.download_checkpoint(module="typo", model_size=ModelSize.TINY, progress=progress)
 
-    assert checkpoint_path == tmp_path / "typo_deberta-v2-tiny-wwm.ckpt"
+    assert checkpoint_path == tmp_path / "v2.4" / "typo_deberta-v2-tiny-wwm.ckpt"
     assert captured_kwargs == {
         "repo_id": "ku-nlp/kwja-checkpoints",
         "filename": "typo_deberta-v2-tiny-wwm.ckpt",
         "revision": "v2.4",
-        "local_dir": tmp_path,
+        "local_dir": tmp_path / "v2.4",
     }
     assert ("Downloading:" in capsys.readouterr().err) == progress
 
 
 def test_download_checkpoint_skips_existing_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    checkpoint_path = tmp_path / "char_deberta-v2-base-wwm.ckpt"
+    checkpoint_path = tmp_path / "v2.4" / "char_deberta-v2-base-wwm.ckpt"
+    checkpoint_path.parent.mkdir()
     checkpoint_path.write_text("checkpoint", encoding="utf-8")
 
     def fake_hf_hub_download(**_kwargs: object) -> str:
         raise AssertionError("hf_hub_download should not be called")
 
     monkeypatch.setattr(utils, "hf_hub_download", fake_hf_hub_download)
+    monkeypatch.setattr(utils, "_get_model_version", lambda: "v2.4")
+    monkeypatch.setenv(utils.ENV_KWJA_CACHE_DIR, str(tmp_path))
 
-    assert (
-        utils.download_checkpoint(
-            module="char",
-            model_size=ModelSize.BASE,
-            checkpoint_dir=tmp_path,
-        )
-        == checkpoint_path
-    )
+    assert utils.download_checkpoint(module="char", model_size=ModelSize.BASE) == checkpoint_path
 
 
 def test_hf_hub_download_disables_progress_temporarily(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
