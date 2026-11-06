@@ -3,12 +3,12 @@ from typing import Any
 
 import pytest
 
-from kwja.utils.sub_document import SequenceSplitter, SpanCandidate
+from kwja.utils.sub_document import SequenceSplitter
 
 
 def test_split_spans() -> None:
     splitter = SequenceSplitter(sequence_lengths=[20, 40, 30, 50, 20, 50], max_length=100, stride=1)
-    actual_spans = list(splitter.split_into_spans())
+    actual_spans = [span for span, _ in splitter.split_into_spans()]
     expected_spans = [
         (0, 3),  # [20, 40, 30]
         (2, 4),  # [30, 50]
@@ -16,20 +16,18 @@ def test_split_spans() -> None:
         (4, 6),  # [20, 50]
     ]
     for actual_span, expected_span in zip(actual_spans, expected_spans, strict=True):
-        assert isinstance(actual_span, SpanCandidate)
         assert (actual_span.start, actual_span.end) == expected_span
 
 
 def test_split_spans_auto_stride() -> None:
     splitter = SequenceSplitter(sequence_lengths=[20, 40, 30, 50, 20, 50], max_length=100, stride=-1)
-    actual_spans = list(splitter.split_into_spans())
+    actual_spans = [span for span, _ in splitter.split_into_spans()]
     expected_spans = [
         (0, 3),  # [20, 40, 30]
         (3, 5),  # [50, 20]
         (5, 6),  # [50]
     ]
     for actual_span, expected_span in zip(actual_spans, expected_spans, strict=True):
-        assert isinstance(actual_span, SpanCandidate)
         assert (actual_span.start, actual_span.end) == expected_span
 
 
@@ -54,11 +52,7 @@ def test_split_conditions(case: dict[str, Any]) -> None:
     splitter = SequenceSplitter(sequence_lengths, max_length, stride)
     sequence_ids = list(range(len(sequence_lengths)))
     union_ids = set()
-    for idx, item in enumerate(splitter.split_into_spans(return_candidates=True)):
-        assert isinstance(item, tuple)
-        span: SpanCandidate
-        candidates: list[SpanCandidate]
-        span, candidates = item
+    for idx, (span, candidates) in enumerate(splitter.split_into_spans()):
         assert 0 <= span.start < span.end <= len(sequence_lengths)  # start and end index are in valid range
         union_ids.update(sequence_ids[span.start : span.end])
         if span.length > max_length:
@@ -66,15 +60,17 @@ def test_split_conditions(case: dict[str, Any]) -> None:
             assert span.end - span.start == 1
             assert all(c.length > max_length for c in candidates)  # all the candidate lengths exceed the max length
             continue
-        candidates = [c for c in candidates if c.length <= max_length]
+        fitting_candidates = [c for c in candidates if c.length <= max_length]
 
         if idx > 0:
             if span.stride != stride:
                 # corner case: the stride of a single item is not the desired stride
-                assert all(c.stride != stride for c in candidates)  # no other sub-sequence has the desired stride
+                assert all(
+                    c.stride != stride for c in fitting_candidates
+                )  # no other sub-sequence has the desired stride
                 continue
-            candidates = [c for c in candidates if c.stride == stride]
-        assert all(c.length <= span.length for c in candidates)  # the length of each sub-sequence is maximized
+            fitting_candidates = [c for c in fitting_candidates if c.stride == stride]
+        assert all(c.length <= span.length for c in fitting_candidates)  # the length of each sub-sequence is maximized
     assert union_ids == set(sequence_ids)  # all sequence ids are covered
 
 
@@ -94,11 +90,7 @@ def test_split_conditions_auto_stride(case: dict[str, Any]) -> None:
     splitter = SequenceSplitter(sequence_lengths, max_length, stride=-1)
     sequence_ids = list(range(len(sequence_lengths)))
     concatenated_ids = []
-    for item in splitter.split_into_spans(return_candidates=True):
-        assert isinstance(item, tuple)
-        span: SpanCandidate
-        candidates: list[SpanCandidate]
-        span, candidates = item
+    for span, candidates in splitter.split_into_spans():
         assert len(candidates) == 1
         assert span == candidates[0]
         assert 0 <= span.start < span.end <= len(sequence_lengths)  # start and end index are in valid range
