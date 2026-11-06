@@ -23,7 +23,7 @@ import kwja
 from kwja.cli.config import CLIConfig, Device, ModelSize, get_kwja_config_file
 from kwja.cli.utils import download_checkpoint, prepare_device
 from kwja.datamodule.datamodule import DataModule
-from kwja.datamodule.datasets.utils import add_doc_ids, add_sent_ids
+from kwja.datamodule.datasets.utils import add_doc_ids, add_sent_ids, chunk_raw_text_by_document
 from kwja.modules import CharModule, Seq2SeqModule, TypoModule, WordModule
 from kwja.modules.base import BaseModule
 from kwja.utils.logging_util import CONSOLE, filter_logs
@@ -275,15 +275,7 @@ def _chunk_by_document(f: TextIO, input_format: InputFormat) -> Iterator[str]:
     if input_format in (InputFormat.JUMANPP, InputFormat.KNP):
         yield from chunk_by_document(f)
     elif input_format == InputFormat.RAW:
-        buff: str = ""
-        for line in f:
-            if line.strip() == "EOD":
-                yield buff.rstrip()
-                buff = ""
-            else:
-                buff += line
-        if buff.rstrip() != "":
-            yield buff.rstrip()
+        yield from chunk_raw_text_by_document(f)
     else:
         raise AssertionError  # unreachable
 
