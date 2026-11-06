@@ -24,9 +24,6 @@ class DummyModuleMetric:
     def reset(self) -> None:
         pass
 
-    def pad(self, *args: Any, **kwargs: Any) -> None:
-        pass
-
     def set_properties(self, *args: Any, **kwargs: Any) -> None:
         pass
 
