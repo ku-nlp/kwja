@@ -8,7 +8,7 @@ from seqeval.scheme import IOB2
 from kwja.callbacks.utils import convert_char_predictions_into_tags, set_morphemes, set_sentences
 from kwja.datamodule.datasets import CharDataset
 from kwja.metrics.base import BaseModuleMetric
-from kwja.metrics.utils import unique_indices
+from kwja.metrics.utils import first_occurrence_indices
 from kwja.utils.constants import IGNORE_INDEX, WORD_NORM_OP_TAGS
 from kwja.utils.sub_document import to_orig_doc_id
 
@@ -46,12 +46,13 @@ class CharModuleMetric(BaseModuleMetric):
     def compute(self) -> dict[str, float]:
         if not isinstance(self.example_ids, torch.Tensor):
             self.example_ids = torch.cat(self.example_ids, dim=0)
-        sorted_indices = unique_indices(self.example_ids)
+        indices = first_occurrence_indices(self.example_ids)  # drop examples duplicated by DistributedSampler
+        indices = indices[self.example_ids[indices].argsort()]  # restore the dataset order
         for state_name in self.STATE_NAMES:
             state = getattr(self, state_name)
             if not isinstance(state, torch.Tensor):
                 state = torch.cat(state, dim=0)
-            setattr(self, state_name, state[sorted_indices])
+            setattr(self, state_name, state[indices])
 
         predicted_documents, partly_gold_documents, gold_documents = self._build_documents()
 
