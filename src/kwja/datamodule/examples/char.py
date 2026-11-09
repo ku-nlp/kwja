@@ -26,9 +26,7 @@ class CharExample:
         # ---------- word normalization ----------
         self.char_global_index2word_norm_op_tag: dict[int, str] = {}
 
-        self.normalizer: MorphemeNormalizer = MorphemeNormalizer()
-
-    def load_document(self, document: Document) -> None:
+    def load_document(self, document: Document, normalizer: MorphemeNormalizer) -> None:
         self.doc_id = document.doc_id
         offset: int = 0
         for sentence in document.sentences:
@@ -38,7 +36,7 @@ class CharExample:
             for morpheme in sentence.morphemes:
                 self._set_sent_segmentation_tag(morpheme, offset)
                 self._set_word_segmentation_tag(morpheme, offset)
-                self._set_word_norm_op_tag(morpheme, offset)
+                self._set_word_norm_op_tag(morpheme, offset, normalizer)
                 offset += len(morpheme.text)
 
     def _set_sent_segmentation_tag(self, morpheme: Morpheme, offset: int) -> None:
@@ -53,8 +51,8 @@ class CharExample:
                 "B" if char_index_in_morpheme == 0 else "I"
             )
 
-    def _set_word_norm_op_tag(self, morpheme: Morpheme, offset: int) -> None:
-        word_norm_op_tags = self.normalizer.get_word_norm_op_tags(morpheme)
+    def _set_word_norm_op_tag(self, morpheme: Morpheme, offset: int, normalizer: MorphemeNormalizer) -> None:
+        word_norm_op_tags = normalizer.get_word_norm_op_tags(morpheme)
         if IGNORE_WORD_NORM_OP_TAG in word_norm_op_tags:
             logger.warning(f"Skipping word normalization labels for {morpheme.surf} (S-ID:{morpheme.sentence.sid})")
         for char_index_in_morpheme, word_norm_op_tag in enumerate(word_norm_op_tags):

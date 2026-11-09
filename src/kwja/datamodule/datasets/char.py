@@ -17,7 +17,7 @@ from kwja.utils.constants import (
 )
 from kwja.utils.logging_util import track
 from kwja.utils.normalization import normalize_morpheme
-from kwja.utils.word_normalization import SentenceDenormalizer
+from kwja.utils.word_normalization import MorphemeNormalizer, SentenceDenormalizer
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +55,7 @@ class CharDataset(BaseDataset[CharExample, CharModuleFeatures], FullAnnotatedDoc
     def _load_examples(self, doc_id2document: dict[str, Document]) -> list[CharExample]:
         examples = []
         example_id = 0
+        normalizer = MorphemeNormalizer()
         for document in track(doc_id2document.values(), description="Loading examples"):
             encoding: BatchEncoding = self.tokenizer(
                 document.text,
@@ -67,7 +68,7 @@ class CharDataset(BaseDataset[CharExample, CharModuleFeatures], FullAnnotatedDoc
                 continue
 
             example = CharExample(example_id, encoding)
-            example.load_document(document)
+            example.load_document(document, normalizer)
             examples.append(example)
             example_id += 1
         if len(examples) == 0:

@@ -1,8 +1,9 @@
 import torch
 
 
-def unique_indices(x: torch.Tensor, dim: int | None = None) -> torch.Tensor:
-    output, inverse_indices = torch.unique(x, sorted=True, return_inverse=True, dim=dim)
-    arange = torch.arange(inverse_indices.size(0), dtype=inverse_indices.dtype, device=inverse_indices.device)
-    inverse_indices, arange = inverse_indices.flip([0]), arange.flip([0])
-    return inverse_indices.new_empty(output.size(0)).scatter_(0, inverse_indices, arange)
+def first_occurrence_indices(x: torch.Tensor) -> torch.Tensor:
+    """Indices of the first occurrence of each distinct value in a 1-D tensor, in order of position."""
+    unique_values, inverse = torch.unique(x, return_inverse=True)
+    positions = torch.arange(x.numel(), device=x.device)
+    first = torch.full((unique_values.numel(),), x.numel(), dtype=positions.dtype, device=x.device)
+    return first.scatter_reduce(0, inverse, positions, reduce="amin").sort().values

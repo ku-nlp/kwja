@@ -1,11 +1,11 @@
 import os
 from importlib.resources import as_file
-from statistics import mean
 from typing import TYPE_CHECKING, Any, cast
 
 import hydra
 import torch
 from omegaconf import DictConfig
+from torch.utils.data import Dataset
 from transformers import PreTrainedModel
 
 from kwja.modules.base import BaseModule
@@ -65,49 +65,12 @@ class TypoModule(BaseModule[TypoModuleMetric]):
         self.log("train/ins_loss", ins_loss)
         return kdr_loss + ins_loss
 
-    def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:  # noqa: ARG002
-        kwargs = self.predict_step(batch)
-        kwargs.update({"kdr_labels": batch["kdr_labels"], "ins_labels": batch["ins_labels"]})
-        metric = self.valid_corpus2metric[self.valid_corpora[dataloader_idx]]
-        metric.update(kwargs)
+    def _get_metric_inputs(self, batch: Any) -> dict[str, torch.Tensor]:
+        return {**self.predict_step(batch), "kdr_labels": batch["kdr_labels"], "ins_labels": batch["ins_labels"]}
 
-    def on_validation_epoch_end(self) -> None:
-        metrics_log: dict[str, dict[str, float]] = {}
-        val_dataloaders = self.trainer.val_dataloaders
-        assert val_dataloaders is not None  # noqa: S101
-        for corpus, metric in self.valid_corpus2metric.items():
-            dataset = val_dataloaders[corpus].dataset
-            metric.set_properties({"dataset": dataset})
-            metrics_log[corpus] = metric.compute()
-            metric.reset()
-
-        for corpus, metrics in metrics_log.items():
-            self.log_dict({f"valid_{corpus}/{key}": value for key, value in metrics.items()})
-        for key in next(iter(metrics_log.values())).keys():
-            mean_score = mean(metrics_log[corpus][key] for corpus in self.valid_corpora if key in metrics_log[corpus])
-            self.log(f"valid/{key}", mean_score)
-
-    def test_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:  # noqa: ARG002
-        kwargs = self.predict_step(batch)
-        kwargs.update({"kdr_labels": batch["kdr_labels"], "ins_labels": batch["ins_labels"]})
-        metric = self.test_corpus2metric[self.test_corpora[dataloader_idx]]
-        metric.update(kwargs)
-
-    def on_test_epoch_end(self) -> None:
-        metrics_log: dict[str, dict[str, float]] = {}
-        test_dataloaders = self.trainer.test_dataloaders
-        assert test_dataloaders is not None  # noqa: S101
-        for corpus, metric in self.test_corpus2metric.items():
-            dataset = test_dataloaders[corpus].dataset
-            metric.set_properties({"dataset": dataset})
-            metrics_log[corpus] = metric.compute()
-            metric.reset()
-
-        for corpus, metrics in metrics_log.items():
-            self.log_dict({f"test_{corpus}/{key}": value for key, value in metrics.items()})
-        for key in next(iter(metrics_log.values())).keys():
-            mean_score = mean(metrics_log[corpus][key] for corpus in self.test_corpora if key in metrics_log[corpus])
-            self.log(f"test/{key}", mean_score)
+    def _compute_metrics(self, corpus: str, metric: TypoModuleMetric, dataset: Dataset) -> dict[str, float]:  # noqa: ARG002
+        metric.set_properties({"dataset": dataset})
+        return metric.compute()
 
     def predict_step(self, batch: Any) -> dict[str, torch.Tensor]:
         ret: dict[str, torch.Tensor] = self(batch)

@@ -1,36 +1,19 @@
 import torch
 
 from kwja.metrics.base import BaseModuleMetric
-from kwja.metrics.utils import unique_indices
 
 
 class Seq2SeqModuleMetric(BaseModuleMetric):
-    STATE_NAMES = (
-        "example_ids",
-        "loss",
-    )
+    STATE_NAMES = ("loss",)
 
     def __init__(self, max_seq_length: int) -> None:
         super().__init__(max_seq_length)
-        self.example_ids: torch.Tensor
         self.loss: torch.Tensor
 
     def _pad(self, kwargs: dict[str, torch.Tensor]) -> None:
         pass
 
     def compute(self) -> dict[str, float]:
-        if not isinstance(self.example_ids, torch.Tensor):
-            self.example_ids = torch.cat(self.example_ids, dim=0)
-        sorted_indices = unique_indices(self.example_ids)
-        for state_name in self.STATE_NAMES:
-            state = getattr(self, state_name)
-            if not isinstance(state, torch.Tensor):
-                if state_name != "loss":
-                    state = torch.cat(state, dim=0)
-                else:
-                    state = torch.stack(state, dim=0)
-                    setattr(self, state_name, state[sorted_indices])
-            if state_name != "loss":
-                setattr(self, state_name, state[sorted_indices])
-
-        return {"seq2seq_loss": self.loss.mean().item()}
+        # The loss is a scalar per batch; distributed sync concatenates the list into a tensor beforehand.
+        loss = self.loss if isinstance(self.loss, torch.Tensor) else torch.stack(self.loss)
+        return {"seq2seq_loss": loss.mean().item()}

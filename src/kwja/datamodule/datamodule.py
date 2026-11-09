@@ -59,9 +59,6 @@ class DataModule(L.LightningDataModule):
         self.test_datasets: dict[str, DatasetType] = {}
         self.predict_dataset: DatasetType | None = None
 
-    def prepare_data(self) -> None:
-        pass
-
     def setup(self, stage: str | None = None) -> None:
         if stage == TrainerFn.FITTING:
             self.train_dataset = ConcatDataset(self._get_dataset(config) for config in self.cfg.train.values())

@@ -1,11 +1,11 @@
 import os
-from functools import reduce
 from statistics import mean
 from typing import TYPE_CHECKING, Any, cast
 
 import hydra
 import torch
 from omegaconf import DictConfig
+from torch.utils.data import Dataset
 from transformers import PretrainedConfig, PreTrainedModel
 
 from kwja.modules.base import BaseModule
@@ -212,77 +212,23 @@ class WordModule(BaseModule[WordModuleMetric]):
         self.log_dict({f"train/{key}": value for key, value in loss_log.items()})
         return torch.stack(list(loss_log.values())).sum()
 
-    def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:  # noqa: ARG002
-        kwargs = self.predict_step(batch)
-        kwargs.update({"discourse_labels": batch["discourse_labels"]})
-        metric: WordModuleMetric = self.valid_corpus2metric[self.valid_corpora[dataloader_idx]]
-        metric.update(kwargs)
+    def _get_metric_inputs(self, batch: Any) -> dict[str, torch.Tensor]:
+        return {**self.predict_step(batch), "discourse_labels": batch["discourse_labels"]}
 
-    def on_validation_epoch_end(self) -> None:
-        metrics_log: dict[str, dict[str, float]] = {}
-        val_dataloaders = self.trainer.val_dataloaders
-        assert val_dataloaders is not None  # noqa: S101
-        for corpus, metric in self.valid_corpus2metric.items():
-            metric.set_properties(
-                {
-                    "dataset": val_dataloaders[corpus].dataset,
-                    "reading_id2reading": self.reading_id2reading,
-                    "training_tasks": self.training_tasks,
-                }
-            )
-            metrics = metric.compute()
-            if corpus != "kwdlc":
-                # discourse labels are available only for KWDLC
-                metrics = {
-                    key: value for key, value in metrics.items() if not key.startswith("discourse_relation_analysis")
-                }
-            metrics["aggregated_word_metrics"] = mean(
-                metrics[key] for key in self.hparams.aggregating_metrics if key in metrics
-            )
-            metrics_log[corpus] = metrics
-            metric.reset()
-
-        for corpus, metrics in metrics_log.items():
-            self.log_dict({f"valid_{corpus}/{key}": value for key, value in metrics.items()})
-        for key in reduce(set.union, [set(metrics.keys()) for metrics in metrics_log.values()]):
-            mean_score = mean(metrics_log[corpus][key] for corpus in self.valid_corpora if key in metrics_log[corpus])
-            self.log(f"valid/{key}", mean_score)
-
-    def test_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:  # noqa: ARG002
-        kwargs = self.predict_step(batch)
-        kwargs.update({"discourse_labels": batch["discourse_labels"]})
-        metric: WordModuleMetric = self.test_corpus2metric[self.test_corpora[dataloader_idx]]
-        metric.update(kwargs)
-
-    def on_test_epoch_end(self) -> None:
-        metrics_log: dict[str, dict[str, float]] = {}
-        test_dataloaders = self.trainer.test_dataloaders
-        assert test_dataloaders is not None  # noqa: S101
-        for corpus, metric in self.test_corpus2metric.items():
-            metric.set_properties(
-                {
-                    "dataset": test_dataloaders[corpus].dataset,
-                    "reading_id2reading": self.reading_id2reading,
-                    "training_tasks": self.training_tasks,
-                }
-            )
-            metrics = metric.compute()
-            if corpus != "kwdlc":
-                # discourse labels are available only for KWDLC
-                metrics = {
-                    key: value for key, value in metrics.items() if not key.startswith("discourse_relation_analysis")
-                }
-            metrics["aggregated_word_metrics"] = mean(
-                metrics[key] for key in self.hparams.aggregating_metrics if key in metrics
-            )
-            metrics_log[corpus] = metrics
-            metric.reset()
-
-        for corpus, metrics in metrics_log.items():
-            self.log_dict({f"test_{corpus}/{key}": value for key, value in metrics.items()})
-        for key in reduce(set.union, [set(metrics.keys()) for metrics in metrics_log.values()]):
-            mean_score = mean(metrics_log[corpus][key] for corpus in self.test_corpora if key in metrics_log[corpus])
-            self.log(f"test/{key}", mean_score)
+    def _compute_metrics(self, corpus: str, metric: WordModuleMetric, dataset: Dataset) -> dict[str, float]:
+        metric.set_properties(
+            {"dataset": dataset, "reading_id2reading": self.reading_id2reading, "training_tasks": self.training_tasks}
+        )
+        metrics = metric.compute()
+        if corpus != "kwdlc":
+            # discourse labels are available only for KWDLC
+            metrics = {
+                key: value for key, value in metrics.items() if not key.startswith("discourse_relation_analysis")
+            }
+        metrics["aggregated_word_metrics"] = mean(
+            metrics[key] for key in self.hparams.aggregating_metrics if key in metrics
+        )
+        return metrics
 
     def predict_step(self, batch: Any) -> dict[str, torch.Tensor]:
         batch["step"] = "predict"

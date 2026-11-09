@@ -1,7 +1,6 @@
 import logging
 import os
 import sys
-from abc import ABC
 from collections.abc import Iterator
 from enum import StrEnum
 from functools import partial
@@ -24,8 +23,9 @@ import kwja
 from kwja.cli.config import CLIConfig, Device, ModelSize, get_kwja_config_file
 from kwja.cli.utils import download_checkpoint, prepare_device
 from kwja.datamodule.datamodule import DataModule
-from kwja.datamodule.datasets.utils import add_doc_ids, add_sent_ids
+from kwja.datamodule.datasets.utils import add_doc_ids, add_sent_ids, chunk_raw_text_by_document
 from kwja.modules import CharModule, Seq2SeqModule, TypoModule, WordModule
+from kwja.modules.base import BaseModule
 from kwja.utils.logging_util import CONSOLE, filter_logs
 from kwja.utils.normalization import normalize_text
 
@@ -77,7 +77,9 @@ class _KeepModelOnDeviceStrategy(SingleDeviceStrategy):
         self.checkpoint_io.teardown()
 
 
-class BaseModuleProcessor(ABC):
+class BaseModuleProcessor:
+    module_name: str
+    module_cls: type[BaseModule]
     input_format: InputFormat
 
     def __init__(self, config: CLIConfig, batch_size: int) -> None:
@@ -91,7 +93,13 @@ class BaseModuleProcessor(ABC):
         self.trainer: L.Trainer | None = None
 
     def load(self, keep_model_on_device: bool = False) -> None:
-        self.module = self._load_module()
+        logger.info(f"Loading {self.module_name} module")
+        checkpoint_path = download_checkpoint(
+            module=self.module_name, model_size=self.model_size, progress=not CONSOLE.quiet
+        )
+        self.module = self.module_cls.fast_load_from_checkpoint(
+            checkpoint_path, map_location=self.device, accelerator=self.accelerator
+        )
         if self.config.torch_compile:
             self.module: L.LightningModule = torch.compile(self.module)  # ty: ignore[invalid-assignment]
         self.module.hparams.datamodule.batch_size = self.batch_size  # type: ignore[union-attr]
@@ -119,27 +127,27 @@ class BaseModuleProcessor(ABC):
             destination=self.destination,
         )
 
-    def _load_module(self) -> L.LightningModule:
-        raise NotImplementedError
-
     def _rename_modules_for_backward_compatibility(self) -> None:
         assert self.module is not None  # noqa: S101
-        progress_bar_target = self.module.hparams.callbacks.progress_bar._target_
-        if progress_bar_target.startswith("pytorch_lightning"):
-            self.module.hparams.callbacks.progress_bar._target_ = progress_bar_target.replace(
-                "pytorch_lightning", "lightning.pytorch"
-            )
-        prediction_writer_target = self.module.hparams.callbacks.prediction_writer._target_
-        if prediction_writer_target.startswith("pytorch_lightning"):
-            self.module.hparams.callbacks.prediction_writer._target_ = prediction_writer_target.replace(
-                "pytorch_lightning", "lightning.pytorch"
-            )
+        callbacks_cfg = self.module.hparams.callbacks
+        for callback_cfg in (callbacks_cfg.progress_bar, callbacks_cfg.prediction_writer):
+            if callback_cfg._target_.startswith("pytorch_lightning"):
+                callback_cfg._target_ = callback_cfg._target_.replace("pytorch_lightning", "lightning.pytorch")
 
     def delete_module_and_trainer(self) -> None:
         del self.module, self.trainer
 
     def apply_module(self, input_file: Path) -> None:
-        datamodule = self._load_datamodule(input_file)
+        assert self.module is not None  # noqa: S101
+        predict_cfg = self.module.hparams.datamodule.predict
+        if self.input_format == InputFormat.RAW:
+            predict_cfg.raw_text_file = input_file
+        elif self.input_format == InputFormat.JUMANPP:
+            predict_cfg.juman_file = input_file
+        else:
+            raise AssertionError  # unreachable
+        datamodule = DataModule(cfg=self.module.hparams.datamodule)
+        datamodule.setup(stage=TrainerFn.PREDICTING)
         assert datamodule.predict_dataset is not None  # noqa: S101
         if len(datamodule.predict_dataset) == 0:
             self.destination.write_text("", encoding="utf-8")
@@ -147,60 +155,24 @@ class BaseModuleProcessor(ABC):
         assert self.trainer is not None  # noqa: S101
         self.trainer.predict(model=self.module, dataloaders=[datamodule.predict_dataloader()], return_predictions=False)
 
-    def _load_datamodule(self, input_file: Path) -> DataModule:
-        raise NotImplementedError
-
     def export_prediction(self) -> str:
         raise NotImplementedError
 
 
 class TypoModuleProcessor(BaseModuleProcessor):
+    module_name = "typo"
+    module_cls = TypoModule
     input_format = InputFormat.RAW
 
-    def _load_module(self) -> L.LightningModule:
-        logger.info("Loading typo module")
-        checkpoint_path: Path = download_checkpoint(
-            module="typo", model_size=self.model_size, progress=not CONSOLE.quiet
-        )
-        return TypoModule.fast_load_from_checkpoint(
-            checkpoint_path, map_location=self.device, accelerator=self.accelerator
-        )
-
-    def _load_datamodule(self, input_file: Path) -> DataModule:
-        assert self.module is not None  # noqa: S101
-        self.module.hparams.datamodule.predict.raw_text_file = input_file
-        datamodule = DataModule(cfg=self.module.hparams.datamodule)
-        datamodule.setup(stage=TrainerFn.PREDICTING)
-        return datamodule
-
     def export_prediction(self) -> str:
-        output_text = ""
-        for line in self.destination.read_text(encoding="utf-8").strip().split("\n"):
-            if line.startswith("# D-ID:"):
-                pass
-            else:
-                output_text += line + "\n"
-        return output_text
+        lines = self.destination.read_text(encoding="utf-8").strip().split("\n")
+        return "".join(line + "\n" for line in lines if not line.startswith("# D-ID:"))
 
 
 class CharModuleProcessor(BaseModuleProcessor):
+    module_name = "char"
+    module_cls = CharModule
     input_format = InputFormat.RAW
-
-    def _load_module(self) -> L.LightningModule:
-        logger.info("Loading char module")
-        checkpoint_path: Path = download_checkpoint(
-            module="char", model_size=self.model_size, progress=not CONSOLE.quiet
-        )
-        return CharModule.fast_load_from_checkpoint(
-            checkpoint_path, map_location=self.device, accelerator=self.accelerator
-        )
-
-    def _load_datamodule(self, input_file: Path) -> DataModule:
-        assert self.module is not None  # noqa: S101
-        self.module.hparams.datamodule.predict.raw_text_file = input_file
-        datamodule = DataModule(cfg=self.module.hparams.datamodule)
-        datamodule.setup(stage=TrainerFn.PREDICTING)
-        return datamodule
 
     def export_prediction(self) -> str:
         export_text = ""
@@ -214,29 +186,17 @@ class CharModuleProcessor(BaseModuleProcessor):
 
 
 class Seq2SeqModuleProcessor(BaseModuleProcessor):
+    module_name = "seq2seq"
+    module_cls = Seq2SeqModule
     input_format = InputFormat.JUMANPP
-
-    def _load_module(self) -> L.LightningModule:
-        logger.info("Loading seq2seq module")
-        checkpoint_path: Path = download_checkpoint(
-            module="seq2seq", model_size=self.model_size, progress=not CONSOLE.quiet
-        )
-        return Seq2SeqModule.fast_load_from_checkpoint(
-            checkpoint_path, map_location=self.device, accelerator=self.accelerator
-        )
-
-    def _load_datamodule(self, input_file: Path) -> DataModule:
-        assert self.module is not None  # noqa: S101
-        self.module.hparams.datamodule.predict.juman_file = input_file
-        datamodule = DataModule(cfg=self.module.hparams.datamodule)
-        datamodule.setup(stage=TrainerFn.PREDICTING)
-        return datamodule
 
     def export_prediction(self) -> str:
         return self.destination.read_text(encoding="utf-8")
 
 
 class WordModuleProcessor(BaseModuleProcessor):
+    module_name = "word"
+    module_cls = WordModule
     input_format = InputFormat.JUMANPP
 
     def __init__(self, config: CLIConfig, batch_size: int, from_seq2seq: bool) -> None:
@@ -250,22 +210,6 @@ class WordModuleProcessor(BaseModuleProcessor):
             destination=self.destination,
             preserve_reading_lemma_canon=self.from_seq2seq,
         )
-
-    def _load_module(self) -> L.LightningModule:
-        logger.info("Loading word module")
-        checkpoint_path: Path = download_checkpoint(
-            module="word", model_size=self.model_size, progress=not CONSOLE.quiet
-        )
-        return WordModule.fast_load_from_checkpoint(
-            checkpoint_path, map_location=self.device, accelerator=self.accelerator
-        )
-
-    def _load_datamodule(self, input_file: Path) -> DataModule:
-        assert self.module is not None  # noqa: S101
-        self.module.hparams.datamodule.predict.juman_file = input_file
-        datamodule = DataModule(cfg=self.module.hparams.datamodule)
-        datamodule.setup(stage=TrainerFn.PREDICTING)
-        return datamodule
 
     def export_prediction(self) -> str:
         return self.destination.read_text(encoding="utf-8")
@@ -331,15 +275,7 @@ def _chunk_by_document(f: TextIO, input_format: InputFormat) -> Iterator[str]:
     if input_format in (InputFormat.JUMANPP, InputFormat.KNP):
         yield from chunk_by_document(f)
     elif input_format == InputFormat.RAW:
-        buff: str = ""
-        for line in f:
-            if line.strip() == "EOD":
-                yield buff.rstrip()
-                buff = ""
-            else:
-                buff += line
-        if buff.rstrip() != "":
-            yield buff.rstrip()
+        yield from chunk_raw_text_by_document(f)
     else:
         raise AssertionError  # unreachable
 

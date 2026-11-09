@@ -23,7 +23,7 @@ from kwja.callbacks.utils import (  # add_discourse,
 from kwja.datamodule.datasets import WordDataset
 from kwja.metrics.base import BaseModuleMetric
 from kwja.metrics.conll18_ud_eval import main as conll18_ud_eval
-from kwja.metrics.utils import unique_indices
+from kwja.metrics.utils import first_occurrence_indices
 from kwja.utils.constants import (
     BASE_PHRASE_FEATURES,
     CONJFORM_TAGS,
@@ -107,14 +107,15 @@ class WordModuleMetric(BaseModuleMetric):
         if not isinstance(self.example_ids, torch.Tensor):
             self.example_ids = torch.cat(self.example_ids, dim=0)
 
-        sorted_indices = unique_indices(self.example_ids)
+        indices = first_occurrence_indices(self.example_ids)  # drop examples duplicated by DistributedSampler
+        indices = indices[self.example_ids[indices].argsort()]  # restore the dataset order
         for state_name in self.STATE_NAMES:
             state = getattr(self, state_name)
             if not isinstance(state, torch.Tensor):
                 state = torch.cat(state, dim=0)
             if state_name == "reading_subword_map":
                 state = state.bool()
-            setattr(self, state_name, state[sorted_indices])
+            setattr(self, state_name, state[indices])
 
         predicted_documents, partly_gold_document1, partly_gold_document2, gold_documents = self._build_documents()
 
