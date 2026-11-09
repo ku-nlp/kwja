@@ -64,7 +64,7 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
         return ret["loss"]
 
     def _get_metric_inputs(self, batch: Any) -> dict[str, torch.Tensor]:
-        return {**self(batch), "example_ids": batch["example_ids"]}
+        return self(batch)
 
     def predict_step(self, batch: Any) -> dict[str, Any]:
         assert isinstance(self.encoder_decoder, GenerationMixin)  # noqa: S101
