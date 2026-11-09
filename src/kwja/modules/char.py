@@ -78,8 +78,9 @@ class CharModule(BaseModule[CharModuleMetric]):
     def _get_metric_inputs(self, batch: Any) -> dict[str, torch.Tensor]:
         return {**self.predict_step(batch), "word_norm_op_labels": batch["word_norm_op_labels"]}
 
-    def _compute_metrics(self, corpus: str, metric: CharModuleMetric, dataset: Dataset) -> dict[str, float]:
-        metrics = super()._compute_metrics(corpus, metric, dataset)
+    def _compute_metrics(self, corpus: str, metric: CharModuleMetric, dataset: Dataset) -> dict[str, float]:  # noqa: ARG002
+        metric.set_properties({"dataset": dataset})
+        metrics = metric.compute()
         metrics["aggregated_char_metrics"] = mean(
             metrics[key] for key in self.hparams.aggregating_metrics if key in metrics
         )

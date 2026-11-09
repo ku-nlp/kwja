@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any
 import hydra
 import torch
 from omegaconf import DictConfig
+from torch.utils.data import Dataset
 from transformers import PreTrainedModel, PreTrainedTokenizerFast
 from transformers.generation import GenerationMixin, LogitsProcessorList
 
@@ -65,6 +66,9 @@ class Seq2SeqModule(BaseModule[Seq2SeqModuleMetric]):
 
     def _get_metric_inputs(self, batch: Any) -> dict[str, torch.Tensor]:
         return self(batch)
+
+    def _compute_metrics(self, corpus: str, metric: Seq2SeqModuleMetric, dataset: Dataset) -> dict[str, float]:  # noqa: ARG002
+        return metric.compute()
 
     def predict_step(self, batch: Any) -> dict[str, Any]:
         assert isinstance(self.encoder_decoder, GenerationMixin)  # noqa: S101

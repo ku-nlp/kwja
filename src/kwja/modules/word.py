@@ -216,8 +216,10 @@ class WordModule(BaseModule[WordModuleMetric]):
         return {**self.predict_step(batch), "discourse_labels": batch["discourse_labels"]}
 
     def _compute_metrics(self, corpus: str, metric: WordModuleMetric, dataset: Dataset) -> dict[str, float]:
-        metric.set_properties({"reading_id2reading": self.reading_id2reading, "training_tasks": self.training_tasks})
-        metrics = super()._compute_metrics(corpus, metric, dataset)
+        metric.set_properties(
+            {"dataset": dataset, "reading_id2reading": self.reading_id2reading, "training_tasks": self.training_tasks}
+        )
+        metrics = metric.compute()
         if corpus != "kwdlc":
             # discourse labels are available only for KWDLC
             metrics = {

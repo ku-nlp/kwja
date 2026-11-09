@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, cast
 import hydra
 import torch
 from omegaconf import DictConfig
+from torch.utils.data import Dataset
 from transformers import PreTrainedModel
 
 from kwja.modules.base import BaseModule
@@ -66,6 +67,10 @@ class TypoModule(BaseModule[TypoModuleMetric]):
 
     def _get_metric_inputs(self, batch: Any) -> dict[str, torch.Tensor]:
         return {**self.predict_step(batch), "kdr_labels": batch["kdr_labels"], "ins_labels": batch["ins_labels"]}
+
+    def _compute_metrics(self, corpus: str, metric: TypoModuleMetric, dataset: Dataset) -> dict[str, float]:  # noqa: ARG002
+        metric.set_properties({"dataset": dataset})
+        return metric.compute()
 
     def predict_step(self, batch: Any) -> dict[str, torch.Tensor]:
         ret: dict[str, torch.Tensor] = self(batch)

@@ -82,9 +82,8 @@ class BaseModule(L.LightningModule, Generic[MetricType]):
         for key in dict.fromkeys(key for metrics in corpus2metrics.values() for key in metrics):
             self.log(f"{split}/{key}", mean(metrics[key] for metrics in corpus2metrics.values() if key in metrics))
 
-    def _compute_metrics(self, corpus: str, metric: MetricType, dataset: Dataset) -> dict[str, float]:  # noqa: ARG002
-        metric.set_properties({"dataset": dataset})
-        return metric.compute()
+    def _compute_metrics(self, corpus: str, metric: MetricType, dataset: Dataset) -> dict[str, float]:
+        raise NotImplementedError
 
     def configure_optimizers(self) -> OptimizerLRScheduler:
         # Split weights in two groups, one with weight decay and the other not.
